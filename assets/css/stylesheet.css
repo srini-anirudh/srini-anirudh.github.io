@@ -761,10 +761,12 @@ img {
 }
 
 .research-media {
-  width: 160px;
-  height: 160px;
-  object-fit: cover;
-  border-radius: 12px;
+  width: 180px;
+  height: 135px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--line);
   transition: opacity 0.3s ease;
 }
 
@@ -892,6 +894,12 @@ body.dark-mode .research-card:hover {
   .research-card-image {
     margin-right: 0;
     margin-bottom: 16px;
+  }
+
+  .research-media {
+    width: 100%;
+    max-width: 280px;
+    height: 170px;
   }
 }
 
