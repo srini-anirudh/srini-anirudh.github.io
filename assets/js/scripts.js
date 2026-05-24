@@ -79,9 +79,9 @@ if (navToggle && navLinks) {
  */
 function sendEmail() {
   // Obfuscated email parts
-  const user = "anirudh.srinivasan";
-  const domain = "tihiitb";
-  const tld = "org";
+  const user = "anirudhsrinivasan.tms";
+  const domain = "gmail";
+  const tld = "com";
 
   // Construct and open mailto link
   const email = user + "@" + domain + "." + tld;

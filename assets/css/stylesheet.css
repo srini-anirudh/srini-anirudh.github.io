@@ -491,13 +491,36 @@ span.highlight {
 }
 
 .site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px 16px;
   max-width: 800px;
   margin: 18px auto 36px;
   padding: 0 20px;
   color: #6a5b4a;
-  font-size: 14px;
-  text-align: center;
   box-sizing: border-box;
+}
+
+.site-footer span,
+.site-footer a {
+  font-size: 14px;
+}
+
+.site-footer span {
+  font-weight: 600;
+  color: var(--blue-dark);
+}
+
+.site-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.site-footer i {
+  color: var(--orange-dark);
 }
 
 .about-story p {
@@ -611,6 +634,14 @@ body.dark-mode a:hover {
 body.dark-mode .tagline,
 body.dark-mode .news-date,
 body.dark-mode .site-footer {
+  color: #ffbf73;
+}
+
+body.dark-mode .site-footer span {
+  color: #dbe7f3;
+}
+
+body.dark-mode .site-footer i {
   color: #ffbf73;
 }
 
