@@ -2,6 +2,16 @@ html {
   scroll-behavior: smooth;
 }
 
+:root {
+  --blue: #0b5ea8;
+  --blue-dark: #07457d;
+  --orange: #f28c18;
+  --orange-dark: #d66f00;
+  --surface: #fffaf3;
+  --surface-strong: #ffffff;
+  --line: #efd8bd;
+  --text: #243142;
+}
 
 body {
   margin: 0;
@@ -10,7 +20,8 @@ body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #faf9f7;
+  background-color: var(--surface);
+  color: var(--text);
 }
 
 
@@ -24,9 +35,9 @@ p {
 
 .navbar {
   width: 100%;
-  background-color: rgba(250, 249, 247, 0.9);
+  background-color: rgba(255, 250, 243, 0.92);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid #e8e6e3;
+  border-bottom: 1px solid var(--line);
   position: fixed;
   top: 0;
   left: 0;
@@ -59,7 +70,7 @@ p {
 .nav-logo {
   font-size: 19px;
   font-weight: 700;
-  color: #333;
+  color: var(--blue-dark);
   text-decoration: none;
 }
 
@@ -83,7 +94,7 @@ p {
 
 .nav-links a {
   font-size: 16.5px;
-  color: #333;
+  color: var(--text);
   text-decoration: none;
   transition: color 0.3s ease;
 }
@@ -91,7 +102,7 @@ p {
 .nav-links a:hover,
 .nav-links a.active,
 .nav-logo:hover {
-  color: #000;
+  color: var(--orange-dark);
 }
 
 .nav-links li a {
@@ -104,13 +115,13 @@ p {
   left: 0;
   bottom: -2px;
   height: 2px;
-  background-color: #000;
+  background-color: var(--orange);
   width: 0;
   transition: width 0.45s ease;
 }
 
 body.dark-mode .nav-links li a::after {
-  background-color: #fff;
+  background-color: var(--orange);
 }
 
 .nav-links li a:hover::after {
@@ -131,9 +142,9 @@ body.dark-mode .nav-links li a::after {
   font-size: 13px;
   font-weight: 500;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #1772d0;
+  color: var(--blue);
   background-color: transparent;
-  border: 1px solid #1772d0;
+  border: 1px solid var(--blue);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -143,34 +154,31 @@ body.dark-mode .nav-links li a::after {
 
 /* Light Mode Hover */
 .arxiv-button:hover {
-  background-color: #1772d0;
+  background-color: var(--blue);
   color: #fff;
   transform: translateY(-1px);
 }
 
 /* Dark Mode */
 body.dark-mode .arxiv-button {
-  color: #bb86fc;
-  /* Text color: Purple */
-  border: 1px solid #bb86fc;
-  /* Border: Purple */
+  color: #ffb45c;
+  border: 1px solid #ffb45c;
 }
 
 /* Dark Mode Hover */
 body.dark-mode .arxiv-button:hover {
-  background-color: #bb86fc;
-  /* Fill the button with purple */
-  color: #121212;
+  background-color: #ffb45c;
+  color: #071a2c;
 }
 
 /* Focus outline for accessibility */
 .arxiv-button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(23, 114, 208, 0.5);
+  box-shadow: 0 0 0 2px rgba(11, 94, 168, 0.45);
 }
 
 body.dark-mode .arxiv-button:focus {
-  box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.5);
+  box-shadow: 0 0 0 2px rgba(255, 180, 92, 0.45);
 }
 
 /** 
@@ -198,7 +206,7 @@ body.dark-mode .arxiv-button:focus {
     left: -250px;
     width: 250px;
     height: 100%;
-    background-color: #faf9f7;
+    background-color: var(--surface);
     padding-top: 60px;
     transition: left 0.3s ease;
     z-index: 1001;
@@ -208,17 +216,17 @@ body.dark-mode .arxiv-button:focus {
   }
 
   .navbar {
-    background-color: rgba(250, 249, 247, 0.98);
+    background-color: rgba(255, 250, 243, 0.98);
     backdrop-filter: none;
   }
 
   body.dark-mode .navbar {
-    background-color: rgba(30, 30, 30) !important;
+    background-color: rgba(7, 26, 44) !important;
     backdrop-filter: none !important;
   }
 
   body.dark-mode .nav-links {
-    background-color: #121212;
+    background-color: #071a2c;
   }
 
   .nav-links.show {
@@ -249,7 +257,7 @@ body.dark-mode .arxiv-button:focus {
   .nav-toggle .bar {
     width: 100%;
     height: 3px;
-    background-color: #333;
+    background-color: var(--blue-dark);
     transition: all 0.3s ease;
   }
 
@@ -310,16 +318,28 @@ body.dark-mode .arxiv-button:focus {
     flex-direction: column;
   }
 
+  .affiliation-item {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 12px;
+    text-align: left;
+  }
+
+  .affiliation-logo {
+    width: 46px;
+    height: 46px;
+    padding: 6px;
+  }
+
 }
 
 a {
-  color: #1772d0;
+  color: var(--blue);
   text-decoration: none;
 }
 
 a:focus,
 a:hover {
-  color: #0000ee;
+  color: var(--orange-dark);
   text-decoration: none;
 }
 
@@ -419,7 +439,7 @@ span.highlight {
 }
 
 .tagline {
-  color: #555;
+  color: var(--blue-dark);
   font-weight: 500;
 }
 
@@ -453,7 +473,7 @@ span.highlight {
 }
 
 .news-list {
-  border-top: 1px solid #e8e6e3;
+  border-top: 1px solid var(--line);
   padding-top: 10px;
 }
 
@@ -465,7 +485,7 @@ span.highlight {
 }
 
 .news-date {
-  color: #666;
+  color: var(--orange-dark);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -474,7 +494,7 @@ span.highlight {
   max-width: 800px;
   margin: 18px auto 36px;
   padding: 0 20px;
-  color: #666;
+  color: #6a5b4a;
   font-size: 14px;
   text-align: center;
   box-sizing: border-box;
@@ -485,6 +505,26 @@ span.highlight {
   justify-content: space-between;
   gap: 18px;
   align-items: flex-start;
+}
+
+.affiliation-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin: 14px 0;
+}
+
+.affiliation-logo {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  padding: 7px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(11, 94, 168, 0.12);
 }
 
 .education-item {
@@ -504,37 +544,43 @@ span.highlight {
 */
 
 body.dark-mode {
-  background-color: #121212;
-  color: #d3d3d3;
+  background-color: #071a2c;
+  color: #dbe7f3;
 }
 
 body.dark-mode a {
-  color: #bb86fc;
+  color: #6fb7ff;
 }
 
 body.dark-mode a:hover {
-  color: #8B5CF6;
+  color: #ffb45c;
 }
 
 body.dark-mode .tagline,
 body.dark-mode .news-date,
 body.dark-mode .site-footer {
-  color: #aaa;
+  color: #ffbf73;
 }
 
 body.dark-mode .news-list {
-  border-top-color: #333333;
+  border-top-color: #173b5c;
+}
+
+body.dark-mode .affiliation-logo {
+  background: #ffffff;
+  border-color: #2c5f8d;
+  box-shadow: 0 2px 12px rgba(255, 180, 92, 0.18);
 }
 
 body.dark-mode .navbar {
-  background-color: rgba(30, 30, 30, 0.85);
+  background-color: rgba(7, 26, 44, 0.9);
   backdrop-filter: blur(10px);
-  border-bottom-color: #333333;
+  border-bottom-color: #173b5c;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 body.dark-mode .nav-links li a::after {
-  background-color: #8B5CF6;
+  background-color: #ffb45c;
   opacity: 0.9;
 }
 
@@ -601,7 +647,7 @@ body.dark-mode .nav-links li a::after {
   top: 18.75%;
   background-color: rgba(0, 0, 0, 0);
   border-radius: 50%;
-  box-shadow: 9px 3px 0px 0px #bb86fc;
+  box-shadow: 9px 3px 0px 0px var(--orange);
   opacity: 0;
   transform: scale(0.3) rotate(65deg);
   transition: transform 0.45s ease-in, opacity 0.2s ease-in 0.1s;
@@ -620,7 +666,7 @@ body.dark-mode .nav-links li a::after {
 }
 
 .color-mode-toggle .moon:hover {
-  box-shadow: 9px 3px 0px 0px #8B5CF6;
+  box-shadow: 9px 3px 0px 0px var(--orange-dark);
 }
 
 .color-mode-toggle .moon.visible {
@@ -882,15 +928,15 @@ body.dark-mode .research-card:hover {
 }
 
 .section-heading .link-icon:hover {
-  color: #000;
+  color: var(--orange-dark);
 }
 
 body.dark-mode .section-heading .link-icon {
-  color: #999;
+  color: #aac8e4;
 }
 
 body.dark-mode .section-heading .link-icon:hover {
-  color: #bb86fc;
+  color: #ffb45c;
 }
 
 /* Make the heading itself clickable */
@@ -901,11 +947,11 @@ body.dark-mode .section-heading .link-icon:hover {
 }
 
 .section-heading h2:hover {
-  color: #000;
+  color: var(--orange-dark);
 }
 
 body.dark-mode .section-heading h2:hover {
-  color: #bb86fc;
+  color: #ffb45c;
 }
 
 /* Toast notification for copy feedback */
@@ -932,7 +978,7 @@ body.dark-mode .section-heading h2:hover {
 
 body.dark-mode .copy-toast {
   background-color: #d3d3d3;
-  color: #121212;
+  color: #071a2c;
 }
 
 @media print {
