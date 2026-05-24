@@ -71,9 +71,9 @@ navToggle.addEventListener("click", () => {
  */
 function sendEmail() {
   // Obfuscated email parts
-  const user = "rahulr12";
-  const domain = "illinois";
-  const tld = "edu";
+  const user = "anirudh.srinivasan";
+  const domain = "tihiitb";
+  const tld = "org";
 
   // Construct and open mailto link
   const email = user + "@" + domain + "." + tld;
@@ -137,6 +137,44 @@ function showToast(message) {
       toast.remove();
     }, 300);
   }, 2000);
+}
+
+/**
+ * Research BibTeX copy
+ */
+const bibtexEntries = {
+  m3grounder: `@InProceedings{Venna_2026_CVPR,
+    author    = {Venna, Venkata Kesav and Gunda, Sai Madhusudan and Jinka, Jyothi Swaroopa and Rachakonda, Hrithik Sagar and Srinivasan, Anirudh and Sarvadevabhatla, Ravi Kiran},
+    title     = {M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2026},
+    pages     = {23685-23695}
+}`,
+};
+
+function copyBibtex(entryKey) {
+  const entry = bibtexEntries[entryKey];
+
+  if (!entry) {
+    showToast("BibTeX entry not found.");
+    return;
+  }
+
+  navigator.clipboard
+    .writeText(entry)
+    .then(function () {
+      showToast("BibTeX copied to clipboard!");
+    })
+    .catch(function () {
+      const tempInput = document.createElement("textarea");
+      tempInput.value = entry;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempInput);
+      showToast("BibTeX copied to clipboard!");
+    });
 }
 
 // Make entire heading clickable
