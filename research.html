@@ -85,7 +85,7 @@
           Venkata Kesav Venna, Sai Madhusudan Gunda, Jyothi Swaroopa Jinka, Hrithik Sagar Rachakonda,
           <strong>Anirudh Srinivasan</strong>, Ravi Kiran Sarvadevabhatla
           <br />
-          <em>CVPR</em>, 2026, pp. 23685-23695
+          <em>Poster at CVPR '26</em>, MMFM5 @ CVPR '26, Oral at GRAIL-V, DataMFM @ CVPR '26, pp. 23685-23695
           <br />
           <button onclick="window.open('https://m3grounder.github.io/', '_blank')" class="arxiv-button">
             <i class="fas fa-globe"></i>
@@ -119,9 +119,9 @@
             </summary>
             <div class="research-abstract">
               <p>
-                M3Grounder studies document question answering with a focus on multi-span and multi-granular grounding,
-                moving toward document systems that can not only answer questions but also precisely highlight supporting
-                evidence in the document.
+                A VLM for grounded document intelligence that answers DocVQA questions with interleaved grounding tokens
+                and pixel-level masks. It introduces multi-span, multi-granular, and multi-type grounding over textual
+                and graphical elements, scaling to 200K-325K documents and 1.5M-2M grounded QA pairs.
               </p>
             </div>
           </details>
@@ -138,9 +138,14 @@
           />
         </div>
         <div class="research-card-content">
-          <span class="papertitle">DocLayoutVL</span>
+          <span class="papertitle">
+            DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation
+          </span>
           <br />
-          Document layout understanding with vision-language models
+          <strong>Anirudh Srinivasan</strong>*, Venkata Kesav Venna*, Srinivas Bandarupalli*, Rajashekar Raghuveer, Sai
+          Madhusudan Gunda, Ravi Kiran Sarvadevabhatla
+          <br />
+          <em>Under submission at ECCV</em>
           <br />
           <details class="research-details">
             <summary class="abstract-toggle">
@@ -148,9 +153,9 @@
             </summary>
             <div class="research-abstract">
               <p>
-                A vision-language approach for semantically and hierarchically segmenting complex document layouts,
-                combining layout masks, contextual attention, and structured hierarchy prediction for document
-                intelligence workflows.
+                Reframes document layout understanding as promptable, open-set hierarchical segmentation. The system
+                generates layout trees and dense masks using a VLM plus segmentation model with hierarchy-aware
+                grounding, trained on 2.5M documents, 400K+ labels, and 80M masks.
               </p>
             </div>
           </details>
@@ -161,15 +166,18 @@
         <div class="research-card-image">
           <img
             src="assets/images/paper-docog.png"
-            alt="DocOG"
+            alt="DoCoG"
             class="research-media"
             data-image="assets/images/paper-docog.png"
           />
         </div>
         <div class="research-card-content">
-          <span class="papertitle">DocOG</span>
+          <span class="papertitle">DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</span>
           <br />
-          Document object grounding for visually rich documents
+          Sai Madhusudan Gunda*, Jyothi Swaroopa Jinka*, Hrithik Sagar Rachakonda*, Aayush Jain, Venkata Kesav Venna,
+          <strong>Anirudh Srinivasan</strong>, Ravi Kiran Sarvadevabhatla
+          <br />
+          <em>Under submission at ECCV</em>
           <br />
           <details class="research-details">
             <summary class="abstract-toggle">
@@ -177,8 +185,9 @@
             </summary>
             <div class="research-abstract">
               <p>
-                A document grounding system for localizing text and visual objects in chart-heavy and layout-rich
-                documents, using frozen vision-language backbones with grounding and segmentation modules.
+                A mask-based grounded chain-of-thought framework for document QA that supports multiple grounding types
+                across text and visual elements. The model is designed for chart-heavy and layout-rich documents where
+                answers require both reasoning and fine-grained localization.
               </p>
             </div>
           </details>
@@ -195,9 +204,20 @@
           />
         </div>
         <div class="research-card-content">
-          <span class="papertitle">PatramBench</span>
+          <span class="papertitle">
+            Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document
+            Understanding
+          </span>
           <br />
-          Benchmarking multimodal document intelligence across Indian document domains
+          <strong>Anirudh Srinivasan</strong>*, Pratyush Jena*, Anurag Topale, Venkata Kesav Venna, Ravi Kiran
+          Sarvadevabhatla
+          <br />
+          <em>Poster at ICDAR '26</em>
+          <br />
+          <button onclick="window.open('https://icdar2026.org/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            ICDAR
+          </button>
           <br />
           <details class="research-details">
             <summary class="abstract-toggle">
@@ -205,9 +225,9 @@
             </summary>
             <div class="research-abstract">
               <p>
-                A broad benchmark covering government and policy, print media, education, business and finance,
-                healthcare, literature and culture, forms, manuals, web documents, structured visuals, scene text, and
-                presentations.
+                A comprehensive Indian document understanding benchmark with 52,607 documents, 23 languages, 13 domains,
+                71 classes, 52 tasks, and 2.4M+ QA annotations across OCR, parsing, layout, and multi-hop DocVQA. It
+                also introduces multilingual robustness metrics and evaluates 29+ VLMs.
               </p>
             </div>
           </details>
@@ -224,9 +244,17 @@
           />
         </div>
         <div class="research-card-content">
-          <span class="papertitle">RePlica</span>
+          <span class="papertitle">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</span>
           <br />
-          Layout-aware document reconstruction with multimodal agents
+          <strong>Anirudh Srinivasan</strong>*, Rajashekar Raghuveer*, Venkata Kesav Venna*, Tanishq Sreevatsa, Aayush
+          Jain, Shubham Kukkala, Ravi Kiran Sarvadevabhatla
+          <br />
+          <em>Oral at ICDAR '26</em>
+          <br />
+          <button onclick="window.open('https://icdar2026.org/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            ICDAR
+          </button>
           <br />
           <details class="research-details">
             <summary class="abstract-toggle">
@@ -234,8 +262,9 @@
             </summary>
             <div class="research-abstract">
               <p>
-                A staged agentic pipeline for converting document images and PDFs into high-fidelity HTML, with layout
-                detection, localized HTML generation, reading-order-aware merging, and visual refinement.
+                An agentic document parsing workflow that generates visually faithful HTML from documents. It combines
+                a segmenter, router and specialist agents, a reading-order agent, and a reflection agent, reaching 93%
+                visual fidelity and strong scores on VFDR-Bench.
               </p>
             </div>
           </details>
