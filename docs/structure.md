@@ -5,7 +5,6 @@ This is a static GitHub Pages site. Keep root-level HTML files for clean URLs on
 - `index.html` - landing page and news
 - `about.html` - about, education, and experience
 - `research.html` - publications and project resources
-- `resume.html` - resume page and print view
 
 Shared files live in `assets/`:
 
