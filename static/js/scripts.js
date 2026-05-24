@@ -3,8 +3,8 @@
  */
 // Select the dark/light mode button and its inner elements.
 const colorModeToggle = document.querySelector(".color-mode-toggle");
-const sun = colorModeToggle.querySelector(".sun");
-const moon = colorModeToggle.querySelector(".moon");
+const sun = colorModeToggle ? colorModeToggle.querySelector(".sun") : null;
+const moon = colorModeToggle ? colorModeToggle.querySelector(".moon") : null;
 const body = document.body;
 const html = document.documentElement;
 
@@ -12,30 +12,36 @@ const html = document.documentElement;
 if (localStorage.getItem("darkMode") === "enabled") {
   body.classList.add("dark-mode");
   html.classList.add("dark-mode");
-  sun.classList.remove("visible");
-  moon.classList.add("visible");
+  if (sun && moon) {
+    sun.classList.remove("visible");
+    moon.classList.add("visible");
+  }
 } else {
   body.classList.remove("dark-mode");
   html.classList.remove("dark-mode");
-  sun.classList.add("visible");
-  moon.classList.remove("visible");
-}
-
-// Toggle dark/light mode when the button is clicked.
-colorModeToggle.addEventListener("click", () => {
-  body.classList.toggle("dark-mode");
-  html.classList.toggle("dark-mode");
-
-  if (body.classList.contains("dark-mode")) {
-    localStorage.setItem("darkMode", "enabled");
-    sun.classList.remove("visible");
-    moon.classList.add("visible");
-  } else {
-    localStorage.setItem("darkMode", "disabled");
+  if (sun && moon) {
     sun.classList.add("visible");
     moon.classList.remove("visible");
   }
-});
+}
+
+// Toggle dark/light mode when the button is clicked.
+if (colorModeToggle && sun && moon) {
+  colorModeToggle.addEventListener("click", () => {
+    body.classList.toggle("dark-mode");
+    html.classList.toggle("dark-mode");
+
+    if (body.classList.contains("dark-mode")) {
+      localStorage.setItem("darkMode", "enabled");
+      sun.classList.remove("visible");
+      moon.classList.add("visible");
+    } else {
+      localStorage.setItem("darkMode", "disabled");
+      sun.classList.add("visible");
+      moon.classList.remove("visible");
+    }
+  });
+}
 
 /**
  * Name and pronunciation
@@ -61,10 +67,12 @@ nameParts.forEach((part) => {
 const navToggle = document.querySelector(".nav-toggle");
 const navLinks = document.querySelector(".nav-links");
 
-navToggle.addEventListener("click", () => {
-  navToggle.classList.toggle("open");
-  navLinks.classList.toggle("show"); // for showing/hiding the menu
-});
+if (navToggle && navLinks) {
+  navToggle.addEventListener("click", () => {
+    navToggle.classList.toggle("open");
+    navLinks.classList.toggle("show"); // for showing/hiding the menu
+  });
+}
 
 /**
  * Email Obfuscation (hopefully)
@@ -181,12 +189,48 @@ function copyBibtex(entryKey) {
 document.addEventListener("DOMContentLoaded", function () {
   const headings = document.querySelectorAll(".section-heading h2");
   headings.forEach((heading) => {
-    heading.addEventListener("click", function () {
+    heading.addEventListener("click", function (event) {
       const sectionId = this.parentElement.id;
       copyLink(event, sectionId);
     });
   });
 });
+
+function initializeResearchDetails() {
+  document.querySelectorAll(".research-details").forEach((details) => {
+    const content = details.querySelector(".research-abstract");
+
+    if (!content) {
+      return;
+    }
+
+    details.addEventListener("click", (event) => {
+      event.preventDefault();
+
+      if (details.open) {
+        content.style.maxHeight = content.scrollHeight + "px";
+        requestAnimationFrame(() => {
+          content.style.maxHeight = "0";
+          content.style.opacity = "0";
+          content.style.marginTop = "0";
+        });
+        setTimeout(() => {
+          details.open = false;
+        }, 400);
+      } else {
+        details.open = true;
+        content.style.maxHeight = "0";
+        content.style.opacity = "0";
+        content.style.marginTop = "0";
+        requestAnimationFrame(() => {
+          content.style.maxHeight = content.scrollHeight + "px";
+          content.style.opacity = "1";
+          content.style.marginTop = "12px";
+        });
+      }
+    });
+  });
+}
 
 /**
  * Hovering for image -> video
@@ -281,4 +325,5 @@ function initializeMediaHover() {
 // Run the script once the page has loaded
 document.addEventListener("DOMContentLoaded", () => {
   initializeMediaHover();
+  initializeResearchDetails();
 });
