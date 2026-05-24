@@ -504,14 +504,52 @@ span.highlight {
   line-height: 1.58;
 }
 
+.about-icon-list {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 20px;
+}
+
+.about-icon-list p {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  margin: 0;
+}
+
+.about-icon-list i,
+.about-list i,
+.about-social-row i {
+  color: var(--orange-dark);
+}
+
 .about-list {
   margin: 0 0 1.2em 1.2em;
   padding: 0;
+  list-style: none;
 }
 
 .about-list li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 9px;
   margin: 0.45em 0;
   line-height: 1.5;
+}
+
+.about-social-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.about-social-row a {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 500;
 }
 
 .resume-header {
