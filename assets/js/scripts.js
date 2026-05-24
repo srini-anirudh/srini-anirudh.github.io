@@ -49,8 +49,8 @@ if (colorModeToggle && sun && moon) {
 const nameParts = document.querySelectorAll(".name-part");
 
 const audioFiles = {
-  "first-name": new Audio("static/data/first-name.mp3"),
-  "last-name": new Audio("static/data/last-name.mp3"),
+  "first-name": new Audio("assets/data/first-name.mp3"),
+  "last-name": new Audio("assets/data/last-name.mp3"),
 };
 
 nameParts.forEach((part) => {
