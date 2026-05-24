@@ -310,8 +310,7 @@ body.dark-mode .arxiv-button:focus {
   }
 
   .news-list p {
-    grid-template-columns: 1fr;
-    gap: 3px;
+    display: block;
   }
 
   .resume-header {
@@ -478,16 +477,17 @@ span.highlight {
 }
 
 .news-list p {
-  display: grid;
-  grid-template-columns: 106px minmax(0, 1fr);
-  gap: 14px;
-  margin: 12px 0;
+  display: block;
+  margin: 13px 0;
+  line-height: 1.55;
 }
 
 .news-date {
+  display: inline;
   color: var(--orange-dark);
   font-weight: 600;
   white-space: nowrap;
+  margin-right: 6px;
 }
 
 .site-footer {
