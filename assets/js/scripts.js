@@ -159,6 +159,20 @@ const bibtexEntries = {
     year      = {2026},
     pages     = {23685-23695}
 }`,
+  patram: `@misc{Srinivasan_2025_Patram,
+    author       = {Srinivasan, Anirudh and BharatGen},
+    title        = {Patram: India's First VLM for Document Understanding},
+    year         = {2025},
+    howpublished = {\\url{https://bharatgen.com/products/patram/}},
+    note         = {Launched at BharatGen Summit 2025}
+}`,
+  evikrai: `@misc{Srinivasan_2024_evikrai,
+    author       = {Srinivasan, Anirudh and BharatGen},
+    title        = {e-vikrAI: Indic VLMs for e-commerce},
+    year         = {2024},
+    howpublished = {\\url{https://bharatgen.com/products/e-vikrai/}},
+    note         = {Presented at India Mobile Congress 2024}
+}`,
 };
 
 function copyBibtex(entryKey) {

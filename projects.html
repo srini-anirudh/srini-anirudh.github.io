@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_blank" />
+    <title>Projects | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="assets/css/stars.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1.9.4/css/academicons.min.css"
+      integrity="sha512-IW0nhlW5MgNydsXJO40En2EoCkTTjZhI3yuODrZIc8cQ4h1XcF53PsqDHa09NqnkXuIe0Oiyyj171BqZFwISBw=="
+      crossorigin="anonymous"
+      media="all"
+      onload="this.media='all';"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="index.html" target="_self">Home</a></li>
+          <li><a href="about.html" target="_self">About</a></li>
+          <li><a href="research.html" target="_self">Research</a></li>
+          <li><a href="projects.html" class="active" target="_self">Projects</a></li>
+          <li>
+            <a
+              href="https://drive.google.com/file/d/1yZVczV_WSeDXKi6oC9C3y6QQG48QdAW7/view?usp=sharing"
+            >
+              Resume
+            </a>
+          </li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <section class="page-section">
+        <h1>Projects</h1>
+        <p>
+          Selected applied VLM projects from BharatGen, focused on Indian document understanding and practical
+          multimodal systems for large-scale deployment.
+        </p>
+      </section>
+
+      <section class="research-card" id="patram">
+        <div class="research-card-image">
+          <img src="assets/images/logos/bgen-logo.png" alt="BharatGen" class="research-media" />
+        </div>
+        <div class="research-card-content">
+          <a href="https://bharatgen.com/products/patram/">
+            <span class="papertitle">Patram: India's First VLM for Document Understanding</span>
+          </a>
+          <br />
+          <em>Launched at BharatGen Summit '25</em>
+          <p>
+            Patram is a vision-language model for Indian document understanding, built over BharatDocs, a large Indian
+            document corpus with 20M+ documents and 250M+ pages across English and 22 Indian languages.
+          </p>
+          <ul class="project-points">
+            <li>Pre-trained on 1M+ images for captioning, followed by 500K VQA annotations across 20+ document VQA task types.</li>
+            <li>
+              Built a multi-stage Synthetic QA pipeline using Qwen2.5-VL-72B-Instruct for extractive and abstractive QA,
+              followed by verification and deduplication.
+            </li>
+            <li>Achieved state-of-the-art performance on key DocVQA benchmarks, including DocVQA and VisualMRC.</li>
+          </ul>
+          <button onclick="window.open('https://bharatgen.com/products/patram/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button
+            onclick="window.open('https://drive.google.com/file/d/1PaWJNOwIY0mddwTxvSW0MGIsIG_nbKAi/view?usp=sharing', '_blank')"
+            class="arxiv-button"
+          >
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button onclick="window.open('https://youtu.be/fsSsciHn0zU?si=sBFVImcQAQy4sVDv', '_blank')" class="arxiv-button">
+            <i class="fab fa-youtube"></i>
+            video
+          </button>
+          <button onclick="window.open('https://huggingface.co/bharatgenai/patram-7b-instruct', '_blank')" class="arxiv-button">
+            <i class="fas fa-face-smile"></i>
+            HF
+          </button>
+          <button type="button" onclick="copyBibtex('patram')" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            cite
+          </button>
+        </div>
+      </section>
+
+      <section class="research-card" id="evikrai">
+        <div class="research-card-image">
+          <img src="assets/images/logos/bgen-logo.png" alt="BharatGen" class="research-media" />
+        </div>
+        <div class="research-card-content">
+          <a href="https://bharatgen.com/products/e-vikrai/">
+            <span class="papertitle">e-vikrAI: Indic VLMs for e-commerce</span>
+          </a>
+          <br />
+          <em>Presented at India Mobile Congress '24</em>
+          <p>
+            e-vikrAI is an e-commerce VLM for auto-cataloging, generating SEO-optimized titles, hierarchical
+            categories, descriptions, and product metadata directly from product images.
+          </p>
+          <ul class="project-points">
+            <li>
+              Built a scalable e-commerce scraper for 22.8M+ products, covering category, product, metadata, and image
+              pipelines with checkpointed resume and high-throughput ingestion.
+            </li>
+            <li>
+              Developed a PoC mobile app with multilingual translation and text-to-speech for improved accessibility.
+            </li>
+            <li>
+              Reduced cataloging time from 10 min/product manually to 6 sec/product, supporting seller onboarding for
+              rural and non-English-speaking users.
+            </li>
+          </ul>
+          <button onclick="window.open('https://bharatgen.com/products/e-vikrai/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button
+            onclick="window.open('https://drive.google.com/file/d/1yzNPjXoU9KIv0mgJjrJVLQGfw9St2ulb/view?usp=sharing', '_blank')"
+            class="arxiv-button"
+          >
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button onclick="window.open('https://youtu.be/X-_eGbY0K9o?si=TF5eeBUnSwb5D3Az', '_blank')" class="arxiv-button">
+            <i class="fab fa-youtube"></i>
+            video
+          </button>
+          <button type="button" onclick="copyBibtex('evikrai')" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            cite
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email">
+        <i class="fas fa-envelope"></i>
+        anirudhsrinivasan.tms@gmail.com
+      </a>
+      <a href="https://github.com/srini-anirudh" title="GitHub">
+        <i class="fab fa-github"></i>
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn">
+        <i class="fab fa-linkedin"></i>
+        LinkedIn
+      </a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter">
+        <i class="fab fa-x-twitter"></i>
+        X
+      </a>
+      <a href="https://drive.google.com/file/d/1yZVczV_WSeDXKi6oC9C3y6QQG48QdAW7/view?usp=sharing" title="Resume">
+        <i class="ai ai-cv"></i>
+        Resume
+      </a>
+    </footer>
+
+    <script src="assets/js/scripts.js"></script>
+    <script src="assets/js/stars.js"></script>
+  </body>
+</html>
