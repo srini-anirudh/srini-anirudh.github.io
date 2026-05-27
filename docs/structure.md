@@ -13,5 +13,6 @@ Shared files live in `assets/`:
 - `assets/js/` - shared browser behavior
 - `assets/images/` - profile, paper figures, paper thumbnails, logos, and favicon
 - `assets/data/` - small media/data files used by the site
+- `assets/pdfs/` - resume, project problem statements, and project artifacts
 
 When adding a new page, copy the existing page head/nav/footer pattern so dark mode, stars, and mobile navigation keep working consistently.
