@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT
+
+    Apply these requirements to every animated figure in the article:
+
+    1. Build detailed, cinematic sequences with many meaningful frames or finely
+       interpolated states. Motion should explain the idea rather than merely
+       decorate it; avoid abrupt two-state transitions.
+    2. Every animation must provide Previous and Next controls for manual,
+       frame-by-frame or stage-by-stage exploration.
+    3. Animations should play automatically when appropriate and provide one
+       clear Play/Pause control that supports pausing and resuming from the
+       current frame.
+    4. Provide 0.5x, 1x, and 2x playback-speed controls. The selected speed must
+       be visually and programmatically indicated with aria-pressed.
+    5. Use cinematic camera language where it improves explanation: smooth zoom
+       in/out, pans, focus transitions, tracked highlights, staged reveals, and
+       deliberate easing. Keep labels readable throughout every camera move.
+    6. Display the current frame/stage and total frame/stage count, and preserve
+       the current position when playback speed changes or playback resumes.
+    7. Pause automatic playback while the reader is manually interacting with a
+       figure. Resume only through an explicit action or a clearly documented,
+       gentle timeout.
+    8. Honor prefers-reduced-motion. In reduced-motion mode, disable autoplay,
+       zooms, pans, and non-essential transitions while retaining Previous/Next
+       access to every explanatory state.
+    9. Keep controls keyboard accessible, use semantic buttons, add visible focus
+       states, and provide useful aria-labels and live status text.
+    10. Export one representative animation as a seamless GIF for the blog index
+        card. Use the article's strongest explanatory moment, not a generic
+        decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
+        optimized file size around 3 MB or less. Save it as
+        assets/images/blogs/[ARTICLE-SLUG]-preview.gif. Also export a matching
+        static poster image for prefers-reduced-motion and slow connections.
+        Add both assets and useful alt text to the article card in blogs/index.html.
+
+    Recommended control order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
+
+    Blog-index preview deliverables:
+    [ARTICLE-SLUG]-preview.gif + [ARTICLE-SLUG]-preview.png
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="[ONE-SENTENCE ARTICLE DESCRIPTION]" />
+    <title>[ARTICLE TITLE] | Anirudh Srinivasan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../assets/css/blog-shell.css" />
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+      }
+    </style>
+  </head>
+  <body class="blog-article normalization-article">
+    <nav class="blog-site-nav" aria-label="Main navigation">
+      <a class="blog-site-brand" href="../index.html">Anirudh Srinivasan</a>
+      <div class="blog-site-links">
+        <a href="../index.html">Home</a>
+        <a href="../about.html">About</a>
+        <a href="../research.html">Research</a>
+        <a href="../projects.html">Projects</a>
+        <a href="index.html" aria-current="page">Blogs</a>
+        <a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · [ARTICLE CATEGORY]</p>
+        <h1 class="article-title">[ARTICLE TITLE]</h1>
+        <p class="article-subtitle">[ONE- OR TWO-SENTENCE INTRODUCTION]</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>[TAG ONE]</span><span>[TAG TWO]</span><span>[TAG THREE]</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>[MONTH DD, YYYY]</span><span>[NN min read]</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="article-content">
+      <section>
+        <h2>[FIRST SECTION TITLE]</h2>
+        <p>[ARTICLE TEXT]</p>
+        <h3>[SUBSECTION TITLE]</h3>
+        <p>[MORE ARTICLE TEXT]</p>
+        <div class="article-panel" role="img" aria-label="[DESCRIBE THE FIGURE OR INTERACTIVE PANEL]">
+          <div class="animation-stage" aria-live="polite">
+            [DETAILED MULTI-FRAME FIGURE, DIAGRAM, OR INTERACTIVE CONTENT]
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame [01] / [TOTAL]</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="article-footer">
+      <div class="article-wrap">Anirudh Srinivasan · [ARTICLE TITLE]</div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../assets/js/blogs.js"></script>
+  </body>
+</html>

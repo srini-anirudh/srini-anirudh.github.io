@@ -113,11 +113,30 @@ const particlesConfig = {
   retina_detect: true,
 };
 
+const particleTheme = {
+  light: {
+    particle: "#0b5ea8",
+    line: "#f28c18",
+    particleOpacity: 0.18,
+    lineOpacity: 0.13,
+    particleSize: 2.4,
+    strokeWidth: 0.7,
+  },
+  dark: {
+    particle: "#bebebe",
+    line: "#d4d4d4",
+    particleOpacity: 0.72,
+    lineOpacity: 0.34,
+    particleSize: 3,
+    strokeWidth: 2,
+  },
+};
+
 // Track if particles have been initialized
 let particlesInitialized = false;
 
 function initParticles() {
-  if (!particlesInitialized) {
+  if (!particlesInitialized && typeof particlesJS === "function") {
     particlesJS("particles-js", particlesConfig);
     particlesInitialized = true;
   }
@@ -131,26 +150,42 @@ function destroyParticles() {
   }
 }
 
-// Initialize particles if dark mode is already active
-if (
-  document.documentElement.classList.contains("dark-mode") ||
-  document.body.classList.contains("dark-mode")
-) {
+function isDarkModeActive() {
+  return (
+    document.documentElement.classList.contains("dark-mode") ||
+    document.body.classList.contains("dark-mode")
+  );
+}
+
+function applyParticleTheme() {
+  const colors = isDarkModeActive() ? particleTheme.dark : particleTheme.light;
+
+  particlesConfig.particles.color.value = colors.particle;
+  particlesConfig.particles.shape.stroke.color = colors.particle;
+  particlesConfig.particles.opacity.value = colors.particleOpacity;
+  particlesConfig.particles.size.value = colors.particleSize;
+  particlesConfig.particles.shape.stroke.width = colors.strokeWidth;
+  particlesConfig.particles.line_linked.color = colors.line;
+  particlesConfig.particles.line_linked.opacity = colors.lineOpacity;
+
+  destroyParticles();
   initParticles();
 }
+
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  particlesConfig.particles.move.enable = false;
+  particlesConfig.interactivity.events.onhover.enable = false;
+  particlesConfig.interactivity.events.onclick.enable = false;
+}
+
+// The network is present in both themes; only its palette and opacity change.
+applyParticleTheme();
 
 // Listen for dark mode toggle
 const observer = new MutationObserver((mutations) => {
   mutations.forEach((mutation) => {
     if (mutation.attributeName === "class") {
-      const isDarkMode =
-        document.body.classList.contains("dark-mode") ||
-        document.documentElement.classList.contains("dark-mode");
-      if (isDarkMode) {
-        initParticles();
-      } else {
-        destroyParticles();
-      }
+      applyParticleTheme();
     }
   });
 });

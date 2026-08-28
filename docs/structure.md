@@ -19,3 +19,5 @@ Shared files live in `assets/`:
 When adding a new page, copy the existing page head/nav/footer pattern so dark mode, stars, and mobile navigation keep working consistently.
 
 For a new blog post, add a standalone HTML file in `blogs/` and add its title, summary, date, and tags to `blogs/index.html`.
+
+See `docs/style-guide.md` for the visual and interaction rules. Copy `docs/blog-template.html` into `blogs/` when starting an article.

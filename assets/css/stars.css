@@ -1,11 +1,11 @@
-/* Particles.js container - only initialized in dark mode via JS */
+/* Theme-aware particle network. Content is explicitly layered above the canvas. */
 #particles-js {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: -1;
+    z-index: 0;
     pointer-events: none;
 }
 
@@ -17,4 +17,10 @@
     position: relative;
     z-index: 1;
     background: transparent;
+}
+
+body > .page-shell,
+body > .site-footer {
+    position: relative;
+    z-index: 1;
 }
