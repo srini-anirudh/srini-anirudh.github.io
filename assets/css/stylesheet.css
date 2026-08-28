@@ -11,17 +11,20 @@ html {
   --surface-strong: #f7f6f3;
   --line: #cac6bd;
   --text: #14171a;
+  --text-soft: #474e53;
+  --text-muted: #7b8388;
 }
 
 body {
   margin: 0;
   padding-top: 60px;
-  font-size: 14px;
+  font-size: 17px;
+  line-height: 1.5;
   font-family: "Newsreader", Georgia, serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--surface);
-  color: var(--text);
+  color: var(--text-soft);
 }
 
 
@@ -338,25 +341,33 @@ th,
 tr,
 p,
 a {
-  font-size: 16px;
+  font-size: inherit;
 }
 
 strong {
-  font-size: 16px;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 600;
 }
 
 h2 {
-  margin-bottom: -10px;
-  font-weight: normal;
-  font-size: 22px;
+  margin: 0 0 14px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: clamp(28px, 4vw, 38px);
   font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
 }
 
 h1 {
-  margin: 0 0 16px;
-  font-weight: 600;
-  font-size: 30px;
+  margin: 0 0 20px;
+  color: var(--text);
+  font-weight: 800;
+  font-size: clamp(46px, 8vw, 84px);
   font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
 }
 
 
@@ -371,7 +382,12 @@ h1 {
 .name {
   padding-top: 20px;
   margin: 0;
-  font-size: 32px;
+  color: var(--text);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: clamp(34px, 5vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
 }
 
 span.highlight {
@@ -406,6 +422,11 @@ span.highlight {
   text-align: left;
 }
 
+.home-copy > p:not(.name) {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
 .tagline {
   color: var(--blue-dark);
   font-weight: 500;
@@ -435,6 +456,13 @@ span.highlight {
   margin-top: 24px;
 }
 
+.page-section > p {
+  max-width: 60ch;
+  color: var(--text-soft);
+  font-size: 20px;
+  line-height: 1.5;
+}
+
 .news-section h2,
 .page-section h2 {
   margin-bottom: 14px;
@@ -448,6 +476,7 @@ span.highlight {
 .news-list p {
   display: block;
   margin: 13px 0;
+  font-size: 17px;
   line-height: 1.55;
 }
 
@@ -662,8 +691,11 @@ span.highlight {
 */
 
 body.dark-mode {
+  --text: #dbe7f3;
+  --text-soft: #aec5dc;
+  --text-muted: #82a4c2;
   background-color: #071a2c;
-  color: #dbe7f3;
+  color: var(--text-soft);
 }
 
 body.dark-mode a {
@@ -934,6 +966,9 @@ body.projects-page .research-card::before {
 
 .research-card-content {
   flex: 1;
+  color: var(--text-soft);
+  font-size: 17px;
+  line-height: 1.35;
 }
 
 .research-card-content p:last-child {

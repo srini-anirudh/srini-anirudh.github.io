@@ -20,8 +20,10 @@ Use the variables already defined in `assets/css/stylesheet.css`; do not duplica
 
 ### Site-wide typography
 
-- Body and long-form prose: Newsreader, with comfortable line height around 1.5–1.7.
-- Navigation, display headings, and card headings: Bricolage Grotesque.
+- Body and long-form prose: Newsreader at `17px` by default, with comfortable line height around 1.5–1.7 and soft ink (`#474e53`).
+- Page titles: Bricolage Grotesque, `800` weight, tightly tracked, and fluid from `46px` to `84px`.
+- Section and card headings: Bricolage Grotesque at `700` weight, tightly tracked, and near-black ink (`#14171a`).
+- Navigation remains compact at `15px`; metadata and controls retain their smaller mono scale.
 - Labels, tags, metadata, captions, and technical controls: IBM Plex Mono.
 - Keep paragraph measure near 60–70 characters when practical.
 - Use sentence case for headings and navigation labels.
