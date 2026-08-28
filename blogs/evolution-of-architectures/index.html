@@ -25,7 +25,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="An animated field guide to neural network architectures — from the perceptron to Mamba and vision state-space models — comparing how each one mixes information, what it costs to train, what it carries at inference, and how to count the parameters, bytes and FLOPs a design implies." />
+    <meta name="description" content="An animated field guide to neural network architectures — from the perceptron to Mamba and vision state-space models — comparing how each one mixes information, what it costs to train, what it carries at inference, how the gradient flows back through every block, and how to count the parameters, bytes and FLOPs a design implies." />
     <meta property="og:title" content="Evolution of ML Architectures" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/evolution-of-architectures/preview.png" />
     <meta property="article:published_time" content="2026-01-24" />
@@ -181,7 +181,7 @@
       }
 
       /* ---------- dark mode ---------- */
-      html.dark-mode body { --paper: #101315; --paper-bright: #171b1e; --ink: #e8ece f; --ink: #e8ecef; --ink-soft: #b3bcc2; --muted: #8b959b; --rule: #2b3237; background-color: #101315; }
+      html.dark-mode body { --paper: #101315; --paper-bright: #171b1e; --ink: #e8ecef; --ink-soft: #b3bcc2; --muted: #8b959b; --rule: #2b3237; background-color: #101315; }
       html.dark-mode .article-panel { background: #0b0e11; }
       html.dark-mode table.cmp thead th { background: #0b0e11; }
     </style>
@@ -214,10 +214,10 @@
         <h1 class="article-title">Evolution of ML Architectures</h1>
         <p class="article-subtitle">Sixty-seven years of neural architectures — perceptrons, convolutions, recurrence, attention, state spaces — taken apart, animated, and compared on the three things that actually differ: how information moves, what training costs, and what the model must carry at inference.</p>
         <div class="article-taxonomy" aria-label="Tags">
-          <span>Architectures</span><span>Complexity</span><span>Attention</span><span>State space models</span><span>Model sizing</span><span>Interactive</span>
+          <span>Architectures</span><span>Complexity</span><span>Attention</span><span>State space models</span><span>Backpropagation</span><span>Model sizing</span><span>Interactive</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-24">January 24, 2026</time></span><span>Last modified <time datetime="2026-08-29">August 29, 2026</time></span><span>52 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-24">January 24, 2026</time></span><span>Last modified <time datetime="2026-08-29">August 29, 2026</time></span><span>64 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -230,7 +230,7 @@
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-title">
         <h2 id="toc-title">Contents</h2>
-        <p class="toc-note">21 sections · 11 animated figures · 4 interactive labs</p>
+        <p class="toc-note">22 sections · 14 animated figures · 4 interactive labs</p>
         <ol>
           <li><a href="#axes">Three axes that define an architecture</a></li>
           <li><a href="#timeline">Sixty-seven years in one picture</a></li>
@@ -246,6 +246,7 @@
           <li><a href="#vision-ssm">Vision in the state-space era: scan order is the whole problem</a></li>
           <li><a href="#hybrids">Hybrids and what is actually winning</a></li>
           <li><a href="#sizing">How big is a model, really? Parameters, bytes and FLOPs</a></li>
+          <li><a href="#backprop">The backward pass, derived</a></li>
           <li><a href="#image-lab">Lab: the same image through three architectures</a></li>
           <li><a href="#text-lab">Lab: the same sentence through four architectures</a></li>
           <li><a href="#explorer">Lab: the complexity explorer</a></li>
@@ -694,6 +695,186 @@ attention / parameter FLOPs  ≈  N_ctx / (6d)</div>
         <p>A few things are worth finding by hand. Doubling <code>d</code> quadruples the parameters but only doubles the KV cache. Doubling <code>L</code> doubles both. Raising the vocabulary from 32k to 256k adds 1.7B parameters at <code>d = 4096</code> — more than a third of a small model — while changing FLOPs per token barely at all, because the output head is one matmul against a very wide matrix. Switching to MoE multiplies total parameters by the expert count while leaving active parameters and therefore FLOPs almost unchanged, which is precisely the trade it exists to make: memory is cheap and bandwidth-bound serving is not, so you buy capacity in the dimension that does not cost you compute.</p>
       </section>
 
+
+      <section>
+        <h2 id="backprop">The backward pass, derived</h2>
+        <p>Everything above described what an architecture computes. None of it explains how the weights get there, and the answer is not incidental to the design: several of the architectural choices in this article exist <em>only</em> because of what they do to the gradient. The residual connection, the gates in an LSTM, the <code>1/√d_k</code> in attention, the choice of RMSNorm over LayerNorm — each is a decision about the backward pass wearing the costume of a forward-pass detail. So it is worth deriving the whole thing carefully, once, for every block in the article.</p>
+
+        <h3>Reverse mode in one page</h3>
+        <p>A network is a composition <code>L = f_n ∘ f_{n−1} ∘ … ∘ f_1 (x)</code> ending in a scalar loss. The chain rule says the derivative is a product of Jacobians, and the only question is what order to multiply them in:</p>
+        <div class="math">∂L/∂θ  =  J_n · J_{n−1} · … · J_1        J_k = ∂f_k/∂(its input)
+
+forward mode:   (((J_n · J_{n−1}) · J_{n−2}) … )   — builds a full Jacobian, cost ∝ #inputs
+reverse mode:   ( … (J_n · J_{n−1}) · J_{n−2} )    — a row vector times a matrix, cost ∝ #outputs</div>
+        <p>Matrix multiplication is associative, so both give the same answer, but the cost is wildly different. With one scalar output and 10⁹ parameters, reverse mode costs one sweep and forward mode costs 10⁹ of them. That asymmetry is the entire reason deep learning trains at all, and it is why the loss must be a scalar.</p>
+        <p>The crucial practical point: reverse mode never <em>forms</em> a Jacobian. Each node implements a <b>vector–Jacobian product</b> — given the gradient of the loss with respect to its output, return the gradient with respect to its input. Write <code>X̄ ≡ ∂L/∂X</code> for the <em>adjoint</em> of any tensor <code>X</code>; it always has exactly the same shape as <code>X</code>. Then a layer's backward pass is a function <code>Ȳ ↦ X̄</code>, and it typically costs about the same as the forward pass, never the <code>d²</code> that materialising <code>∂Y/∂X</code> would.</p>
+        <div class="keyidea">
+          <b>The three rules that generate everything below</b>
+          <p><b>1.</b> Adjoints have the shape of the thing they differentiate. <b>2.</b> When a value is used in more than one place, its adjoint is the <em>sum</em> of the contributions from each use. <b>3.</b> The backward pass of a node needs the node's forward inputs — which is exactly why activations must be stored, and why activation memory, not parameter memory, is what usually kills you.</p>
+        </div>
+
+        <h3>Primitive 1: the linear layer</h3>
+        <p>Everything else is decoration on this one. Let <code>Y = XW + b</code> with <code>X ∈ ℝ^{n×k}</code>, <code>W ∈ ℝ^{k×m}</code>. In index notation <code>Y_ab = Σ_c X_ac W_cb + b_b</code>, so:</p>
+        <div class="math">∂L/∂X_ij = Σ_ab Ȳ_ab · ∂Y_ab/∂X_ij
+         = Σ_ab Ȳ_ab · δ_ai W_jb            only a = i, c = j survive
+         = Σ_b Ȳ_ib W_jb  =  (Ȳ Wᵀ)_ij
+
+∂L/∂W_cb = Σ_a X_ac Ȳ_ab  =  (Xᵀ Ȳ)_cb
+∂L/∂b_b  = Σ_a Ȳ_ab                        sum over the batch</div>
+        <div class="math">X̄ = Ȳ Wᵀ        W̄ = Xᵀ Ȳ        b̄ = 1ᵀ Ȳ</div>
+        <p>Two consequences worth internalising. First, the backward pass of a matmul is <em>two</em> matmuls of the same size as the forward one, which is where the familiar "backward costs twice the forward" comes from, and hence <code>6N</code> FLOPs per token per parameter for training against <code>2N</code> for inference. Second, <code>W̄</code> needs <code>X</code>, the layer's input. That is rule 3 in its most expensive form: every activation on the forward path has to survive until its matmul's backward runs.</p>
+
+        <h3>Primitive 2: elementwise nonlinearities</h3>
+        <p>If <code>y = f(z)</code> elementwise, the Jacobian is diagonal and the VJP is a Hadamard product — no matrix ever appears:</p>
+        <div class="math">z̄ = ȳ ⊙ f′(z)
+
+ReLU     f′(z) = 1[z &gt; 0]                              exactly 0 or 1 — no shrinkage, no saturation
+tanh     f′(z) = 1 − tanh²(z)                          ≤ 1, and ≈ 0 once |z| &gt; 2
+sigmoid  f′(z) = σ(z)(1 − σ(z))                        ≤ ¼ — four layers of it and the gradient is gone
+GELU     f′(z) = Φ(z) + z·φ(z)                         Φ, φ = normal CDF and PDF
+SiLU     f′(z) = σ(z)·(1 + z(1 − σ(z)))                the Swish/SiLU derivative, unbounded above</div>
+        <p>The <code>¼</code> on the sigmoid is not a footnote; it is the arithmetic reason the pre-2010 deep networks did not train. Stack six sigmoids and the best case gradient multiplier is <code>4⁻⁶ ≈ 2×10⁻⁴</code> before any weight matrix is involved. ReLU's derivative being exactly one on the active half is the whole of its contribution, and every modern activation (GELU, SiLU) is a smoothed version of that same property — near-unit slope on the positive side, a small non-zero slope on the negative side so that dead units can recover.</p>
+
+        <h3>Primitive 3: softmax and cross-entropy</h3>
+        <p>These are derived together because the composition collapses into something far simpler than either piece. With <code>p_i = e^{z_i} / Σ_j e^{z_j}</code>:</p>
+        <div class="math">∂p_i/∂z_j = p_i(δ_ij − p_j)        so   J = diag(p) − p pᵀ
+
+VJP:  z̄ = Jᵀ p̄ = J p̄            (J is symmetric)
+        = p ⊙ p̄ − p (pᵀ p̄)
+        = p ⊙ ( p̄ − pᵀp̄ )        subtract the p-weighted mean of p̄</div>
+        <p>Now compose with cross-entropy against a one-hot target, <code>L = −log p_y</code>, whose adjoint is <code>p̄_i = −y_i / p_i</code>. Then <code>pᵀp̄ = Σ_i p_i(−y_i/p_i) = −Σ_i y_i = −1</code>, and:</p>
+        <div class="math">z̄_i = p_i(−y_i/p_i + 1) = p_i − y_i        i.e.   z̄ = p − y</div>
+        <p>The prediction minus the target, and nothing else. Note that the softmax Jacobian appears in the answer only through the two-term structure <code>p ⊙ (p̄ − pᵀp̄)</code> — a scaled subtraction of a row-mean. That exact shape reappears verbatim inside attention's backward pass, and inside normalisation's, because all three are computing a gradient through a quantity that was normalised to sum to one.</p>
+        <p>This also explains the fused cross-entropy kernels every large-vocabulary model now uses. Materialising logits for a 128k vocabulary at 8k tokens is 1B floats per layer of nothing; but since <code>z̄ = p − y</code> depends only on <code>p</code> and the target, you can compute the loss and its gradient in tiles and never store the full matrix.</p>
+
+        <h3>Primitive 4: normalisation, the one people get wrong</h3>
+        <p>LayerNorm over a feature dimension of size <code>H</code>: <code>μ = mean(x)</code>, <code>σ = √(var(x) + ε)</code>, <code>x̂ = (x − μ)/σ</code>, <code>y = γ ⊙ x̂ + β</code>. The subtlety is that <code>μ</code> and <code>σ</code> both depend on <em>every</em> component of <code>x</code>, so changing one input coordinate moves every output coordinate. Writing <code>g = ȳ ⊙ γ</code> for the adjoint of <code>x̂</code>, and differentiating through all three paths (direct, through <code>μ</code>, through <code>σ</code>):</p>
+        <div class="math">γ̄ = Σ_batch ȳ ⊙ x̂          β̄ = Σ_batch ȳ
+
+x̄ = (1/σ) · [ g − mean(g) − x̂ ⊙ mean(g ⊙ x̂) ]
+                 ↑        ↑                ↑
+              direct   through μ       through σ</div>
+        <p>Read the bracket geometrically: the gradient is <code>g</code> with its component along <code>1</code> removed and its component along <code>x̂</code> removed. LayerNorm projects the incoming gradient onto the subspace orthogonal to both — it is literally impossible for a gradient to ask the layer below to shift the mean or scale the variance, because the normaliser will undo it. This is the mechanism behind its stabilising effect and behind the fact that the effective learning rate of a normalised layer is scale-invariant: <code>x̄</code> carries a <code>1/σ</code>, so if the incoming activations grow, the gradient shrinks in proportion, automatically.</p>
+        <p>RMSNorm drops the mean subtraction, and its backward drops exactly one of the three terms:</p>
+        <div class="math">x̂ = x / √(mean(x²) + ε)
+x̄ = (1/rms) · [ g − x̂ ⊙ mean(g ⊙ x̂) ]        one projection instead of two</div>
+        <p>Which is most of the reason RMSNorm won: one fewer reduction in the forward pass, one fewer in the backward, no measurable quality cost.</p>
+
+        <h3>Primitive 5: residuals, and what they do to gradients</h3>
+        <div class="math">y = x + F(x)     ⟹     ∂y/∂x = I + ∂F/∂x     ⟹     x̄ = ȳ + (∂F/∂x)ᵀ ȳ</div>
+        <p>The identity term is the whole point. Composing <code>n</code> residual blocks gives <code>∏(I + J_k)</code>, which expands into <code>I</code> plus a sum of products — there is always a path from the loss to any layer that passes through <em>no</em> Jacobians at all. Depth stops being a multiplicative hazard and becomes an additive one. The gradient at layer <code>ℓ</code> is at least <code>ȳ</code>, no matter how many blocks sit above it, which is precisely what the residual-stack panel in the depth figure is showing.</p>
+        <p>This also settles the pre-LN versus post-LN question, which is purely a backward-pass argument. Post-LN puts the normaliser <em>on</em> the residual path (<code>y = LN(x + F(x))</code>), so every skip connection is followed by a projection that removes gradient components — the identity path is no longer clean, and deep post-LN Transformers need learning-rate warmup to train at all. Pre-LN (<code>y = x + F(LN(x))</code>) keeps the residual stream unnormalised end to end, so the gradient highway is exact. Every large model since roughly 2020 is pre-LN for this reason alone.</p>
+
+        <div class="figure" data-fig="backprop"></div>
+
+        <h3>The MLP, end to end</h3>
+        <p>With the primitives in hand, a two-layer MLP with a softmax head is a five-line backward pass. Forward: <code>a¹ = xW¹ + b¹</code>, <code>h = f(a¹)</code>, <code>a² = hW² + b²</code>, <code>p = softmax(a²)</code>.</p>
+        <div class="math">ā² = p − y
+W̄² = hᵀ ā²            b̄² = 1ᵀ ā²
+h̄  = ā² W²ᵀ
+ā¹ = h̄ ⊙ f′(a¹)
+W̄¹ = xᵀ ā¹            b̄¹ = 1ᵀ ā¹
+x̄  = ā¹ W¹ᵀ</div>
+        <p>Every deep network in this article is this pattern with more structure in the middle. Notice the alternation: a matmul backward is two matmuls, an elementwise backward is a multiply, and the adjoint marches leftward at the same width the activations marched rightward.</p>
+
+        <h3>Convolution: weight sharing means gradient summing</h3>
+        <p>A convolution (strictly, a cross-correlation) is <code>Y[o,i,j] = Σ_{c,u,v} K[o,c,u,v] · X[c, i+u, j+v]</code>. Because the same kernel entry is used at every spatial position, rule 2 applies with a vengeance — its adjoint is a sum over all of them:</p>
+        <div class="math">K̄[o,c,u,v] = Σ_{i,j} Ȳ[o,i,j] · X[c, i+u, j+v]
+            = correlate( X , Ȳ )              the input, correlated with the output gradient
+
+X̄[c,p,q]   = Σ_{o,u,v} K[o,c,u,v] · Ȳ[o, p−u, q−v]
+            = full convolution of Ȳ with K   = correlation with the kernel flipped in u and v
+            = exactly a "transposed convolution"</div>
+        <p>Three things fall out. The gradient with respect to the input is itself a convolution, which is why the backward pass runs on the same hardware kernels as the forward one. The kernel gradient is a sum over <code>H·W</code> positions, so a 3×3 kernel with 9 parameters receives gradient signal from every pixel in the image — the reason CNNs are so sample-efficient is not just that they have fewer parameters, it is that each parameter gets <code>H·W</code> times more gradient per image. And the flip in <code>X̄</code> is where the name "transposed convolution" comes from: it is the transpose of the forward operator's matrix, nothing more.</p>
+        <div class="math">stride s:   Ȳ is dilated by s (zeros inserted) before the transposed convolution
+dilation r: the kernel is dilated by r in the backward pass too
+max pool:   x̄ routes the full gradient to the argmax, zero elsewhere
+avg pool:   x̄ spreads the gradient equally, 1/k² to each cell
+BatchNorm:  same three-term structure as LayerNorm, but reduced over the batch axis</div>
+
+        <h3>Backpropagation through time</h3>
+        <p>An RNN unrolled is a very deep MLP with tied weights, so BPTT is the MLP rule plus rule 2 applied across time. With <code>a_t = W_h h_{t−1} + W_x x_t + b</code> and <code>h_t = tanh(a_t)</code>, each hidden state feeds both its own output and the next step, so its adjoint has two contributions:</p>
+        <div class="math">δ_t ≡ ∂L/∂h_t = ∂L_t/∂h_t  +  W_hᵀ ( δ_{t+1} ⊙ (1 − h²_{t+1}) )
+                    ↑ local            ↑ from the future
+
+W̄_h = Σ_t ( δ_t ⊙ (1 − h²_t) ) h_{t−1}ᵀ        the same matrix, summed over all T steps
+W̄_x = Σ_t ( δ_t ⊙ (1 − h²_t) ) x_tᵀ</div>
+        <p>Unrolling the recursion gives the product that decides everything:</p>
+        <div class="math">∂h_t/∂h_{t−1} = diag(1 − h²_t) · W_h
+
+∂h_T/∂h_t = ∏_{s=t+1..T} diag(1 − h²_s) W_h
+
+‖∂h_T/∂h_t‖ ≤ ( max|tanh′| · σ_max(W_h) )^{T−t} = ( σ_max(W_h) )^{T−t}</div>
+        <p>A geometric series in the number of steps. If <code>σ_max(W_h) &lt; 1</code> the gradient vanishes exponentially; if it exceeds 1 it explodes exponentially; there is no stable middle because the same matrix is applied every step. Both failure modes have the same cause and different fixes — exploding gradients are cured by clipping the global norm, which is a hack that works because the direction is usually right even when the magnitude is absurd; vanishing gradients cannot be clipped away, because the information is gone rather than merely large. Truncated BPTT bounds the cost by cutting the sum at <code>k</code> steps, which is honest about the fact that the terms beyond <code>k</code> were numerically zero anyway.</p>
+
+        <h3>Why gates fix it, exactly</h3>
+        <p>Now the same derivation for an LSTM. Forward: <code>c_t = f_t ⊙ c_{t−1} + i_t ⊙ g_t</code>, <code>h_t = o_t ⊙ tanh(c_t)</code>. The cell-state adjoint picks up two terms, and the second one is the important one:</p>
+        <div class="math">δc_t = δh_t ⊙ o_t ⊙ (1 − tanh²(c_t))  +  δc_{t+1} ⊙ f_{t+1}
+
+δo_t = δh_t ⊙ tanh(c_t) ⊙ o_t(1 − o_t)
+δf_t = δc_t ⊙ c_{t−1}  ⊙ f_t(1 − f_t)
+δi_t = δc_t ⊙ g_t      ⊙ i_t(1 − i_t)
+δg_t = δc_t ⊙ i_t      ⊙ (1 − g²_t)</div>
+        <div class="math">∂c_t/∂c_{t−1} = diag(f_t)        ⟹        ∂c_T/∂c_t = ∏_{s} diag(f_s)</div>
+        <p>Compare that with the RNN's <code>∏ diag(1−h²) W_h</code>. The LSTM's cell path has <em>no weight matrix in it at all</em> — the multiplier is the forget gate, a number in <code>(0,1)</code> that the network chooses per timestep and per channel. Set <code>f ≈ 1</code> and the product is <code>≈ 1</code> over hundreds of steps: that is the constant error carousel, and it is a statement about the backward pass, not the forward one. The gates are a learned gradient-routing mechanism. This is also why the forget-gate bias is conventionally initialised to <code>+1</code>: it starts <code>f</code> near 1, which starts the network with an open gradient highway rather than asking it to discover one.</p>
+        <p>GRU works the same way with one gate fewer, <code>∂h_t/∂h_{t−1}</code> carrying a <code>(1 − z_t)</code> factor along the interpolation path.</p>
+
+        <div class="figure" data-fig="bptt"></div>
+
+        <h3>Attention, and the trick that makes FlashAttention possible</h3>
+        <p>Forward, for one head: <code>S = QKᵀ/√d_k</code>, <code>P = softmax(S)</code> row-wise, <code>O = PV</code>. Apply the matmul rule twice and the softmax rule once:</p>
+        <div class="math">V̄ = Pᵀ Ō
+P̄ = Ō Vᵀ
+
+S̄ = P ⊙ ( P̄ − rowsum(P̄ ⊙ P) )        the softmax VJP, applied per row
+
+Q̄ = (1/√d_k) · S̄ K
+K̄ = (1/√d_k) · S̄ᵀ Q</div>
+        <p>Now the <code>1/√d_k</code> earns its keep. It appears in <code>Q̄</code> and <code>K̄</code> directly, but its real job is upstream: without it, <code>S</code> has variance <code>d_k</code>, the softmax saturates, <code>P</code> approaches one-hot, and <code>P ⊙ (P̄ − rowsum(P̄ ⊙ P))</code> goes to zero because <code>p_i(1 − p_i) → 0</code>. The scaling factor is not there to make the forward pass prettier; it is there to keep the softmax Jacobian from collapsing and killing the gradient. Same reasoning, same shape, as the sigmoid's <code>¼</code>.</p>
+        <p>The identity that makes the memory-efficient version work is worth its own line. Define <code>D_i = rowsum(P̄ ⊙ P)_i</code>, the scalar subtracted in each row. Then:</p>
+        <div class="math">D_i = Σ_j P_ij (Ō Vᵀ)_ij = Σ_j Ō_ij Σ_k P_ik V_kj = Σ_j Ō_ij O_ij
+
+⟹  D = rowsum( Ō ⊙ O )</div>
+        <p>The row-correction depends only on the output and its adjoint — both <code>N×d</code> — so it can be computed in <code>O(Nd)</code> without ever touching the <code>N×N</code> matrix. That is what lets FlashAttention's backward pass recompute <code>S</code> and <code>P</code> tile by tile in SRAM (using the saved row-wise logsumexp statistics) instead of reading back a stored attention matrix. The forward pass stores <code>O</code> and one scalar per row; the backward pass rebuilds everything else. Memory drops from <code>O(N²)</code> to <code>O(N)</code>, FLOPs rise by roughly 30%, and the whole thing gets <em>faster</em> because attention was memory-bound, not compute-bound.</p>
+        <p>For multi-head attention the heads are independent up to the concatenation, so <code>W̄_O = concat(O_h)ᵀ Ō_final</code> and each head receives its slice. Under GQA the shared K and V projections are used by several query heads, so — rule 2 again — their adjoints are the <em>sum</em> over the group.</p>
+
+        <div class="figure" data-fig="attnback"></div>
+
+        <h3>Selective state spaces: the backward pass is another scan</h3>
+        <p>Strip an SSM layer to its recurrence, <code>h_t = ā_t h_{t−1} + b̄_t</code>, <code>y_t = c_t h_t</code>. The adjoint obeys the same kind of recurrence, running in the opposite direction:</p>
+        <div class="math">λ_t ≡ ∂L/∂h_t = c_t ȳ_t  +  ā_{t+1} λ_{t+1}        a linear recurrence, run backward
+
+∂L/∂ā_t = λ_t · h_{t−1}      ∂L/∂b̄_t = λ_t      ∂L/∂c_t = ȳ_t · h_t</div>
+        <p>This is the structural payoff of linearity. The RNN's backward pass is sequential because its per-step Jacobian depends on <code>h</code> through <code>tanh′</code>; the SSM's backward pass is a linear recurrence with known coefficients, which is associative, which means it is a parallel scan in <code>O(log N)</code> depth just like the forward pass. Linearity buys parallelism in <em>both</em> directions, which is the entire reason a linear recurrence is trainable at scale and a tanh recurrence is not.</p>
+        <p>The selection mechanism then chains through the discretisation. With <code>Ā = exp(ΔA)</code> and <code>Δ = softplus(W_Δ x + b_Δ)</code>:</p>
+        <div class="math">∂Ā/∂Δ = A · exp(ΔA) = A ⊙ Ā
+Δ̄ = Σ ( (∂L/∂ā) ⊙ A ⊙ Ā )  +  (terms through B̄)
+W̄_Δ = xᵀ ( Δ̄ ⊙ σ(W_Δ x + b_Δ) )        softplus′ = sigmoid</div>
+        <p>Two things follow. The exponential is well-behaved for <code>A &lt; 0</code>, which is why <code>A</code> is parameterised as <code>−exp(A_log)</code> — it forces the multiplier into <code>(0,1)</code> and makes the state a decay rather than a divergence, structurally guaranteeing what an RNN could only hope for. And because <code>Δ_t</code> is data-dependent, the gradient through the state is data-dependent too: the model can learn to open the gate (<code>Δ</code> large, <code>ā → 0</code>, state overwritten) or close it (<code>Δ</code> small, <code>ā → 1</code>, state and gradient preserved). It is the LSTM's forget gate again, in exponential coordinates and with an associative-scan-friendly algebra.</p>
+        <p>One implementation note that matters: the fused selective-scan kernel does not store the intermediate states <code>h_t</code>. They are recomputed during the backward pass from the saved inputs, exactly as with FlashAttention. Activation memory is <code>O(N·d)</code> rather than <code>O(N·d·s)</code>, and that factor of <code>s</code> is the difference between a state size of 16 being free and being unaffordable.</p>
+
+        <h3>Mixtures of experts, and a genuinely non-differentiable step</h3>
+        <p>With <code>y = Σ_{k ∈ top-K} g_k · E_k(x)</code> and <code>g = softmax(x W_r)</code> restricted to the chosen experts:</p>
+        <div class="math">Ē_k = g_k ȳ                    each selected expert gets a scaled adjoint
+ḡ_k = ⟨ ȳ , E_k(x) ⟩            the router learns from how useful the expert was
+x̄   = Σ_k g_k · ∂E_k/∂x ᵀ ȳ  +  ∂g/∂x ᵀ ḡ</div>
+        <p>The top-<code>K</code> selection itself has zero gradient almost everywhere — it is a discrete argmax, and no amount of chain rule will tell the router about an expert it did not choose. The router only learns to <em>re-weight</em> among experts it already picked. Every practical fix is a way around this hole: an auxiliary load-balancing loss that penalises uneven routing directly, noise added to the router logits so that near-ties get explored, or the expert-choice formulation that inverts the assignment so experts pick tokens instead. This is one of the few places in a modern network where the gradient genuinely does not exist and the training recipe has to compensate.</p>
+
+        <h3>What the backward pass costs, and how to pay less</h3>
+        <p>Collecting the accounting from the linear-layer rule: forward is one matmul, backward is two, so a training step is roughly <code>3×</code> the forward FLOPs — the <code>6N</code> per token from the sizing section. Memory is the harder constraint, because rule 3 means every activation on the forward path must be live until its backward runs. The standard mitigations are all trades against that one fact:</p>
+        <div class="math">no checkpointing      store every activation        memory O(L·N·d·c)   compute 3× forward
+full checkpointing    store layer boundaries        memory O(L·N·d)     compute 4× forward
+selective (recompute  store matmul inputs, redo     memory ≈ O(L·N·d)   compute ≈3.3× forward
+  cheap ops only)     norms/activations
+FlashAttention        store O and logsumexp only    memory O(N·d)       compute ≈1.3× attention</div>
+        <p>Two numerical footnotes complete the picture. In mixed precision the loss is multiplied by a scale factor <code>S</code> before <code>backward()</code> and the gradients divided by <code>S</code> afterwards, because bf16/fp16 gradients underflow to zero long before they become meaningless — the scaling shifts them into representable range and is exactly invertible. And gradient clipping by global norm, <code>ḡ ← ḡ · min(1, c/‖ḡ‖)</code>, rescales the whole gradient vector rather than clipping elementwise, which preserves the direction; that distinction is why global-norm clipping is standard and per-element clipping is not.</p>
+
+        <div class="keyidea">
+          <b>The pattern across every architecture</b>
+          <p>Each family's signature failure and its fix are both statements about a product of Jacobians. The deep MLP dies to <code>∏ σ′ ≤ 4⁻ⁿ</code> and is saved by ReLU's slope of exactly one. The deep CNN dies to the same product and is saved by the residual's <code>I</code>. The RNN dies to <code>∏ diag(1−h²)W_h</code> and is saved by the LSTM's <code>∏ f_t</code>. Attention's softmax dies to saturation and is saved by <code>1/√d_k</code>. The SSM would die to <code>∏ ā_t</code> and is saved by parameterising <code>A</code> negative so that <code>ā ∈ (0,1)</code> by construction. Five architectures, one equation, five different places to intervene in it.</p>
+        </div>
+      </section>
+
       <section>
         <h2 id="image-lab">Lab: the same image through three architectures</h2>
         <p>Descriptions of inductive bias stay abstract until you watch the same pixels being consumed three different ways. The lab below takes one 16×16 image and pushes it through a dense layer, a convolution stack, and a vision Transformer. Switch architecture with the buttons, step with Previous/Next, and use <b>Shift the object</b> to translate the input by a few pixels — then watch which representations move with it and which ones fall apart.</p>
@@ -915,6 +1096,23 @@ attention / parameter FLOPs  ≈  N_ctx / (6d)</div>
               <li><a href="https://arxiv.org/abs/1910.02054">ZeRO: memory optimizations toward training trillion parameter models</a> — Rajbhandari et al. <span class="yr">2019</span></li>
               <li><a href="https://arxiv.org/abs/1710.03740">Mixed precision training</a> — Micikevicius et al. <span class="yr">2017</span></li>
               <li><a href="https://arxiv.org/abs/2002.05202">GLU variants improve Transformer (SwiGLU)</a> — Shazeer <span class="yr">2020</span></li>
+            </ol>
+          </div>
+
+          <div class="refgroup">
+            <h3>Gradients, optimisation and numerics</h3>
+            <ol>
+              <li><a href="https://www.jmlr.org/papers/v18/17-468.html">Automatic differentiation in machine learning: a survey</a> — Baydin et al. <span class="yr">2018</span></li>
+              <li><a href="https://doi.org/10.1109/72.279181">Learning long-term dependencies with gradient descent is difficult</a> — Bengio, Simard &amp; Frasconi <span class="yr">1994</span></li>
+              <li><a href="https://arxiv.org/abs/1211.5063">On the difficulty of training recurrent neural networks (clipping)</a> — Pascanu, Mikolov &amp; Bengio <span class="yr">2013</span></li>
+              <li><a href="https://proceedings.mlr.press/v9/glorot10a.html">Understanding the difficulty of training deep feedforward networks</a> — Glorot &amp; Bengio <span class="yr">2010</span></li>
+              <li><a href="https://arxiv.org/abs/1502.01852">Delving deep into rectifiers (He initialisation)</a> — He et al. <span class="yr">2015</span></li>
+              <li><a href="https://arxiv.org/abs/1607.06450">Layer normalization</a> — Ba, Kiros &amp; Hinton <span class="yr">2016</span></li>
+              <li><a href="https://arxiv.org/abs/1910.07467">Root mean square layer normalization</a> — Zhang &amp; Sennrich <span class="yr">2019</span></li>
+              <li><a href="https://arxiv.org/abs/2002.04745">On layer normalization in the Transformer architecture (pre-LN vs post-LN)</a> — Xiong et al. <span class="yr">2020</span></li>
+              <li><a href="https://arxiv.org/abs/1604.06174">Training deep nets with sublinear memory cost (gradient checkpointing)</a> — Chen et al. <span class="yr">2016</span></li>
+              <li><a href="https://arxiv.org/abs/2205.14135">FlashAttention: fast and memory-efficient exact attention with IO-awareness</a> — Dao et al. <span class="yr">2022</span></li>
+              <li><a href="https://arxiv.org/abs/1412.6980">Adam: a method for stochastic optimization</a> — Kingma &amp; Ba <span class="yr">2014</span></li>
             </ol>
           </div>
 
@@ -2848,6 +3046,677 @@ attention / parameter FLOPs  ≈  N_ctx / (6d)</div>
             D.text(226, 106, "parameters in one layer", { size: 9.5, fill: P.faint, ls: 1 });
             D.text(640, 106, "state carried at inference", { size: 9.5, fill: P.faint, ls: 1 });
             D.text(96, 468, "Parameters barely separate these. What separates them is the right-hand column — and only one of them grows with the input.", { size: 11.5, fill: P.dim });
+          }
+        }
+      };
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var K = window.__figKit, P = K.P, clamp = K.clamp, lerp = K.lerp, ease = K.ease, easeOut = K.easeOut;
+      var SPECS = window.__SPECS;
+
+      /* ============================================================
+         FIGURE 14 — reverse mode: how the adjoint actually flows
+         ============================================================ */
+      var BPN = [
+        { n: "x", s: "input", x: 60, c: P.faint },
+        { n: "W¹", s: "linear", x: 190, c: P.sky },
+        { n: "f", s: "GELU", x: 320, c: P.violet },
+        { n: "LN", s: "norm", x: 450, c: P.amber },
+        { n: "W²", s: "linear", x: 580, c: P.sky },
+        { n: "p", s: "softmax", x: 710, c: P.mint },
+        { n: "L", s: "loss", x: 840, c: P.rose }
+      ];
+      var BPY = 150, BPW = 76, BPH = 52;
+      function bpNodes(D, fwd, back, hi) {
+        BPN.forEach(function (nd, k) {
+          var on = fwd === null ? 1 : clamp(fwd * BPN.length - k, 0, 1);
+          var lit = hi === k;
+          D.rect(nd.x, BPY, BPW, BPH, {
+            fill: lit ? "rgba(255,255,255,0.07)" : "#161d24",
+            stroke: lit ? nd.c : (on > 0.5 ? P.edge : "#1c242b"), sw: lit ? 2 : 1.2, r: 4
+          });
+          D.text(nd.x + BPW / 2, BPY + 22, nd.n, { size: 13, fill: on > 0.5 ? nd.c : P.faint, anchor: "middle", mid: true, weight: 700 });
+          D.text(nd.x + BPW / 2, BPY + 40, nd.s, { size: 8.5, fill: P.faint, anchor: "middle", mid: true });
+          if (k < BPN.length - 1) {
+            var x1 = nd.x + BPW, x2 = BPN[k + 1].x;
+            if (fwd !== null) D.arrow(x1, BPY + 16, x2, BPY + 16, { t: clamp(fwd * BPN.length - k, 0, 1), stroke: P.sky, sw: 1.4, op: 0.8 });
+            if (back !== null) {
+              var bt = clamp(back * BPN.length - (BPN.length - 2 - k), 0, 1);
+              if (bt > 0) D.arrow(x2, BPY + 40, x1, BPY + 40, { t: bt, stroke: P.rose, sw: 1.6 });
+            }
+          }
+        });
+        if (fwd !== null) D.text(60, BPY - 16, "forward: values", { size: 9.5, fill: P.sky, ls: 1 });
+        if (back !== null) D.text(60, BPY + BPH + 26, "backward: adjoints  X̄ = ∂L/∂X", { size: 9.5, fill: P.rose, ls: 1 });
+      }
+
+      SPECS.backprop = {
+        title: "Reverse mode: the adjoint runs the other way",
+        caption: "Every node implements one thing — given the gradient of the loss with respect to its output, return the gradient with respect to its input. No Jacobian is ever built. Watch what each kind of node actually does with the vector it is handed.",
+        dur: 3000, hold: 0.3,
+        stages: [
+          { label: "Forward: compute and remember" },
+          { label: "Seed the adjoint: ∂L/∂L = 1" },
+          { label: "Softmax + cross-entropy collapses" },
+          { label: "A linear node: two matmuls back" },
+          { label: "An elementwise node: one multiply" },
+          { label: "A norm node: two projections removed" },
+          { label: "Fan-out: adjoints add" },
+          { label: "Why backward costs 2× forward" },
+          { label: "The memory bill, and checkpointing" },
+          { label: "The residual identity path" }
+        ],
+        draw: function (D, i, t, ctx) {
+          var subs = [
+            "activations are stored because the backward pass needs them",
+            "the loss is a scalar — that is what makes reverse mode cheap",
+            "z̄ = p − y, and nothing else survives",
+            "X̄ = Ȳ Wᵀ   and   W̄ = Xᵀ Ȳ",
+            "z̄ = ȳ ⊙ f′(z) — the Jacobian is diagonal, so it is never formed",
+            "the gradient is projected orthogonal to 1 and to x̂",
+            "a value used twice receives the sum of both adjoints",
+            "one matmul forward, two matmuls backward",
+            "store everything, or store boundaries and recompute",
+            "y = x + F(x) → x̄ = ȳ + F′ᵀ ȳ"
+          ];
+          D.title("Reverse mode: the adjoint runs the other way", subs[i]);
+
+          if (i === 0) {
+            bpNodes(D, easeOut(t), null, null);
+            var st = clamp(t * 2 - 0.8, 0, 1);
+            BPN.slice(0, 6).forEach(function (nd, k) {
+              D.rect(nd.x + 10, BPY + BPH + 26, BPW - 20, 12, { fill: P.sky, r: 2, op: 0.35 * st });
+            });
+            D.text(60, BPY + BPH + 62, "every one of these has to stay in memory until its backward runs", { size: 11, fill: P.dim, op: st });
+            D.text(60, BPY + BPH + 84, "this — not the weights — is what fills an 80 GB card", { size: 11, fill: P.amber, op: st });
+          }
+
+          if (i === 1) {
+            bpNodes(D, null, 0, 6);
+            var a = easeOut(t);
+            D.circle(878, BPY + BPH + 40, 5 + 3 * Math.sin(t * 9), { fill: P.rose, op: a });
+            D.text(700, BPY + BPH + 76, "L̄ = ∂L/∂L = 1", { size: 14, fill: P.rose, op: a });
+            D.text(60, 300, "Reverse mode costs one sweep per scalar output.", { size: 12, fill: P.ink });
+            D.text(60, 324, "Forward mode would cost one sweep per input — 8 billion of them.", { size: 12, fill: P.dim, op: clamp(t * 2 - 0.4, 0, 1) });
+            D.text(60, 362, "∂L/∂θ = J_n · J_{n−1} · … · J_1", { size: 12.5, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(60, 386, "reverse:  ( … ((J_n J_{n−1}) J_{n−2}) … )   row vector × matrix, always", { size: 11.5, fill: P.mint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(60, 410, "forward:  ( … J_3 (J_2 J_1) )               matrix × matrix, ruinous", { size: 11.5, fill: P.rose, op: clamp(t * 2 - 1.1, 0, 1) });
+          }
+
+          if (i === 2) {
+            bpNodes(D, null, 0.18, 5);
+            var V = [0.05, 0.62, 0.11, 0.14, 0.08], Y = [0, 1, 0, 0, 0], lbl = ["a", "b", "c", "d", "e"];
+            var a2 = easeOut(t);
+            V.forEach(function (p, k) {
+              var x = 130 + k * 120;
+              D.text(x + 30, 268, lbl[k], { size: 10, fill: P.faint, anchor: "middle" });
+              D.rect(x, 276, 60, 90, { fill: "#161d24", stroke: P.edge, sw: 1, r: 3 });
+              D.rect(x, 366 - 90 * p * a2, 60, 90 * p * a2, { fill: P.mint, r: 2, op: 0.8 });
+              if (Y[k]) D.rect(x, 276, 60, 90, { fill: "none", stroke: P.amber, sw: 1.8, r: 3, op: a2 });
+              var g = p - Y[k], gy = 400, gh = 46 * Math.abs(g) * a2;
+              D.rect(x, g > 0 ? gy : gy - gh, 60, gh, { fill: g > 0 ? P.rose : P.sky, r: 2, op: 0.85 });
+              D.text(x + 30, 462, (g >= 0 ? "+" : "") + g.toFixed(2), { size: 10, fill: g > 0 ? P.rose : P.sky, anchor: "middle", op: a2 });
+            });
+            D.line(120, 400, 800, 400, { stroke: P.edge, sw: 1 });
+            D.text(60, 300, "p", { size: 12, fill: P.mint });
+            D.text(60, 340, "target", { size: 10, fill: P.amber });
+            D.text(60, 404, "z̄", { size: 12, fill: P.rose });
+            D.text(60, 252, "z̄ = p ⊙ (p̄ − pᵀp̄)  collapses to  p − y", { size: 12.5, fill: P.ink });
+          }
+
+          if (i === 3) {
+            bpNodes(D, null, 0.42, 4);
+            var a3 = easeOut(t);
+            D.rect(60, 250, 380, 200, { fill: "#111a20", stroke: P.sky, sw: 1.2, r: 4 });
+            D.text(78, 276, "X̄ = Ȳ Wᵀ", { size: 14, fill: P.sky });
+            D.text(78, 298, "gradient to the layer below", { size: 10, fill: P.faint });
+            D.rect(78, 316, 90 * a3, 22, { fill: P.rose, r: 2, op: 0.7 });
+            D.text(180, 328, "×", { size: 12, fill: P.faint, mid: true });
+            D.rect(200, 316, 60 * a3, 22, { fill: P.sky, r: 2, op: 0.5 });
+            D.text(78, 372, "W̄ = Xᵀ Ȳ", { size: 14, fill: P.violet });
+            D.text(78, 394, "gradient to the weights — needs the stored input X", { size: 10, fill: P.faint });
+            D.rect(78, 412, 60 * a3, 22, { fill: P.violet, r: 2, op: 0.6 });
+            D.text(180, 424, "×", { size: 12, fill: P.faint, mid: true });
+            D.rect(200, 412, 90 * a3, 22, { fill: P.rose, r: 2, op: 0.7 });
+            D.rect(480, 250, 420, 200, { fill: "#111a20", stroke: P.edge, sw: 1.2, r: 4 });
+            D.text(498, 276, "why the shapes have to work out", { size: 11.5, fill: P.dim });
+            var shp = [
+              ["Y = X W", "(n×m) = (n×k)(k×m)"],
+              ["X̄ = Ȳ Wᵀ", "(n×k) = (n×m)(m×k)  ✓"],
+              ["W̄ = Xᵀ Ȳ", "(k×m) = (k×n)(n×m)  ✓"]
+            ];
+            shp.forEach(function (s3, si) {
+              var op = clamp(t * 2.4 - si * 0.2, 0, 1);
+              D.text(498, 312 + si * 34, s3[0], { size: 12, fill: P.ink, op: op });
+              D.text(884, 312 + si * 34, s3[1], { size: 11, fill: P.faint, anchor: "end", op: op });
+            });
+            D.text(498, 428, "An adjoint always has the shape of what it differentiates.", { size: 10.5, fill: P.mint });
+          }
+
+          if (i === 4) {
+            bpNodes(D, null, 0.58, 2);
+            var gx4 = 120, gy4 = 250, gw4 = 300, gh4 = 200;
+            D.rect(gx4, gy4, gw4, gh4, { fill: "#111a20", stroke: P.edge, sw: 1.2 });
+            D.line(gx4, gy4 + gh4 / 2, gx4 + gw4, gy4 + gh4 / 2, { stroke: P.edge, sw: 1 });
+            D.line(gx4 + gw4 / 2, gy4, gx4 + gw4 / 2, gy4 + gh4, { stroke: P.edge, sw: 1 });
+            var dd = "", dd2 = "", n4 = 60;
+            for (var q = 0; q <= n4; q++) {
+              var z = lerp(-4, 4, q / n4);
+              var gelu = z * 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
+              var cdf = 0.5 * (1 + Math.tanh(0.7978845608 * (z + 0.044715 * z * z * z)));
+              var pdf = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+              var dv = cdf + z * pdf;
+              var X = gx4 + gw4 * (q / n4);
+              dd += (q ? "L" : "M") + X + "," + (gy4 + gh4 / 2 - gelu * 20);
+              dd2 += (q ? "L" : "M") + X + "," + (gy4 + gh4 / 2 - dv * 46);
+            }
+            D.path(dd, { stroke: P.violet, sw: 1.6, op: 0.55 });
+            D.path(dd2, { stroke: P.rose, sw: 2, op: easeOut(t) });
+            D.text(gx4 + 10, gy4 + 20, "f(z) = GELU", { size: 10, fill: P.violet });
+            D.text(gx4 + 10, gy4 + 38, "f′(z) = Φ(z) + z φ(z)", { size: 10, fill: P.rose });
+            D.rect(470, 250, 430, 200, { fill: "#111a20", stroke: P.edge, sw: 1.2, r: 4 });
+            var acts = [["ReLU", "1[z > 0]", "exactly 0 or 1", P.mint],
+            ["tanh", "1 − tanh²z", "≤ 1, ≈0 past |z| = 2", P.amber],
+            ["sigmoid", "σ(1 − σ)", "≤ ¼ — six layers is 4⁻⁶", P.rose],
+            ["GELU", "Φ + zφ", "smooth, slightly above 1", P.violet]];
+            acts.forEach(function (ac, ai) {
+              var op = clamp(t * 2.4 - ai * 0.18, 0, 1);
+              D.text(488, 284 + ai * 40, ac[0], { size: 11.5, fill: ac[3], op: op });
+              D.text(590, 284 + ai * 40, ac[1], { size: 11, fill: P.dim, op: op });
+              D.text(884, 284 + ai * 40, ac[2], { size: 10, fill: P.faint, anchor: "end", op: op });
+            });
+          }
+
+          if (i === 5) {
+            bpNodes(D, null, 0.72, 3);
+            var a5 = easeOut(t);
+            D.text(60, 250, "x̄ = (1/σ) · [ g − mean(g) − x̂ ⊙ mean(g ⊙ x̂) ]", { size: 14, fill: P.amber });
+            var terms = [
+              ["g", "the raw incoming gradient", P.rose, 0],
+              ["− mean(g)", "removes the component along 1 — no gradient may shift the mean", P.sky, 1],
+              ["− x̂ ⊙ mean(g⊙x̂)", "removes the component along x̂ — none may change the scale", P.violet, 2]
+            ];
+            terms.forEach(function (tm, ti) {
+              var op = clamp(t * 2.2 - ti * 0.25, 0, 1);
+              D.rect(60, 288 + ti * 54, 830, 42, { fill: "#141b21", stroke: P.edge, sw: 1, r: 3, op: op });
+              D.text(78, 314 + ti * 54, tm[0], { size: 12, fill: tm[2], op: op });
+              D.text(250, 314 + ti * 54, tm[1], { size: 11, fill: P.dim, op: op });
+            });
+            D.text(60, 464, "RMSNorm keeps the first and third and drops the second — one fewer reduction, forward and back.", { size: 11, fill: P.mint, op: clamp(t * 2 - 1.2, 0, 1) });
+          }
+
+          if (i === 6) {
+            var a6 = easeOut(t);
+            D.circle(200, 280, 20, { fill: "none", stroke: P.sky, sw: 1.8 });
+            D.text(200, 280, "h", { size: 13, fill: P.sky, anchor: "middle", mid: true });
+            D.chip(420, 220, 130, 44, "use A", { stroke: P.violet, tfill: P.violet });
+            D.chip(420, 320, 130, 44, "use B", { stroke: P.mint, tfill: P.mint });
+            D.arrow(222, 272, 418, 242, { t: 1, stroke: P.faint, sw: 1.2 });
+            D.arrow(222, 290, 418, 342, { t: 1, stroke: P.faint, sw: 1.2 });
+            D.arrow(418, 254, 224, 288, { t: a6, stroke: P.violet, sw: 1.8 });
+            D.arrow(418, 332, 224, 296, { t: clamp(a6 * 1.4 - 0.3, 0, 1), stroke: P.mint, sw: 1.8 });
+            D.text(600, 240, "h̄ = h̄_A + h̄_B", { size: 15, fill: P.ink, op: a6 });
+            D.text(600, 276, "Not one or the other. The sum.", { size: 11.5, fill: P.dim, op: a6 });
+            D.text(600, 316, "This single rule generates:", { size: 11, fill: P.faint, op: clamp(t * 2 - 0.6, 0, 1) });
+            ["· the residual's ȳ + F′ᵀȳ", "· BPTT's sum over all T timesteps", "· a conv kernel's sum over all H·W positions", "· GQA's sum over the query heads sharing a K head"].forEach(function (s6, si) {
+              D.text(600, 344 + si * 26, s6, { size: 10.5, fill: P.dim, op: clamp(t * 2.4 - 0.8 - si * 0.15, 0, 1) });
+            });
+          }
+
+          if (i === 7) {
+            var a7 = easeOut(t);
+            D.text(60, 250, "one linear layer, per training step", { size: 11.5, fill: P.dim });
+            var ops = [["forward   Y = XW", 1, P.sky], ["backward  X̄ = ȲWᵀ", 1, P.rose], ["backward  W̄ = XᵀȲ", 1, P.violet]];
+            ops.forEach(function (o7, oi) {
+              var op = easeOut(clamp(t * 2.2 - oi * 0.22, 0, 1));
+              D.text(60, 296 + oi * 46, o7[0], { size: 12, fill: P.ink, op: op });
+              D.rect(300, 280 + oi * 46, 180 * op, 24, { fill: o7[2], r: 2, op: 0.8 });
+              D.text(496, 292 + oi * 46, "2·n·k·m FLOPs", { size: 10.5, fill: P.faint, mid: true, op: op });
+            });
+            D.line(60, 434, 700, 434, { stroke: P.edge, sw: 1 });
+            D.text(60, 458, "training = 3 × forward   →   6N FLOPs per token per parameter", { size: 13, fill: P.amber, op: clamp(t * 2 - 1, 0, 1) });
+            D.text(700, 300, "inference: 2N", { size: 11.5, fill: P.mint, op: a7 });
+            D.text(700, 322, "training:  6N", { size: 11.5, fill: P.amber, op: a7 });
+            D.text(700, 344, "the factor of three", { size: 10, fill: P.faint, op: a7 });
+            D.text(700, 360, "is this picture.", { size: 10, fill: P.faint, op: a7 });
+          }
+
+          if (i === 8) {
+            var modes = [
+              ["store everything", 1.0, 3.0, P.rose],
+              ["full checkpointing", 0.12, 4.0, P.mint],
+              ["selective recompute", 0.20, 3.3, P.amber],
+              ["FlashAttention (attn only)", 0.02, 1.3, P.sky]
+            ];
+            D.text(60, 244, "activation memory", { size: 10, fill: P.faint, ls: 1 });
+            D.text(560, 244, "compute, × forward", { size: 10, fill: P.faint, ls: 1 });
+            modes.forEach(function (md, mi) {
+              var op = easeOut(clamp(t * 2.2 - mi * 0.16, 0, 1)), y8 = 270 + mi * 52;
+              D.text(60, y8 + 14, md[0], { size: 11.5, fill: P.ink, op: op });
+              D.rect(300, y8, 220 * md[1] * op, 22, { fill: md[3], r: 2, op: 0.85 });
+              D.rect(560, y8, 70 * md[2] * op, 22, { fill: md[3], r: 2, op: 0.45 });
+              D.text(560 + 70 * md[2] * op + 10, y8 + 12, md[2].toFixed(1) + "×", { size: 10.5, fill: md[3], mid: true, op: op });
+            });
+            D.text(60, 486, "Recomputation is the only lever that trades a resource you have run out of for one you have not.", { size: 11, fill: P.dim });
+          }
+
+          if (i === 9) {
+            var a9 = easeOut(t);
+            for (var b9 = 0; b9 < 5; b9++) {
+              var y9 = 244 + b9 * 46;
+              D.rect(300, y9, 200, 32, { fill: "#161d24", stroke: P.edge, sw: 1.2, r: 3 });
+              D.text(400, y9 + 16, "block " + (5 - b9), { size: 10.5, fill: P.dim, anchor: "middle", mid: true });
+              D.line(560, y9 + 16, 700, y9 + 16, { stroke: P.violet, sw: 1.4, op: 0.5 });
+              if (b9 === 0) D.text(700, y9 + 8, "F(x) branches", { size: 9.5, fill: P.violet, op: a9 });
+            }
+            D.arrow(250, 244, 250, 468, { t: a9, stroke: P.mint, sw: 2.6, head: true });
+            D.text(80, 300, "the identity path", { size: 12.5, fill: P.mint, weight: 700, op: a9 });
+            D.text(80, 324, "carries ȳ down", { size: 11, fill: P.dim, op: a9 });
+            D.text(80, 342, "unchanged, through", { size: 11, fill: P.dim, op: a9 });
+            D.text(80, 360, "every block.", { size: 11, fill: P.dim, op: a9 });
+            D.text(720, 300, "∏(I + J_k) = I + ΣJ + …", { size: 11.5, fill: P.ink, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(720, 330, "there is always a route", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(720, 348, "from the loss to any layer", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(720, 366, "through zero Jacobians.", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(80, 470, "Pre-LN keeps this path clean. Post-LN puts a projection on it — which is why it needs warmup.", { size: 11, fill: P.amber, op: clamp(t * 2 - 1, 0, 1) });
+          }
+        }
+      };
+
+      /* ============================================================
+         FIGURE 15 — the adjoint through time: RNN vs LSTM vs SSM
+         ============================================================ */
+      var TT = 10;
+      var TMUL = {
+        rnn: [0.61, 0.55, 0.68, 0.49, 0.58, 0.62, 0.52, 0.66, 0.57, 0.60],
+        lstm: [0.97, 0.95, 0.98, 0.93, 0.96, 0.97, 0.94, 0.98, 0.96, 0.97],
+        ssm: [0.99, 0.86, 0.99, 0.98, 0.99, 0.92, 0.99, 0.98, 0.88, 0.99]
+      };
+      var TINFO = {
+        rnn: { n: "RNN", c: P.rose, m: "∂h_t/∂h_{t−1} = diag(1 − h²_t) · W_h", w: "a matrix, the same one every step" },
+        lstm: { n: "LSTM", c: P.amber, m: "∂c_t/∂c_{t−1} = diag(f_t)", w: "the forget gate — no weight matrix at all" },
+        ssm: { n: "SSM", c: P.mint, m: "∂h_t/∂h_{t−1} = ā_t = exp(Δ_t A)", w: "data-dependent, per channel, and (0,1) by construction" }
+      };
+      function cumprod(arr, from) {
+        var v = 1, out = [];
+        for (var q = arr.length - 1; q >= 0; q--) { out[q] = v; v *= arr[q]; }
+        return out;
+      }
+
+      SPECS.bptt = {
+        title: "Backpropagation through time",
+        caption: "The forward pass of a recurrence is a chain; the backward pass is the same chain multiplied in reverse. What differs between the three families is only what sits in the product — a weight matrix, a gate, or an exponential — and that single difference decides whether anything reaches step 1.",
+        dur: 3000, hold: 0.3,
+        stages: [
+          { label: "Forward: the chain of states" },
+          { label: "The adjoint runs backward" },
+          { label: "RNN: a matrix in every link" },
+          { label: "The product vanishes" },
+          { label: "LSTM: the link is a gate" },
+          { label: "SSM: the link is data-dependent" },
+          { label: "All three, side by side" },
+          { label: "Truncated BPTT" },
+          { label: "The backward scan is parallel too" }
+        ],
+        draw: function (D, i, t, ctx) {
+          var subs = [
+            "h_t = tanh(W_h h_{t−1} + W_x x_t)",
+            "δ_t = ∂L_t/∂h_t + W_hᵀ(δ_{t+1} ⊙ (1 − h²_{t+1}))",
+            "each link multiplies by diag(1 − h²)·W_h",
+            "‖∂h_T/∂h_t‖ ≤ σ_max(W_h)^{T−t} — geometric, both ways",
+            "∂c_t/∂c_{t−1} = f_t, and the network chooses f",
+            "ā_t = exp(Δ_t A) with A negative — a decay by construction",
+            "same 10 steps, three multipliers",
+            "cut the sum at k steps: the tail was numerically zero anyway",
+            "a linear recurrence is associative in both directions"
+          ];
+          D.title("Backpropagation through time", subs[i]);
+          var x0 = 74, cw = 66, gap = 20, cy = 150;
+          function chain(D, hi, colr, showFwd, showBack, backT) {
+            for (var q = 0; q < TT; q++) {
+              var x = x0 + q * (cw + gap);
+              var lit = hi === undefined ? true : (q >= hi);
+              D.rect(x, cy, cw, 44, { fill: "#161d24", stroke: lit ? (colr || P.edge) : P.edge, sw: lit ? 1.6 : 1, r: 3 });
+              D.text(x + cw / 2, cy + 22, "h" + (q + 1), { size: 11.5, fill: lit ? P.ink : P.faint, anchor: "middle", mid: true });
+              if (q < TT - 1 && showFwd) D.arrow(x + cw, cy + 14, x + cw + gap, cy + 14, { t: 1, stroke: P.faint, sw: 1.1, op: 0.55 });
+              if (q > 0 && showBack) {
+                var bt = clamp((backT || 1) * TT - (TT - 1 - q), 0, 1);
+                if (bt > 0) D.arrow(x, cy + 32, x - gap, cy + 32, { t: bt, stroke: colr || P.rose, sw: 1.7 });
+              }
+            }
+          }
+
+          if (i === 0) {
+            chain(D, undefined, P.sky, easeOut(t) > 0.1, false, 0);
+            D.text(74, cy - 16, "one shared transition, applied ten times", { size: 10.5, fill: P.faint });
+            D.text(74, 280, "Unrolled, a recurrence is a very deep network whose layers share weights.", { size: 12, fill: P.dim });
+            D.text(74, 306, "So backprop through it is ordinary backprop — plus rule 2, because W_h is used at every step.", { size: 12, fill: P.dim, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(74, 350, "W̄_h = Σ_t ( δ_t ⊙ (1 − h²_t) ) h_{t−1}ᵀ", { size: 13, fill: P.sky, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(74, 376, "one matrix, ten contributions, summed", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.9, 0, 1) });
+          }
+
+          if (i === 1) {
+            chain(D, undefined, P.rose, true, true, easeOut(t));
+            D.text(74, cy + 74, "δ_t = ∂L_t/∂h_t  +  W_hᵀ ( δ_{t+1} ⊙ (1 − h²_{t+1}) )", { size: 13, fill: P.rose });
+            D.text(74, cy + 100, "local term: whatever the loss says about this step directly", { size: 10.5, fill: P.faint });
+            D.text(74, cy + 120, "recursive term: everything the future still wants from it", { size: 10.5, fill: P.faint });
+            D.text(74, 340, "The forward pass has to finish before the backward pass can start —", { size: 11.5, fill: P.dim, op: clamp(t * 2 - 0.8, 0, 1) });
+            D.text(74, 362, "which is why activations for all T steps live in memory at once.", { size: 11.5, fill: P.dim, op: clamp(t * 2 - 0.8, 0, 1) });
+          }
+
+          if (i === 2 || i === 4 || i === 5) {
+            var kind = i === 2 ? "rnn" : (i === 4 ? "lstm" : "ssm");
+            var inf = TINFO[kind], mul = TMUL[kind];
+            chain(D, undefined, inf.c, true, true, 1);
+            for (var q2 = 1; q2 < TT; q2++) {
+              var xm = x0 + q2 * (cw + gap) - gap / 2, op2 = easeOut(clamp(t * 2 - q2 * 0.06, 0, 1));
+              D.text(xm, cy + 60, mul[q2].toFixed(2), { size: 9.5, fill: inf.c, anchor: "middle", op: op2 });
+            }
+            D.text(74, cy + 88, "per-step multiplier", { size: 10, fill: P.faint, ls: 1 });
+            D.text(74, 268, inf.m, { size: 14, fill: inf.c });
+            D.text(74, 292, inf.w, { size: 11, fill: P.dim });
+            var cp = cumprod(mul), a3 = easeOut(t);
+            D.text(74, 336, "what survives back to step 1", { size: 10, fill: P.faint, ls: 1 });
+            for (var q3 = 0; q3 < TT; q3++) {
+              var xb = x0 + q3 * (cw + gap), hbar = 90 * cp[q3] * a3;
+              D.rect(xb, 444 - hbar, cw, hbar, { fill: inf.c, r: 2, op: 0.85 });
+              D.rect(xb, 354, cw, 90, { fill: "none", stroke: P.edge, sw: 0.8, r: 2 });
+            }
+            D.line(74, 444, 886, 444, { stroke: P.edge, sw: 1 });
+            D.text(74, 468, "gradient reaching step 1: " + (cp[0] * 100).toFixed(cp[0] < 0.01 ? 3 : 1) + "% of the gradient at step 10",
+              { size: 12, fill: cp[0] < 0.05 ? P.rose : P.mint });
+          }
+
+          if (i === 3) {
+            var lam = [0.9, 0.8, 0.7, 0.6, 0.5];
+            D.text(74, 250, "‖∂h_T/∂h_t‖ ≤ ( max|tanh′| · σ_max(W_h) )^{T−t}", { size: 13.5, fill: P.ink });
+            var gx3 = 120, gy3 = 280, gw3 = 520, gh3 = 170;
+            D.rect(gx3, gy3, gw3, gh3, { fill: "#111a20", stroke: P.edge, sw: 1.2 });
+            lam.forEach(function (lm, li) {
+              var dd3 = "", op = easeOut(clamp(t * 2.2 - li * 0.16, 0, 1));
+              for (var q4 = 0; q4 <= 50; q4++) {
+                var st4 = q4 / 50 * 30, v4 = Math.pow(lm, st4);
+                dd3 += (q4 ? "L" : "M") + (gx3 + gw3 * q4 / 50) + "," + (gy3 + gh3 - gh3 * v4);
+              }
+              D.path(dd3, { stroke: li === 4 ? P.rose : P.amber, sw: li === 4 ? 2 : 1.3, op: 0.35 + 0.6 * op });
+              D.text(gx3 + gw3 + 10, gy3 + gh3 - gh3 * Math.pow(lm, 30) - 4, "λ = " + lm, { size: 9.5, fill: li === 4 ? P.rose : P.amber, op: op });
+            });
+            D.text(gx3, gy3 + gh3 + 20, "0", { size: 9.5, fill: P.faint });
+            D.text(gx3 + gw3, gy3 + gh3 + 20, "30 steps", { size: 9.5, fill: P.faint, anchor: "end" });
+            D.text(74, 486, "At λ = 0.9 a 30-step dependency retains 4% of its gradient. Real sequences are thousands of steps, not thirty.", { size: 11, fill: P.dim });
+          }
+
+          if (i === 6) {
+            var keys = ["rnn", "lstm", "ssm"];
+            D.text(74, 250, "gradient surviving back to step 1, same ten steps", { size: 11.5, fill: P.dim });
+            keys.forEach(function (kk, ki) {
+              var inf2 = TINFO[kk], cp2 = cumprod(TMUL[kk]), op = easeOut(clamp(t * 2.2 - ki * 0.2, 0, 1));
+              var yy = 292 + ki * 62;
+              D.text(74, yy + 16, inf2.n, { size: 12, fill: inf2.c });
+              D.rect(160, yy, 560 * cp2[0] * op, 26, { fill: inf2.c, r: 2, op: 0.85 });
+              D.text(160 + 560 * cp2[0] * op + 12, yy + 14, (cp2[0] * 100).toFixed(cp2[0] < 0.01 ? 2 : 1) + "%", { size: 11, fill: inf2.c, mid: true, op: op });
+              D.text(160, yy + 44, inf2.m, { size: 9.5, fill: P.faint, op: op });
+            });
+            D.text(74, 486, "The LSTM and the SSM are doing the same thing: replacing a fixed matrix with a learned number in (0,1).", { size: 11.5, fill: P.mint });
+          }
+
+          if (i === 7) {
+            chain(D, undefined, P.violet, true, true, 1);
+            var kwin = 4, a7b = easeOut(t);
+            D.rect(x0 + (TT - kwin) * (cw + gap) - 8, cy - 12, kwin * (cw + gap) - gap + 16, 70, {
+              fill: "none", stroke: P.violet, sw: 2, r: 4, op: a7b
+            });
+            D.text(x0 + (TT - kwin) * (cw + gap), cy - 22, "truncation window, k = 4", { size: 10.5, fill: P.violet, op: a7b });
+            D.text(74, 268, "Cost of full BPTT is O(T) memory and O(T) sequential steps.", { size: 12, fill: P.dim });
+            D.text(74, 292, "Truncating to k caps both — and discards terms that were already below fp16's floor.", { size: 12, fill: P.dim, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(74, 336, "It is an honest approximation for an RNN and a lie for an LSTM,", { size: 11.5, fill: P.amber, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(74, 358, "whose whole point is that the terms past k are not zero.", { size: 11.5, fill: P.amber, op: clamp(t * 2 - 0.9, 0, 1) });
+          }
+
+          if (i === 8) {
+            var a8 = easeOut(t);
+            D.text(74, 250, "RNN backward", { size: 12, fill: P.rose });
+            for (var q8 = 0; q8 < TT; q8++) {
+              var xx = 200 + (TT - 1 - q8) * 62;
+              D.rect(xx, 264, 52, 26, { fill: P.rose, r: 2, op: 0.25 + 0.6 * clamp(a8 * TT - q8, 0, 1) });
+            }
+            D.text(200, 308, "T sequential steps — the multiplier depends on tanh′(h_t)", { size: 10.5, fill: P.faint });
+            D.text(74, 356, "SSM backward", { size: 12, fill: P.mint });
+            var lvl = [8, 4, 2, 1];
+            lvl.forEach(function (nn, li) {
+              var wseg = 620 / nn, op = easeOut(clamp(t * 2.4 - li * 0.28, 0, 1));
+              for (var s8 = 0; s8 < nn; s8++)
+                D.rect(200 + s8 * wseg + 2, 370 + li * 26, wseg - 6, 18, { fill: P.mint, r: 2, op: 0.75 * op });
+            });
+            D.text(200, 486, "log₂ T levels — the adjoint recurrence is linear with known coefficients, so it is an associative scan too.", { size: 11, fill: P.dim, op: clamp(t * 2 - 1.1, 0, 1) });
+          }
+        }
+      };
+
+      /* ============================================================
+         FIGURE 16 — backward through attention
+         ============================================================ */
+      var AN = 6, ATOK = ["The", "keys", "to", "the", "old", "were"];
+      function attMat(D, x, y, cell, fn, opts) {
+        opts = opts || {};
+        for (var r = 0; r < AN; r++) for (var c = 0; c < AN; c++) {
+          if (opts.causal && c > r) continue;
+          var v = fn(r, c);
+          D.rect(x + c * cell, y + r * cell, cell - 2, cell - 2, {
+            fill: opts.neg && v < 0 ? "rgba(255,125,138," + Math.min(0.9, Math.abs(v)) + ")"
+              : "rgba(" + (opts.rgb || "63,209,160") + "," + Math.min(0.92, Math.abs(v)) + ")",
+            stroke: P.edge, sw: 0.5, r: 1.5, op: opts.op
+          });
+        }
+        if (opts.label) D.text(x, y - 10, opts.label, { size: 10.5, fill: opts.lc || P.dim, op: opts.op });
+      }
+      function Pat(r, c) {
+        if (c > r) return 0;
+        var w = Math.exp(-(r - c) * 0.55) * (c === 1 && r === 5 ? 3.2 : 1);
+        var s = 0; for (var q = 0; q <= r; q++) s += Math.exp(-(r - q) * 0.55) * (q === 1 && r === 5 ? 3.2 : 1);
+        return w / s;
+      }
+      function Pbar(r, c) { return c > r ? 0 : 0.25 + 0.6 * Math.abs(Math.sin(r * 1.7 + c * 2.3)); }
+
+      SPECS.attnback = {
+        title: "Backward through attention",
+        caption: "Two matmuls and one softmax forward; two matmuls and one softmax-VJP backward. The only interesting step is the row-wise correction — and an identity that lets you compute it without ever holding the N×N matrix, which is exactly what FlashAttention exploits.",
+        dur: 3000, hold: 0.3,
+        stages: [
+          { label: "The forward pass, recalled" },
+          { label: "Seed: the adjoint of the output" },
+          { label: "V̄ = Pᵀ Ō" },
+          { label: "P̄ = Ō Vᵀ" },
+          { label: "The softmax Jacobian, per row" },
+          { label: "S̄ = P ⊙ (P̄ − D)" },
+          { label: "Q̄ and K̄, and why 1/√d_k is there" },
+          { label: "The identity: D = rowsum(Ō ⊙ O)" },
+          { label: "FlashAttention's backward pass" }
+        ],
+        draw: function (D, i, t, ctx) {
+          var subs = [
+            "S = QKᵀ/√d_k · P = softmax(S) · O = PV",
+            "everything below is a function of Ō",
+            "each value vector accumulates over the queries that used it",
+            "the adjoint of the attention weights themselves",
+            "J = diag(p) − ppᵀ  →  p ⊙ (p̄ − pᵀp̄)",
+            "the same two-term structure as softmax + cross-entropy",
+            "Q̄ = S̄K/√d_k · K̄ = S̄ᵀQ/√d_k",
+            "the row correction needs only O and Ō, both N×d",
+            "recompute the tile in SRAM instead of reading it from HBM"
+          ];
+          D.title("Backward through attention", subs[i]);
+          var mx = 96, my = 132, cell = 40;
+
+          if (i === 0) {
+            var a = easeOut(t);
+            var steps = [["Q, K, V = X W_Q, X W_K, X W_V", P.sky], ["S = QKᵀ / √d_k", P.violet], ["P = softmax(S)  row-wise", P.mint], ["O = P V", P.amber]];
+            steps.forEach(function (s0, si) {
+              var op = clamp(t * 2.4 - si * 0.2, 0, 1);
+              D.rect(96, 130 + si * 62, 400, 46, { fill: "#141b21", stroke: s0[1], sw: 1.2, r: 3, op: op });
+              D.text(116, 158 + si * 62, s0[0], { size: 12.5, fill: s0[1], op: op });
+            });
+            attMat(D, 560, my, cell, Pat, { label: "P — stored, or not", rgb: "63,209,160", op: a });
+            D.text(560, my + AN * cell + 24, "N × N per head, per layer.", { size: 11, fill: P.dim, op: a });
+            D.text(560, my + AN * cell + 44, "At N = 8k that is 64 M numbers.", { size: 11, fill: P.rose, op: a });
+          }
+
+          if (i === 1) {
+            var a1 = easeOut(t);
+            D.text(96, 128, "O  (N × d)", { size: 10.5, fill: P.amber });
+            for (var r1 = 0; r1 < AN; r1++) {
+              D.rect(96, 140 + r1 * 34, 200, 28, { fill: P.amber, r: 2, op: 0.18 });
+              D.text(102, 158 + r1 * 34, ATOK[r1], { size: 10, fill: P.faint });
+            }
+            D.text(360, 128, "Ō = ∂L/∂O   (N × d)", { size: 10.5, fill: P.rose, op: a1 });
+            for (var r2 = 0; r2 < AN; r2++) {
+              var op = easeOut(clamp(t * 2 - r2 * 0.1, 0, 1));
+              D.rect(360, 140 + r2 * 34, 200, 28, { fill: P.rose, r: 2, op: 0.5 * op });
+            }
+            D.text(620, 180, "handed down from the", { size: 11, fill: P.dim, op: a1 });
+            D.text(620, 200, "block above. Everything", { size: 11, fill: P.dim, op: a1 });
+            D.text(620, 220, "else is derived from it.", { size: 11, fill: P.dim, op: a1 });
+            D.text(620, 264, "Q̄, K̄, V̄ all fall out of", { size: 11, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(620, 284, "two rules already proved:", { size: 11, fill: P.faint, op: clamp(t * 2 - 0.7, 0, 1) });
+            D.text(620, 312, "· the matmul VJP", { size: 11, fill: P.mint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(620, 332, "· the softmax VJP", { size: 11, fill: P.mint, op: clamp(t * 2 - 1.0, 0, 1) });
+          }
+
+          if (i === 2 || i === 3) {
+            var a2 = easeOut(t);
+            attMat(D, mx, my, cell, i === 2 ? Pat : Pbar, {
+              label: i === 2 ? "Pᵀ" : "Ō Vᵀ", rgb: i === 2 ? "63,209,160" : "255,125,138", op: 1, causal: i === 2
+            });
+            var eq = i === 2 ? "V̄ = Pᵀ Ō" : "P̄ = Ō Vᵀ";
+            D.text(mx + AN * cell + 60, 170, eq, { size: 17, fill: i === 2 ? P.mint : P.rose });
+            if (i === 2) {
+              D.text(mx + AN * cell + 60, 208, "The transpose is rule 2 in disguise:", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 230, "value vector j was read by every query", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 252, "i that attended to it, so its adjoint is", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 274, "the P-weighted sum over all of them.", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 316, "Under GQA the same sum runs over", { size: 11, fill: P.amber, op: clamp(t * 2 - 0.8, 0, 1) });
+              D.text(mx + AN * cell + 60, 338, "the query heads sharing this K/V head.", { size: 11, fill: P.amber, op: clamp(t * 2 - 0.8, 0, 1) });
+            } else {
+              D.text(mx + AN * cell + 60, 208, "One N×d by d×N matmul — the same", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 230, "cost as the forward S = QKᵀ.", { size: 11.5, fill: P.dim, op: a2 });
+              D.text(mx + AN * cell + 60, 272, "Note this is the adjoint of P, the", { size: 11, fill: P.faint, op: clamp(t * 2 - 0.6, 0, 1) });
+              D.text(mx + AN * cell + 60, 292, "post-softmax weights — not of S yet.", { size: 11, fill: P.faint, op: clamp(t * 2 - 0.6, 0, 1) });
+              D.text(mx + AN * cell + 60, 332, "Going from P̄ to S̄ is the only step", { size: 11, fill: P.violet, op: clamp(t * 2 - 0.9, 0, 1) });
+              D.text(mx + AN * cell + 60, 352, "that is not a matmul.", { size: 11, fill: P.violet, op: clamp(t * 2 - 0.9, 0, 1) });
+            }
+          }
+
+          if (i === 4) {
+            var row = 4, a4 = easeOut(t);
+            D.text(96, 128, "one row of P", { size: 10.5, fill: P.mint });
+            for (var c4 = 0; c4 < AN; c4++) {
+              var p4 = Pat(row, c4);
+              D.rect(96 + c4 * 60, 140, 52, 40, { fill: "rgba(63,209,160," + Math.min(0.9, p4 * 2) + ")", stroke: P.edge, sw: 0.6, r: 2 });
+              D.text(96 + c4 * 60 + 26, 160, p4.toFixed(2), { size: 9.5, fill: P.ink, anchor: "middle", mid: true });
+            }
+            D.text(96, 214, "J = diag(p) − p pᵀ", { size: 14, fill: P.violet });
+            for (var r5 = 0; r5 < AN; r5++) for (var c5 = 0; c5 < AN; c5++) {
+              var pv = Pat(row, r5), qv = Pat(row, c5);
+              var jv = (r5 === c5 ? pv : 0) - pv * qv;
+              D.rect(96 + c5 * 34, 236 + r5 * 34, 31, 31, {
+                fill: jv >= 0 ? "rgba(90,178,232," + Math.min(0.9, jv * 4) + ")" : "rgba(255,125,138," + Math.min(0.9, -jv * 4) + ")",
+                stroke: P.edge, sw: 0.5, r: 1.5, op: easeOut(clamp(t * 2 - (r5 + c5) * 0.03, 0, 1))
+              });
+            }
+            D.text(320, 268, "diagonal: p_i(1 − p_i)", { size: 11.5, fill: P.sky, op: a4 });
+            D.text(320, 292, "off-diagonal: −p_i p_j", { size: 11.5, fill: P.rose, op: a4 });
+            D.text(320, 336, "Never built. The VJP is:", { size: 11.5, fill: P.dim, op: clamp(t * 2 - 0.6, 0, 1) });
+            D.text(320, 366, "s̄ = p ⊙ ( p̄ − pᵀp̄ )", { size: 15, fill: P.mint, op: clamp(t * 2 - 0.8, 0, 1) });
+            D.text(320, 396, "one Hadamard product and one row sum,", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(320, 414, "O(N) per row instead of O(N²).", { size: 10.5, fill: P.faint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(320, 452, "As p → one-hot, p(1−p) → 0 and the gradient dies.", { size: 11, fill: P.amber, op: clamp(t * 2 - 1.1, 0, 1) });
+          }
+
+          if (i === 5) {
+            var a5 = easeOut(t);
+            attMat(D, mx, my, cell, function (r, c) { return Pbar(r, c) - 0.55 * Pat(r, c) * 2; }, { label: "S̄", rgb: "177,137,245", neg: true, causal: true, op: a5 });
+            D.text(mx + AN * cell + 60, 168, "S̄ = P ⊙ ( P̄ − D )", { size: 17, fill: P.violet });
+            D.text(mx + AN * cell + 60, 200, "D_i = rowsum(P̄ ⊙ P)_i", { size: 12, fill: P.dim, op: a5 });
+            D.text(mx + AN * cell + 60, 244, "Exactly the shape that came out of", { size: 11.5, fill: P.faint, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(mx + AN * cell + 60, 264, "softmax + cross-entropy, and out of", { size: 11.5, fill: P.faint, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(mx + AN * cell + 60, 284, "LayerNorm: subtract a weighted mean,", { size: 11.5, fill: P.faint, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(mx + AN * cell + 60, 304, "then rescale.", { size: 11.5, fill: P.faint, op: clamp(t * 2 - 0.5, 0, 1) });
+            D.text(mx + AN * cell + 60, 344, "Every normalised quantity has the", { size: 11, fill: P.mint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(mx + AN * cell + 60, 364, "same backward signature.", { size: 11, fill: P.mint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(96, my + AN * cell + 28, "blue = positive, red = negative — the row sums to zero, always.", { size: 10.5, fill: P.faint, op: a5 });
+          }
+
+          if (i === 6) {
+            var a6 = easeOut(t);
+            D.text(96, 150, "Q̄ = (1/√d_k) · S̄ K", { size: 16, fill: P.sky });
+            D.text(96, 184, "K̄ = (1/√d_k) · S̄ᵀ Q", { size: 16, fill: P.violet });
+            D.text(96, 230, "Two more matmuls. Four in total on the backward pass", { size: 11.5, fill: P.dim, op: a6 });
+            D.text(96, 252, "against two on the forward — the usual factor.", { size: 11.5, fill: P.dim, op: a6 });
+            var gx6 = 520, gy6 = 140, gw6 = 380, gh6 = 200;
+            D.rect(gx6, gy6, gw6, gh6, { fill: "#111a20", stroke: P.edge, sw: 1.2 });
+            D.text(gx6 + 12, gy6 + 22, "p(1 − p), the gradient that survives", { size: 10.5, fill: P.dim });
+            [["with 1/√d_k", 0.34, P.mint], ["without", 0.03, P.rose]].forEach(function (g6, gi) {
+              var op = easeOut(clamp(t * 2.2 - gi * 0.3, 0, 1));
+              D.text(gx6 + 12, gy6 + 62 + gi * 76, g6[0], { size: 11, fill: g6[2], op: op });
+              D.meter(gx6 + 12, gy6 + 74 + gi * 76, 340, 16, g6[1] * op, { fill: g6[2] });
+              D.text(gx6 + 12, gy6 + 108 + gi * 76, gi ? "S has variance d_k, softmax saturates, p → one-hot" : "S stays O(1), the softmax keeps a usable slope",
+                { size: 9.5, fill: P.faint, op: op });
+            });
+            D.text(96, 396, "The scaling factor is a backward-pass fix wearing a forward-pass costume:", { size: 11.5, fill: P.amber, op: clamp(t * 2 - 1, 0, 1) });
+            D.text(96, 418, "it exists to stop the softmax Jacobian from collapsing to zero.", { size: 11.5, fill: P.amber, op: clamp(t * 2 - 1, 0, 1) });
+          }
+
+          if (i === 7) {
+            var a7 = easeOut(t);
+            D.text(96, 140, "D_i = Σ_j P_ij (ŌVᵀ)_ij", { size: 13, fill: P.dim });
+            D.text(96, 172, "    = Σ_j Ō_ij Σ_k P_ik V_kj", { size: 13, fill: P.dim, op: clamp(t * 2 - 0.3, 0, 1) });
+            D.text(96, 204, "    = Σ_j Ō_ij O_ij", { size: 13, fill: P.mint, op: clamp(t * 2 - 0.6, 0, 1) });
+            D.rect(96, 234, 460, 54, { fill: "#111a20", stroke: P.mint, sw: 1.4, r: 4, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(116, 266, "D = rowsum( Ō ⊙ O )", { size: 17, fill: P.mint, op: clamp(t * 2 - 0.9, 0, 1) });
+            D.text(96, 322, "Both operands are N × d. The correction that", { size: 11.5, fill: P.dim, op: clamp(t * 2 - 1.1, 0, 1) });
+            D.text(96, 344, "looked like it needed the N × N matrix does not.", { size: 11.5, fill: P.dim, op: clamp(t * 2 - 1.1, 0, 1) });
+            var bars = [["store P: N²", 1.0, P.rose], ["store O and D: N·d", 0.06, P.mint]];
+            bars.forEach(function (b7, bi) {
+              var op = easeOut(clamp(t * 2.2 - bi * 0.25, 0, 1));
+              D.text(600, 254 + bi * 60, b7[0], { size: 11, fill: b7[2], op: op });
+              D.rect(600, 268 + bi * 60, 300 * b7[1] * op, 20, { fill: b7[2], r: 2, op: 0.85 });
+            });
+            D.text(600, 400, "at N = 8k, d = 128: 64 M vs 1 M", { size: 10.5, fill: P.faint, op: a7 });
+            D.text(96, 448, "This single identity is what makes an exact, memory-linear attention backward pass possible.", { size: 11.5, fill: P.mint, op: clamp(t * 2 - 1.3, 0, 1) });
+          }
+
+          if (i === 8) {
+            var a8 = easeOut(t), tile = 3;
+            D.text(96, 128, "tiles recomputed in SRAM", { size: 10.5, fill: P.faint });
+            for (var br = 0; br < 2; br++) for (var bc = 0; bc < 2; bc++) {
+              var active = Math.floor(a8 * 4.4) === br * 2 + bc;
+              var done = Math.floor(a8 * 4.4) > br * 2 + bc;
+              D.rect(96 + bc * (tile * cell + 8), my + br * (tile * cell + 8), tile * cell - 2, tile * cell - 2, {
+                fill: active ? "rgba(245,181,68,0.30)" : (done ? "rgba(63,209,160,0.16)" : "#161d24"),
+                stroke: active ? P.amber : (done ? P.mint : P.edge), sw: active ? 2 : 1, r: 3
+              });
+              if (active) D.text(96 + bc * (tile * cell + 8) + 58, my + br * (tile * cell + 8) + 58, "recompute", { size: 9.5, fill: P.amber, anchor: "middle", mid: true });
+            }
+            var steps8 = [
+              "forward stored only O and the row-wise logsumexp",
+              "load a Q block and a K,V block into SRAM",
+              "rebuild S and P for that tile from Q, K and the logsumexp",
+              "accumulate Q̄, K̄, V̄ using D = rowsum(Ō ⊙ O)",
+              "discard the tile — it never reaches HBM"
+            ];
+            steps8.forEach(function (s8, si) {
+              var op = easeOut(clamp(t * 2.4 - si * 0.16, 0, 1));
+              D.circle(452, 146 + si * 40, 3.5, { fill: P.mint, op: op });
+              D.text(468, 150 + si * 40, s8, { size: 11, fill: si === 3 ? P.mint : P.dim, op: op });
+            });
+            D.rect(452, 352, 448, 96, { fill: "#111a20", stroke: P.edge, sw: 1.2, r: 4, op: a8 });
+            D.text(470, 380, "memory  O(N²) → O(N)", { size: 12, fill: P.mint, op: a8 });
+            D.text(470, 404, "FLOPs   +30% from recomputation", { size: 12, fill: P.amber, op: a8 });
+            D.text(470, 428, "wall clock  faster — attention was bandwidth-bound", { size: 12, fill: P.sky, op: a8 });
+            D.text(96, 452, "Recomputation as a strategy, not a fallback.", { size: 11, fill: P.faint, op: a8 });
           }
         }
       };
