@@ -410,6 +410,15 @@ span.highlight {
   box-sizing: border-box;
 }
 
+/* Keep the main site pages visually aligned with the centered magazine mast.
+   Long-form blog articles retain their own left-aligned reading layout. */
+.home-page,
+.about-story,
+.research-page .page-shell,
+.projects-page .page-shell {
+  text-align: center;
+}
+
 .home-page {
   padding-top: 40px;
 }
@@ -423,7 +432,7 @@ span.highlight {
 }
 
 .home-copy .name {
-  text-align: left;
+  text-align: center;
 }
 
 .home-copy > p:not(.name) {
@@ -462,6 +471,8 @@ span.highlight {
 
 .page-section > p {
   max-width: 60ch;
+  margin-left: auto;
+  margin-right: auto;
   color: var(--text-soft);
   font-size: 20px;
   line-height: 1.5;
@@ -624,9 +635,23 @@ span.highlight {
 }
 
 .about-list {
-  margin: 0 0 1.2em 1.2em;
+  margin: 0 0 1.2em;
   padding: 0;
   list-style: none;
+}
+
+.about-story .about-icon-list p,
+.about-story .about-list li {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 6px;
+}
+
+.about-story .about-icon-list span,
+.about-story .about-list span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .about-list li {
@@ -640,6 +665,7 @@ span.highlight {
 .about-social-row {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 14px;
   margin-top: 20px;
 }
@@ -940,7 +966,9 @@ img {
 .research-card::before {
   position: absolute;
   top: 20px;
-  left: 27px;
+  left: 0;
+  right: 0;
+  text-align: center;
   color: var(--orange-dark);
   content: "Publication";
   font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -983,8 +1011,9 @@ body.projects-page .research-card::before {
 }
 
 .project-points {
-  margin: 10px 0 12px 1.1em;
+  margin: 10px 0 12px;
   padding: 0;
+  list-style-position: inside;
 }
 
 .project-points li {
@@ -1133,10 +1162,13 @@ body.dark-mode .research-card::before {
     flex-direction: column;
     align-items: stretch;
     padding: 48px 20px 22px;
-    text-align: left;
+    text-align: center;
   }
 
-  .research-card::before { left: 20px; }
+  .research-card::before {
+    left: 0;
+    right: 0;
+  }
   
   .research-card-image {
     margin-right: 0;
