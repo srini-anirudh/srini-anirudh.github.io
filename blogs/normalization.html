@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="A visual field guide to normalization in deep learning, from BatchNorm to Peri-LN and the VLM interface.">
 <title>Normalization: A Field Guide — from BatchNorm to Peri-LN, and what it means for VLMs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -217,16 +218,39 @@ footer{margin-top:70px; padding:32px 0 60px; border-top:1px solid var(--rule); f
 }
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important} }
 </style>
+<link rel="stylesheet" href="../assets/css/blog-shell.css">
 </head>
-<body>
+<body class="blog-article normalization-article">
+<nav class="blog-site-nav" aria-label="Main navigation">
+  <a class="blog-site-brand" href="../index.html">Anirudh Srinivasan</a>
+  <div class="blog-site-links">
+    <a href="../index.html">Home</a>
+    <a href="../about.html">About</a>
+    <a href="../research.html">Research</a>
+    <a href="../projects.html">Projects</a>
+    <a href="index.html" aria-current="page">Blogs</a>
+    <a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a>
+  </div>
+</nav>
 <header class="mast">
   <div class="wrap">
     <div class="mastbar">
-      <a href="../index.html">Anirudh Srinivasan · Portfolio</a>
-      <span>Normalization in deep learning · August 28, 2026</span>
+      <span>A field guide · normalization in deep learning</span>
+      <span>BatchNorm 2015 → Peri-LN 2025 → the VLM interface</span>
     </div>
     <h1 class="title">Keeping<br>the signal<br><span class="fade">in range.</span></h1>
     <p class="subtitle">Every normalization layer ever shipped is answering one question: <em>which numbers do I average over, and what do I do with the answer?</em> Everything else — batch vs layer, pre vs post, RMS vs LN, QK-Norm, sandwich, Peri-LN — is a choice of axis and a choice of placement.</p>
+    <div class="article-taxonomy" aria-label="Tags">
+      <span>Deep Learning</span><span>Normalization</span><span>Vision Language Models</span>
+    </div>
+    <div class="article-meta-bar">
+      <span>Anirudh Srinivasan</span><span>August 28, 2026</span><span>45 min read</span>
+      <button class="article-share" type="button" aria-label="Share this article">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+        Share
+      </button>
+      <span class="share-status" aria-live="polite"></span>
+    </div>
     <dl class="dek">
       <div><dt>Layers covered</dt><dd>28 normalization operators</dd></div>
       <div><dt>Placements</dt><dd>11 residual-block schemes</dd></div>
@@ -2098,4 +2122,5 @@ requestAnimationFrame(loop);
   });
 })();
 </script>
+<script src="../assets/js/blogs.js"></script>
 </body></html>
