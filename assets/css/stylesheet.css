@@ -24,6 +24,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--surface);
+  background-image:
+    linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+  background-size: 44px 44px;
   color: var(--text-soft);
 }
 
@@ -695,6 +699,9 @@ body.dark-mode {
   --text-soft: #aec5dc;
   --text-muted: #82a4c2;
   background-color: #071a2c;
+  background-image:
+    linear-gradient(rgba(219, 231, 243, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(219, 231, 243, 0.035) 1px, transparent 1px);
   color: var(--text-soft);
 }
 

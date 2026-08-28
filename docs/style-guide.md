@@ -6,6 +6,8 @@ This guide keeps the portfolio and blog collection visually consistent. The live
 
 The blog index defines the visual system for the entire site: warm editorial paper, near-black ink, blue for links and identity, and orange for activity and emphasis. Portfolio pages and blog pages use the same light-mode tokens.
 
+All page backgrounds use a subtle `44px × 44px` editorial grid beneath the particle network. Keep the grid low contrast so it adds structure without competing with text or animation; raised cards remain opaque.
+
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |
 | Page surface | `#e4e2dc` | `#071a2c` | Page background |
