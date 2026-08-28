@@ -65,7 +65,7 @@ Blogs use the same site-wide palette, with the normalization article as the refe
 
 Every article must include, in this order:
 
-1. Shared main navigation (`.blog-site-nav`).
+1. Shared main navigation (`.navbar`, using the same markup as the home page).
 2. Field-guide/category eyebrow.
 3. Article title and short subtitle.
 4. Tags using `.article-taxonomy`.
@@ -75,7 +75,7 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 
 ### Layout and components
 
-- Keep the main navigation visible with `position: sticky`.
+- Keep the shared main navigation visible with `position: fixed`.
 - Use thin square rules and 2px–8px corner radii; avoid heavily rounded editorial cards.
 - Use dark instrument panels for interactive figures, diagrams, and dense technical readouts.
 - Use paper cards for summaries, references, and non-interactive content.

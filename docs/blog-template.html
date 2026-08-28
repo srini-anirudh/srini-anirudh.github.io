@@ -51,6 +51,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../assets/css/blog-shell.css" />
     <style>
       :root {
@@ -100,17 +101,25 @@
         .article-content { width: calc(100% - 32px); }
       }
     </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
   </head>
   <body class="blog-article normalization-article">
-    <nav class="blog-site-nav" aria-label="Main navigation">
-      <a class="blog-site-brand" href="../index.html">Anirudh Srinivasan</a>
-      <div class="blog-site-links">
-        <a href="../index.html">Home</a>
-        <a href="../about.html">About</a>
-        <a href="../research.html">Research</a>
-        <a href="../projects.html">Projects</a>
-        <a href="index.html" aria-current="page">Blogs</a>
-        <a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a>
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../index.html" target="_self">Home</a></li>
+          <li><a href="../about.html" target="_self">About</a></li>
+          <li><a href="../research.html" target="_self">Research</a></li>
+          <li><a href="../projects.html" target="_self">Projects</a></li>
+          <li><a href="index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
       </div>
     </nav>
 
