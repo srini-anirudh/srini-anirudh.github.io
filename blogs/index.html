@@ -44,19 +44,83 @@
         <h1 id="blogs-heading">Blogs</h1>
         <p>Visual field guides and working notes on vision-language models, deep learning, and the systems around them.</p>
         <div class="blog-list">
-          <a class="blog-card" href="normalization.html" target="_self">
-            <span class="blog-card-label">Field guide</span>
-            <h3>Keeping the signal in range.</h3>
-            <p>Normalization in deep learning—from BatchNorm to Peri-LN, and what it means for VLMs.</p>
-            <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 45 min read</div>
-            <div class="blog-tags"><span>Deep Learning</span><span>Normalization</span><span>Vision Language Models</span></div>
+          <a class="blog-card" href="activation-functions/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="activation-functions/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="activation-functions/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated activation-function curves and signal distributions from the Activation Atlas." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Architecture</span>
+              <h3>The Activation Atlas</h3>
+              <p>From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU—with animated derivations and a map of what modern models use.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 34 min read</div>
+              <div class="blog-tags"><span>Activation Functions</span><span>Transformers</span><span>Optimization</span></div>
+            </div>
           </a>
-          <a class="blog-card" href="vision-encoders.html" target="_self">
-            <span class="blog-card-label">Field guide</span>
-            <h3>But, what are vision encoders?</h3>
-            <p>A guide to the visual half of a vision-language model: how pixels become the tokens an LLM reasons over.</p>
-            <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 55 min read</div>
-            <div class="blog-tags"><span>Vision Language Models</span><span>Vision Encoders</span><span>Theory</span></div>
+          <a class="blog-card" href="normalization/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="normalization/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="normalization/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated point cloud showing how RMSNorm and LayerNorm transform a vector." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Normalization</span>
+              <h3>Keeping the signal in range.</h3>
+              <p>Every normalization layer from BatchNorm to Peri-LN, plus why the modality interface in a VLM is a normalization problem.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 45 min read</div>
+              <div class="blog-tags"><span>Normalization</span><span>Transformers</span><span>Training Stability</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="position-embeddings/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="position-embeddings/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="position-embeddings/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated M-RoPE diagram assigning temporal, height, and width positions to multimodal tokens." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Architecture</span>
+              <h3>Where Am I?</h3>
+              <p>Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier features, and multimodal M-RoPE—explained visually.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 38 min read</div>
+              <div class="blog-tags"><span>Position Encoding</span><span>RoPE</span><span>Long Context</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="transformers-vs-vision-transformers/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="transformers-vs-vision-transformers/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="transformers-vs-vision-transformers/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated image patchification sequence comparing a Transformer with a Vision Transformer." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Architectures</span>
+              <h3>Transformer vs Vision Transformer</h3>
+              <p>A block-by-block comparison: tokenizing versus patchifying, lookup tables versus projections, positions, masks, and heads.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 24 min read</div>
+              <div class="blog-tags"><span>Transformers</span><span>ViT</span><span>Attention</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="vision-encoders/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="vision-encoders/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="vision-encoders/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated document patch lattice becoming a sequence of visual tokens." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Vision-language models</span>
+              <h3>The Vision Encoder Field Guide</h3>
+              <p>What changed in the visual half of VLMs: intake geometry, resolution, objectives, connectors, and the encoders models actually ship.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 42 min read</div>
+              <div class="blog-tags"><span>Vision Encoders</span><span>VLMs</span><span>Multimodal</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="vlm-architecture-gallery/" target="_self">
+            <picture class="blog-card-media">
+              <source srcset="vlm-architecture-gallery/preview.gif" media="(prefers-reduced-motion: no-preference)" type="image/gif" />
+              <img src="vlm-architecture-gallery/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="Animated standardized plates comparing vision-language model architectures." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Field guide · Multimodal architectures</span>
+              <h3>The VLM Architecture Gallery</h3>
+              <p>Seventy-one architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.</p>
+              <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026 &nbsp;·&nbsp; 34 min read</div>
+              <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
+            </div>
           </a>
         </div>
       </section>

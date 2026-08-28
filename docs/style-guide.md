@@ -43,7 +43,7 @@ The network appears in both portfolio themes. Light mode uses translucent blue n
 
 ## Blog-specific components
 
-Blogs use the same site-wide palette, with the normalization article as the reference for editorial layout and dark technical instrument panels.
+Blogs use the same site-wide palette. The Activation Atlas is the canonical reference for article organization, editorial rhythm, table of contents, and grouped references; the normalization article remains the reference for dark technical instrument panels.
 
 | Token | Value | Use |
 | --- | --- | --- |
@@ -86,6 +86,10 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 - Citation buttons copy BibTeX on click and expose the same entry as a hover/focus preview using `data-bibtex-key`.
 - Tags are short nouns or noun phrases; aim for three per post.
 - Provide descriptive headings and captions for every major interactive figure.
+- Place a clearly labelled table of contents after the article mast/lede. Use the Activation Atlas treatment: a bordered paper panel, numbered entries, concise section labels, and a one-column mobile layout.
+- Keep section anchors stable and offset them from the fixed navigation so TOC links never hide a heading.
+- Make `References` the final article section. Group references by topic rather than chronology, add a short description where useful, and make every title a direct link to the primary paper, proceedings page, report, or repository.
+- Do not repeat the main navigation, article metadata/share logic, or site footer inside article-specific CSS or JavaScript. Use the shared shell and reserve inline code for the article’s figures and interactions.
 
 ### Responsive and accessible behavior
 
@@ -98,9 +102,10 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 
 ## Publishing a blog post
 
-1. Copy `docs/blog-template.html` to `blogs/descriptive-slug.html`.
+1. Create `blogs/descriptive-slug/` and copy `docs/blog-template.html` to `blogs/descriptive-slug/index.html`.
 2. Replace every bracketed placeholder, including title, description, tags, date, and reading time.
 3. Write the article inside `<main class="article-content">`.
-4. Add a card to `blogs/index.html` with matching metadata and its exported animated GIF preview.
-5. Test the article at desktop and mobile widths, including the Share button, animation controls, and every main-navigation link.
-6. Run `git diff --check` before committing.
+4. Finish the article with grouped, fully clickable References, and include References as the last TOC entry.
+5. Save the preview pair as `blogs/descriptive-slug/preview.gif` and `blogs/descriptive-slug/preview.png`, then add a card to `blogs/index.html` with matching metadata and reduced-motion fallback markup.
+6. Test the article at desktop and mobile widths, including the TOC, reference links, Share button, animation controls, and every main-navigation link.
+7. Run `git diff --check` before committing.

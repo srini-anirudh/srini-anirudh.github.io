@@ -32,27 +32,29 @@
         card. Use the article's strongest explanatory moment, not a generic
         decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
         optimized file size around 3 MB or less. Save it as
-        assets/images/blogs/[ARTICLE-SLUG]-preview.gif. Also export a matching
-        static poster image for prefers-reduced-motion and slow connections.
+        blogs/[ARTICLE-SLUG]/preview.gif. Also export a matching static poster
+        as blogs/[ARTICLE-SLUG]/preview.png for prefers-reduced-motion and slow connections.
         Add both assets and useful alt text to the article card in blogs/index.html.
 
     Recommended control order:
     [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
 
     Blog-index preview deliverables:
-    [ARTICLE-SLUG]-preview.gif + [ARTICLE-SLUG]-preview.png
+    blogs/[ARTICLE-SLUG]/preview.gif + blogs/[ARTICLE-SLUG]/preview.png
   -->
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="[ONE-SENTENCE ARTICLE DESCRIPTION]" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/preview.png" />
     <title>[ARTICLE TITLE] | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-    <link rel="stylesheet" href="../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../assets/css/blog-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
     <style>
       :root {
         --paper: #e4e2dc;
@@ -87,6 +89,16 @@
       .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
       .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
       .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
       .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
       .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
       .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
@@ -99,22 +111,23 @@
       @media (max-width: 640px) {
         .article-wrap { width: calc(100% - 32px); }
         .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
       }
     </style>
     <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
   </head>
-  <body class="blog-article normalization-article">
+  <body class="blog-article [ARTICLE-SLUG]-article">
     <nav class="navbar" aria-label="Main navigation">
       <div class="nav-container">
-        <a href="../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
         <div class="nav-empty-div"></div>
         <ul class="nav-links">
-          <li><a href="../index.html" target="_self">Home</a></li>
-          <li><a href="../about.html" target="_self">About</a></li>
-          <li><a href="../research.html" target="_self">Research</a></li>
-          <li><a href="../projects.html" target="_self">Projects</a></li>
-          <li><a href="index.html" class="active" target="_self">Blogs</a></li>
-          <li><a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
           <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
         </ul>
         <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
@@ -143,7 +156,15 @@
     </header>
 
     <main class="article-content">
-      <section>
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#first-section">[FIRST SECTION TITLE]</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="first-section">
         <h2>[FIRST SECTION TITLE]</h2>
         <p>[ARTICLE TEXT]</p>
         <h3>[SUBSECTION TITLE]</h3>
@@ -163,6 +184,19 @@
           </div>
         </div>
       </section>
+
+      <!-- References must be the final article section. Group entries by topic,
+           and make each paper/report/repository title a direct external link. -->
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>[REFERENCE TOPIC]</h3>
+          <ul>
+            <li><a href="[PRIMARY-SOURCE-URL]" target="_blank" rel="noopener noreferrer">[REFERENCE TITLE]</a> · [AUTHORS, YEAR]</li>
+          </ul>
+        </div>
+      </section>
     </main>
 
     <footer class="article-footer">
@@ -174,8 +208,8 @@
       <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
       <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
       <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
-      <a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
     </footer>
-    <script src="../assets/js/blogs.js"></script>
+    <script src="../../assets/js/blogs.js"></script>
   </body>
 </html>
