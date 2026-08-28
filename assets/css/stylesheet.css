@@ -1049,6 +1049,51 @@ body.projects-page .research-card::before {
   transition: transform 0.2s ease;
 }
 
+.citation-preview {
+  position: fixed;
+  z-index: 1300;
+  box-sizing: border-box;
+  max-height: min(360px, 62vh);
+  padding: 14px 16px 16px;
+  overflow: hidden;
+  color: #dce4e9;
+  background: #0f1317;
+  border: 1px solid #39454e;
+  border-radius: 2px;
+  box-shadow: 0 18px 45px rgba(10, 14, 18, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(5px);
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+
+.citation-preview.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.citation-preview-label {
+  display: block;
+  margin-bottom: 9px;
+  color: #3fd1a0;
+  font: 600 10px/1.2 "IBM Plex Mono", ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.citation-preview pre {
+  max-height: calc(min(360px, 62vh) - 48px);
+  margin: 0;
+  overflow: auto;
+  color: #dce4e9;
+  font: 11px/1.55 "IBM Plex Mono", ui-monospace, monospace;
+  white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .citation-preview { transition: none; }
+}
+
 .research-details[open] .abstract-toggle i {
   transform: rotate(180deg);
 }

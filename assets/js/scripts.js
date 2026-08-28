@@ -159,6 +159,32 @@ const bibtexEntries = {
     year      = {2026},
     pages     = {23685-23695}
 }`,
+  replica: `@InProceedings{Raghuveer_2027_REPLICA,
+    author    = {Raghuveer, R. and Srinivasan, Anirudh and Venna, Venkata Kesav and Sreevatsa, S. and Jain, Aryan and Kukkala, Sahithi and Sarvadevabhatla, Ravi Kiran},
+    editor    = {Fink, Gernot A. and Forn{\\'e}s, Alicia and Kise, Koichi and Lopresti, Daniel},
+    title     = {REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction},
+    booktitle = {Document Analysis and Recognition -- ICDAR 2026},
+    year      = {2027},
+    publisher = {Springer Nature Switzerland},
+    address   = {Cham},
+    pages     = {505--522},
+    isbn      = {978-3-032-36023-6},
+    doi       = {10.1007/978-3-032-36023-6_29},
+    url       = {https://doi.org/10.1007/978-3-032-36023-6_29}
+}`,
+  patrambench: `@InProceedings{Srinivasan_2027_PatramBench,
+    author    = {Srinivasan, Anirudh and Jena, Pratyush and Topale, Arya and Venna, Venkata Kesav and Sarvadevabhatla, Ravi Kiran},
+    editor    = {Fink, Gernot A. and Forn{\\'e}s, Alicia and Kise, Koichi and Lopresti, Daniel},
+    title     = {Patram-Bench: A Multi-task, Multi-domain and Multi-lingual Benchmark for Indian Document Image Understanding},
+    booktitle = {Document Analysis and Recognition -- ICDAR 2026},
+    year      = {2027},
+    publisher = {Springer Nature Switzerland},
+    address   = {Cham},
+    pages     = {626--642},
+    isbn      = {978-3-032-36033-5},
+    doi       = {10.1007/978-3-032-36033-5_37},
+    url       = {https://doi.org/10.1007/978-3-032-36033-5_37}
+}`,
   patram: `@misc{Srinivasan_2025_Patram,
     author       = {Srinivasan, Anirudh and BharatGen},
     title        = {Patram: India's First VLM for Document Understanding},
@@ -174,6 +200,64 @@ const bibtexEntries = {
     note         = {Presented at India Mobile Congress 2024}
 }`,
 };
+
+function initializeCitationPreviews() {
+  const buttons = document.querySelectorAll("[data-bibtex-key]");
+
+  if (!buttons.length) {
+    return;
+  }
+
+  const preview = document.createElement("aside");
+  preview.className = "citation-preview";
+  preview.id = "citation-preview";
+  preview.setAttribute("role", "tooltip");
+  preview.setAttribute("aria-hidden", "true");
+  preview.innerHTML = '<span class="citation-preview-label">BibTeX preview · click to copy</span><pre></pre>';
+  document.body.appendChild(preview);
+  const code = preview.querySelector("pre");
+
+  function positionPreview(button) {
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(560, window.innerWidth - 32);
+    preview.style.width = `${width}px`;
+    preview.style.left = `${Math.min(Math.max(16, rect.left), window.innerWidth - width - 16)}px`;
+    preview.style.top = `${rect.bottom + 10}px`;
+
+    const previewRect = preview.getBoundingClientRect();
+    if (previewRect.bottom > window.innerHeight - 16) {
+      preview.style.top = `${Math.max(16, rect.top - previewRect.height - 10)}px`;
+    }
+  }
+
+  function showPreview(button) {
+    const entry = bibtexEntries[button.dataset.bibtexKey];
+    if (!entry) return;
+    code.textContent = entry;
+    preview.classList.add("visible");
+    preview.setAttribute("aria-hidden", "false");
+    positionPreview(button);
+  }
+
+  function hidePreview() {
+    preview.classList.remove("visible");
+    preview.setAttribute("aria-hidden", "true");
+  }
+
+  buttons.forEach((button) => {
+    button.setAttribute("aria-describedby", preview.id);
+    button.addEventListener("pointerenter", () => showPreview(button));
+    button.addEventListener("pointerleave", hidePreview);
+    button.addEventListener("focus", () => showPreview(button));
+    button.addEventListener("blur", hidePreview);
+  });
+
+  window.addEventListener("resize", hidePreview);
+  window.addEventListener("scroll", hidePreview, { passive: true });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") hidePreview();
+  });
+}
 
 function copyBibtex(entryKey) {
   const entry = bibtexEntries[entryKey];
@@ -201,6 +285,7 @@ function copyBibtex(entryKey) {
 
 // Make entire heading clickable
 document.addEventListener("DOMContentLoaded", function () {
+  initializeCitationPreviews();
   const headings = document.querySelectorAll(".section-heading h2");
   headings.forEach((heading) => {
     heading.addEventListener("click", function (event) {

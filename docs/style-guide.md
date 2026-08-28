@@ -83,6 +83,7 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 - Use thin square rules and 2px–8px corner radii; avoid heavily rounded editorial cards.
 - Use dark instrument panels for interactive figures, diagrams, and dense technical readouts.
 - Use paper cards for summaries, references, and non-interactive content.
+- Citation buttons copy BibTeX on click and expose the same entry as a hover/focus preview using `data-bibtex-key`.
 - Tags are short nouns or noun phrases; aim for three per post.
 - Provide descriptive headings and captions for every major interactive figure.
 

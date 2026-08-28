@@ -74,68 +74,6 @@
         </p>
       </section>
 
-      <section class="research-card" id="m3grounder">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/paper-m3grounder-thumb.jpg"
-            alt="M3Grounder"
-            class="research-media"
-            data-image="assets/images/paper-m3grounder.png"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="https://m3grounder.github.io/">
-            <span class="papertitle">
-              M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA
-            </span>
-          </a>
-          <br />
-          Venkata Kesav Venna*, Sai Madhusudan Gunda*, Jyothi Swaroopa Jinka&dagger;, Hrithik Sagar Rachakonda&dagger;,
-          <strong>Anirudh Srinivasan</strong>, Ravi Kiran Sarvadevabhatla
-          <br />
-          <em>Poster at CVPR '26</em>, MMFM5 @ CVPR '26, Oral at GRAIL-V, DataMFM @ CVPR '26, pp. 23685-23695
-          <br />
-          <button onclick="window.open('https://m3grounder.github.io/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            website
-          </button>
-          <button
-            onclick="window.open('https://openaccess.thecvf.com/content/CVPR2026/papers/Venna_M3Grounder_Mask-Based_Multi-Span_and_Multi-Granular_Grounding_for_Document_QA_CVPR_2026_paper.pdf', '_blank')"
-            class="arxiv-button"
-          >
-            <i class="fas fa-file-pdf"></i>
-            paper
-          </button>
-          <button
-            onclick="window.open('https://cvpr.thecvf.com/media/PosterPDFs/CVPR%202026/38567.png?t=1779277504.852796', '_blank')"
-            class="arxiv-button"
-          >
-            <i class="fas fa-image"></i>
-            poster
-          </button>
-          <button onclick="window.open('https://www.youtube.com/watch?v=V9GlzdwNi3k', '_blank')" class="arxiv-button">
-            <i class="fab fa-youtube"></i>
-            video
-          </button>
-          <button type="button" onclick="copyBibtex('m3grounder')" class="arxiv-button">
-            <i class="fas fa-quote-right"></i>
-            bibtex
-          </button>
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>
-                A VLM for grounded document intelligence that answers DocVQA questions with interleaved grounding tokens
-                and pixel-level masks. It introduces multi-span, multi-granular, and multi-type grounding over textual
-                and graphical elements, scaling to 200K-325K documents and 1.5M-2M grounded QA pairs.
-              </p>
-            </div>
-          </details>
-        </div>
-      </section>
-
       <section class="research-card" id="doclayoutvl">
         <div class="research-card-image">
           <img
@@ -171,6 +109,115 @@
                 Reframes document layout understanding as promptable, open-set hierarchical segmentation. The system
                 generates layout trees and dense masks using a VLM plus segmentation model with hierarchy-aware
                 grounding, trained on 2.5M documents, 400K+ labels, and 80M masks.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="research-card" id="replica">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-replica-thumb.jpg"
+            alt="REPLICA"
+            class="research-media"
+            data-image="assets/images/paper-replica.png"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://replica-agents.github.io/">
+            <span class="papertitle">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</span>
+          </a>
+          <br />
+          R Raghuveer*, <strong>Anirudh Srinivasan</strong>*, Venkata Kesav Venna*, Tallapragada Sreevatsa, Aryan Jain,
+          Sahithi Kukkala, Ravi Kiran Sarvadevabhatla
+          <br />
+          <em>Oral at ICDAR '26</em>
+          <br />
+          <button onclick="window.open('https://replica-agents.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('https://link.springer.com/chapter/10.1007/978-3-032-36023-6_29', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-pdf"></i>
+            paper
+          </button>
+          <button onclick="window.open('https://replica-agents.github.io/slides.html#0', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('https://github.com/replica-agents/replica-agents.github.io/blob/main/out/REPLICA_ICDAR2026_proof_100dpi.png', '_blank')" class="arxiv-button">
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button type="button" onclick="copyBibtex('replica')" data-bibtex-key="replica" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            bibtex
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>
+                An agentic document parsing workflow that generates visually faithful HTML from documents. It combines
+                a segmenter, router and specialist agents, a reading-order agent, and a reflection agent, reaching 93%
+                visual fidelity and strong scores on VFDR-Bench.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="research-card" id="patrambench">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-patrambench-thumb.jpg"
+            alt="PatramBench"
+            class="research-media"
+            data-image="assets/images/paper-patrambench.jpeg"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://patrambench.github.io/">
+            <span class="papertitle">
+              Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document
+              Understanding
+            </span>
+          </a>
+          <br />
+          <strong>Anirudh Srinivasan</strong>*, Pratyush Jena*, Arya Topale, Venkata Kesav Venna, Ravi Kiran
+          Sarvadevabhatla
+          <br />
+          <em>Poster at ICDAR '26</em>
+          <br />
+          <button onclick="window.open('https://patrambench.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('https://link.springer.com/chapter/10.1007/978-3-032-36033-5_37', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-pdf"></i>
+            paper
+          </button>
+          <button onclick="window.open('assets/pdfs/PatramBench-Poster.pdf', '_blank')" class="arxiv-button">
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button type="button" onclick="copyBibtex('patrambench')" data-bibtex-key="patrambench" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            bibtex
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>
+                A comprehensive Indian document understanding benchmark with 52,607 documents, 23 languages, 13 domains,
+                71 classes, 52 tasks, and 2.4M+ QA annotations across OCR, parsing, layout, and multi-hop DocVQA. It
+                also introduces multilingual robustness metrics and evaluates 29+ VLMs.
               </p>
             </div>
           </details>
@@ -216,81 +263,56 @@
         </div>
       </section>
 
-      <section class="research-card" id="patrambench">
+      <section class="research-card" id="m3grounder">
         <div class="research-card-image">
           <img
-            src="assets/images/thumbnails/paper-patrambench-thumb.jpg"
-            alt="PatramBench"
+            src="assets/images/thumbnails/paper-m3grounder-thumb.jpg"
+            alt="M3Grounder"
             class="research-media"
-            data-image="assets/images/paper-patrambench.jpeg"
+            data-image="assets/images/paper-m3grounder.png"
           />
         </div>
         <div class="research-card-content">
-          <a href="https://patrambench.github.io/">
+          <a href="https://m3grounder.github.io/">
             <span class="papertitle">
-              Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document
-              Understanding
+              M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA
             </span>
           </a>
           <br />
-          <strong>Anirudh Srinivasan</strong>*, Pratyush Jena*, Arya Topale, Venkata Kesav Venna, Ravi Kiran
-          Sarvadevabhatla
+          Venkata Kesav Venna*, Sai Madhusudan Gunda*, Jyothi Swaroopa Jinka&dagger;, Hrithik Sagar Rachakonda&dagger;,
+          <strong>Anirudh Srinivasan</strong>, Ravi Kiran Sarvadevabhatla
           <br />
-          <em>Poster at ICDAR '26</em>
+          <em>Poster at CVPR '26</em>, MMFM5 @ CVPR '26, Oral at GRAIL-V, DataMFM @ CVPR '26, pp. 23685-23695
           <br />
-          <button onclick="window.open('https://patrambench.github.io/', '_blank')" class="arxiv-button">
+          <button onclick="window.open('https://m3grounder.github.io/', '_blank')" class="arxiv-button">
             <i class="fas fa-globe"></i>
             website
           </button>
-          <br />
+          <button onclick="window.open('https://openaccess.thecvf.com/content/CVPR2026/papers/Venna_M3Grounder_Mask-Based_Multi-Span_and_Multi-Granular_Grounding_for_Document_QA_CVPR_2026_paper.pdf', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-pdf"></i>
+            paper
+          </button>
+          <button onclick="window.open('https://cvpr.thecvf.com/media/PosterPDFs/CVPR%202026/38567.png?t=1779277504.852796', '_blank')" class="arxiv-button">
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button onclick="window.open('https://www.youtube.com/watch?v=V9GlzdwNi3k', '_blank')" class="arxiv-button">
+            <i class="fab fa-youtube"></i>
+            video
+          </button>
+          <button type="button" onclick="copyBibtex('m3grounder')" data-bibtex-key="m3grounder" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            bibtex
+          </button>
           <details class="research-details">
             <summary class="abstract-toggle">
               description <i class="fas fa-chevron-down"></i>
             </summary>
             <div class="research-abstract">
               <p>
-                A comprehensive Indian document understanding benchmark with 52,607 documents, 23 languages, 13 domains,
-                71 classes, 52 tasks, and 2.4M+ QA annotations across OCR, parsing, layout, and multi-hop DocVQA. It
-                also introduces multilingual robustness metrics and evaluates 29+ VLMs.
-              </p>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="research-card" id="replica">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/paper-replica-thumb.jpg"
-            alt="RePlica"
-            class="research-media"
-            data-image="assets/images/paper-replica.png"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="https://replica-agents.github.io/">
-            <span class="papertitle">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</span>
-          </a>
-          <br />
-          <strong>Anirudh Srinivasan</strong>*, R Raghuveer*, Venkata Kesav Venna*, Tallapragada Sreevatsa, Aryan
-          Jain, Sahithi Kukkala, Ravi Kiran Sarvadevabhatla
-          <br />
-          <em>Oral at ICDAR '26</em>
-          <br />
-          <button onclick="window.open('https://replica-agents.github.io/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            website
-          </button>
-          <br />
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>
-                An agentic document parsing workflow that generates visually faithful HTML from documents. It combines
-                a segmenter, router and specialist agents, a reading-order agent, and a reflection agent, reaching 93%
-                visual fidelity and strong scores on VFDR-Bench.
+                A VLM for grounded document intelligence that answers DocVQA questions with interleaved grounding tokens
+                and pixel-level masks. It introduces multi-span, multi-granular, and multi-type grounding over textual
+                and graphical elements, scaling to 200K-325K documents and 1.5M-2M grounded QA pairs.
               </p>
             </div>
           </details>
