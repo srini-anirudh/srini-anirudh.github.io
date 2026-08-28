@@ -156,15 +156,3 @@ const observer = new MutationObserver((mutations) => {
 });
 
 observer.observe(document.body, { attributes: true });
-
-window.addEventListener(
-  "click",
-  (e) => {
-    // If there's any selected text, cancel the event.
-    if (window.getSelection().toString().length > 0) {
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    }
-  },
-  true, // 'true' makes this a capturing listener
-);

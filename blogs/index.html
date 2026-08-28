@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Blogs | Anirudh Srinivasan</title>
+    <link rel="icon" href="../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" href="../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");
+    </script>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../index.html" target="_self">Home</a></li>
+          <li><a href="../about.html" target="_self">About</a></li>
+          <li><a href="../research.html" target="_self">Research</a></li>
+          <li><a href="../projects.html" target="_self">Projects</a></li>
+          <li><a href="index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <section class="page-section" aria-labelledby="blogs-heading">
+        <h1 id="blogs-heading">Blogs</h1>
+        <p>Visual field guides and working notes on vision-language models, deep learning, and the systems around them.</p>
+        <div class="blog-list">
+          <a class="blog-card" href="normalization.html" target="_self">
+            <span class="blog-card-label">Field guide</span>
+            <h3>Keeping the signal in range.</h3>
+            <p>Normalization in deep learning—from BatchNorm to Peri-LN, and what it means for VLMs.</p>
+            <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026</div>
+            <div class="blog-tags"><span>Deep Learning</span><span>Normalization</span><span>Vision Language Models</span></div>
+          </a>
+          <a class="blog-card" href="vision-encoders.html" target="_self">
+            <span class="blog-card-label">Field guide</span>
+            <h3>But, what are vision encoders?</h3>
+            <p>A guide to the visual half of a vision-language model: how pixels become the tokens an LLM reasons over.</p>
+            <div class="blog-meta">Anirudh Srinivasan &nbsp;·&nbsp; August 28, 2026</div>
+            <div class="blog-tags"><span>Vision Language Models</span><span>Vision Encoders</span><span>Theory</span></div>
+          </a>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer"><span>Anirudh Srinivasan</span><a href="../index.html" target="_self">Portfolio</a></footer>
+    <script src="../assets/js/scripts.js"></script>
+  </body>
+</html>

@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Normalization: A Field Guide — from BatchNorm to Peri-LN, and what it means for VLMs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E4E2DC; --paper2:#EFEDE9; --paper3:#F7F6F3;
+  --ink:#14171A; --ink2:#474E53; --ink3:#7B8388; --rule:#CAC6BD; --rule2:#D9D5CC;
+  --panel:#0F1317; --panel2:#161C22; --panelEdge:#242C34; --grid:#1E262E;
+  --a:#E8A33D;  /* raw / pre-norm signal            */
+  --b:#3FD1A0;  /* normalized                        */
+  --c:#8B7BF7;  /* gradient                          */
+  --d:#5AB2E8;  /* secondary / text modality         */
+  --e:#E4573C;  /* divergence / danger               */
+  --f:#F2C1D8;  /* rare highlight                    */
+  --disp:"Bricolage Grotesque","Archivo",system-ui,sans-serif;
+  --body:"Newsreader",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --maxw:1180px; --prose:70ch;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; -webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:18.5px; line-height:1.68;
+  font-variant-numeric:oldstyle-nums;
+  background-image:
+    linear-gradient(rgba(20,23,26,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20,23,26,.028) 1px, transparent 1px);
+  background-size:44px 44px;
+}
+::selection{background:var(--ink); color:var(--paper)}
+
+/* ---------- structure ---------- */
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 26px}
+.prose{max-width:var(--prose)}
+section{padding:78px 0 10px; position:relative}
+hr.rule{border:0; border-top:1px solid var(--rule); margin:64px 0 0}
+
+.eyebrow{
+  font-family:var(--mono); font-size:11.5px; font-weight:600; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ink3); display:flex; gap:14px; align-items:center;
+  margin:0 0 14px;
+}
+.eyebrow b{color:var(--ink); font-weight:600}
+.eyebrow .ln{flex:1; height:1px; background:var(--rule); min-width:20px}
+
+h1,h2,h3,h4{font-family:var(--disp); font-weight:700; letter-spacing:-.02em; line-height:1.03; margin:0}
+h2{font-size:clamp(30px,4.6vw,50px); font-variation-settings:"wdth" 92; margin:0 0 18px}
+h3{font-size:clamp(21px,2.6vw,27px); margin:44px 0 10px; letter-spacing:-.012em}
+h4{font-size:17px; font-family:var(--mono); font-weight:600; letter-spacing:.02em; text-transform:none; margin:26px 0 6px}
+p{margin:0 0 17px}
+a{color:var(--ink); text-underline-offset:3px; text-decoration-color:var(--ink3)}
+strong{font-weight:600}
+em{font-style:italic}
+code,.k{font-family:var(--mono); font-size:.83em; background:rgba(20,23,26,.065); padding:1.5px 5px; border-radius:3px; font-variant-numeric:normal}
+.lead{font-size:22px; line-height:1.5; color:var(--ink2); max-width:62ch}
+.muted{color:var(--ink2)}
+ul,ol{margin:0 0 18px; padding-left:22px} li{margin:0 0 8px}
+ul.tight li{margin:0 0 4px}
+
+/* ---------- masthead ---------- */
+header.mast{padding:46px 0 0}
+.mastbar{display:flex; align-items:baseline; justify-content:space-between; gap:20px;
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink3);
+  border-bottom:1px solid var(--rule); padding-bottom:12px; flex-wrap:wrap}
+h1.title{
+  font-size:clamp(44px,9.2vw,116px); line-height:.9; letter-spacing:-.045em;
+  font-variation-settings:"wdth" 78; font-weight:800; margin:34px 0 0;
+}
+h1.title .fade{color:var(--ink3)}
+.subtitle{font-size:clamp(19px,2.3vw,25px); line-height:1.35; color:var(--ink2); max-width:52ch; margin:22px 0 0; font-style:italic}
+.dek{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); margin:40px 0 0}
+.dek div{background:var(--paper); padding:14px 16px}
+.dek dt{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink3); margin:0 0 5px}
+.dek dd{margin:0; font-size:16px; line-height:1.35}
+
+/* ---------- instrument panel: the signature element ---------- */
+.panel{
+  position:relative; background:var(--panel); border:1px solid var(--panelEdge);
+  border-radius:2px; margin:30px 0; overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.4), 0 18px 40px -28px rgba(10,14,18,.75);
+}
+.panel::before{ /* graticule */
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:34px 34px; opacity:.55;
+}
+.panel-hd{
+  position:relative; z-index:2; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+  padding:11px 16px; border-bottom:1px solid var(--panelEdge); background:rgba(255,255,255,.018);
+  font-family:var(--mono); font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:#8C979F;
+}
+.panel-hd .fignum{color:var(--b); font-weight:600}
+.panel-hd .ttl{color:#E4EAEE; letter-spacing:.09em; font-weight:500}
+.panel-hd .sp{flex:1}
+.panel-bd{position:relative; z-index:1; padding:18px 16px 20px}
+.panel-ft{
+  position:relative; z-index:2; padding:11px 16px 13px; border-top:1px solid var(--panelEdge);
+  font-family:var(--mono); font-size:12px; line-height:1.55; color:#93A0A8;
+}
+.panel-ft b{color:#DCE4E9; font-weight:500}
+.panel svg{display:block; width:100%; height:auto; overflow:visible}
+
+/* controls inside panels */
+.ctl{display:flex; gap:7px; flex-wrap:wrap; align-items:center; position:relative; z-index:3}
+.ctl button, .chip{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  background:rgba(255,255,255,.045); color:#9AA6AE; border:1px solid var(--panelEdge);
+  padding:6px 11px; border-radius:2px; cursor:pointer; transition:.14s; line-height:1.1;
+}
+.ctl button:hover{color:#E7EDF1; border-color:#3B4650; background:rgba(255,255,255,.09)}
+.ctl button[aria-pressed="true"], .ctl button.on{background:var(--b); color:#06120E; border-color:var(--b); font-weight:600}
+.ctl button:focus-visible, .lightctl button:focus-visible{outline:2px solid var(--d); outline-offset:2px}
+.ctl label{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#8C979F; display:flex; align-items:center; gap:9px}
+input[type=range]{accent-color:var(--b); width:150px; height:18px; cursor:pointer}
+.readout{font-family:var(--mono); font-size:12px; color:var(--b); min-width:46px; display:inline-block}
+
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-family:var(--mono); font-size:11px; color:#8C979F; letter-spacing:.06em}
+.legend i{display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:6px; vertical-align:-1px}
+
+/* light controls (outside panels) */
+.lightctl{display:flex; gap:7px; flex-wrap:wrap; align-items:center; margin:0 0 16px}
+.lightctl button{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  background:transparent; color:var(--ink2); border:1px solid var(--rule);
+  padding:7px 12px; border-radius:2px; cursor:pointer; transition:.14s;
+}
+.lightctl button:hover{border-color:var(--ink3); color:var(--ink)}
+.lightctl button[aria-pressed="true"]{background:var(--ink); color:var(--paper2); border-color:var(--ink)}
+.lightctl input[type=search]{
+  font-family:var(--mono); font-size:12px; padding:7px 11px; border:1px solid var(--rule);
+  background:var(--paper3); color:var(--ink); border-radius:2px; min-width:190px;
+}
+
+/* ---------- math ---------- */
+.m{font-family:var(--mono); font-size:.855em; letter-spacing:0; white-space:nowrap; font-variant-numeric:normal}
+.m sub{font-size:.78em} .m sup{font-size:.78em}
+.eq{
+  font-family:var(--mono); font-size:14.5px; line-height:1.85; background:var(--paper3);
+  border-left:2px solid var(--ink); padding:15px 18px; margin:20px 0; overflow-x:auto;
+  color:var(--ink); white-space:pre;
+}
+.eq .cm{color:var(--ink3)}
+
+/* ---------- callouts ---------- */
+.note{
+  border:1px solid var(--rule); background:var(--paper3); padding:18px 20px; margin:24px 0;
+  font-size:17px; line-height:1.6;
+}
+.note .tag{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--ink3); display:block; margin:0 0 8px;
+}
+.note.warn{border-left:3px solid var(--e)}
+.note.tip{border-left:3px solid var(--b)}
+.note.hist{border-left:3px solid var(--a)}
+.note p:last-child{margin-bottom:0}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto; margin:26px 0; border:1px solid var(--rule); background:var(--paper3)}
+table{border-collapse:collapse; width:100%; font-size:14.5px; font-variant-numeric:tabular-nums}
+th,td{text-align:left; padding:9px 13px; border-bottom:1px solid var(--rule2); vertical-align:top}
+th{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink3);
+   position:sticky; top:0; background:var(--paper3); z-index:2; border-bottom:1px solid var(--rule); white-space:nowrap}
+tbody tr:hover{background:rgba(20,23,26,.035)}
+td.mono,th.mono{font-family:var(--mono); font-size:12.5px}
+.pill{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; padding:2px 7px; border-radius:9px; white-space:nowrap; display:inline-block; border:1px solid}
+.p-rms{color:#186B4F; border-color:#8FD9BF; background:#DEF5EC}
+.p-ln{color:#1D5D80; border-color:#9AD0E8; background:#E0F1FA}
+.p-pre{color:#6B4A0E; border-color:#E3C48A; background:#FAF0DC}
+.p-post{color:#7A2A1B; border-color:#EFAE9E; background:#FCE7E1}
+.p-peri{color:#4B3A8C; border-color:#BDB2F0; background:#EDE9FC}
+.p-qk{color:#2A2E31; border-color:#BEC4C8; background:#EBEDEE}
+.p-none{color:#6C7276; border-color:#D2D6D8; background:#F2F3F4}
+
+/* ---------- zoo cards ---------- */
+.zoo{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule); margin:26px 0}
+.card{background:var(--paper3); padding:16px 17px 18px; transition:background .15s}
+.card:hover{background:#FFF}
+.card .cn{font-family:var(--disp); font-weight:700; font-size:19px; letter-spacing:-.015em; margin:0 0 2px; display:flex; align-items:baseline; gap:8px}
+.card .cy{font-family:var(--mono); font-size:10.5px; color:var(--ink3); letter-spacing:.06em; font-weight:400}
+.card .cg{margin:11px 0 11px; background:var(--panel); border:1px solid var(--panelEdge); border-radius:2px; padding:6px}
+.card .cg svg{display:block; width:100%; height:auto}
+.card p{font-size:14.5px; line-height:1.52; margin:0; color:var(--ink2)}
+.card .cw{font-family:var(--mono); font-size:11px; color:var(--ink3); margin:9px 0 0; letter-spacing:.02em}
+
+/* ---------- timeline ---------- */
+.tl{position:relative; margin:30px 0 10px; border-top:1px solid var(--rule)}
+.tlrow{display:grid; grid-template-columns:86px 1fr; gap:20px; padding:14px 0; border-bottom:1px solid var(--rule2); align-items:start}
+.tlrow .yr{font-family:var(--mono); font-size:13px; color:var(--ink3); letter-spacing:.06em; padding-top:2px}
+.tlrow .ev{font-size:16px; line-height:1.5}
+.tlrow .ev b{font-family:var(--disp); font-size:17.5px; font-weight:700; letter-spacing:-.01em}
+.tlrow:hover{background:rgba(20,23,26,.03)}
+
+/* ---------- misc ---------- */
+.cols2{display:grid; grid-template-columns:1fr 1fr; gap:34px}
+@media(max-width:820px){.cols2{grid-template-columns:1fr; gap:0}}
+.toc{columns:2; column-gap:34px; font-family:var(--mono); font-size:13px; line-height:2; margin:26px 0 0; padding:0; list-style:none}
+.toc a{display:block; text-decoration:none; color:var(--ink2); border-bottom:1px dotted var(--rule); padding:1px 0}
+.toc a:hover{color:var(--ink); border-bottom-color:var(--ink3)}
+.toc a span{color:var(--ink3); margin-right:10px}
+@media(max-width:640px){.toc{columns:1}}
+footer{margin-top:70px; padding:32px 0 60px; border-top:1px solid var(--rule); font-family:var(--mono); font-size:12px; color:var(--ink3); line-height:1.9}
+
+@media(max-width:640px){
+  body{font-size:17.5px}
+  .panel-bd{padding:14px 10px 16px}
+  .wrap{padding:0 16px}
+  section{padding:56px 0 6px}
+  .eq{font-size:12.5px}
+}
+@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms !important; transition-duration:.001ms !important} }
+</style>
+</head>
+<body>
+<header class="mast">
+  <div class="wrap">
+    <div class="mastbar">
+      <a href="../index.html">Anirudh Srinivasan · Portfolio</a>
+      <span>Normalization in deep learning · August 28, 2026</span>
+    </div>
+    <h1 class="title">Keeping<br>the signal<br><span class="fade">in range.</span></h1>
+    <p class="subtitle">Every normalization layer ever shipped is answering one question: <em>which numbers do I average over, and what do I do with the answer?</em> Everything else — batch vs layer, pre vs post, RMS vs LN, QK-Norm, sandwich, Peri-LN — is a choice of axis and a choice of placement.</p>
+    <dl class="dek">
+      <div><dt>Layers covered</dt><dd>28 normalization operators</dd></div>
+      <div><dt>Placements</dt><dd>11 residual-block schemes</dd></div>
+      <div><dt>Models charted</dt><dd>60+ LLMs, VLMs &amp; encoders</dd></div>
+      <div><dt>Reading time</dt><dd>~45 min, plus the knobs</dd></div>
+    </dl>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="panel" id="hero-panel" style="margin-top:34px">
+    <div class="panel-hd">
+      <span class="fignum">Fig 00</span><span class="ttl">The same tensor, before and after</span><span class="sp"></span>
+      <span class="legend"><span><i style="background:var(--a)"></i>raw activations</span><span><i style="background:var(--b)"></i>normalized</span></span>
+    </div>
+    <div class="panel-bd"><div id="hero-mount"></div></div>
+    <div class="panel-ft">Eight token vectors flowing through a residual block. <b>Left</b>: raw hidden states — per-token scale wanders by two orders of magnitude and drifts upward with depth. <b>Right</b>: the same vectors after normalization — direction preserved, magnitude pinned. The whole subject is contained in this before/after.</div>
+  </div>
+
+  <ul class="toc">
+    <li><a href="#s1"><span>01</span>Why normalize at all</a></li>
+    <li><a href="#s2"><span>02</span>The axis atlas</a></li>
+    <li><a href="#s3"><span>03</span>Anatomy of a norm layer</a></li>
+    <li><a href="#s4"><span>04</span>BatchNorm and its discontents</a></li>
+    <li><a href="#s5"><span>05</span>LayerNorm &amp; RMSNorm geometry</a></li>
+    <li><a href="#s6"><span>06</span>The zoo — 28 operators</a></li>
+    <li><a href="#s7"><span>07</span>Placement: pre, post, peri, sandwich</a></li>
+    <li><a href="#s8"><span>08</span>Variance growth &amp; the curse of depth</a></li>
+    <li><a href="#s9"><span>09</span>QK-Norm and the softmax</a></li>
+    <li><a href="#s10"><span>10</span>Living without normalization</a></li>
+    <li><a href="#s11"><span>11</span>Nuances that bite in LLMs</a></li>
+    <li><a href="#s12"><span>12</span>VLMs: the modality interface</a></li>
+    <li><a href="#s13"><span>13</span>The model matrix</a></li>
+    <li><a href="#s14"><span>14</span>Timeline 2015–2026</a></li>
+    <li><a href="#s15"><span>15</span>Cheat sheet</a></li>
+  </ul>
+</div>
+
+<!-- ============================== 01 ============================== -->
+<section id="s1"><div class="wrap">
+  <p class="eyebrow"><b>§ 01</b><span class="ln"></span><span>Why normalize at all</span></p>
+  <h2>Three stories, one of which<br>turned out to be wrong</h2>
+  <div class="prose">
+    <p class="lead">BatchNorm was sold in 2015 as a cure for <em>internal covariate shift</em>. That explanation has not survived contact with the evidence. What survived is more interesting, and it is what actually motivates every modern design decision.</p>
+
+    <h3>Story 1 — Internal covariate shift (mostly dead)</h3>
+    <p>The original claim: as earlier layers update, the distribution of inputs to later layers keeps shifting, so later layers spend their capacity chasing a moving target. Normalizing pins the distribution and lets each layer learn against a stable input.</p>
+    <p>Santurkar et al. (2018) tested this directly by injecting deliberate, time-varying non-zero-mean noise <em>after</em> the BatchNorm layer — recreating covariate shift on purpose. The network trained just as well. Worse for the theory: they measured the distributional drift in networks with and without BN and found BN networks did not obviously have less of it. The mechanism named in the title is not the mechanism doing the work.</p>
+
+    <h3>Story 2 — A smoother optimization landscape (alive)</h3>
+    <p>The replacement explanation: normalization improves the <em>Lipschitzness</em> of the loss and of its gradients. Gradients become more predictive — the direction you compute at your current point stays useful over a longer step. That is exactly what buys you larger stable learning rates and less sensitivity to initialization.</p>
+
+    <h3>Story 3 — Scale invariance and the implicit learning rate (very alive)</h3>
+    <p>This is the one to keep in your head, because it explains weight decay interactions, learning-rate schedules, and why removing norms is hard.</p>
+    <p>Put a norm immediately after a linear layer. Then scaling that layer's weights by any <span class="m">k>0</span> changes nothing in the forward pass — the norm divides it right back out:</p>
+    <div class="eq">Norm(<span class="cm">(</span>kW<span class="cm">)</span>x) = Norm(Wx)          <span class="cm">— forward: invariant</span>
+∂L/∂<span class="cm">(</span>kW<span class="cm">)</span>   = <span class="cm">(</span>1/k<span class="cm">)</span> · ∂L/∂W      <span class="cm">— backward: scaled by 1/k</span></div>
+    <p>So the weight's <em>magnitude</em> is a free parameter that the forward pass ignores but the gradient sees. The effective step size in <em>angular</em> terms is <span class="m">η / ‖W‖²</span>. Two consequences you have certainly felt:</p>
+    <ul>
+      <li><strong>Weight decay becomes a learning-rate control.</strong> Decay shrinks <span class="m">‖W‖</span>, which <em>raises</em> the effective LR. That is why weight decay on normalized layers behaves nothing like classical L2 regularization, and why the two are entangled in every modern schedule.</li>
+      <li><strong>Norm growth is the thing to monitor.</strong> Weight norms drift up during training, effective LR drifts down, and you get the "automatic LR decay" that normalized nets exhibit even with a flat schedule.</li>
+    </ul>
+    <p>There is a fourth, quieter reason that dominates at scale and rarely gets a section in a paper: <strong>normalization keeps activations inside the representable range of bf16.</strong> Several of the most consequential design changes in the last three years — QK-Norm, norm reordering, sandwich norms — were adopted not for accuracy but because a 34B model was producing numbers a 16-bit float could not hold.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 01</span><span class="ttl">Scale invariance → effective learning rate</span><span class="sp"></span>
+      <span class="ctl"><label>‖W‖ <input type="range" id="si-k" min="20" max="300" value="100"><span class="readout" id="si-kv">1.00×</span></label></span></div>
+    <div class="panel-bd"><div id="si-mount"></div></div>
+    <div class="panel-ft">Drag <b>‖W‖</b>. The forward output (mint) never moves — the norm divides the scale out. The gradient arrow (violet) shrinks as <b>1/k</b>, and the <b>angular step</b> the weight vector actually takes shrinks as <b>1/k²</b>. Weight decay pushes ‖W‖ left, which silently <b>raises</b> your effective learning rate.</div>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 02 ============================== -->
+<section id="s2"><div class="wrap">
+  <p class="eyebrow"><b>§ 02</b><span class="ln"></span><span>The axis atlas</span></p>
+  <h2>Every norm is a choice<br>of which axes to average over</h2>
+  <div class="prose">
+    <p class="lead">Take a tensor. Decide which axes you reduce over to compute the statistics. That single decision names your normalization layer. Everything below is the same four lines of arithmetic pointed at different slices.</p>
+    <p>Two conventions collide in the literature, so let's fix both. Vision people write <b>(N, C, H, W)</b> — batch, channels, spatial. Sequence people write <b>(B, T, D)</b> — batch, tokens, features. They map onto each other: <span class="k">C ↔ D</span> is the feature axis, <span class="k">H·W ↔ T</span> is the "positions" axis. The atlas below uses a single block so you can see both at once.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 02</span><span class="ttl">Which slice does the mean come from?</span><span class="sp"></span>
+      <span class="ctl" id="atlas-ctl"></span></div>
+    <div class="panel-bd"><div id="atlas-mount"></div></div>
+    <div class="panel-ft" id="atlas-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <h3>The one-line taxonomy</h3>
+    <p>Say the tensor is <span class="m">x[n, c, s]</span> — sample <span class="m">n</span>, feature/channel <span class="m">c</span>, position <span class="m">s</span>. Then:</p>
+    <div class="eq">BatchNorm     μ,σ over  <span class="cm">(</span>n, s<span class="cm">)</span>        → one statistic per channel      <span class="cm">stats depend on the batch</span>
+LayerNorm     μ,σ over  <span class="cm">(</span>c<span class="cm">)</span>           → one statistic per token        <span class="cm">stats are per-sample</span>
+InstanceNorm  μ,σ over  <span class="cm">(</span>s<span class="cm">)</span>           → one per (sample, channel)      <span class="cm">stats are per-sample</span>
+GroupNorm     μ,σ over  <span class="cm">(</span>c∈g, s<span class="cm">)</span>       → one per (sample, group)        <span class="cm">stats are per-sample</span>
+RMSNorm       rms  over <span class="cm">(</span>c<span class="cm">)</span>           → LayerNorm minus the mean       <span class="cm">stats are per-sample</span>
+WeightNorm    over weights, not activations                       <span class="cm">no data dependence at all</span></div>
+    <p>The right-hand column is the practical dividing line. <strong>BatchNorm is the only one whose forward pass depends on the other examples in your batch.</strong> That single property generates every headache in §04, and it is why it lost the transformer era outright.</p>
+
+    <div class="note tip"><span class="tag">Rule of thumb</span>
+      <p>If your batch dimension carries meaning that changes between train and test — variable sequence lengths, batch size 1 at inference, distributed shards with different content, RL rollouts, contrastive batches — do not put statistics on it. That eliminates BatchNorm for essentially all of language and most of multimodal.</p>
+    </div>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 03 ============================== -->
+<section id="s3"><div class="wrap">
+  <p class="eyebrow"><b>§ 03</b><span class="ln"></span><span>Anatomy</span></p>
+  <h2>Four steps, and the two<br>that people forget</h2>
+  <div class="prose">
+    <p class="lead">A normalization layer is: centre, scale, then undo both with learned parameters. The last part sounds circular. It isn't — and understanding why is the difference between using these layers and designing with them.</p>
+    <div class="eq">y = γ ⊙ <span class="cm">(</span>x − μ<span class="cm">)</span> / √<span class="cm">(</span>σ² + ε<span class="cm">)</span> + β
+
+  μ = mean over the chosen axes      γ ∈ ℝ<sup>D</sup>   learned per-feature <b>gain</b>
+  σ² = variance over the same axes    β ∈ ℝ<sup>D</sup>   learned per-feature <b>bias</b>
+  ε  = 1e-5 … 1e-6, inside the sqrt   <span class="cm">(placement of ε matters — see §11)</span></div>
+    <p>Why the affine map back? Because the normalization step is a hard constraint the network never asked for. Forcing every feature to unit variance destroys information about relative feature importance that later layers may want. <span class="m">γ</span> and <span class="m">β</span> hand that expressiveness back — the layer can learn to <em>partially</em> undo normalization, or to re-express a feature at whatever scale is useful, while the <em>gradient</em> still flows through a well-conditioned operator.</p>
+    <p>Two properties fall out of the algebra and are worth memorizing:</p>
+    <ul>
+      <li><strong>Re-scaling invariance:</strong> <span class="m"> Norm(ax) = Norm(x) </span>. Both LayerNorm and RMSNorm have it. This is the property that produces the effective-LR story in §01.</li>
+      <li><strong>Re-centring invariance:</strong> <span class="m"> Norm(x + c<b>1</b>) = Norm(x) </span>. LayerNorm has it. <strong>RMSNorm does not.</strong> That is the entire difference between them, and Zhang &amp; Sennrich's 2019 argument was that re-centring contributes little to quality while costing a full pass over the vector.</li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 03</span><span class="ttl">One vector, four steps</span><span class="sp"></span>
+      <span class="ctl" id="anat-ctl"></span></div>
+    <div class="panel-bd"><div id="anat-mount"></div></div>
+    <div class="panel-ft" id="anat-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <h3>The gradient is the interesting part</h3>
+    <p>Normalization's backward pass is not element-wise. Because <span class="m">μ</span> and <span class="m">σ</span> depend on every element, the gradient w.r.t. any one input has three terms:</p>
+    <div class="eq">∂L/∂x_i = <span class="cm">(</span>1/σ<span class="cm">)</span> · [ g_i − mean<span class="cm">(</span>g<span class="cm">)</span> − x̂_i · mean<span class="cm">(</span>g ⊙ x̂<span class="cm">)</span> ]     where g = γ ⊙ ∂L/∂y ,  x̂ = <span class="cm">(</span>x−μ<span class="cm">)</span>/σ</div>
+    <p>Read the bracket geometrically: the incoming gradient gets <strong>projected orthogonally</strong> to two directions — the all-ones vector <span class="m"><b>1</b></span> (that is the <span class="k">− mean(g)</span> term, removing the component that would only shift the mean) and the current normalized activation <span class="m">x̂</span> (that is the third term, removing the component that would only rescale it). Both directions are ones the forward pass ignores, so their gradient is discarded.</p>
+    <p>Three consequences that matter in practice:</p>
+    <ul>
+      <li>The <span class="k">1/σ</span> prefactor means <strong>a layer whose activations shrink gets louder gradients</strong>. This is a stabilizing negative feedback loop — and it is exactly the mechanism recent work argues that "massive activations" exploit as a gradient attenuator (§11).</li>
+      <li>RMSNorm drops the <span class="k">− mean(g)</span> term (no centring), so its backward is genuinely cheaper, not just its forward.</li>
+      <li>The projection means <strong>normalization layers destroy gradient information</strong> in two directions per layer. In a 100-layer network that is 200 discarded directions. Usually irrelevant; occasionally the explanation for a strange rank-deficiency you're debugging.</li>
+    </ul>
+  </div>
+</div></section>
+
+<hr class="rule">
+<!-- ============================== 04 ============================== -->
+<section id="s4"><div class="wrap">
+  <p class="eyebrow"><b>§ 04</b><span class="ln"></span><span>BatchNorm</span></p>
+  <h2>BatchNorm and<br>its discontents</h2>
+  <div class="prose">
+    <p class="lead">BatchNorm is still the right answer for a ResNet on ImageNet with batch size 256. It is the wrong answer for nearly everything you are training now, and the reasons are worth spelling out because they generalize.</p>
+    <p>The mechanism has a split personality. In <strong>training</strong> it uses the statistics of the current mini-batch. In <strong>evaluation</strong> it uses running estimates accumulated by exponential moving average. These are two different functions. The gap between them is where BatchNorm's failures live.</p>
+    <div class="eq"><span class="cm">train:</span>  y = γ · <span class="cm">(</span>x − μ_batch<span class="cm">)</span>/σ_batch + β        <span class="cm">μ_batch from THIS batch — stochastic</span>
+<span class="cm">eval :</span>  y = γ · <span class="cm">(</span>x − μ_run<span class="cm">)</span>/σ_run   + β        <span class="cm">μ_run  ← (1−m)·μ_run + m·μ_batch</span></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 04</span><span class="ttl">Batch statistics are a noisy estimator</span><span class="sp"></span>
+      <span class="ctl"><label>batch size <input type="range" id="bn-n" min="1" max="128" value="32"><span class="readout" id="bn-nv">32</span></label>
+      <button id="bn-play" aria-pressed="true">running</button></span></div>
+    <div class="panel-bd"><div id="bn-mount"></div></div>
+    <div class="panel-ft">Each frame draws a fresh mini-batch from a fixed population. <b>Amber</b> is the per-batch estimate BatchNorm actually uses in training; <b>violet</b> is the EMA that inference will use; the dashed line is the truth. Drag batch size down toward 1 and watch the training-time estimator become pure noise — and watch the train/eval gap open up. That gap <b>is</b> the BatchNorm bug you have debugged before.</div>
+  </div>
+
+  <div class="prose">
+    <h3>The five failure modes</h3>
+    <ol>
+      <li><strong>Small batches.</strong> Estimator variance goes as <span class="m">1/N</span>. Detection and segmentation at batch 2 per GPU is where GroupNorm was born.</li>
+      <li><strong>Variable-length sequences.</strong> Padding contaminates the statistics; masking them out makes the effective <span class="m">N</span> position-dependent. Late positions in a batch of mixed lengths get statistics from a handful of examples. This is the structural reason transformers use LayerNorm.</li>
+      <li><strong>Train/eval mismatch.</strong> Any distribution shift between training batches and inference inputs corrupts running stats. Fine-tuning a backbone at a new resolution silently invalidates them, which is why <span class="k">FrozenBatchNorm2d</span> exists in every detection codebase.</li>
+      <li><strong>Information leakage across examples.</strong> The prediction for example <span class="m">i</span> depends on examples <span class="m">j ≠ i</span>. Fatal for contrastive learning (the model can cheat by reading batch statistics — hence SimCLR's care, MoCo's <em>shuffling BN</em>, and BYOL's dependence on it), and awkward for anything with per-example guarantees.</li>
+      <li><strong>Distributed training.</strong> Statistics are per-device by default, so your effective batch is the <em>local</em> batch, and changing your parallelism changes your model's function. <span class="k">SyncBN</span> fixes it with an all-reduce of <span class="m">∑x</span> and <span class="m">∑x²</span> per layer per step — correct, and a throughput disaster at scale.</li>
+    </ol>
+
+    <div class="note hist"><span class="tag">Historical note</span>
+      <p><strong>Flamingo's vision tower has no normalization layers at all.</strong> It uses NFNet-F6 — the "normalizer-free" ResNet built from Weight Standardization, scaled residual branches, and Adaptive Gradient Clipping instead of BatchNorm. Brock et al. built it specifically to escape the batch-dependence and train/eval split described above; it beat EfficientNet on ImageNet while training faster. If you ever wondered why Flamingo's encoder looks nothing like a CLIP ViT, that's why.</p>
+    </div>
+
+    <h3>The BatchNorm variants worth knowing</h3>
+    <ul>
+      <li><strong>SyncBN</strong> — cross-device statistics via all-reduce. Correct, slow, still standard in detection.</li>
+      <li><strong>Ghost BatchNorm</strong> — deliberately compute statistics over <em>sub</em>-batches (e.g. 32 within a batch of 1024) to retain the regularizing noise that large-batch training destroys.</li>
+      <li><strong>Batch Renormalization</strong> — corrects the train/eval function gap by applying an affine correction toward the running statistics during training, with clipped correction factors.</li>
+      <li><strong>Frozen BN</strong> — statistics and affine fixed from pretraining. The default when fine-tuning a CNN backbone at small batch, and the reason so many detection models ship with BN in eval mode permanently.</li>
+      <li><strong>PowerNorm</strong> — Shen et al.'s attempt to rescue batch statistics for transformers: relax zero-mean to quadratic mean and use running statistics in the forward pass with a correction. Interesting; never displaced LayerNorm.</li>
+    </ul>
+    <p>One property BatchNorm has that the per-sample norms do not: it <strong>decorrelates the batch dimension as a regularizer</strong>. The noise from mini-batch estimation is a genuine stochastic regularizer, and part of why removing BN from a ResNet costs accuracy even when training is stable. Ghost BN exists to preserve exactly that.</p>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 05 ============================== -->
+<section id="s5"><div class="wrap">
+  <p class="eyebrow"><b>§ 05</b><span class="ln"></span><span>LayerNorm &amp; RMSNorm</span></p>
+  <h2>Two projections<br>onto a sphere</h2>
+  <div class="prose">
+    <p class="lead">Forget the formulas for a moment. Geometrically, LayerNorm and RMSNorm each map an arbitrary vector onto a fixed-radius sphere. They differ in one step: LayerNorm first flattens the vector onto the hyperplane where the coordinates sum to zero. RMSNorm skips that.</p>
+    <div class="eq">LayerNorm  :  x ↦ <span class="cm">(</span>x − mean<span class="cm">(</span>x<span class="cm">)</span>·1<span class="cm">)</span> ↦ scaled to ‖·‖ = √D     <span class="cm">project onto 1⊥, THEN onto sphere</span>
+RMSNorm    :  x ↦                        scaled to ‖·‖ = √D     <span class="cm">straight onto the sphere</span></div>
+    <p>So LayerNorm's image is a sphere of dimension <span class="m">D−2</span> living inside the hyperplane <span class="m"><b>1</b>ᵀx = 0</span>; RMSNorm's image is the full <span class="m">(D−1)</span>-sphere. LayerNorm throws away one degree of freedom — the component along <span class="m"><b>1</b></span> — and RMSNorm keeps it. That is the <em>whole</em> difference, before the learned <span class="m">γ</span>.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 05</span><span class="ttl">LayerNorm vs RMSNorm, in 3D</span><span class="sp"></span>
+      <span class="ctl" id="geo-ctl"></span></div>
+    <div class="panel-bd"><div id="geo-mount"></div></div>
+    <div class="panel-ft" id="geo-ft">A cloud of 3-dimensional "hidden states". Watch where each operator sends them. <b>LayerNorm</b> collapses the cloud onto a great circle — the intersection of the sphere with the plane <span style="color:#DCE4E9">x+y+z = 0</span>. <b>RMSNorm</b> spreads them over the whole sphere. Both preserve direction within their image; neither preserves length.</div>
+  </div>
+
+  <div class="prose">
+    <h3>Does removing the mean matter?</h3>
+    <p>Empirically: rarely, at scale, in decoder-only language models. That is why essentially every LLM after LLaMA uses RMSNorm. But the reasons it can matter are worth knowing.</p>
+    <ul>
+      <li><strong>Cost.</strong> RMSNorm needs one reduction (<span class="m">∑x²</span>) instead of two, and drops a term from the backward. Zhang &amp; Sennrich measured 7–64% speedups on the norm op depending on architecture and framework. In a modern LLM the norm is a memory-bandwidth-bound op sandwiched between two GEMMs, so the real win is a fused kernel that keeps the tensor in registers, not the FLOP count.</li>
+      <li><strong>Parameters.</strong> <span class="m">γ</span> only, no <span class="m">β</span>. Which is <span class="m">D</span> instead of <span class="m">2D</span> per norm — irrelevant for memory, but it removes a bias that can carry a constant offset into every downstream layer.</li>
+      <li><strong>Interpretability / mechanistic work.</strong> LayerNorm's centring step is a rank-reducing projection: it maps <span class="m">ℝ<sup>D</sup></span> onto a <span class="m">(D−1)</span>-dimensional subspace. If you are doing anything with the residual-stream basis, RMSNorm is the friendlier operator because it's a pure scaling.</li>
+      <li><strong>Folding.</strong> Because centring is a linear operation, it can often be <em>folded into the preceding linear layer's weights</em> by centring the weight columns. Recent work (Enjoy Your LayerNorm with the Efficiency of RMSNorm, 2025–26) formalizes when an LN in an arbitrary graph is "foldable" and reports 2–12% end-to-end inference speedups from converting LN→RMSNorm losslessly. Relevant if you're deploying a LayerNorm-era ViT next to an RMSNorm LLM.</li>
+    </ul>
+    <p>And a fourth variant you will meet in code: <strong>Gemma's RMSNorm computes <span class="m">(1 + w) ⊙ x̂</span></strong> rather than <span class="m">w ⊙ x̂</span>, so the weight is initialized at zero and the layer starts as an identity-scale. Numerically identical family, different init and different weight-decay semantics. If you port Gemma weights into a LLaMA-shaped implementation and forget this, your model outputs garbage — a classic, and it is one line.</p>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 06 ============================== -->
+<section id="s6"><div class="wrap">
+  <p class="eyebrow"><b>§ 06</b><span class="ln"></span><span>The zoo</span></p>
+  <h2>Twenty-eight operators,<br>sorted by what they touch</h2>
+  <div class="prose">
+    <p class="lead">Beyond the big four there is a long tail, and a surprising amount of it is alive in code you use daily — AdaIN inside style models, adaLN-Zero inside every DiT, Weight Standardization inside BiT and NFNets, spectral norm inside GAN discriminators.</p>
+  </div>
+  <div class="lightctl" id="zoo-ctl"></div>
+  <div class="zoo" id="zoo-mount"></div>
+  <div class="prose">
+    <div class="note"><span class="tag">A note on the glyphs</span>
+      <p>Each card's diagram uses the same convention as Fig 02: the block is <b>samples × features × positions</b>, and the highlighted region is what the statistic is computed over. Cards whose operator doesn't touch activations at all (WeightNorm, Weight Standardization, Spectral Norm) show a weight matrix instead.</p>
+    </div>
+  </div>
+</div></section>
+
+<hr class="rule">
+<!-- ============================== 07 ============================== -->
+<section id="s7"><div class="wrap">
+  <p class="eyebrow"><b>§ 07</b><span class="ln"></span><span>Placement</span></p>
+  <h2>Pre, post, sandwich, peri —<br>and why it keeps mattering</h2>
+  <div class="prose">
+    <p class="lead">Choosing RMSNorm over LayerNorm is a small decision. Choosing <em>where the norm sits relative to the residual addition</em> is one of the largest architectural decisions in a transformer, and it is still being actively re-litigated in 2025–26.</p>
+    <p>Start with the two classics, written so the difference is unmissable:</p>
+    <div class="eq"><span class="cm">Post-LN  (Vaswani 2017)</span>   x ← Norm<span class="cm">(</span> x + F<span class="cm">(</span>x<span class="cm">)</span> <span class="cm">)</span>          <span class="cm">← norm sits ON the residual highway</span>
+<span class="cm">Pre-LN   (Xiong 2020)</span>     x ← x + F<span class="cm">(</span> Norm<span class="cm">(</span>x<span class="cm">)</span> <span class="cm">)</span>          <span class="cm">← highway is a clean identity path</span></div>
+    <p>Post-LN puts a normalization in the gradient's way at every single block. Gradient magnitude at layer <span class="m">ℓ</span> decays roughly as <span class="m">O(1/√ℓ)</span> going backwards, which is why the original transformer needed a learning-rate <em>warmup</em> and why deep Post-LN models are notoriously fragile. Pre-LN gives the gradient an uninterrupted identity path from the loss to the embedding. It trains without warmup, it survives depth, and it became the default.</p>
+    <p>But Pre-LN has a cost that took the field years to name properly. Because the residual sum is <em>never</em> renormalized, variance accumulates monotonically with depth:</p>
+    <div class="eq">Var[x_<span class="cm">(</span>ℓ+1<span class="cm">)</span>] = Var[x_ℓ] + Var[F<span class="cm">(</span>Norm<span class="cm">(</span>x_ℓ<span class="cm">)</span><span class="cm">)</span>]   →   grows without bound in ℓ</div>
+    <p>and as <span class="m">Var[x<sub>ℓ</sub>]</span> grows, <span class="m">Norm(x<sub>ℓ</sub>)</span> becomes ever less sensitive to the branch's contribution, so the block's Jacobian drifts toward the identity. The deep layers stop doing anything. This is the <strong>Curse of Depth</strong> (§08), and it is the reason four different fixes shipped in 2025.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 06</span><span class="ttl">Ten residual blocks, side by side</span><span class="sp"></span></div>
+    <div class="panel-bd">
+      <div class="ctl" id="place-ctl" style="margin-bottom:16px"></div>
+      <div id="place-mount"></div>
+    </div>
+    <div class="panel-ft" id="place-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <h3>The eleven schemes, in the order they were invented</h3>
+
+    <h4>Post-LN — Vaswani et al., 2017</h4>
+    <p>The original. Best <em>final</em> quality per parameter in several controlled comparisons, worst trainability. Needs warmup, careful init, and dies above ~20 layers without help. Still used deliberately: BERT-family encoders, and GLM.</p>
+
+    <h4>Pre-LN — Baevski &amp; Auli 2019; Xiong et al., 2020</h4>
+    <p>The default for GPT-2 through Llama 3, Mistral, Qwen 2/3, Phi, DeepSeek. Clean identity path, no warmup needed, stable to hundreds of layers. Pays for it with unbounded residual-stream variance and the massive-activation phenomenon.</p>
+
+    <h4>Sandwich-LN — Ding et al. (CogView), 2021</h4>
+    <p>Add a second norm at the <em>end</em> of each residual branch: <span class="k">x ← x + Norm(F(Norm(x)))</span>. Invented for CogView, a text-to-image transformer, precisely because mixed-modality training blew up in fp16. It bounds each branch's contribution. GLM-130B tried it at 130B scale and reported it <em>still</em> failed to stabilize training — a useful negative result.</p>
+
+    <h4>DeepNorm — Wang et al. (DeepNet), 2022</h4>
+    <p>Post-LN with two scalars: upweight the residual and downweight the branch's initialization.</p>
+    <div class="eq">x ← Norm<span class="cm">(</span> α·x + F<span class="cm">(</span>x<span class="cm">)</span> <span class="cm">)</span> ,   with F initialized at gain β,   α = <span class="cm">(</span>2N<span class="cm">)</span>^¼ , β = <span class="cm">(</span>8N<span class="cm">)</span>^−¼   <span class="cm">(N = #layers, decoder)</span></div>
+    <p>DeepNet trained a 1000-layer transformer with it. GLM-130B adopted DeepNorm-initialized Post-LN after Pre-LN, Post-LN and Sandwich-LN all failed at 130B — which is why the whole GLM/ChatGLM/CogVLM lineage is a Post-LN family in a Pre-LN world.</p>
+
+    <h4>Swin-V2 res-post-norm — Liu et al., 2022</h4>
+    <p>Move the norm to the <em>output</em> of each branch, still inside the residual: <span class="k">x ← x + Norm(F(x))</span>. Liu et al. introduced it to stop activation amplitudes exploding when scaling Swin to 3B params. It is the single most consequential placement idea of the last few years, because two very different teams picked it up for the same reason (below).</p>
+
+    <h4>Chameleon &amp; OLMo 2 "reordered norm" — 2024</h4>
+    <p>Both are the Swin-V2 scheme, adopted independently to survive training runs that were diverging. Chameleon needed it at 34B because SwiGLU's multiplicative structure made FFN output norms grow unboundedly under mixed-modal data; OLMo 2 needed it (together with QK-Norm) to tame gradient-norm spikes. OLMo 2 is explicit that <em>neither change worked alone</em> — reordering and QK-Norm only helped in combination.</p>
+
+    <h4>Peri-LN — Kim et al., 2025</h4>
+    <p>Norm both the input <em>and</em> the output of every sublayer: <span class="k">x ← x + Norm(F(Norm(x)))</span>. Yes — that is Sandwich-LN. The Peri-LN paper's contribution is not the shape but the analysis: it names the scheme that Gemma 2/3 and OLMo-family models had "silently adopted without much explanation", and shows it lands between Pre-LN's exponential variance growth and Post-LN's vanishing gradients, with steadier gradient flow up to 3.2B params. If you look at a Gemma 2/3 block you will find four RMSNorms: <span class="k">input_layernorm</span>, <span class="k">post_attention_layernorm</span>, <span class="k">pre_feedforward_layernorm</span>, <span class="k">post_feedforward_layernorm</span>. That is Peri-LN in HuggingFace's naming.</p>
+
+    <h4>Mix-LN — Li et al., 2025</h4>
+    <p>Post-LN for the early layers, Pre-LN for the deep ones. Motivated by the observation that Post-LN under-trains deep layers while Pre-LN under-trains them for a different reason; use each where it doesn't hurt.</p>
+
+    <h4>HybridNorm — Zhuo et al., 2025 (NeurIPS)</h4>
+    <p>Splits the decision <em>within</em> a block instead of across blocks: <strong>QKV-Norm inside attention, Post-Norm on the FFN.</strong> The attention sublayer gets Pre-Norm-like gradient flow (normalizing Q, K and V right before the attention computation), and the FFN gets Post-Norm's representational benefit. Reported to beat both Pre-Norm and Post-Norm and to edge out Mix-LN, on dense and MoE models. The <span class="k">HybridNorm*</span> variant treats the first block specially with plain Pre-Norm.</p>
+
+    <h4>LayerNorm Scaling — Sun et al., 2025 (NeurIPS)</h4>
+    <p>The most surgical fix: keep Pre-LN, but multiply the output of the norm in layer <span class="m">ℓ</span> by <span class="m">1/√ℓ</span>.</p>
+    <div class="eq">x ← x + F<span class="cm">(</span> Norm<span class="cm">(</span>x<span class="cm">)</span> / √ℓ <span class="cm">)</span>       <span class="cm">one line; no new parameters</span></div>
+    <p>It caps the layerwise output-variance explosion (their LLaMA-130M measurements go from ~175 in the final layer down to a bounded value) and improves both pretraining loss and downstream SFT from 130M to 7B. Converges slightly slower early, then pulls ahead.</p>
+
+    <h4>Depth-Scaled Sandwich-Norm — Pangu, 2025</h4>
+    <p>Sandwich-Norm with depth-dependent scaling on the post-module norms. Huawei reports zero loss spikes across the entire pretraining trajectory of a 38B model, and a separate trick for <em>absorbing</em> the post-RMSNorm at inference time to recover the ~6% throughput it costs.</p>
+
+    <div class="note tip"><span class="tag">How to read this list</span>
+      <p>There are really only three levers. <b>(1)</b> Is there a norm on the residual highway? <b>(2)</b> Is there a norm at the end of the branch? <b>(3)</b> Is there a depth-dependent scalar anywhere? Post-LN = yes/no/no. Pre-LN = no/no/no. Peri-LN &amp; Sandwich = no/yes/no. Swin-V2 &amp; OLMo 2 = no/yes/no with the <em>input</em> norm dropped. DeepNorm = yes/no/yes. LNS = no/no/yes. Everything else is a combination.</p>
+    </div>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 08 ============================== -->
+<section id="s8"><div class="wrap">
+  <p class="eyebrow"><b>§ 08</b><span class="ln"></span><span>Variance &amp; depth</span></p>
+  <h2>The curse of depth,<br>drawn out</h2>
+  <div class="prose">
+    <p class="lead">A finding that reframed a lot of folklore: in Pre-LN LLMs, the deepest layers barely contribute. Pruning them costs little. Removing them costs little. Perturbing them costs little. That is not a data problem — it's an arithmetic consequence of Pre-LN.</p>
+    <p>The mechanism, in three steps. First, residual-stream variance accumulates with depth because nothing renormalizes it. Second, the block's contribution is <span class="m">F(Norm(x))</span>, whose magnitude does <em>not</em> grow with <span class="m">‖x‖</span> — the norm sees to that. Third, therefore the ratio (branch contribution : residual) shrinks with depth, so <span class="m">∂x<sub>ℓ+1</sub>/∂x<sub>ℓ</sub> → I</span>. The layer becomes an identity map with a rounding error attached.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 07</span><span class="ttl">Residual-stream variance vs depth</span><span class="sp"></span>
+      <span class="ctl" id="var-ctl"></span></div>
+    <div class="panel-bd"><div id="var-mount"></div></div>
+    <div class="panel-ft" id="var-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <p>The same picture explains several things at once:</p>
+    <ul>
+      <li><strong>Why deep layers prune well.</strong> Reported repeatedly for Llama, Mistral, Qwen and DeepSeek before anyone had a mechanism.</li>
+      <li><strong>Why removing early layers is catastrophic and removing late layers is not.</strong> Early layers operate on a low-variance stream where their contribution is large relative to the residual.</li>
+      <li><strong>Why "massive activations" appear.</strong> Very large-magnitude features in a few channels of a few tokens are one way the network can locally modulate the effective gain of a Pre-LN block, since <span class="m">Norm</span> divides by the stream's own scale. Recent work frames them as adaptive <em>gradient regulators</em> for attention-sink tokens rather than as pathology.</li>
+      <li><strong>Why scaled init isn't enough.</strong> Scaling initialization by <span class="m">1/√(2L)</span> (GPT-2's trick) only sets the starting point. The variance explosion is a <em>training-time</em> phenomenon; by 2k steps the deep layers have grown their variance back. LayerNorm Scaling works because it is applied at every forward pass, not once.</li>
+    </ul>
+    <p>Post-LN has the mirror-image problem: variance stays flat (the norm on the highway sees to it), but gradients attenuate through every block, so the <em>early</em> layers are the ones that under-train. Mix-LN's proposal — Post-LN early, Pre-LN late — is exactly a statement that the two pathologies have opposite depth profiles.</p>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 09 ============================== -->
+<section id="s9"><div class="wrap">
+  <p class="eyebrow"><b>§ 09</b><span class="ln"></span><span>QK-Norm</span></p>
+  <h2>The other softmax<br>that wants normalizing</h2>
+  <div class="prose">
+    <p class="lead">There are two softmaxes in a transformer. Everyone remembers the one over the vocabulary. The one over attention keys is the one that kills training runs.</p>
+    <p>Attention logits are <span class="m">qᵀk/√d</span>. Nothing bounds them. As <span class="m">‖q‖</span> and <span class="m">‖k‖</span> grow during training — and in a Pre-LN model, they grow, because the residual stream grows — the logits grow quadratically, the softmax saturates, and attention entropy collapses to a one-hot. At that point the gradient through attention vanishes, the loss spikes, and in bf16 you are also flirting with the top of the representable range. Zhai et al. named this <strong>attention entropy collapse</strong> in the ViT-22B work; Dehghani et al. shipped the fix in the same paper.</p>
+    <div class="eq">QK-Norm:   attn = softmax<span class="cm">(</span> Norm<span class="cm">(</span>q<span class="cm">)</span> · Norm<span class="cm">(</span>k<span class="cm">)</span>ᵀ / √d <span class="cm">)</span>          <span class="cm">Norm is per-head RMSNorm or LayerNorm over the head dim</span></div>
+    <p>Ordering detail that trips people up: QK-Norm goes <em>after</em> the q/k projections and <em>before</em> RoPE in most implementations (Gemma 3, OLMo 2). Normalizing before rotation is fine because RoPE is a rotation — it preserves norms — so the two commute in the only way that matters.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 08</span><span class="ttl">Attention entropy collapse, with and without QK-Norm</span><span class="sp"></span>
+      <span class="ctl" id="qk-ctl"></span></div>
+    <div class="panel-bd"><div id="qk-mount"></div></div>
+    <div class="panel-ft" id="qk-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <h3>Who uses it, and what it cost them</h3>
+    <ul>
+      <li><strong>ViT-22B (2023)</strong> — where it was introduced, to fix divergence at 22B vision params.</li>
+      <li><strong>Chameleon (2024)</strong> — mixed-modal early-fusion. Without QK-Norm the 7B model diverged about 20% into an epoch. The paper's framing is worth reading: because softmax is shift-invariant, modalities "compete" for representation space in the shared logit range, and image tokens have a very different entropy profile from text. QK-Norm bounds the competition. It <em>still</em> wasn't enough at 34B, which needed the norm reordering as well.</li>
+      <li><strong>OLMo 2 / OLMoE (2024–25)</strong> — QK-Norm plus reordered norm. OLMoE measured QK-Norm costing nearly 10% throughput and shipped it anyway because it removed a large gradient-norm spike.</li>
+      <li><strong>Gemma 3 (2025)</strong> — replaced Gemma 2's attention <em>logit soft-capping</em> with QK-Norm, gaining both accuracy and speed (soft-capping is incompatible with efficient attention kernels; QK-Norm isn't).</li>
+      <li><strong>Qwen3, Kimi, most 2025+ frontier releases</strong> — near-universal now. Qwen3-Next uses a zero-centred RMSNorm variant inside its gated attention.</li>
+    </ul>
+    <div class="note"><span class="tag">Related but different</span>
+      <p><strong>z-loss</strong> attacks the <em>other</em> softmax. It adds <span class="m">λ·log²Z</span> to the loss, where <span class="m">Z</span> is the output softmax partition function, keeping final logits from drifting. PaLM, Chameleon and OLMo 2 all use it (OLMo 2 at <span class="m">λ = 10⁻⁵</span>). Together, QK-Norm + z-loss + reordered norm is the standard 2025 "make it not diverge" package — and, notably, all three are about bounding a softmax input rather than about representation quality.</p>
+    </div>
+  </div>
+</div></section>
+
+<hr class="rule">
+<!-- ============================== 10 ============================== -->
+<section id="s10"><div class="wrap">
+  <p class="eyebrow"><b>§ 10</b><span class="ln"></span><span>Normalization-free</span></p>
+  <h2>Can you just<br>not?</h2>
+  <div class="prose">
+    <p class="lead">A persistent research thread argues that normalization layers are a crutch for bad initialization and bad residual scaling — and that if you fix those directly, you can delete the norms. The thread keeps producing results that work, and keeps failing to displace the default.</p>
+
+    <h3>Fix the initialization instead</h3>
+    <ul>
+      <li><strong>Fixup (Zhang et al., 2019)</strong> — rescale the branch weights by <span class="m">L<sup>−1/(2m−2)</sup></span>, zero-init the last layer of each branch, add scalar biases and a scalar multiplier. Trains 10,000-layer ResNets without any normalization.</li>
+      <li><strong>SkipInit / ReZero (2020)</strong> — the minimal version: put a learnable scalar <span class="m">α</span>, initialized to 0, on each residual branch. <span class="k">x ← x + α·F(x)</span>. At init the network is exactly the identity, so signal propagation is perfect; <span class="m">α</span> grows as training decides each layer is worth using.</li>
+      <li><strong>LayerScale (CaiT, 2021)</strong> — the same idea with a per-channel learnable vector initialized to ~1e-4 or 1e-5 instead of a scalar. Used with norms, not instead of them. Ubiquitous in modern vision transformers: DINOv2, EVA, InternViT, most ViT-G-scale encoders. If you're wondering why your ViT has a <span class="k">ls1</span> / <span class="k">gamma_1</span> parameter, that's LayerScale.</li>
+      <li><strong>Admin (2020)</strong> — profiling-based init for deep Post-LN transformers; stabilizes 100-layer Post-LN encoder-decoders.</li>
+    </ul>
+
+    <h3>Fix the whole network instead</h3>
+    <p><strong>NFNets (Brock et al., 2021)</strong> replace BatchNorm in a ResNet with three ingredients: Weight Standardization (normalize each conv filter's weights to zero mean, unit variance), explicit scalars that emulate BN's variance-preserving effect, and <strong>Adaptive Gradient Clipping</strong> — clip each parameter's gradient relative to <span class="m">‖W‖</span> rather than to a global constant. The result matched or beat EfficientNet while training substantially faster. Flamingo's vision tower is one.</p>
+
+    <h3>Replace the norm with a pointwise squashing function</h3>
+    <p><strong>Dynamic Tanh (Zhu, Chen, He, LeCun, Liu — CVPR 2025)</strong> is the most interesting recent entry, because its motivation is an observation rather than a theory: if you plot input-vs-output for a trained LayerNorm in a deep transformer, you get an S-curve. So replace the layer with an S-curve:</p>
+    <div class="eq">DyT<span class="cm">(</span>x<span class="cm">)</span> = γ ⊙ tanh<span class="cm">(</span>α·x<span class="cm">)</span> + β        <span class="cm">α scalar learnable · γ,β per-channel · NO statistics computed</span></div>
+    <p>No reductions, no cross-element dependence, trivially parallel, and it matched or beat normalized baselines on ViT, ConvNeXt, MAE, DINO, DiT, LLaMA, wav2vec 2.0 and DNA models — usually without hyperparameter retuning. Two things it does <em>not</em> do: control how variance grows with depth (there's no per-token rescaling, so the Pre-LN variance story is unchanged), and it needed <span class="m">α</span> init tuning for the largest LLMs.</p>
+    <p>The follow-ups are already in: <strong>Derf</strong> (2025) searches over pointwise functions and lands on <span class="m">erf(αx + s)</span>, reporting wins over LayerNorm, RMSNorm <em>and</em> DyT across vision, speech and DNA; and a 2026 line on bounded-tanh variants that explicitly re-add depth-dependent variance control, which is the part DyT left on the table.</p>
+
+    <h3>Normalize everything, everywhere, always</h3>
+    <p>The opposite extreme: <strong>nGPT (2024)</strong> constrains every embedding, every hidden state, and every weight matrix row to unit norm, so the entire model lives on a hypersphere. Residual updates become learned-rate spherical interpolations rather than additions. Reported 4–20× fewer steps to a given loss. The catch is that it's a whole-architecture commitment, not a drop-in.</p>
+
+    <div class="note warn"><span class="tag">The honest summary</span>
+      <p>Every one of these works in the paper. None has displaced <span class="k">RMSNorm</span> in a frontier LLM. The reason is not that they are wrong — it's that normalization is <em>load-bearing for reasons beyond the paper's ablation</em>: it keeps bf16 in range, it makes loss spikes recoverable, it interacts with the optimizer's second-moment estimates, and it gives you a place to put QK-Norm. Removing it means re-validating a whole training recipe at 7B+ before you know if it holds. That's an expensive bet on a small win.</p>
+    </div>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 11 ============================== -->
+<section id="s11"><div class="wrap">
+  <p class="eyebrow"><b>§ 11</b><span class="ln"></span><span>LLM nuances</span></p>
+  <h2>Twelve things that bite<br>in a real training run</h2>
+  <div class="prose">
+    <p class="lead">Everything above is architecture. This section is the operational layer — the details that don't appear in papers but appear in your loss curve.</p>
+
+    <h4>1 · Compute norms in fp32, always</h4>
+    <p>Under bf16 autocast, <span class="m">∑x²</span> over 4096 elements with values around <span class="m">10²</span> will lose precision fast, and <span class="m">1/√(·)</span> amplifies the error. Every serious implementation upcasts to fp32 inside the norm and downcasts on the way out. If you write your own RMSNorm kernel and skip this, you will see a loss curve that is <em>almost</em> right and drifts.</p>
+
+    <h4>2 · Where ε sits changes the answer</h4>
+    <div class="eq">x / √<span class="cm">(</span>mean<span class="cm">(</span>x²<span class="cm">)</span> + ε<span class="cm">)</span>          <span class="cm">← HuggingFace / Llama convention</span>
+x / <span class="cm">(</span>√mean<span class="cm">(</span>x²<span class="cm">)</span> + ε<span class="cm">)</span>          <span class="cm">← T5 / some Flax code</span></div>
+    <p>Different functions. Combined with ε values ranging from 1e-5 to 1e-12 across model families, this is a real source of conversion bugs. Check it when porting checkpoints.</p>
+
+    <h4>3 · Exclude norm parameters (and embeddings) from weight decay</h4>
+    <p>Decaying <span class="m">γ</span> toward zero shrinks every activation the layer emits, which — per §01 — is a learning-rate change disguised as regularization. Standard practice is to build two parameter groups: everything with <span class="m">ndim ≥ 2</span> gets decay, biases and norm gains don't. OLMo 2 additionally excludes <em>embeddings</em>, having found that decaying them shrinks embedding norms enough to magnify gradients downstream.</p>
+
+    <h4>4 · Gemma's (1 + w) convention</h4>
+    <p>Covered in §05. Also affects decay: with <span class="m">w</span> initialized at 0, weight decay pulls the layer toward identity scale rather than toward zero scale. Arguably the more sensible parameterization.</p>
+
+    <h4>5 · The final norm before the LM head</h4>
+    <p>Easy to forget, load-bearing. It's the last thing standing between an unbounded residual stream and a 100k-way softmax. It's also where LN-folding tricks pay off most, and where the "logit lens" family of interpretability methods does its work.</p>
+
+    <h4>6 · Massive activations and attention sinks</h4>
+    <p>In every Pre-LN LLM, a small number of channels on a small number of tokens (usually BOS) carry activations orders of magnitude above everything else, and those tokens absorb enormous attention mass. Recent work (2025–26) argues these are not a bug: massive activations act as <em>gradient regulators</em>, exploiting the <span class="m">1/σ</span> factor in RMSNorm's backward to attenuate gradient pressure created by attention sinks, and they simultaneously produce the "compression valley" seen in mid-layer representations. Interventions that suppress them without removing the sink (V-scale, gated-rescaling variants) improve quantization robustness. Practically: <strong>if you're quantizing, these outliers are your entire problem</strong>, and they are norm-mediated.</p>
+
+    <h4>7 · Norm folding &amp; FlashNorm</h4>
+    <p>RMSNorm followed by a bias-free linear layer is scale-commutative, so the norm's <span class="m">γ</span> can be merged into the next weight matrix and the division deferred past the GEMM. Free at inference. Better still: if you have QK-Norm, the <em>pre-attention</em> RMSNorm becomes mathematically redundant — norm → linear → norm collapses — and can be deleted outright with its weights folded into QKV. There are open feature requests on frontier model repos to do exactly this.</p>
+
+    <h4>8 · Norms are the sequence-parallel sync points</h4>
+    <p>Under tensor parallelism, LayerNorm/RMSNorm need the full hidden dimension, so they're the natural boundary for sequence-parallel regions: the all-gather before the norm and reduce-scatter after are what Megatron's sequence parallelism is built around. Under FSDP2 the norm parameters are tiny <span class="k">DTensor</span>s that are cheap to shard but generate a lot of small collectives — one reason people group them.</p>
+
+    <h4>9 · Fuse the kernel, and think about recompute</h4>
+    <p>RMSNorm is bandwidth-bound: it reads the tensor, reduces, reads again, writes. Fused implementations (Apex, Triton, Liger) do it in one pass and can fuse the residual add too. Under activation checkpointing, norms are the canonical thing to <em>recompute</em> rather than store — cheap FLOPs, large activation.</p>
+
+    <h4>10 · Zero-centred gains, and QK-Norm's own weights</h4>
+    <p>QK-Norm adds a norm per head over the head dimension, so its parameters are <span class="m">d<sub>head</sub></span>-sized, not <span class="m">d<sub>model</sub></span>-sized. Whether they're shared across heads is a real architectural choice with different names in different codebases; per-head is now more common. Qwen3-Next uses a zero-centred RMSNorm variant here.</p>
+
+    <h4>11 · Norm growth is your best early-warning signal</h4>
+    <p>Chameleon's most transferable finding: monitoring the L2 norm of the <em>final transformer layer's output</em> predicted loss divergence 20–30% of training in advance. The loss curve looked fine; the output norm was already climbing. Log it. Also log per-layer gradient norms — OLMo 2 diagnosed its interventions on gradient-norm spikiness, not on loss.</p>
+
+    <h4>12 · Data can cause a "normalization" problem</h4>
+    <p>OLMo 2 traced a chunk of their loss spikes to training batches containing long repeated n-grams. No architectural fix addresses that; they filtered the data. Worth remembering before you spend a week moving norms around.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 09</span><span class="ttl">Massive activations in the residual stream</span><span class="sp"></span>
+      <span class="ctl" id="ma-ctl"></span></div>
+    <div class="panel-bd"><div id="ma-mount"></div></div>
+    <div class="panel-ft" id="ma-ft">&nbsp;</div>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 12 ============================== -->
+<section id="s12"><div class="wrap">
+  <p class="eyebrow"><b>§ 12</b><span class="ln"></span><span>Vision-language</span></p>
+  <h2>The modality interface<br>is a normalization problem</h2>
+  <div class="prose">
+    <p class="lead">Bolt a Pre-LN vision encoder onto a Pre-LN language model and you have joined two residual streams that grew their variance independently, for different numbers of layers, under different objectives. Nobody normalized between them. This is, measurably, a problem.</p>
+
+    <h3>The numbers nobody puts in the tech report</h3>
+    <p>A 2025 study measured the L2 norm of tokens on both sides of the interface, over 1000 samples from MMBench / POPE / MM-Star:</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 10</span><span class="ttl">‖visual token‖ vs ‖text embedding‖ at the interface</span><span class="sp"></span>
+      <span class="ctl" id="gap-ctl"></span></div>
+    <div class="panel-bd"><div id="gap-mount"></div></div>
+    <div class="panel-ft" id="gap-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <p>Vision encoder outputs sit at L2 norms of roughly 29 (CLIP ViT-L/14), 72 (SigLIP-SO400M), 59 (SigLIP 2) and 72 (MoonViT). Text embeddings in Qwen2.5-7B, Qwen3-8B and Llama-3.2-3B sit at 0.80, 1.38 and 1.09. That is a <strong>30–90× gap</strong> going into a shared Pre-LN backbone.</p>
+    <p>Does the projector fix it? Partly, and inconsistently. Measured after the connector: LLaVA-1.5 ≈ 40, Qwen2.5-VL ≈ 57, Kimi-VL ≈ 4.8, GLM-4.1V ≈ 4.6 — against text at ≈ 0.8–1.1. Two orders of magnitude of spread <em>between VLMs</em>, on a design axis that essentially none of their technical reports discuss.</p>
+
+    <h3>Why a norm gap becomes a fusion problem</h3>
+    <p>In a Pre-LN block the update magnitude <span class="m">‖Δh‖ = ‖F(Norm(h))‖</span> is <em>decoupled</em> from <span class="m">‖h‖</span> — the norm strips the scale before the branch sees it. So every token gets an update of roughly the same size, but tokens have wildly different lengths. A fixed-length update rotates a short vector a lot and a long vector barely at all:</p>
+    <div class="eq">tan<span class="cm">(</span>θ_eff<span class="cm">)</span> = C·sin φ / <span class="cm">(</span>‖h‖ + C·cos φ<span class="cm">)</span>       <span class="cm">→   larger ‖h‖  ⟹  smaller angular step</span></div>
+    <p>High-norm visual tokens therefore have <strong>representational inertia</strong>: they rotate through semantic space more slowly than text tokens, layer after layer. The two modalities diverge geometrically instead of converging, the dot products that attention depends on are capped below what a balanced model could reach, and the signal-to-noise ratio of text→image attention collapses. You see it as diffuse, unfocused attention maps and as the model quietly falling back on its language prior.</p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-hd"><span class="fignum">Fig 11</span><span class="ttl">Representational inertia: same update, different rotation</span><span class="sp"></span>
+      <span class="ctl" id="inertia-ctl"></span></div>
+    <div class="panel-bd"><div id="inertia-mount"></div></div>
+    <div class="panel-ft" id="inertia-ft">&nbsp;</div>
+  </div>
+
+  <div class="prose">
+    <p>Two corroborating observations from the same study, both of which are the kind of thing you'd only find by looking:</p>
+    <ul>
+      <li><strong>The model tries to compensate through the embedding table.</strong> In Qwen2-VL, the <span class="k">&lt;|vision_start|&gt;</span> and <span class="k">&lt;|vision_end|&gt;</span> embeddings grow to L2 norms of 2.46 and 2.33 — while the largest norm of <em>any</em> token in the base Qwen2-7B is 1.03. The vision boundary tokens become the two biggest vectors in the vocabulary. Qwen2.5-VL shows the same pattern and a systemic inflation of the whole embedding matrix (mean norm 0.80 → 0.90 after VL training).</li>
+      <li><strong>Models with a smaller norm gap show less update asymmetry.</strong> Kimi-VL and GLM-4.5V — whose connectors compress hard to ≈ 4.6–4.8 — have visibly more synchronized per-layer update rates than LLaVA-1.5 and Qwen2.5-VL.</li>
+    </ul>
+    <p>The proposed fix is one LayerNorm after the projector, with its gain initialized to <span class="m">T/√D</span> where <span class="m">T</span> is the mean text-embedding norm. There's a wrinkle worth knowing: that init is tiny (~0.01), and since the gradient to the vision encoder gets multiplied by the gain, naive initialization <em>vanishes the gradient</em> and detaches the encoder from supervision. They fix it with a backward hook that rescales by <span class="m">1/ḡ</span>, decoupling forward scale from backward scale. On LLaVA-1.5 + SigLIP-SO400M the intervention improved multimodal benchmarks <em>and</em> text-only MMLU (+8 points with Llama-3.2-3B), which is the tell that it was fixing an architectural imbalance rather than trading modalities off.</p>
+
+    <div class="note tip"><span class="tag">If you're building a connector</span>
+      <p>Log <span class="k">‖visual_token‖</span> and <span class="k">‖text_embedding‖</span> at the interface before you train anything. If they differ by more than ~5×, you are about to spend compute teaching the model to undo a scale mismatch you could have fixed with one layer. Note that a norm layer <em>inside</em> the projector is not sufficient — Kimi-VL, GLM-4.1V and Qwen2.5-VL all have one, and their outputs still differ from each other by an order of magnitude.</p>
+    </div>
+
+    <h3>Nuance 2 — the encoder and the LLM disagree about what a norm is</h3>
+    <p>Historically, vision encoders are LayerNorm and language models are RMSNorm. That's a mixed-operator model: LayerNorm's centring in the tower, none in the backbone. Qwen was the first big family to fix it deliberately — <strong>Qwen2.5-VL rebuilt its ViT with RMSNorm and SwiGLU specifically to match the Qwen2.5 LLM structure</strong>. Pixtral's vision encoder likewise uses RMSNorm to match Mistral. It is not obvious this matters for quality; it definitely matters for kernel reuse, quantization tooling, and the number of code paths you maintain.</p>
+
+    <h3>Nuance 3 — mixed-modal early fusion is where norms actually break</h3>
+    <p>The LLaVA-style architecture is forgiving because the LLM is frozen or lightly tuned and visual tokens are a minority of the sequence. Early-fusion token-based models are not. <strong>Chameleon</strong> is the canonical case study, and its diagnosis is precise: softmax is shift-invariant, so image and text tokens <em>compete</em> for the shared logit range; their differing entropy profiles drive slow norm growth in the mid-to-late training; and eventually the norms leave bf16's usable range. The fix took three ingredients — QK-Norm, then dropout after attention and FFN (7B), then Swin-style norm reordering (34B, where dropout alone failed).</p>
+    <p>The generalizable lesson: <strong>adding a modality changes the entropy of your attention distributions, and normalization is what absorbs that change.</strong> If you are moving from a late-fusion adapter to native mixed-modal training, expect to re-tune your norm placement, not just your data mix.</p>
+
+    <h3>Nuance 4 — the norm you forget is the one on the pixels</h3>
+    <p>Input preprocessing is a normalization layer with hardcoded, non-learned statistics, and it is the single most common source of silent VLM degradation. CLIP uses <span class="k">(0.481, 0.457, 0.408) / (0.268, 0.261, 0.276)</span>. SigLIP uses <span class="k">(0.5, 0.5, 0.5)</span> for both. ImageNet uses a third set. OpenCLIP defaults differ from OpenAI CLIP defaults. Swapping an encoder without swapping the constants produces a model that works — just several points worse, with no error anywhere. Check <span class="k">image_processor_config.json</span> against the encoder you actually loaded.</p>
+
+    <h3>Nuance 5 — frozen BatchNorm in hybrid towers</h3>
+    <p>Anything with a CNN in the vision path — ConvNeXt in Mini-Gemini's high-res branch, SAM's ViT-Det neck, EVA's conv stem, ResNet-based detectors distilled into VLM pipelines — carries BatchNorm or a BN-descendant. Under VLM training your batch is a handful of images per device with wildly varying resolution and aspect ratio. Running statistics computed on ImageNet-like batches are simply wrong for that distribution. Freeze them, or convert to GroupNorm before you fine-tune.</p>
+
+    <h3>Nuance 6 — resolution, packing, and per-token statistics</h3>
+    <p>Native-resolution encoders (NaViT-style packing, Qwen2-VL, MoonViT, Kimi-VL) put images of different sizes in one packed sequence. LayerNorm and RMSNorm are per-token, so this is <em>fine</em> — which is precisely why native-resolution ViTs use them and could not use BatchNorm. But two things do change: token counts per image vary, so anything downstream that averages over tokens (attention pooling connectors, mean-pool heads) sees a variable-length reduction; and window-attention layers mixed with full-attention layers (Qwen2.5-VL's 4-full / rest-windowed pattern) produce different activation scales per layer type. If you see per-layer norm statistics that jump periodically, that's usually the attention pattern, not a bug.</p>
+
+    <h3>Nuance 7 — where the connector's norms actually go</h3>
+    <ul class="tight">
+      <li><strong>Linear / MLP projector</strong> (LLaVA, most models) — usually <em>no</em> normalization at all. Cheapest, and the one with the worst measured norm alignment.</li>
+      <li><strong>Perceiver resampler / Q-Former</strong> (Flamingo, Idefics, MiniCPM-V, Qwen-VL) — a small transformer, so it has its own LayerNorms, plus typically a LayerNorm on the learned queries and on the cross-attention keys/values. Output norm is whatever that stack lands on.</li>
+      <li><strong>Attentional pooling</strong> (Molmo, CoCa-style) — a single cross-attention block; same story, plus the pooling reduces a variable number of tokens.</li>
+      <li><strong>Gated cross-attention</strong> (Flamingo, OpenFlamingo, Idefics 1) — LayerNorm plus a <span class="k">tanh</span> gate initialized to <em>zero</em>, so the frozen LM is untouched at initialization and the visual pathway fades in. This is LayerScale/ReZero applied to the modality interface, and it is the reason Flamingo could bolt vision onto a frozen Chinchilla without destroying it.</li>
+      <li><strong>Modality-expert FFN/QKV</strong> (CogVLM's visual expert, MoE-style routing) — separate weights per modality inside the block. The norms are typically still shared, which means the two modalities' statistics are pooled by the very layer that was supposed to separate them.</li>
+    </ul>
+  </div>
+</div></section>
+
+<hr class="rule">
+<!-- ============================== 13 ============================== -->
+<section id="s13"><div class="wrap">
+  <p class="eyebrow"><b>§ 13</b><span class="ln"></span><span>The matrix</span></p>
+  <h2>Who uses what</h2>
+  <div class="prose">
+    <p class="lead">Sixty-plus models, three columns that matter: the operator, the placement, and whether there's a norm inside attention. VLM rows also carry the vision tower and the connector, because in a VLM those are three different normalization regimes stapled together.</p>
+    <p class="muted" style="font-size:15.5px">Filter by family or search. Entries marked <span class="pill p-none">unclear</span> are ones where the technical report doesn't say and I haven't verified against weights — treat those as prompts to go look, not as facts.</p>
+  </div>
+  <div class="lightctl" id="mx-ctl"></div>
+  <div class="tblwrap"><table id="mx-table">
+    <thead><tr>
+      <th>Model</th><th>Yr</th><th>Backbone norm</th><th>Placement</th><th>Attn norm</th><th>Vision tower</th><th>Connector</th><th>Note</th>
+    </tr></thead>
+    <tbody id="mx-body"></tbody>
+  </table></div>
+  <div class="prose">
+    <h3>Reading the matrix</h3>
+    <ul>
+      <li><strong>The Pre-LN + RMSNorm monoculture is real but cracking.</strong> Llama, Mistral, Qwen 2/3, Phi, DeepSeek, InternLM and everything built on them are one architecture. The deviations — GLM's DeepNorm Post-LN, Gemma's Peri-LN, OLMo 2's reordered norm, Chameleon's Swin reordering — were all adopted after a specific training run failed.</li>
+      <li><strong>QK-Norm went from exotic to default in about two years.</strong> ViT-22B (2023) → Chameleon and OLMo 2 (2024) → Gemma 3, Qwen3 and most 2025 frontier releases. If you're designing now, it's the cheapest stability insurance available.</li>
+      <li><strong>Vision towers lag their backbones by a generation.</strong> Most VLMs in 2024–25 still pair a LayerNorm CLIP/SigLIP tower with an RMSNorm LLM. Qwen2.5-VL and Pixtral are the notable exceptions that rebuilt the tower to match.</li>
+      <li><strong>The GLM/CogVLM lineage is a genuine outlier</strong> — Post-LN with DeepNorm, descending from GLM-130B's finding that Pre-LN, Post-LN <em>and</em> Sandwich-LN all failed at 130B. Worth studying if you're above 100B.</li>
+      <li><strong>Flamingo remains the strangest entry</strong> — an NFNet vision tower with no normalization layers whatsoever, feeding a Perceiver Resampler, feeding zero-initialized tanh-gated cross-attention into a frozen LM. Three completely different normalization philosophies in one model.</li>
+    </ul>
+  </div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 14 ============================== -->
+<section id="s14"><div class="wrap">
+  <p class="eyebrow"><b>§ 14</b><span class="ln"></span><span>Timeline</span></p>
+  <h2>Eleven years<br>of dividing by sigma</h2>
+  <div class="tl" id="tl-mount"></div>
+</div></section>
+
+<hr class="rule">
+
+<!-- ============================== 15 ============================== -->
+<section id="s15"><div class="wrap">
+  <p class="eyebrow"><b>§ 15</b><span class="ln"></span><span>Cheat sheet</span></p>
+  <h2>What to actually do</h2>
+  <div class="cols2">
+    <div class="prose">
+      <h3>Choosing the operator</h3>
+      <ul>
+        <li><strong>Decoder LLM / VLM backbone</strong> → RMSNorm. No debate left here.</li>
+        <li><strong>New ViT you control</strong> → RMSNorm if the LLM next to it uses RMSNorm; LayerNorm if you need drop-in compatibility with CLIP-era weights.</li>
+        <li><strong>CNN with batch ≥ 32/device</strong> → BatchNorm still wins.</li>
+        <li><strong>CNN with batch ≤ 8/device</strong> → GroupNorm (+ Weight Standardization if you want BN-level accuracy).</li>
+        <li><strong>Diffusion / conditional generation</strong> → adaLN-Zero. It's not optional; it's how conditioning enters the model.</li>
+        <li><strong>Style transfer, domain adaptation</strong> → AdaIN / conditional norms.</li>
+        <li><strong>GAN discriminator</strong> → spectral norm.</li>
+        <li><strong>You are deleting norms</strong> → LayerScale or ReZero first. DyT/Derf only if you'll re-validate at scale.</li>
+      </ul>
+
+      <h3>Choosing the placement</h3>
+      <ul>
+        <li><strong>&lt; 3B, text only, known-good recipe</strong> → Pre-Norm. Boring, works.</li>
+        <li><strong>Deep (&gt; 40 layers) or you care about deep-layer utilization</strong> → Pre-Norm + LayerNorm Scaling (<span class="m">1/√ℓ</span>). One line, no parameters.</li>
+        <li><strong>&gt; 7B, or anything mixed-modal</strong> → Peri-LN / sandwich (Gemma-style four norms), or Swin-style reordering (OLMo 2-style) + QK-Norm.</li>
+        <li><strong>You want to try something newer</strong> → HybridNorm: QKV-Norm in attention, Post-Norm on the FFN.</li>
+        <li><strong>&gt; 100B, and Pre-LN is spiking</strong> → look hard at DeepNorm-initialized Post-LN before assuming the field has moved on.</li>
+        <li><strong>Always</strong> → QK-Norm. It costs a few percent throughput and removes an entire class of divergence.</li>
+      </ul>
+    </div>
+    <div class="prose">
+      <h3>The pre-flight checklist</h3>
+      <ul>
+        <li>Norm reductions run in fp32, output cast back.</li>
+        <li>ε convention matches the checkpoint you're loading. Note the difference between <span class="m">√(· + ε)</span> and <span class="m">√(·) + ε</span>.</li>
+        <li>Gemma-family <span class="k">(1+w)</span> handled if you're porting weights.</li>
+        <li>Norm gains, biases and embeddings excluded from weight decay.</li>
+        <li>Final norm before the LM head present and in fp32.</li>
+        <li>QK-Norm applied after q/k projection, before RoPE, per head.</li>
+        <li>z-loss on the output logits (~1e-5) if training from scratch.</li>
+        <li>Logging: per-layer activation L2, per-layer grad norm, and the <em>final layer output norm</em> as a divergence early-warning.</li>
+        <li>Norms recomputed rather than saved under activation checkpointing.</li>
+        <li>Fused norm kernel in use; residual add fused into it if your stack supports it.</li>
+      </ul>
+
+      <h3>The VLM-specific checklist</h3>
+      <ul>
+        <li>Measured <span class="k">‖visual token‖</span> vs <span class="k">‖text embedding‖</span> at the interface. Ratio under ~5×, or a norm layer added at the projector output with a scale-matched init.</li>
+        <li>If you add that norm with a tiny gain, compensate the backward pass or you'll silently detach the vision encoder.</li>
+        <li>Image mean/std constants match the encoder that's actually loaded.</li>
+        <li>Any BatchNorm in the vision path frozen or converted.</li>
+        <li>Vision tower's norm operator matches the LLM's if you want one set of kernels.</li>
+        <li>For early-fusion or unfrozen-backbone training: QK-Norm on, norm placement re-checked, output-norm monitor running.</li>
+        <li>Watching for the failure mode where the model ignores visual tokens entirely and generates from the language prior — norm mismatch is a leading cause, and a swap test (feed zeros/noise for the image) exposes it in a minute.</li>
+      </ul>
+
+      <div class="note warn"><span class="tag">Last thing</span>
+        <p>Almost every normalization change in the last four years was adopted because a specific expensive training run diverged, not because it improved a benchmark. Treat the literature accordingly: these are stability engineering decisions with quality side-effects, and the right prior is "what does the model closest to mine do, and what did it fail at first?"</p>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div>Field guide to normalization · built as a single HTML file · figures generated programmatically in SVG</div>
+  <div style="margin-top:10px">Primary sources: Ioffe &amp; Szegedy 2015 · Ba et al. 2016 · Ulyanov 2016 · Salimans &amp; Kingma 2016 · Wu &amp; He 2018 · Santurkar et al. 2018 · Miyato et al. 2018 · Zhang &amp; Sennrich 2019 · Zhang et al. (Fixup) 2019 · Xiong et al. 2020 · Bachlechner et al. (ReZero) 2020 · Brock et al. (NFNet) 2021 · Ding et al. (CogView) 2021 · Touvron et al. (CaiT) 2021 · Liu et al. (Swin V2) 2022 · Wang et al. (DeepNet) 2022 · Zeng et al. (GLM-130B) 2022 · Peebles &amp; Xie (DiT) 2023 · Dehghani et al. (ViT-22B) 2023 · Zhai et al. 2023 · Alayrac et al. (Flamingo) 2022 · Chameleon Team 2024 · Sun et al. (Massive Activations) 2024 · Loshchilov et al. (nGPT) 2024 · OLMo 2 Team 2025 · Kim et al. (Peri-LN) 2025 · Sun et al. (Curse of Depth / LNS) 2025 · Zhuo et al. (HybridNorm) 2025 · Li et al. (Mix-LN) 2025 · Zhu et al. (DyT) 2025 · Qwen2.5-VL 2025 · Gemma 2/3 2024–25 · Pangu DSSN 2025 · Li et al. (Norm Discrepancy in Pre-Norm MLLMs) 2025 · Derf 2025 · plus 2026 work on gradient sinks and gated rescaling.</div>
+</div></footer>
+<script>
+/* ============================================================
+   utilities
+   ============================================================ */
+const NS = "http://www.w3.org/2000/svg";
+const C = { a:"#E8A33D", b:"#3FD1A0", c:"#8B7BF7", d:"#5AB2E8", e:"#E4573C", f:"#F2C1D8",
+            txt:"#D5DEE4", dim:"#7E8B93", faint:"#39454E", grid:"#222A32", bg:"#0F1317" };
+const MONO = "'IBM Plex Mono', ui-monospace, monospace";
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function E(tag, at, parent){
+  const n = document.createElementNS(NS, tag);
+  if(at) for(const k in at) n.setAttribute(k, at[k]);
+  if(parent) parent.appendChild(n);
+  return n;
+}
+function SVG(mount, w, h){
+  mount.innerHTML = "";
+  const s = E("svg", {viewBox:`0 0 ${w} ${h}`, width:"100%", preserveAspectRatio:"xMidYMid meet"}, mount);
+  return s;
+}
+function T(p, x, y, str, o){
+  o = o||{};
+  const t = E("text", {x, y, fill:o.fill||C.dim, "font-family":o.ff||MONO,
+    "font-size":o.size||11, "text-anchor":o.anchor||"start",
+    "letter-spacing":o.ls!==undefined?o.ls:0.8, "font-weight":o.w||400}, p);
+  t.textContent = str;
+  if(o.op) t.setAttribute("opacity", o.op);
+  return t;
+}
+function btnRow(container, items, onPick, initial){
+  container.innerHTML = "";
+  const bs = items.map((it,i)=>{
+    const b = document.createElement("button");
+    b.textContent = it.label; b.setAttribute("aria-pressed", i===(initial||0) ? "true":"false");
+    b.addEventListener("click", ()=>{ bs.forEach(x=>x.setAttribute("aria-pressed","false"));
+      b.setAttribute("aria-pressed","true"); onPick(it, i); });
+    container.appendChild(b); return b;
+  });
+  onPick(items[initial||0], initial||0);
+  return bs;
+}
+function rng(seed){ let s = seed>>>0; return ()=>{ s=(s+0x6D2B79F5)>>>0; let t=Math.imul(s^s>>>15,1|s);
+  t=(t+Math.imul(t^t>>>7,61|t))^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+/* single animation loop, ticks only visible figures */
+const ANIM = [];
+const IO = new IntersectionObserver(es=>{ es.forEach(e=>{
+  const o = ANIM.find(x=>x.node===e.target);
+  if(o){ o.vis = e.isIntersecting; if(o.vis && REDUCED && !o.did){ o.fn(0,0); o.did=true; } }
+});}, {rootMargin:"120px"});
+function onFrame(node, fn){ const o={node, fn, vis:false, did:false}; ANIM.push(o); IO.observe(node); }
+let _t0 = performance.now();
+function loop(t){
+  const dt = Math.min(0.05,(t-_t0)/1000); _t0 = t;
+  if(!REDUCED) for(const o of ANIM) if(o.vis) o.fn(t/1000, dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ============================================================
+   FIG 00 — hero: raw vs normalized token vectors
+   ============================================================ */
+(function(){
+  const mount = document.getElementById("hero-mount"); if(!mount) return;
+  const W=1000, H=392, NT=8, ND=26;
+  const s = SVG(mount, W, H);
+  const cw=42, gx=6, ch=8.2, gy=1.6;
+  const blockW = NT*(cw+gx)-gx, blockH = ND*(ch+gy)-gy;
+  const LX=64, RX=W-64-blockW, TY=34;
+  const R = rng(7);
+  const phase=[], freq=[], scale=[], sdrift=[];
+  for(let t=0;t<NT;t++){
+    scale[t] = Math.exp(lerp(0.2, 4.4, R()));
+    sdrift[t] = 0.6+R()*1.4;
+    phase[t]=[]; freq[t]=[];
+    for(let d=0; d<ND; d++){ phase[t][d]=R()*Math.PI*2; freq[t][d]=0.25+R()*0.9; }
+  }
+  function grid(x,y,color,label){
+    const g = E("g",{},s);
+    T(g, x, y-13, label, {fill:C.txt, size:11.5, ls:1.6});
+    const cells=[];
+    for(let t=0;t<NT;t++) for(let d=0;d<ND;d++){
+      cells.push(E("rect",{x:x+t*(cw+gx), y:y+d*(ch+gy), width:cw, height:ch, rx:1.2,
+        fill:color, opacity:0.1},g));
+    }
+    /* per-token magnitude bars */
+    const bars=[];
+    for(let t=0;t<NT;t++) bars.push(E("rect",{x:x+t*(cw+gx), y:y+blockH+14, width:cw, height:4, fill:color, opacity:.85},g));
+    E("line",{x1:x, y1:y+blockH+8, x2:x+blockW, y2:y+blockH+8, stroke:C.faint, "stroke-width":1},g);
+    const cap = T(g, x, y+blockH+44, "", {fill:C.dim, size:11.5});
+    return {cells, bars, cap, g};
+  }
+  const L = grid(LX,TY,C.a,"RAW HIDDEN STATES  ·  x");
+  const Rg= grid(RX,TY,C.b,"AFTER NORMALIZATION  ·  γ ⊙ x̂");
+  T(s, LX+blockW/2, H-16, "8 tokens ×  26 of D dims", {fill:C.faint, size:10.5, anchor:"middle"});
+  T(s, RX+blockW/2, H-16, "same 8 tokens, magnitude pinned", {fill:C.faint, size:10.5, anchor:"middle"});
+  /* arrow */
+  const ax=LX+blockW+26, bx=RX-26, my=TY+blockH/2;
+  E("path",{d:`M${ax} ${my} L${bx-10} ${my}`, stroke:C.faint, "stroke-width":1.2, "stroke-dasharray":"3 4"},s);
+  E("path",{d:`M${bx-14} ${my-5} L${bx-4} ${my} L${bx-14} ${my+5} Z`, fill:C.faint},s);
+  T(s,(ax+bx)/2, my-12, "Norm", {fill:C.dim, size:11, anchor:"middle"});
+
+  onFrame(mount, (time)=>{
+    const cols=[], rmss=[];
+    for(let t=0;t<NT;t++){
+      const sc = scale[t]*(1+0.35*Math.sin(time*0.35*sdrift[t]));
+      let ss=0; const col=[];
+      for(let d=0; d<ND; d++){
+        const v = Math.sin(time*freq[t][d]*0.9 + phase[t][d]) + 0.5*Math.sin(time*freq[t][d]*2.1 + phase[t][d]*1.7);
+        col.push(v*sc); ss += (v*sc)*(v*sc);
+      }
+      cols.push(col); rmss.push(Math.sqrt(ss/ND));
+    }
+    const hi=Math.max(...rmss), lo=Math.min(...rmss);
+    for(let t=0;t<NT;t++){
+      for(let d=0; d<ND; d++){
+        const raw=cols[t][d], nrm=raw/(rmss[t]+1e-6);
+        L.cells[t*ND+d].setAttribute("opacity", clamp(0.05+Math.abs(raw)/(hi*1.7+1e-6)*1.0,0.05,1));
+        Rg.cells[t*ND+d].setAttribute("opacity", clamp(0.05+Math.abs(nrm)/1.9*1.0,0.05,1));
+      }
+      L.bars[t].setAttribute("width", clamp(cw*rmss[t]/(hi+1e-6),1.5,cw));
+      Rg.bars[t].setAttribute("width", cw*0.92);
+    }
+    L.cap.textContent = `‖x‖ per token spans  ${lo.toFixed(1)}  →  ${hi.toFixed(1)}     (${(hi/lo).toFixed(0)}× spread)`;
+    Rg.cap.textContent = `‖x̂‖ per token  =  √D  for every token     (1.0× spread)`;
+  });
+})();
+
+/* ============================================================
+   FIG 01 — scale invariance / effective learning rate
+   ============================================================ */
+(function(){
+  const mount = document.getElementById("si-mount"); if(!mount) return;
+  const W=1000,H=290; const s=SVG(mount,W,H);
+  const cx=250, cy=150, R0=44;
+  T(s, 64, 26, "WEIGHT SPACE", {fill:C.txt, size:11, ls:1.6});
+  T(s, 560, 26, "WHAT CHANGES, WHAT DOESN'T", {fill:C.txt, size:11, ls:1.6});
+  for(let r=1;r<=3;r++) E("circle",{cx,cy,r:R0*r,fill:"none",stroke:C.grid,"stroke-width":1},s);
+  E("circle",{cx,cy,r:R0,fill:"none",stroke:C.faint,"stroke-width":1.4,"stroke-dasharray":"4 4"},s);
+  T(s, cx+R0+6, cy-6, "‖W‖=1", {fill:C.faint, size:10});
+  E("line",{x1:cx-160,y1:cy,x2:cx+180,y2:cy,stroke:C.grid},s);
+  E("line",{x1:cx,y1:cy-120,x2:cx,y2:cy+120,stroke:C.grid},s);
+
+  const wArrow = E("path",{stroke:C.a,"stroke-width":3,fill:"none","stroke-linecap":"round"},s);
+  const wHead  = E("path",{fill:C.a},s);
+  const gArrow = E("path",{stroke:C.c,"stroke-width":2.4,fill:"none","stroke-linecap":"round"},s);
+  const gHead  = E("path",{fill:C.c},s);
+  const arc    = E("path",{stroke:C.b,"stroke-width":2.5,fill:"none"},s);
+  const wLbl = T(s,0,0,"W",{fill:C.a,size:11.5,w:600});
+  const gLbl = T(s,0,0,"∂L/∂W",{fill:C.c,size:11.5});
+  const aLbl = T(s,0,0,"",{fill:C.b,size:11.5});
+
+  const bars = [
+    {y:70,  lab:"forward output   Norm(Wx)", col:C.b, f:k=>1,        fmt:k=>"unchanged"},
+    {y:128, lab:"gradient  ‖∂L/∂W‖",         col:C.c, f:k=>1/k,      fmt:k=>(1/k).toFixed(2)+"×"},
+    {y:186, lab:"angular step  η / ‖W‖²",      col:C.e, f:k=>1/(k*k),  fmt:k=>(1/(k*k)).toFixed(3)+"×"}
+  ];
+  const BX=560, BW=330;
+  bars.forEach(b=>{
+    T(s, BX, b.y-10, b.lab, {fill:C.dim, size:11});
+    E("rect",{x:BX,y:b.y,width:BW,height:16,fill:"#171E24",rx:2},s);
+    b.rect = E("rect",{x:BX,y:b.y,width:BW,height:16,fill:b.col,rx:2,opacity:.85},s);
+    b.txt  = T(s, BX+BW+10, b.y+12, "", {fill:b.col, size:12});
+  });
+  T(s, BX, 232, "Weight decay shrinks ‖W‖ →  effective LR goes UP.", {fill:C.dim,size:11.5});
+  T(s, BX, 250, "Norm growth over training →  effective LR goes DOWN.", {fill:C.dim,size:11.5});
+
+  const slider=document.getElementById("si-k"), kv=document.getElementById("si-kv");
+  const theta = -0.72;
+  function draw(){
+    const k = (+slider.value)/100; kv.textContent = k.toFixed(2)+"×";
+    const len = R0*k;
+    const wx = cx+Math.cos(theta)*len, wy = cy+Math.sin(theta)*len;
+    wArrow.setAttribute("d", `M${cx} ${cy} L${wx} ${wy}`);
+    const ux=Math.cos(theta), uy=Math.sin(theta);
+    wHead.setAttribute("d", `M${wx} ${wy} L${wx-9*ux+5*uy} ${wy-9*uy-5*ux} L${wx-9*ux-5*uy} ${wy-9*uy+5*ux} Z`);
+    wLbl.setAttribute("x", wx+9); wLbl.setAttribute("y", wy-6);
+    /* gradient perpendicular-ish, length 1/k */
+    const gl = 62/k, px=-uy, py=ux;
+    const gx=wx+px*gl, gy2=wy+py*gl;
+    gArrow.setAttribute("d", `M${wx} ${wy} L${gx} ${gy2}`);
+    gHead.setAttribute("d", `M${gx} ${gy2} L${gx-8*px+4.5*py} ${gy2-8*py-4.5*px} L${gx-8*px-4.5*py} ${gy2-8*py+4.5*px} Z`);
+    gLbl.setAttribute("x", gx+7); gLbl.setAttribute("y", gy2+4);
+    /* angular step arc ∝ 1/k^2 */
+    const dth = 0.9/(k*k), r2 = len*0.62;
+    const a0=theta, a1=theta+Math.min(dth,2.2);
+    const large = (a1-a0)>Math.PI?1:0;
+    arc.setAttribute("d", `M${cx+Math.cos(a0)*r2} ${cy+Math.sin(a0)*r2} A ${r2} ${r2} 0 ${large} 1 ${cx+Math.cos(a1)*r2} ${cy+Math.sin(a1)*r2}`);
+    aLbl.setAttribute("x", cx+Math.cos((a0+a1)/2)*(r2+16)-10);
+    aLbl.setAttribute("y", cy+Math.sin((a0+a1)/2)*(r2+16));
+    aLbl.textContent = "Δθ";
+    bars.forEach(b=>{ b.rect.setAttribute("width", clamp(BW*b.f(k),2,BW)); b.txt.textContent=b.fmt(k); });
+  }
+  slider.addEventListener("input", draw); draw();
+})();
+
+/* ============================================================
+   FIG 02 — axis atlas
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("atlas-mount"); if(!mount) return;
+  const W=1000,H=390, s=SVG(mount,W,H);
+  const NN=4, NC=8, NS=6;                 // samples, features, positions
+  const cw=25, chh=15, gx=2.6, gy=2.6, ox=36, oy=-23;
+  const X0=170, Y0=210;
+  const cells=[];
+  for(let n=NN-1;n>=0;n--){
+    for(let c=0;c<NC;c++) for(let p=0;p<NS;p++){
+      const x=X0+n*ox+p*(cw+gx), y=Y0+n*oy+c*(chh+gy);
+      const r=E("rect",{x,y,width:cw,height:chh,rx:1.6,fill:C.dim,opacity:.10,
+        stroke:"#0F1317","stroke-width":.8},s);
+      cells.push({n,c,p,r});
+    }
+  }
+  /* axis key */
+  const kx=760, ky=96;
+  function axis(x1,y1,x2,y2,lab,col){
+    E("line",{x1,y1,x2,y2,stroke:col,"stroke-width":1.6,"marker":"none"},s);
+    const a=Math.atan2(y2-y1,x2-x1);
+    E("path",{d:`M${x2} ${y2} L${x2-9*Math.cos(a)+4.5*Math.sin(a)} ${y2-9*Math.sin(a)-4.5*Math.cos(a)} L${x2-9*Math.cos(a)-4.5*Math.sin(a)} ${y2-9*Math.sin(a)+4.5*Math.cos(a)} Z`,fill:col},s);
+    T(s,x2+8,y2+4,lab,{fill:col,size:11});
+  }
+  axis(kx,ky,kx+72,ky,"positions   T / H·W", C.dim);
+  axis(kx,ky,kx,ky+72,"features   C / D", C.dim);
+  axis(kx,ky,kx+52,ky-34,"samples   N / B", C.dim);
+  T(s, kx, ky-62, "AXIS KEY", {fill:C.txt, size:11, ls:1.6});
+  const fx=T(s, kx, ky+124, "", {fill:C.b, size:13, w:500});
+  const fx2=T(s, kx, ky+146, "", {fill:C.dim, size:11.5});
+  const fx3=T(s, kx, ky+168, "", {fill:C.dim, size:11.5});
+  T(s, X0-104, Y0+NC*(chh+gy)+34, "each small cell = one scalar activation", {fill:C.faint, size:10.5});
+
+  const MODES=[
+    {label:"BatchNorm", pick:(n,c,p)=>c===3,
+     f:"μ, σ over  (n, p)   →  one statistic per feature",
+     n1:"Statistics pool the whole batch and all positions.",
+     n2:"Batch-dependent: the forward pass for one sample uses the others."},
+    {label:"LayerNorm", pick:(n,c,p)=>n===1&&p===2,
+     f:"μ, σ over  (c)      →  one statistic per token",
+     n1:"Each token normalizes itself, using only its own features.",
+     n2:"No batch coupling — works at batch size 1 and with ragged lengths."},
+    {label:"LayerNorm (vision)", pick:(n,c,p)=>n===1,
+     f:"μ, σ over  (c, p)   →  one statistic per image",
+     n1:"The (N,C,H,W) convention: reduce over channels AND spatial.",
+     n2:"Same operator, different axes. Naming across fields is not consistent."},
+    {label:"InstanceNorm", pick:(n,c,p)=>n===1&&c===3,
+     f:"μ, σ over  (p)      →  one per (sample, feature)",
+     n1:"Per-channel, per-image. Removes contrast/style information.",
+     n2:"Backbone of style transfer; AdaIN is this plus learned conditioning."},
+    {label:"GroupNorm", pick:(n,c,p)=>n===1&&c>=4,
+     f:"μ, σ over  (c ∈ g, p)  →  one per (sample, group)",
+     n1:"Interpolates: G=1 is vision LayerNorm, G=C is InstanceNorm.",
+     n2:"The batch-independent replacement for BN at small batch size."},
+    {label:"RMSNorm", pick:(n,c,p)=>n===1&&p===2,
+     f:"rms over  (c)       →  one scale per token, no mean",
+     n1:"Same slice as LayerNorm; drops the centring step entirely.",
+     n2:"Keeps re-scaling invariance, loses re-centring invariance."},
+    {label:"QK-Norm", pick:(n,c,p)=>n===1&&p===2&&c<4,
+     f:"rms over  (head dim)  →  one scale per (token, head)",
+     n1:"A normalization applied to q and k only, inside attention.",
+     n2:"Same math as RMSNorm, applied to a 128-dim head slice."}
+  ];
+  let cur=0, tSwitch=0;
+  btnRow(document.getElementById("atlas-ctl"), MODES, (m,i)=>{ cur=i; tSwitch=performance.now()/1000;
+    fx.textContent=m.f; fx2.textContent=m.n1; fx3.textContent=m.n2;
+    document.getElementById("atlas-ft").innerHTML =
+      `<b>${m.label}</b> — ${m.n1} ${m.n2} The highlighted cells are <b>one</b> statistic's support; the same reduction is repeated for every other index not being reduced over.`;
+  }, 0);
+  onFrame(mount,(time)=>{
+    const m=MODES[cur], pulse=0.72+0.28*Math.sin(time*2.1);
+    for(const cell of cells){
+      const on = m.pick(cell.n,cell.c,cell.p);
+      const target = on ? pulse : 0.085;
+      const prev = +cell.r.getAttribute("opacity");
+      cell.r.setAttribute("opacity", lerp(prev, target, 0.16));
+      cell.r.setAttribute("fill", on ? C.b : C.dim);
+    }
+  });
+})();
+</script>
+<script>
+/* ============================================================
+   FIG 03 — anatomy of a norm, four steps
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("anat-mount"); if(!mount) return;
+  const W=1000,H=310,s=SVG(mount,W,H);
+  const N=28, R=rng(21);
+  const raw=[]; for(let i=0;i<N;i++) raw.push((R()*2-1)*3.1 + 4.2 + 1.6*Math.sin(i*0.7));
+  const mu = raw.reduce((a,b)=>a+b,0)/N;
+  const cen = raw.map(v=>v-mu);
+  const sd = Math.sqrt(cen.reduce((a,b)=>a+b*b,0)/N);
+  const nrm = cen.map(v=>v/sd);
+  const gamma=[], beta=[];
+  for(let i=0;i<N;i++){ gamma.push(0.4+1.5*Math.abs(Math.sin(i*0.9+1))); beta.push((R()*2-1)*0.35); }
+  const scaled = nrm.map((v,i)=>v*gamma[i]);
+  const final  = scaled.map((v,i)=>v+beta[i]);
+  const STEPS=[
+    {label:"1 · raw x",      vals:raw,   cap:"The incoming vector. Mean is <b>"+mu.toFixed(2)+"</b>, std is <b>"+sd.toFixed(2)+"</b> — both arbitrary, both drifting during training.", eq:"x"},
+    {label:"2 · subtract μ", vals:cen,   cap:"Centre it. This is the step RMSNorm skips — it is a projection onto the hyperplane <b>1ᵀx = 0</b>, and it costs one full reduction.", eq:"x − μ"},
+    {label:"3 · divide by σ",vals:nrm,   cap:"Scale to unit variance. Now every feature sits in the same range, and the whole vector has ‖x̂‖ = √D regardless of what came in.", eq:"(x − μ) / √(σ²+ε)"},
+    {label:"4 · × γ",        vals:scaled,cap:"Learned per-feature gain hands expressiveness back. The network can re-emphasise features the hard constraint flattened.", eq:"γ ⊙ x̂"},
+    {label:"5 · + β",        vals:final, cap:"Learned per-feature bias. RMSNorm has no β. LayerNorm's β can carry a constant offset into every downstream layer — one reason RMSNorm is tidier.", eq:"γ ⊙ x̂ + β"}
+  ];
+  const BX=70, BY=44, BW=W-160, BH=180, mid=BY+BH/2;
+  E("rect",{x:BX,y:BY,width:BW,height:BH,fill:"#131A20",rx:2},s);
+  for(let k=-3;k<=3;k++){
+    const y=mid-k*26;
+    E("line",{x1:BX,y1:y,x2:BX+BW,y2:y,stroke:k===0?C.faint:C.grid,"stroke-width":k===0?1.3:1},s);
+    T(s,BX-10,y+4,String(k),{fill:C.faint,size:9.5,anchor:"end"});
+  }
+  const band=E("rect",{x:BX,y:mid-26,width:BW,height:52,fill:C.b,opacity:0},s);
+  const muLine=E("line",{x1:BX,x2:BX+BW,stroke:C.a,"stroke-width":1.4,"stroke-dasharray":"5 4",opacity:0},s);
+  const muLbl=T(s,BX+BW+8,0,"μ",{fill:C.a,size:11,op:0});
+  const bw=BW/N;
+  const bars=[]; for(let i=0;i<N;i++) bars.push(E("rect",{x:BX+i*bw+1.6,width:bw-3.2,y:mid,height:1,fill:C.a,rx:1.2},s));
+  const eqT=T(s,BX,H-46,"",{fill:C.b,size:16,w:500});
+  const capT=document.getElementById("anat-ft");
+  let cur=0, tAt=0, from=raw.slice(), to=raw.slice(), prog=1;
+  let curVals = raw.slice();
+  const btns=btnRow(document.getElementById("anat-ctl"), STEPS.map((x,i)=>({label:x.label})),(m,i)=>{
+    from = curVals.slice();
+    cur=i; to=STEPS[i].vals.slice(); prog=0; tAt=0;
+    eqT.textContent = "y  =  "+STEPS[i].eq;
+    capT.innerHTML = "<b>"+STEPS[i].label.replace(/^\d · /,"")+"</b> — "+STEPS[i].cap;
+  },0);
+  function paint(vals, step){
+    for(let i=0;i<N;i++){
+      const v=vals[i], h=Math.abs(v)*26;
+      bars[i].setAttribute("y", v>=0? mid-h : mid);
+      bars[i].setAttribute("height", Math.max(1.2,h));
+      bars[i].setAttribute("fill", step>=3 ? C.b : (step>=2? C.d : C.a));
+      bars[i].setAttribute("opacity", 0.92);
+    }
+    muLine.setAttribute("opacity", step===1?0.95:(step===0?0.35:0));
+    muLbl.setAttribute("opacity", step<=1?0.9:0);
+    const my = mid - (step===0?mu:0)*26;
+    muLine.setAttribute("y1",my); muLine.setAttribute("y2",my); muLbl.setAttribute("y",my+4);
+    band.setAttribute("opacity", step>=2?0.07:0);
+  }
+  paint(raw,0);
+  onFrame(mount,(time,dt)=>{
+    tAt+=dt;
+    if(prog<1){ prog=Math.min(1,prog+dt*2.2);
+      curVals = to.map((v,i)=>lerp(from[i]||0,v,ease(prog)));
+      paint(curVals,cur);
+    } else if(tAt>3.0){
+      const nx=(cur+1)%STEPS.length; btns[nx].click();
+    }
+  });
+})();
+
+/* ============================================================
+   FIG 04 — batch statistics are noisy
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("bn-mount"); if(!mount) return;
+  const W=1000,H=320,s=SVG(mount,W,H);
+  const R=rng(5);
+  function gauss(){ let u=0,v=0; while(u===0)u=R(); while(v===0)v=R(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  const POP=[]; for(let i=0;i<600;i++) POP.push(gauss()*1.0 + 0.35*Math.sin(i));
+  const TRUE = POP.reduce((a,b)=>a+b,0)/POP.length;
+  /* left: population strip */
+  const SX=64, SY=52, SW=340, SH=170;
+  T(s,SX,SY-14,"POPULATION  ·  600 SAMPLES",{fill:C.txt,size:11,ls:1.6});
+  E("rect",{x:SX,y:SY,width:SW,height:SH,fill:"#131A20",rx:2},s);
+  const px=v=>SX+SW/2+v*(SW/2)/3.4;
+  for(let k=-3;k<=3;k++){ E("line",{x1:px(k),y1:SY,x2:px(k),y2:SY+SH,stroke:C.grid},s); T(s,px(k),SY+SH+15,String(k),{fill:C.faint,size:9.5,anchor:"middle"}); }
+  const dots=[];
+  for(let i=0;i<600;i++) dots.push(E("circle",{cx:px(POP[i]), cy:SY+8+ (i%38)*4.3, r:1.7, fill:C.dim, opacity:.16},s));
+  const trueL=E("line",{x1:px(TRUE),y1:SY-6,x2:px(TRUE),y2:SY+SH+6,stroke:"#E8EEF2","stroke-width":1.3,"stroke-dasharray":"4 4"},s);
+  T(s,px(TRUE)+6,SY-10,"true μ",{fill:"#E8EEF2",size:10});
+  const bML=E("line",{y1:SY-2,y2:SY+SH+2,stroke:C.a,"stroke-width":2},s);
+  const eML=E("line",{y1:SY-2,y2:SY+SH+2,stroke:C.c,"stroke-width":2},s);
+  /* right: trace */
+  const TX=470, TY=52, TW=W-TX-90, TH=170;
+  T(s,TX,TY-14,"ESTIMATE OVER TIME",{fill:C.txt,size:11,ls:1.6});
+  E("rect",{x:TX,y:TY,width:TW,height:TH,fill:"#131A20",rx:2},s);
+  const ty=v=>TY+TH/2-v*(TH/2)/1.5;
+  for(let k=-1;k<=1;k++){ E("line",{x1:TX,y1:ty(k),x2:TX+TW,y2:ty(k),stroke:k===0?C.faint:C.grid},s); T(s,TX+TW+8,ty(k)+4,k.toFixed(1),{fill:C.faint,size:9.5}); }
+  E("line",{x1:TX,y1:ty(TRUE),x2:TX+TW,y2:ty(TRUE),stroke:"#E8EEF2","stroke-width":1.2,"stroke-dasharray":"4 4"},s);
+  const pB=E("path",{fill:"none",stroke:C.a,"stroke-width":1.5,opacity:.9},s);
+  const pE=E("path",{fill:"none",stroke:C.c,"stroke-width":2.2},s);
+  T(s,TX,TY+TH+26,"amber = per-batch statistic used during TRAINING",{fill:C.a,size:11});
+  T(s,TX,TY+TH+44,"violet = running EMA used at INFERENCE",{fill:C.c,size:11});
+  const gapT=T(s,SX,SY+SH+46,"",{fill:C.txt,size:12.5});
+  const gapT2=T(s,SX,SY+SH+66,"",{fill:C.dim,size:11.5});
+
+  let hist=[], ema=TRUE, acc=0, running=true;
+  const sl=document.getElementById("bn-n"), nv=document.getElementById("bn-nv"), pb=document.getElementById("bn-play");
+  sl.addEventListener("input",()=>{ nv.textContent=sl.value; });
+  pb.addEventListener("click",()=>{ running=!running; pb.setAttribute("aria-pressed",running?"true":"false"); pb.textContent=running?"running":"paused"; });
+  function step(){
+    const n=+sl.value; let sum=0; const idx=new Set();
+    for(let i=0;i<n;i++){ const j=Math.floor(R()*POP.length); idx.add(j); sum+=POP[j]; }
+    const m=sum/n; ema = 0.9*ema + 0.1*m;
+    hist.push([m,ema]); if(hist.length>160) hist.shift();
+    dots.forEach((d,i)=>{ d.setAttribute("opacity", idx.has(i)?0.95:0.14); d.setAttribute("fill", idx.has(i)?C.a:C.dim); d.setAttribute("r", idx.has(i)?2.6:1.7); });
+    bML.setAttribute("x1",px(m)); bML.setAttribute("x2",px(m));
+    eML.setAttribute("x1",px(ema)); eML.setAttribute("x2",px(ema));
+    const sw=TW/160;
+    pB.setAttribute("d", hist.map((h,i)=>(i?"L":"M")+(TX+i*sw)+" "+ty(h[0])).join(" "));
+    pE.setAttribute("d", hist.map((h,i)=>(i?"L":"M")+(TX+i*sw)+" "+ty(h[1])).join(" "));
+    const spread = Math.sqrt(hist.reduce((a,h)=>a+(h[0]-TRUE)*(h[0]-TRUE),0)/hist.length);
+    gapT.textContent = `batch-statistic noise σ ≈ ${spread.toFixed(3)}   (batch size ${n})`;
+    gapT2.textContent = `train uses amber, eval uses violet — the distance between them is the train/eval gap`;
+  }
+  step();
+  onFrame(mount,(time,dt)=>{ if(!running) return; acc+=dt; if(acc>0.16){ acc=0; step(); } });
+})();
+
+/* ============================================================
+   FIG 05 — LayerNorm vs RMSNorm geometry (3D)
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("geo-mount"); if(!mount) return;
+  const W=1000,H=380,s=SVG(mount,W,H);
+  const cx=W/2, cy=H/2+8, SC=118;
+  const R=rng(11);
+  function gauss(){ let u=0,v=0; while(u===0)u=R(); while(v===0)v=R(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  const NPT=90, pts=[];
+  for(let i=0;i<NPT;i++){
+    const v=[gauss()*1.15+0.55, gauss()*1.15+0.15, gauss()*1.15-0.35];
+    pts.push({raw:v, cur:v.slice(), tgt:v.slice()});
+  }
+  const gWire=E("g",{},s), gPlane=E("g",{},s), gPts=E("g",{},s);
+  const dotEls=pts.map(()=>E("circle",{r:3.2,fill:C.a,opacity:.85},gPts));
+  let rot=0;
+  function proj(p){
+    const ca=Math.cos(rot), sa=Math.sin(rot);
+    let x=p[0]*ca - p[2]*sa, z=p[0]*sa + p[2]*ca, y=p[1];
+    const tilt=0.52, cy2=Math.cos(tilt), sy2=Math.sin(tilt);
+    const y2=y*cy2 - z*sy2, z2=y*sy2 + z*cy2;
+    const persp = 3.4/(3.4+z2);
+    return [cx + x*SC*persp, cy - y2*SC*persp, persp];
+  }
+  function circlePath(g, normal, r, col, dash){
+    const a=[1,0,0]; let u=cross(normal,a); if(len(u)<1e-3) u=cross(normal,[0,1,0]); u=norm(u);
+    const v=norm(cross(normal,u));
+    let d="";
+    for(let i=0;i<=64;i++){ const th=i/64*Math.PI*2;
+      const p=[u[0]*Math.cos(th)*r+v[0]*Math.sin(th)*r, u[1]*Math.cos(th)*r+v[1]*Math.sin(th)*r, u[2]*Math.cos(th)*r+v[2]*Math.sin(th)*r];
+      const q=proj(p); d+=(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1); }
+    const e=E("path",{d,fill:"none",stroke:col,"stroke-width":1.1,opacity:.55},g);
+    if(dash) e.setAttribute("stroke-dasharray",dash);
+    return e;
+  }
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const len=a=>Math.hypot(a[0],a[1],a[2]);
+  const norm=a=>{const l=len(a)||1; return [a[0]/l,a[1]/l,a[2]/l];};
+  const RAD=1.732;
+  let wireEls=[], planeEl=null;
+  function rebuild(){
+    gWire.innerHTML=""; gPlane.innerHTML="";
+    circlePath(gWire,[0,1,0],RAD,C.faint);
+    circlePath(gWire,[1,0,0],RAD,C.faint);
+    circlePath(gWire,[0,0,1],RAD,C.faint);
+    circlePath(gPlane,norm([1,1,1]),RAD,C.b,"");
+  }
+  const modes=[
+    {label:"raw", f:p=>p.raw.slice(), ft:"Raw 3-dimensional hidden states. Scale varies, direction varies, nothing is constrained."},
+    {label:"LayerNorm", f:p=>{ const m=(p.raw[0]+p.raw[1]+p.raw[2])/3; const c=p.raw.map(v=>v-m);
+        const sd=Math.sqrt((c[0]*c[0]+c[1]*c[1]+c[2]*c[2])/3)||1e-6; return c.map(v=>v/sd); },
+      ft:"LayerNorm: first project onto the plane <b>x+y+z = 0</b> (mint great circle), then scale to radius √D. The image is a circle — one dimension has been deleted."},
+    {label:"RMSNorm", f:p=>{ const sd=Math.sqrt((p.raw[0]**2+p.raw[1]**2+p.raw[2]**2)/3)||1e-6; return p.raw.map(v=>v/sd); },
+      ft:"RMSNorm: scale straight onto the sphere, no centring. The image is the whole sphere — the component along <b>(1,1,1)</b> survives."},
+    {label:"γ ⊙ RMSNorm", f:p=>{ const sd=Math.sqrt((p.raw[0]**2+p.raw[1]**2+p.raw[2]**2)/3)||1e-6;
+        const g=[1.5,0.55,1.0]; return p.raw.map((v,i)=>v/sd*g[i]); },
+      ft:"With a learned per-feature gain the sphere becomes an ellipsoid. γ is how the layer recovers the expressiveness the hard constraint took away."}
+  ];
+  let cur=0;
+  btnRow(document.getElementById("geo-ctl"), modes,(m,i)=>{
+    cur=i; pts.forEach(p=>p.tgt=m.f(p));
+    document.getElementById("geo-ft").innerHTML = m.ft;
+  },0);
+  rebuild();
+  onFrame(mount,(time,dt)=>{
+    rot += dt*0.38; rebuild();
+    const order=[];
+    pts.forEach((p,i)=>{
+      for(let k=0;k<3;k++) p.cur[k]=lerp(p.cur[k],p.tgt[k],0.1);
+      const q=proj(p.cur); order.push({i,q});
+    });
+    order.sort((a,b)=>a.q[2]-b.q[2]);
+    order.forEach(o=>{
+      const d=dotEls[o.i];
+      d.setAttribute("cx",o.q[0].toFixed(1)); d.setAttribute("cy",o.q[1].toFixed(1));
+      d.setAttribute("r",(2.0+o.q[2]*1.5).toFixed(2));
+      d.setAttribute("fill", cur===0?C.a:(cur===1?C.b:(cur===2?C.d:C.c)));
+      d.setAttribute("opacity",(0.35+o.q[2]*0.5).toFixed(2));
+      gPts.appendChild(d);
+    });
+  });
+})();
+
+/* ============================================================
+   ZOO
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("zoo-mount"); if(!mount) return;
+  // glyph: {k:'block', hi:(n,c,p)=>bool} | {k:'weights', mode} | {k:'curve', f}
+  const Z=[
+  {n:"Local Response Norm", y:"2012 · AlexNet", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2&&c>=2&&c<=4},
+   d:"Divide each activation by the energy of its neighbouring channels — a hand-built lateral-inhibition scheme inspired by biological divisive normalization.",
+   w:"Historical. Superseded by BatchNorm within a year; the divisive-normalization idea keeps resurfacing."},
+  {n:"BatchNorm", y:"2015 · Ioffe & Szegedy", fam:"act", g:{k:"block",hi:(n,c,p)=>c===3},
+   d:"Per-channel statistics pooled over the batch and all spatial positions, with running estimates for inference.",
+   w:"Every CNN. Nothing in language."},
+  {n:"LayerNorm", y:"2016 · Ba, Kiros & Hinton", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2},
+   d:"Per-token statistics over the feature axis. Batch-independent, sequence-length-independent, identical at train and test.",
+   w:"Every transformer up to ~2022; still every CLIP/SigLIP-family vision tower."},
+  {n:"InstanceNorm", y:"2016 · Ulyanov et al.", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&c===3},
+   d:"Per-(image, channel) statistics over spatial positions. Strips per-image contrast and style.",
+   w:"Style transfer, image-to-image translation, some speech models."},
+  {n:"WeightNorm", y:"2016 · Salimans & Kingma", fam:"w", g:{k:"weights",mode:"row"},
+   d:"Reparameterize w = g · v/‖v‖ — decouple a weight vector's length from its direction, and optimize them separately. No activation statistics at all.",
+   w:"Small-batch settings, RL, normalizing flows, some TTS models."},
+  {n:"GroupNorm", y:"2018 · Wu & He", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&c>=4},
+   d:"Split channels into G groups, normalize within each group per image. G=1 recovers vision LayerNorm; G=C recovers InstanceNorm.",
+   w:"Detection and segmentation at small batch; every diffusion U-Net."},
+  {n:"Batch Renormalization", y:"2017 · Ioffe", fam:"act", g:{k:"block",hi:(n,c,p)=>c===3},
+   d:"Correct the train/eval function gap by nudging training-time statistics toward the running estimates with clipped affine correction factors.",
+   w:"Small-batch or non-i.i.d. batch CNN training, where plain BN's gap hurts."},
+  {n:"Spectral Norm", y:"2018 · Miyato et al.", fam:"w", g:{k:"weights",mode:"spec"},
+   d:"Divide each weight matrix by its largest singular value, estimated by one power iteration per step. Bounds the layer's Lipschitz constant.",
+   w:"GAN discriminators, and anywhere you need a certified Lipschitz bound."},
+  {n:"Weight Standardization", y:"2019 · Qiao et al.", fam:"w", g:{k:"weights",mode:"col"},
+   d:"Normalize each conv filter's weights to zero mean and unit variance before convolving. Smooths the loss landscape without touching activations.",
+   w:"BiT, NFNets, and the GN+WS combination that matches BN at batch size 1."},
+  {n:"Decorrelated BN / IterNorm", y:"2018–19 · Huang et al.", fam:"act", g:{k:"block",hi:(n,c,p)=>c===2||c===5},
+   d:"Whiten rather than standardize: also remove correlations between channels, using Newton's iteration to avoid an explicit matrix inverse square root.",
+   w:"Rare in production — the compute rarely pays for itself, but the theory is instructive."},
+  {n:"Pixel Norm", y:"2018 · ProGAN / StyleGAN", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2},
+   d:"Normalize each spatial position's feature vector to unit length. No learned parameters, no statistics beyond the pixel itself.",
+   w:"StyleGAN's mapping network and generator; a cheap escalation guard."},
+  {n:"Cosine Norm", y:"2017 · Luo et al.", fam:"act", g:{k:"weights",mode:"cos"},
+   d:"Replace the dot product itself with cosine similarity, bounding every pre-activation to [−1, 1] by construction.",
+   w:"The idea survives inside QK-Norm and Swin-V2's scaled cosine attention."},
+  {n:"AdaIN", y:"2017 · Huang & Belongie", fam:"cond", g:{k:"cond",mode:"ada"},
+   d:"InstanceNorm where γ and β come from another signal instead of being learned constants — align content statistics to style statistics.",
+   w:"Arbitrary style transfer; StyleGAN's per-layer modulation is a descendant."},
+  {n:"FiLM / Conditional BN", y:"2017–18 · Perez, de Vries", fam:"cond", g:{k:"cond",mode:"film"},
+   d:"Predict per-channel scale and shift from a conditioning vector (a question, a class, a timestep) and apply them after normalization.",
+   w:"Visual reasoning, class-conditional GANs, and the ancestor of adaLN."},
+  {n:"RMSNorm", y:"2019 · Zhang & Sennrich", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2},
+   d:"LayerNorm with the centring step deleted. Keeps re-scaling invariance, drops re-centring invariance, saves a reduction in both directions.",
+   w:"Llama, Mistral, Qwen, Gemma, DeepSeek, Phi, OLMo 2 — essentially every modern LLM."},
+  {n:"ScaleNorm / FixNorm", y:"2019 · Nguyen & Salazar", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2},
+   d:"Normalize the token vector to a single learned global scale g — one scalar per layer instead of a D-vector.",
+   w:"Low-resource NMT; an interesting minimal baseline for how few parameters a norm needs."},
+  {n:"Filter Response Norm", y:"2020 · Singh & Krishnan", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&c===3},
+   d:"Per-(image, channel) normalization by mean-square only (no centring), paired with a learnable-threshold ReLU because losing the mean breaks plain ReLU.",
+   w:"Batch-independent CNN training; a RMSNorm-shaped idea that arrived in vision first."},
+  {n:"PowerNorm", y:"2020 · Shen et al.", fam:"act", g:{k:"block",hi:(n,c,p)=>c===3},
+   d:"An attempt to make batch statistics work in transformers: relax zero-mean to quadratic mean, and use running statistics in the forward pass with a correction term.",
+   w:"Never displaced LayerNorm, but the diagnosis of why BN fails on text is worth reading."},
+  {n:"Fixup", y:"2019 · Zhang, Dauphin & Ma", fam:"free", g:{k:"cond",mode:"init"},
+   d:"Delete normalization entirely; instead rescale branch weights by a depth-dependent factor, zero-init the last layer of each branch, and add scalar biases.",
+   w:"Proof that 10,000-layer ResNets can train with no normalization at all."},
+  {n:"ReZero / SkipInit", y:"2020 · Bachlechner, De & Smith", fam:"free", g:{k:"cond",mode:"gate"},
+   d:"One learnable scalar α per residual branch, initialized to zero: x ← x + α·F(x). At init the network is exactly the identity.",
+   w:"Deep transformer stability research; the direct ancestor of LayerScale and of Flamingo's tanh gate."},
+  {n:"LayerScale", y:"2021 · Touvron et al. (CaiT)", fam:"free", g:{k:"cond",mode:"gate"},
+   d:"ReZero with a per-channel vector instead of a scalar, initialized around 1e-4 or 1e-5. Used alongside norms, not instead of them.",
+   w:"DINOv2, EVA, InternViT and most ViT-G-scale encoders. Your `ls1` / `gamma_1` parameters."},
+  {n:"QK-Norm", y:"2020/2023 · Henry; Dehghani et al.", fam:"act", g:{k:"block",hi:(n,c,p)=>n===1&&p===2&&c<4},
+   d:"Normalize the query and key vectors per head before the attention dot product, bounding the attention logits and preventing entropy collapse.",
+   w:"ViT-22B, Chameleon, OLMo 2, Gemma 3, Qwen3 — near-universal in 2025+ models."},
+  {n:"Sub-LN (Magneto)", y:"2022 · Wang et al.", fam:"place", g:{k:"cond",mode:"sub"},
+   d:"An extra LayerNorm inside each sublayer — before the output projection of attention and before the second FFN matrix — plus a DeepNet-style init.",
+   w:"Kosmos-1/2 and BitNet are built on it; EVA-02's vision tower uses it too."},
+  {n:"NormFormer", y:"2021 · Shleifer et al.", fam:"place", g:{k:"cond",mode:"sub"},
+   d:"Pre-LN plus three additions: a LayerNorm after attention, head-wise learned scaling of attention outputs, and a LayerNorm inside the FFN.",
+   w:"An early, careful study of gradient-magnitude imbalance between early and late layers."},
+  {n:"adaLN-Zero", y:"2023 · Peebles & Xie (DiT)", fam:"cond", g:{k:"cond",mode:"ada"},
+   d:"Regress γ, β *and* a residual gate α from the conditioning embedding, with α initialized to zero so each block starts as the identity.",
+   w:"Every diffusion transformer: DiT, PixArt, SD3, Flux. This is how timestep and class conditioning enters."},
+  {n:"Gated RMSNorm", y:"2023–24 · Mamba, GLA", fam:"act", g:{k:"cond",mode:"gate"},
+   d:"RMSNorm with a multiplicative gate folded in: y = (x/rms(x)) ⊙ γ ⊙ σ(z). Normalizes and gates in one fused kernel.",
+   w:"Mamba-2, gated linear attention, and Qwen3-Next's gated attention blocks."},
+  {n:"Dynamic Tanh (DyT)", y:"2025 · Zhu, Chen, He, LeCun, Liu", fam:"free", g:{k:"curve",f:x=>Math.tanh(1.4*x)},
+   d:"γ ⊙ tanh(αx) + β. No reductions, no cross-element dependence — motivated by the observation that a trained LayerNorm's input/output map is already an S-curve.",
+   w:"Matched normalized baselines on ViT, ConvNeXt, MAE, DINO, DiT, LLaMA, wav2vec 2.0 and DNA models."},
+  {n:"nGPT hypersphere", y:"2024 · Loshchilov et al.", fam:"free", g:{k:"curve",f:x=>Math.sign(x)*Math.min(1,Math.abs(x))},
+   d:"The maximalist answer: constrain every embedding, hidden state and weight row to unit norm, and make residual updates spherical interpolations rather than additions.",
+   w:"Reported 4–20× fewer steps to a target loss — but it is a whole-architecture commitment."}
+  ];
+  const FAMS=[{k:"all",l:"all "+Z.length},{k:"act",l:"activation statistics"},{k:"w",l:"weight-space"},
+              {k:"cond",l:"conditional"},{k:"place",l:"placement-adjacent"},{k:"free",l:"norm-free"}];
+  function glyph(g){
+    const w=232,h=76;
+    const s=document.createElementNS(NS,"svg");
+    s.setAttribute("viewBox",`0 0 ${w} ${h}`); s.setAttribute("width","100%");
+    if(g.k==="block"){
+      const NN=3,NC=6,NS_=5, cw=11,chh=7,gx=1.4,gy=1.6,ox=15,oy=-9, X0=54,Y0=53;
+      for(let n=NN-1;n>=0;n--) for(let c=0;c<NC;c++) for(let p=0;p<NS_;p++){
+        const on=g.hi(n,c,p);
+        E("rect",{x:X0+n*ox+p*(cw+gx), y:Y0+n*oy+c*(chh+gy)-30, width:cw,height:chh,rx:1,
+          fill:on?C.b:C.dim, opacity:on?0.9:0.13, stroke:"#0F1317","stroke-width":.6},s);
+      }
+    } else if(g.k==="weights"){
+      const X0=62,Y0=14, cw=13,chh=9,gx=2,gy=2;
+      for(let r=0;r<6;r++) for(let c=0;c<8;c++){
+        let on=false;
+        if(g.mode==="row") on = r===2;
+        if(g.mode==="col") on = c===3;
+        if(g.mode==="spec") on = (r===c) || (r===c-1);
+        if(g.mode==="cos") on = (r+c)%3===0;
+        E("rect",{x:X0+c*(cw+gx),y:Y0+r*(chh+gy),width:cw,height:chh,rx:1,fill:on?C.c:C.dim,opacity:on?0.9:0.13},s);
+      }
+      T(s,X0-46,Y0+36,"W",{fill:C.c,size:15,w:600});
+    } else if(g.k==="curve"){
+      const X0=66,Y0=10,WW=100,HH=56;
+      E("rect",{x:X0,y:Y0,width:WW,height:HH,fill:"#131A20",rx:2},s);
+      E("line",{x1:X0,y1:Y0+HH/2,x2:X0+WW,y2:Y0+HH/2,stroke:C.grid},s);
+      E("line",{x1:X0+WW/2,y1:Y0,x2:X0+WW/2,y2:Y0+HH,stroke:C.grid},s);
+      let d="";
+      for(let i=0;i<=60;i++){ const x=(i/60)*6-3; const y=g.f(x);
+        d+=(i?"L":"M")+(X0+WW/2+x*WW/6.4).toFixed(1)+" "+(Y0+HH/2-y*HH/2.4).toFixed(1); }
+      E("path",{d,fill:"none",stroke:C.b,"stroke-width":2},s);
+    } else {
+      const X0=52,Y0=16;
+      E("rect",{x:X0,y:Y0,width:44,height:44,rx:3,fill:"none",stroke:C.dim,"stroke-width":1.2,opacity:.5},s);
+      T(s,X0+22,Y0+28,"F",{fill:C.dim,size:15,anchor:"middle",w:600});
+      E("path",{d:`M${X0-26} ${Y0+22} L${X0-4} ${Y0+22}`,stroke:C.dim,"stroke-width":1.2},s);
+      E("path",{d:`M${X0+48} ${Y0+22} L${X0+72} ${Y0+22}`,stroke:C.dim,"stroke-width":1.2},s);
+      const lbl = g.mode==="gate"?"α ≈ 0":(g.mode==="init"?"scaled init":(g.mode==="sub"?"extra LN":"γ,β ← cond"));
+      E("circle",{cx:X0+108,cy:Y0+22,r:15,fill:"none",stroke:C.c,"stroke-width":1.6},s);
+      T(s,X0+108,Y0+27,"×",{fill:C.c,size:15,anchor:"middle"});
+      T(s,X0+108,Y0+56,lbl,{fill:C.c,size:9.5,anchor:"middle"});
+      E("path",{d:`M${X0+72} ${Y0+22} L${X0+90} ${Y0+22}`,stroke:C.dim,"stroke-width":1.2},s);
+    }
+    return s;
+  }
+  function render(fam){
+    mount.innerHTML="";
+    Z.filter(z=>fam==="all"||z.fam===fam).forEach(z=>{
+      const card=document.createElement("div"); card.className="card";
+      const h=document.createElement("div"); h.className="cn";
+      h.innerHTML = `<span>${z.n}</span>`;
+      const y=document.createElement("div"); y.className="cy"; y.textContent=z.y;
+      const gw=document.createElement("div"); gw.className="cg"; gw.appendChild(glyph(z.g));
+      const p=document.createElement("p"); p.textContent=z.d;
+      const w=document.createElement("div"); w.className="cw"; w.textContent="→ "+z.w;
+      card.append(h,y,gw,p,w); mount.appendChild(card);
+    });
+  }
+  const ctl=document.getElementById("zoo-ctl");
+  const bs=FAMS.map((f,i)=>{ const b=document.createElement("button"); b.textContent=f.l;
+    b.setAttribute("aria-pressed", i===0?"true":"false");
+    b.onclick=()=>{ bs.forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); render(f.k); };
+    ctl.appendChild(b); return b; });
+  render("all");
+})();
+</script>
+<script>
+/* ============================================================
+   FIG 06 — placement schemes
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("place-mount"); if(!mount) return;
+  const W=1000,H=310,s=SVG(mount,W,H);
+  const HW=196;              // highway y
+  const BR=92;               // branch y
+  const X0=70, X1=W-70;
+  const ADD=X1-150;
+  /* schemes: branch=[list of node kinds], highway=[nodes on the residual path], after=[nodes after ⊕] */
+  const SCH=[
+   {label:"Post-LN", br:["F"], hw:[], af:["N"], scale:null,
+    ft:"<b>Post-LN (Vaswani 2017)</b> — the norm sits on the residual highway. Backward gradients pass through a normalization at every block, decaying roughly as O(1/√ℓ). Needs warmup; fragile past ~20 layers. Strong final quality when it does train."},
+   {label:"Pre-LN", br:["N","F"], hw:[], af:[], scale:null,
+    ft:"<b>Pre-LN (Xiong 2020)</b> — the highway is a clean identity path, so gradients reach the embedding undisturbed. Trains without warmup at any depth. Pays with unbounded residual-stream variance growth, massive activations, and under-trained deep layers."},
+   {label:"Sandwich / Peri-LN", br:["N","F","N"], hw:[], af:[], scale:null,
+    ft:"<b>Sandwich-LN (CogView 2021) = Peri-LN (Kim 2025)</b> — norm the sublayer input <i>and</i> its output. Each branch's contribution is bounded, so variance grows linearly rather than exponentially, while the identity highway is preserved. This is what Gemma 2/3's four RMSNorms per block are doing."},
+   {label:"Res-post-norm", br:["F","N"], hw:[], af:[], scale:null,
+    ft:"<b>Swin-V2 res-post-norm (2022) → Chameleon & OLMo 2 'reordered norm' (2024)</b> — norm only the branch output. Bounds branch magnitude (critical for SwiGLU's multiplicative growth) while keeping the highway clean. Adopted independently by three teams whose training runs were diverging."},
+   {label:"DeepNorm", br:["F"], hw:["α"], af:["N"], scale:"α=(2N)^¼, branch init β=(8N)^−¼",
+    ft:"<b>DeepNorm (2022)</b> — Post-LN with an up-weighted residual (α) and a down-scaled branch initialization (β), both depth-dependent. Trained a 1000-layer transformer. GLM-130B adopted it after Pre-LN, Post-LN and Sandwich-LN all failed at 130B."},
+   {label:"LayerNorm Scaling", br:["N","/√ℓ","F"], hw:[], af:[], scale:"divide the norm output by √ℓ",
+    ft:"<b>LayerNorm Scaling (2025)</b> — keep Pre-LN, scale the norm's output by 1/√ℓ at layer ℓ. One line, no new parameters. Caps the variance explosion that makes deep Pre-LN layers behave as identity maps; improves pretraining and downstream SFT from 130M to 7B."},
+   {label:"HybridNorm", br:["QKV-N","F"], hw:[], af:["N"], scale:"attention gets QKV-Norm; FFN gets Post-Norm",
+    ft:"<b>HybridNorm (2025)</b> — split the choice inside the block rather than across blocks: QKV-Norm in the attention sublayer (Pre-Norm-like gradient flow), Post-Norm on the FFN (Post-Norm's representational benefit). Reported to beat Pre-Norm, Post-Norm and Mix-LN on dense and MoE models."}
+  ];
+  const gStatic=E("g",{},s), gDyn=E("g",{},s);
+  let cur=0;
+  function box(g,x,y,w,h,label,col,fill){
+    E("rect",{x:x-w/2,y:y-h/2,width:w,height:h,rx:3,fill:fill||"#151D24",stroke:col,"stroke-width":1.5},g);
+    T(g,x,y+4.5,label,{fill:col,size:12,anchor:"middle",w:600});
+  }
+  function build(){
+    gStatic.innerHTML=""; gDyn.innerHTML="";
+    const sc=SCH[cur];
+    /* highway */
+    E("line",{x1:X0,y1:HW,x2:ADD-20,y2:HW,stroke:C.faint,"stroke-width":2.5},gStatic);
+    T(gStatic,X0-4,HW+26,"residual highway",{fill:C.faint,size:10.5});
+    T(gStatic,X0-4,HW-14,"x",{fill:C.txt,size:13,w:600});
+    E("circle",{cx:X0,cy:HW,r:4,fill:C.txt},gStatic);
+    /* branch split */
+    E("path",{d:`M${X0+30} ${HW} C ${X0+70} ${HW}, ${X0+50} ${BR}, ${X0+110} ${BR}`,fill:"none",stroke:C.faint,"stroke-width":2},gStatic);
+    /* branch nodes */
+    const bxs=[]; const n=sc.br.length;
+    const bStart=X0+140, bEnd=ADD-90, span=bEnd-bStart;
+    sc.br.forEach((k,i)=>{
+      const x=bStart+(n===1? span/2 : i*span/(n-1));
+      bxs.push({x,k});
+    });
+    let prev=X0+110;
+    bxs.forEach(b=>{
+      E("line",{x1:prev,y1:BR,x2:b.x-(b.k==="F"?46:b.k==="QKV-N"?52:38),y2:BR,stroke:C.faint,"stroke-width":2},gStatic);
+      if(b.k==="F") box(gStatic,b.x,BR,92,44,"F(·)",C.txt);
+      else if(b.k==="N") box(gStatic,b.x,BR,76,38,"Norm",C.b);
+      else if(b.k==="QKV-N") box(gStatic,b.x,BR,104,38,"QKV-Norm",C.b);
+      else if(b.k==="/√ℓ") box(gStatic,b.x,BR,76,38,"÷ √ℓ",C.a);
+      prev=b.x+(b.k==="F"?46:b.k==="QKV-N"?52:38);
+    });
+    E("path",{d:`M${prev} ${BR} C ${prev+60} ${BR}, ${ADD-70} ${HW}, ${ADD-20} ${HW}`,fill:"none",stroke:C.faint,"stroke-width":2},gStatic);
+    /* alpha on highway */
+    if(sc.hw.includes("α")){
+      E("circle",{cx:ADD-90,cy:HW,r:17,fill:"#151D24",stroke:C.a,"stroke-width":1.5},gStatic);
+      T(gStatic,ADD-90,HW+5,"α",{fill:C.a,size:13,anchor:"middle",w:600});
+    }
+    /* add */
+    E("circle",{cx:ADD,cy:HW,r:16,fill:"#151D24",stroke:C.txt,"stroke-width":1.6},gStatic);
+    T(gStatic,ADD,HW+5.5,"+",{fill:C.txt,size:16,anchor:"middle"});
+    let ox=ADD+16;
+    if(sc.af.includes("N")){
+      E("line",{x1:ox,y1:HW,x2:ADD+60,y2:HW,stroke:C.faint,"stroke-width":2.5},gStatic);
+      box(gStatic,ADD+98,HW,76,38,"Norm",C.e);
+      T(gStatic,ADD+98,HW+38,"on the highway",{fill:C.e,size:9.5,anchor:"middle"});
+      ox=ADD+136;
+    }
+    E("line",{x1:ox,y1:HW,x2:X1,y2:HW,stroke:C.faint,"stroke-width":2.5},gStatic);
+    E("circle",{cx:X1,cy:HW,r:4,fill:C.txt},gStatic);
+    T(gStatic,X1-4,HW-14,"x′",{fill:C.txt,size:13,w:600});
+    if(sc.scale) T(gStatic,X0-4,H-18,sc.scale,{fill:C.a,size:11.5});
+    /* gradient path annotation */
+    const blocked = sc.af.includes("N");
+    T(gStatic,X0-4,44,"BACKWARD PATH THROUGH THE HIGHWAY:",{fill:C.dim,size:10.5,ls:1.5});
+    T(gStatic,X0+286,44, blocked?"passes through a Norm each block  →  attenuates":"clean identity  →  gradient survives depth",
+      {fill:blocked?C.e:C.b,size:10.5,ls:1.5});
+    document.getElementById("place-ft").innerHTML=sc.ft;
+    /* moving packets */
+    dotF=E("circle",{r:5,fill:C.b},gDyn);
+    dotB=E("circle",{r:5,fill:C.c},gDyn);
+    pathF=[[X0,HW]];
+    for(let i=0;i<=20;i++){const t=i/20; pathF.push(bez([X0+30,HW],[X0+70,HW],[X0+50,BR],[X0+110,BR],t));}
+    bxs.forEach(b=>pathF.push([b.x,BR]));
+    for(let i=0;i<=20;i++){const t=i/20; pathF.push(bez([prev,BR],[prev+60,BR],[ADD-70,HW],[ADD-20,HW],t));}
+    pathF.push([ADD,HW]); pathF.push([X1,HW]);
+    pathB=[[X1,HW]]; if(blocked) pathB.push([ADD+98,HW]); pathB.push([ADD,HW]); pathB.push([X0,HW]);
+  }
+  function bez(p0,p1,p2,p3,t){
+    const u=1-t;
+    return [u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0],
+            u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]];
+  }
+  let dotF,dotB,pathF,pathB,phF=0,phB=0;
+  function at(path,t){
+    const i=clamp(Math.floor(t*(path.length-1)),0,path.length-2);
+    const f=t*(path.length-1)-i;
+    return [lerp(path[i][0],path[i+1][0],f), lerp(path[i][1],path[i+1][1],f)];
+  }
+  btnRow(document.getElementById("place-ctl"), SCH,(m,i)=>{cur=i;build();},1);
+  onFrame(mount,(time,dt)=>{
+    phF=(phF+dt*0.24)%1; phB=(phB+dt*0.19)%1;
+    const a=at(pathF,phF), b=at(pathB,phB);
+    dotF.setAttribute("cx",a[0].toFixed(1)); dotF.setAttribute("cy",a[1].toFixed(1));
+    dotB.setAttribute("cx",b[0].toFixed(1)); dotB.setAttribute("cy",b[1].toFixed(1));
+    const blocked = SCH[cur].af.includes("N");
+    const shrink = blocked ? lerp(1,0.42,phB) : 1;
+    dotB.setAttribute("r",(3+3.4*shrink).toFixed(2));
+    dotB.setAttribute("opacity",(0.35+0.65*shrink).toFixed(2));
+  });
+})();
+
+/* ============================================================
+   FIG 07 — variance growth with depth
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("var-mount"); if(!mount) return;
+  const W=1000,H=382,s=SVG(mount,W,H);
+  const L=64, PX=80, PY=42, PW=W-190, PH=200;
+  E("rect",{x:PX,y:PY,width:PW,height:PH,fill:"#131A20",rx:2},s);
+  const ymin=Math.log10(0.7), ymax=Math.log10(400);
+  const yy=v=>PY+PH-(Math.log10(Math.max(v,0.7))-ymin)/(ymax-ymin)*PH;
+  const xx=l=>PX+(l/L)*PW;
+  [1,10,100,400].forEach(v=>{ E("line",{x1:PX,y1:yy(v),x2:PX+PW,y2:yy(v),stroke:C.grid},s);
+    T(s,PX-10,yy(v)+4,String(v),{fill:C.faint,size:9.5,anchor:"end"}); });
+  for(let l=0;l<=L;l+=16){ E("line",{x1:xx(l),y1:PY,x2:xx(l),y2:PY+PH,stroke:C.grid},s);
+    T(s,xx(l),PY+PH+16,String(l),{fill:C.faint,size:9.5,anchor:"middle"}); }
+  T(s,PX+PW/2,PY+PH+34,"layer index  ℓ",{fill:C.dim,size:11,anchor:"middle"});
+  T(s,PX-52,PY-14,"Var[ x_ℓ ]   (log)",{fill:C.dim,size:11});
+  const SERIES=[
+    {k:"pre",  l:"Pre-LN",             col:C.a},
+    {k:"post", l:"Post-LN",            col:C.e},
+    {k:"peri", l:"Peri-LN / sandwich", col:C.b},
+    {k:"lns",  l:"Pre-LN + 1/√ℓ",      col:C.d}
+  ];
+  SERIES.forEach((se,i)=>{
+    se.path=E("path",{fill:"none",stroke:se.col,"stroke-width":2.4},s);
+    E("rect",{x:PX+PW+24,y:PY+i*24,width:11,height:11,rx:2,fill:se.col},s);
+    T(s,PX+PW+42,PY+i*24+10,se.l,{fill:se.col,size:11});
+    se.on=true;
+  });
+  /* lower strip: how identity-like is each block */
+  const SY=PY+PH+52, SH=30;
+  T(s,PX-52,SY-8,"block Jacobian ≈ I ?",{fill:C.dim,size:11});
+  const cells=[];
+  for(let l=0;l<L;l++) cells.push(E("rect",{x:xx(l),y:SY,width:PW/L-1,height:SH,fill:C.a,opacity:.2},s));
+  T(s,PX,SY+SH+18,"dark = the layer still transforms the stream · bright = it has become an identity map",{fill:C.faint,size:10.5});
+  const stepT=T(s,PX+PW+24,PY+PH-6,"",{fill:C.txt,size:11.5});
+
+  let tt=0, showAll=true;
+  btnRow(document.getElementById("var-ctl"),[
+    {label:"all four"},{label:"Pre-LN only"},{label:"Pre-LN vs 1/√ℓ"}
+  ],(m,i)=>{
+    SERIES.forEach((se,j)=>{ se.on = i===0 ? true : (i===1 ? j===0 : (j===0||j===3)); });
+    document.getElementById("var-ft").innerHTML = i===1
+      ? "<b>Pre-LN alone.</b> Variance compounds multiplicatively with depth and keeps growing <i>during training</i>, not just at init — which is why GPT-2's 1/√(2L) scaled initialization doesn't fix it. By the final layers the branch contribution is negligible relative to the residual, so the block's Jacobian approaches the identity and the layer stops learning."
+      : (i===2 ? "<b>The one-line fix.</b> Dividing the norm's output by √ℓ makes the per-layer contribution shrink exactly fast enough that the accumulated variance grows logarithmically instead of exponentially. Deep layers keep a meaningful contribution ratio, which is what the LayerNorm Scaling paper measures as improved deep-layer utilization."
+      : "Simulated residual-stream variance for four placement schemes as training progresses (the sweep repeats). <b>Post-LN</b> is flat by construction — the norm sits on the highway. <b>Pre-LN</b> compounds. <b>Peri-LN</b> bounds each branch's contribution, so growth is roughly linear. <b>LayerNorm Scaling</b> tames Pre-LN with a depth-dependent divisor.");
+  },0);
+  onFrame(mount,(time,dt)=>{
+    tt=(tt+dt*0.10)%1.35; const tr=clamp(tt,0,1);
+    const g=0.055+0.075*tr;
+    const vals={pre:[],post:[],peri:[],lns:[]};
+    let vp=1, vq=1, vl=1;
+    for(let l=1;l<=L;l++){
+      vp = vp*(1+g);                      vals.pre.push(vp);
+      vals.post.push(1.0);
+      vq = vq + 0.35*(1+1.4*tr);          vals.peri.push(vq);
+      vl = vl + 2.2*(1+1.4*tr)/l;         vals.lns.push(vl);
+    }
+    SERIES.forEach(se=>{
+      const arr=vals[se.k];
+      se.path.setAttribute("d", arr.map((v,i)=>(i?"L":"M")+xx(i+1).toFixed(1)+" "+yy(v).toFixed(1)).join(" "));
+      se.path.setAttribute("opacity", se.on?0.95:0.0);
+    });
+    for(let l=0;l<L;l++){
+      const ratio = 1/Math.sqrt(vals.pre[l]);   // branch : residual
+      cells[l].setAttribute("opacity", clamp(0.06+ (1-ratio)*0.9,0.05,0.95));
+      cells[l].setAttribute("fill", (1-ratio)>0.86 ? C.e : C.a);
+    }
+    stepT.textContent = "training progress  "+Math.round(tr*100)+"%";
+  });
+})();
+
+/* ============================================================
+   FIG 08 — attention entropy collapse
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("qk-mount"); if(!mount) return;
+  const W=1000,H=330,s=SVG(mount,W,H);
+  const NK=28, PX=70, PY=46, PW=520, PH=180;
+  E("rect",{x:PX,y:PY,width:PW,height:PH,fill:"#131A20",rx:2},s);
+  T(s,PX,PY-14,"ATTENTION WEIGHTS OVER 28 KEYS",{fill:C.txt,size:11,ls:1.6});
+  const bw=PW/NK, bars=[];
+  for(let i=0;i<NK;i++) bars.push(E("rect",{x:PX+i*bw+1.2,width:bw-2.4,y:PY+PH,height:1,fill:C.b,rx:1},s));
+  const R=rng(31); const base=[]; for(let i=0;i<NK;i++) base.push(R()*2-1);
+  base[7]+=1.15; base[18]+=0.85;
+
+  const GX=650, GW=280;
+  T(s,GX,PY-14,"DIAGNOSTICS",{fill:C.txt,size:11,ls:1.6});
+  const rows=[
+    {y:PY+18, lab:"logit scale  ‖q‖·‖k‖", col:C.a},
+    {y:PY+78, lab:"attention entropy", col:C.b},
+    {y:PY+138,lab:"max attention weight", col:C.c}
+  ];
+  rows.forEach(r=>{
+    T(s,GX,r.y-8,r.lab,{fill:C.dim,size:11});
+    E("rect",{x:GX,y:r.y,width:GW,height:14,fill:"#171E24",rx:2},s);
+    r.bar=E("rect",{x:GX,y:r.y,width:2,height:14,fill:r.col,rx:2},s);
+    r.txt=T(s,GX,r.y+32,"",{fill:r.col,size:12});
+  });
+  const warn=T(s,GX,PY+PH+22,"",{fill:C.e,size:12,w:600});
+  const stepT=T(s,PX,PY+PH+22,"",{fill:C.dim,size:11.5});
+  let qk=false, tt=0;
+  btnRow(document.getElementById("qk-ctl"),[{label:"no QK-Norm"},{label:"with QK-Norm"}],(m,i)=>{
+    qk=(i===1); tt=0;
+    document.getElementById("qk-ft").innerHTML = qk
+      ? "<b>With QK-Norm.</b> q and k are normalized per head before the dot product, so the logit scale is bounded no matter how large the residual stream grows. Entropy stays healthy across the whole run, no bf16 range problem, no gradient starvation through the softmax. The cost is one extra RMSNorm per head — OLMoE measured ~10% throughput and shipped it anyway."
+      : "<b>Without QK-Norm.</b> As training proceeds, the residual stream grows (§08), so ‖q‖ and ‖k‖ grow, so the logits grow quadratically. The softmax saturates: entropy collapses toward zero, one key takes all the mass, and the gradient through attention vanishes. In bf16 the logits also start approaching the top of the representable range. This is the divergence mode Chameleon-7B hit about 20% into an epoch.";
+  },0);
+  onFrame(mount,(time,dt)=>{
+    tt=(tt+dt*0.14)%1.25; const tr=clamp(tt,0,1);
+    const scale = qk ? 2.6 : 2.0 + 46*tr*tr;
+    const logits = base.map(v=>v*scale);
+    const mx=Math.max(...logits); const ex=logits.map(v=>Math.exp(v-mx));
+    const Zs=ex.reduce((a,b)=>a+b,0); const p=ex.map(v=>v/Zs);
+    let ent=0; p.forEach(v=>{ if(v>1e-12) ent-=v*Math.log(v); });
+    const maxp=Math.max(...p);
+    p.forEach((v,i)=>{ const h=clamp(v/0.55*PH,1,PH);
+      bars[i].setAttribute("y",PY+PH-h); bars[i].setAttribute("height",h);
+      bars[i].setAttribute("fill", qk?C.b:(tr>0.6?C.e:C.a)); });
+    rows[0].bar.setAttribute("width", clamp(scale/50*GW,2,GW));
+    rows[0].txt.textContent = scale.toFixed(1)+(scale>40?"   ← bf16 danger zone":"");
+    rows[1].bar.setAttribute("width", clamp(ent/Math.log(NK)*GW,2,GW));
+    rows[1].txt.textContent = ent.toFixed(2)+" nats   (max "+Math.log(NK).toFixed(2)+")";
+    rows[2].bar.setAttribute("width", clamp(maxp*GW,2,GW));
+    rows[2].txt.textContent = (maxp*100).toFixed(1)+"% on one key";
+    warn.textContent = (!qk && maxp>0.9) ? "⚠  entropy collapsed — gradient through attention ≈ 0" : "";
+    stepT.textContent = "training progress  "+Math.round(tr*100)+"%";
+  });
+})();
+
+/* ============================================================
+   FIG 09 — massive activations & quantization
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("ma-mount"); if(!mount) return;
+  const W=1000,H=320,s=SVG(mount,W,H);
+  const NC=48, PX=70, PY=46, PW=560, PH=190;
+  E("rect",{x:PX,y:PY,width:PW,height:PH,fill:"#131A20",rx:2},s);
+  T(s,PX,PY-14,"RESIDUAL-STREAM CHANNEL MAGNITUDES  ·  BOS TOKEN",{fill:C.txt,size:11,ls:1.6});
+  const ymin=Math.log10(0.02), ymax=Math.log10(3000);
+  const yy=v=>PY+PH-(Math.log10(clamp(v,0.02,3000))-ymin)/(ymax-ymin)*PH;
+  [0.1,1,10,100,1000].forEach(v=>{E("line",{x1:PX,y1:yy(v),x2:PX+PW,y2:yy(v),stroke:C.grid},s);
+    T(s,PX-8,yy(v)+4,String(v),{fill:C.faint,size:9.5,anchor:"end"});});
+  const bw=PW/NC, bars=[];
+  const R=rng(77); const bmag=[]; for(let i=0;i<NC;i++) bmag.push(0.35+R()*1.5);
+  const OUT=[11,34];
+  for(let i=0;i<NC;i++) bars.push(E("rect",{x:PX+i*bw+0.8,width:bw-1.6,y:PY+PH,height:1,fill:C.d,rx:.8},s));
+  const layerT=T(s,PX,PY+PH+20,"",{fill:C.dim,size:11.5});
+  T(s,PX,PY+PH+38,"log scale — this is what you see when you plot activations",{fill:C.faint,size:10.5});
+  /* right: int8 bucket occupancy */
+  const GX=690, GW=250, GY=PY+16;
+  T(s,GX,PY-14,"PER-TENSOR INT8 BUCKETS",{fill:C.txt,size:11,ls:1.6});
+  const NB=16, bh=10, bkts=[];
+  for(let i=0;i<NB;i++){
+    E("rect",{x:GX,y:GY+i*(bh+2),width:GW,height:bh,fill:"#171E24",rx:1},s);
+    bkts.push(E("rect",{x:GX,y:GY+i*(bh+2),width:2,height:bh,fill:C.b,rx:1},s));
+  }
+  T(s,GX-6,GY+8,"0",{fill:C.faint,size:9.5,anchor:"end"});
+  T(s,GX-6,GY+(NB-1)*(bh+2)+8,"255",{fill:C.faint,size:9.5,anchor:"end"});
+  const occT=T(s,GX,GY+NB*(bh+2)+20,"",{fill:C.e,size:12});
+  const occT2=T(s,GX,GY+NB*(bh+2)+38,"",{fill:C.dim,size:11});
+  let clip=false, tt=0;
+  btnRow(document.getElementById("ma-ctl"),[{label:"as trained"},{label:"outliers clipped"}],(m,i)=>{
+    clip=(i===1);
+    document.getElementById("ma-ft").innerHTML = clip
+      ? "<b>Clipped.</b> Remove the two outlier channels and the int8 grid suddenly has resolution to spare — this is the whole premise of SmoothQuant, LLM.int8() mixed-precision, per-channel scaling and rotation-based methods. The catch is that the outliers are doing something: recent work argues massive activations act as gradient regulators for attention-sink tokens, so naive clipping degrades long-context retrieval. Interventions that keep the sink but suppress the magnitude (value-path gradient valves, gated rescaling) are the current direction."
+      : "<b>As trained.</b> Two channels on the BOS token carry activations three orders of magnitude above everything else, appearing around layer 2 and persisting to the end via the residual stream. On a log axis this looks like a curiosity. On the linear axis a per-tensor int8 quantizer actually uses, those two values set the scale and <b>every other channel collapses into the bottom bucket</b>. That is why activation outliers are the central problem in LLM quantization — and they are norm-mediated: RMSNorm divides by the stream's own scale, which is exactly what makes a large magnitude a usable local control knob.";
+  },0);
+  onFrame(mount,(time,dt)=>{
+    tt=(tt+dt*0.16)%1.3; const L=clamp(tt,0,1)*32;
+    const vals=[];
+    for(let i=0;i<NC;i++){
+      let v=bmag[i]*(1+0.9*L/32)*(0.75+0.5*Math.sin(time*0.9+i));
+      if(OUT.includes(i) && L>2) v = clip ? v*3 : v*(1+ (L-2)/30*900);
+      vals.push(v);
+      const y=yy(v);
+      bars[i].setAttribute("y",y); bars[i].setAttribute("height",Math.max(1,PY+PH-y));
+      bars[i].setAttribute("fill", (OUT.includes(i)&&!clip&&L>2)?C.e:C.d);
+    }
+    layerT.textContent = "layer "+Math.round(L)+" / 32";
+    const mx=Math.max(...vals), counts=new Array(NB).fill(0);
+    vals.forEach(v=>{ const b=clamp(Math.floor(v/mx*NB),0,NB-1); counts[b]++; });
+    counts.forEach((n2,i)=>{ bkts[i].setAttribute("width", clamp(n2/NC*GW*3.2,2,GW));
+      bkts[i].setAttribute("fill", i===0 && n2>NC*0.8 ? C.e : C.b); });
+    const pct=Math.round(counts[0]/NC*100);
+    occT.textContent = pct+"% of channels land in bucket 0";
+    occT2.textContent = clip ? "usable dynamic range recovered" : "everything but the outliers is quantized to noise";
+  });
+})();
+
+/* ============================================================
+   FIG 10 — VLM norm gap
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("gap-mount"); if(!mount) return;
+  const W=1000,H=310,s=SVG(mount,W,H);
+  const PX=190, PW=W-300, PY=64, PH=180;
+  const lo=Math.log10(0.5), hi=Math.log10(300);
+  const xx=v=>PX+(Math.log10(clamp(v,0.5,300))-lo)/(hi-lo)*PW;
+  [0.5,1,3,10,30,100,300].forEach(v=>{
+    E("line",{x1:xx(v),y1:PY-16,x2:xx(v),y2:PY+PH,stroke:C.grid},s);
+    T(s,xx(v),PY+PH+18,String(v),{fill:C.faint,size:9.5,anchor:"middle"});});
+  T(s,PX+PW/2,PY+PH+38,"mean L2 norm of the token vector   (log scale)",{fill:C.dim,size:11,anchor:"middle"});
+  const SETS=[
+   {label:"encoder output", rows:[
+     ["CLIP ViT-L/14",29.30,C.a],["SigLIP-SO400M",71.78,C.a],["SigLIP 2 SO400M",59.37,C.a],["MoonViT-SO400M",72.17,C.a],
+     ["Qwen2.5-7B text emb",0.80,C.d],["Qwen3-8B text emb",1.38,C.d],["Llama-3.2-3B text emb",1.09,C.d]],
+    ft:"Vision-encoder outputs sit 30–90× above the LLM's own text embeddings. Both sides were trained separately; nobody normalized between them. This is the raw gap at the modality interface, measured over 1000 samples from MMBench / POPE / MM-Star."},
+   {label:"after the projector", rows:[
+     ["LLaVA-1.5",39.96,C.a],["Qwen2.5-VL",56.88,C.a],["Kimi-VL",4.78,C.b],["GLM-4.1V",4.58,C.b],
+     ["text embedding (≈)",0.95,C.d]],
+    ft:"After the connector. Kimi-VL and GLM-4.1V compress hard; LLaVA-1.5 and Qwen2.5-VL barely compress at all. Note that all four except LLaVA-1.5 <i>have</i> a normalization layer inside the projector — so simply putting a norm in the connector is not sufficient. Two orders of magnitude of spread on a design axis essentially none of these technical reports discusses."}
+  ];
+  const g=E("g",{},s);
+  let cur=0;
+  function draw(){
+    g.innerHTML="";
+    const set=SETS[cur];
+    const rh=PH/set.rows.length;
+    set.rows.forEach((r,i)=>{
+      const y=PY+rh*(i+0.5);
+      T(g,PX-18,y+4,r[0],{fill:r[2]===C.d?C.d:C.txt,size:12,anchor:"end"});
+      E("line",{x1:PX,y1:y,x2:xx(r[1]),y2:y,stroke:r[2],"stroke-width":1.6,opacity:.4},g);
+      E("circle",{cx:xx(r[1]),cy:y,r:6,fill:r[2]},g);
+      T(g,xx(r[1])+13,y+4.5,r[1].toFixed(2),{fill:r[2],size:11.5});
+    });
+    const vis=set.rows.filter(r=>r[2]!==C.d).map(r=>r[1]);
+    const txt=set.rows.filter(r=>r[2]===C.d).map(r=>r[1]);
+    const ratio=(vis.reduce((a,b)=>a+b,0)/vis.length)/(txt.reduce((a,b)=>a+b,0)/txt.length);
+    T(g,PX,PY-30,"average ratio  "+ratio.toFixed(0)+"×",{fill:C.e,size:14,w:600});
+    document.getElementById("gap-ft").innerHTML=set.ft;
+  }
+  btnRow(document.getElementById("gap-ctl"),SETS,(m,i)=>{cur=i;draw();},0);
+})();
+
+/* ============================================================
+   FIG 11 — representational inertia
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("inertia-mount"); if(!mount) return;
+  const W=1000,H=362,s=SVG(mount,W,H);
+  const R=rng(3);
+  const PANES=[
+    {cx:280, cy:170, label:"TEXT TOKEN", sub:"‖h‖ ≈ 1", col:C.d, base:1.0},
+    {cx:700, cy:170, label:"VISUAL TOKEN", sub:"‖h‖ ≈ 40", col:C.a, base:40}
+  ];
+  PANES.forEach(p=>{
+    T(s,p.cx,52,p.label,{fill:p.col,size:12,anchor:"middle",ls:1.6});
+    p.subT=T(s,p.cx,70,p.sub,{fill:C.dim,size:11,anchor:"middle"});
+    for(let r=1;r<=3;r++) E("circle",{cx:p.cx,cy:p.cy,r:32*r,fill:"none",stroke:C.grid},s);
+    E("line",{x1:p.cx-108,y1:p.cy,x2:p.cx+108,y2:p.cy,stroke:C.grid},s);
+    E("line",{x1:p.cx,y1:p.cy-108,x2:p.cx,y2:p.cy+108,stroke:C.grid},s);
+    p.trail=E("path",{fill:"none",stroke:p.col,"stroke-width":1.2,opacity:.35},s);
+    p.vec=E("path",{stroke:p.col,"stroke-width":3,fill:"none","stroke-linecap":"round"},s);
+    p.upd=E("path",{stroke:C.c,"stroke-width":2,fill:"none","stroke-linecap":"round"},s);
+    p.ang=T(s,p.cx,p.cy+140,"",{fill:p.col,size:13,anchor:"middle",w:600});
+    p.ang2=T(s,p.cx,p.cy+160,"",{fill:C.dim,size:11,anchor:"middle"});
+    p.theta=0.0; p.trailPts=[];
+  });
+  T(s,W/2,H-14,"violet = the block's update ΔH — the SAME magnitude for both tokens, because Pre-LN strips ‖h‖ before the branch sees it",
+    {fill:C.c,size:11,anchor:"middle"});
+  const slider=document.createElement("label");
+  slider.innerHTML='‖h_vis‖ <input type="range" id="in-k" min="2" max="80" value="40"><span class="readout" id="in-kv">40</span>';
+  document.getElementById("inertia-ctl").appendChild(slider);
+  document.getElementById("inertia-ctl").insertAdjacentHTML("beforeend",
+    '<button id="in-rs">reset</button>');
+  const sl=document.getElementById("in-k"), kv=document.getElementById("in-kv");
+  sl.addEventListener("input",()=>{ kv.textContent=sl.value; PANES[1].base=+sl.value;
+    PANES[1].subT.textContent="‖h‖ ≈ "+sl.value; });
+  document.getElementById("in-rs").addEventListener("click",()=>{
+    PANES.forEach(p=>{p.theta=0;p.trailPts=[];}); });
+  const Cmag=2.0;
+  let acc=0, layer=0;
+  const layT=T(s,W/2,30,"",{fill:C.txt,size:12,anchor:"middle",ls:1.6});
+  onFrame(mount,(time,dt)=>{
+    acc+=dt;
+    if(acc>0.55){ acc=0; layer++;
+      PANES.forEach(p=>{
+        const phi = 1.15 + (R()-0.5)*0.5;
+        const dth = Math.atan2(Cmag*Math.sin(phi), p.base + Cmag*Math.cos(phi));
+        p.theta += dth;
+        p.trailPts.push(p.theta); if(p.trailPts.length>90) p.trailPts.shift();
+      });
+    }
+    PANES.forEach(p=>{
+      const r=88, a=p.theta-Math.PI/2;
+      p.vec.setAttribute("d",`M${p.cx} ${p.cy} L${(p.cx+Math.cos(a)*r).toFixed(1)} ${(p.cy+Math.sin(a)*r).toFixed(1)}`);
+      const ux=Math.cos(a), uy=Math.sin(a);
+      const bx=p.cx+ux*r, by=p.cy+uy*r;
+      const ul=30;
+      p.upd.setAttribute("d",`M${bx.toFixed(1)} ${by.toFixed(1)} L${(bx-uy*ul+ux*ul*0.4).toFixed(1)} ${(by+ux*ul+uy*ul*0.4).toFixed(1)}`);
+      let d="";
+      p.trailPts.forEach((th,i)=>{ const aa=th-Math.PI/2, rr=r*(0.55+0.45*i/Math.max(1,p.trailPts.length));
+        d+=(i?"L":"M")+(p.cx+Math.cos(aa)*rr).toFixed(1)+" "+(p.cy+Math.sin(aa)*rr).toFixed(1); });
+      p.trail.setAttribute("d",d);
+      p.ang.textContent = (p.theta*180/Math.PI).toFixed(0)+"° rotated";
+      p.ang2.textContent = "per-layer step ≈ "+(Math.atan2(Cmag*Math.sin(1.15), p.base+Cmag*Math.cos(1.15))*180/Math.PI).toFixed(1)+"°";
+    });
+    layT.textContent = "layer "+layer;
+    document.getElementById("inertia-ft").innerHTML =
+      "Both tokens receive an update of the same magnitude, because Pre-LN normalizes away <b>‖h‖</b> before the branch computes anything. A fixed-length update <b>rotates a short vector far and a long vector barely at all</b> — tan θ = C·sin φ / (‖h‖ + C·cos φ). After 30 layers the text token has swept through a large arc of semantic space while the visual token has barely moved. That mismatch is <i>representational inertia</i>: the two modalities diverge geometrically instead of converging, capping the dot products attention depends on. Drag the slider down to ~2 and watch the two panes synchronize — that is what a norm-aligning layer at the projector buys you.";
+  });
+})();
+</script>
+<script>
+/* ============================================================
+   MODEL MATRIX
+   ============================================================ */
+(function(){
+  const body=document.getElementById("mx-body"); if(!body) return;
+  const P=(cls,txt)=>`<span class="pill ${cls}">${txt}</span>`;
+  const RMS=P("p-rms","RMSNorm"), LN=P("p-ln","LayerNorm"), NP=P("p-ln","non-param LN");
+  const PRE=P("p-pre","Pre-Norm"), POST=P("p-post","Post-Norm"), PERI=P("p-peri","Peri / sandwich");
+  const REORD=P("p-peri","res-post-norm"), DEEP=P("p-post","Post + DeepNorm");
+  const QK=P("p-qk","QK-Norm"), NOQK=P("p-none","—"), UNC=P("p-none","unclear");
+  const M=[
+  // ---------- language backbones ----------
+  ["llm","Transformer","2017",LN,POST,NOQK,"—","—","The original. LR warmup was mandatory; nobody knew why yet."],
+  ["llm","BERT","2018",LN,POST,NOQK,"—","—","Post-LN encoder; shallow enough that it trains."],
+  ["llm","GPT-2","2019",LN,PRE,NOQK,"—","—","Moved the norm inside the residual branch and added a final LN. 1/√(2L) scaled init."],
+  ["llm","T5","2019",RMS,PRE,NOQK,"—","—","Simplified LN with no bias and no centring — RMSNorm before the name existed."],
+  ["llm","GPT-3","2020",LN,PRE,NOQK,"—","—","Pre-LN at 175B; alternating dense/sparse attention."],
+  ["llm","BLOOM","2022",LN,PRE,NOQK,"—","—","Added an extra LayerNorm after the embedding for stability; GLM found this hurt zero-shot."],
+  ["llm","GLM-130B","2022",LN,DEEP,NOQK,"—","—","Tried Pre-LN, Post-LN and Sandwich-LN — all diverged. DeepNorm-initialized Post-LN was the fix, plus embedding-gradient shrink."],
+  ["llm","PaLM","2022",LN,PRE,NOQK,"—","—","Parallel attention+FFN blocks; z-loss on output logits; no biases."],
+  ["llm","LLaMA 1 / 2 / 3","2023–24",RMS,PRE,NOQK,"—","—","The reference architecture. RMSNorm + Pre-Norm + SwiGLU + RoPE, no biases."],
+  ["llm","Mistral / Mixtral","2023",RMS,PRE,NOQK,"—","—","Llama-shaped; SWA and MoE changes are orthogonal to normalization."],
+  ["llm","Gemma 1","2024",P("p-rms","RMSNorm (1+w)"),PRE,NOQK,"—","—","Gain parameterized as (1+w), initialized at zero."],
+  ["llm","Gemma 2","2024",P("p-rms","RMSNorm (1+w)"),PERI,NOQK,"—","—","Four RMSNorms per block: input, post-attention, pre-FFN, post-FFN. Plus attention and final logit soft-capping."],
+  ["llm","Gemma 3","2025",P("p-rms","RMSNorm (1+w)"),PERI,QK,"SigLIP-400M","MLP + avg-pool","Replaced Gemma 2's soft-capping with QK-Norm — better accuracy AND faster, since soft-capping breaks fused attention kernels."],
+  ["llm","OLMo","2024",NP,PRE,NOQK,"—","—","Non-parametric LayerNorm (no γ, no β) as a stability choice."],
+  ["llm","OLMo 2","2025",RMS,REORD,QK,"—","—","Reordered norm + QK-Norm. Neither worked alone; together they fixed gradient-norm spikes. Also z-loss at 1e-5, AdamW ε 1e-8, embeddings excluded from weight decay."],
+  ["llm","OLMoE","2024",RMS,PRE,QK,"—","—","Measured QK-Norm at ~10% throughput cost and shipped it for the stability."],
+  ["llm","Qwen2 / 2.5","2024",RMS,PRE,NOQK,"—","—","Pre-Norm with QKV biases retained."],
+  ["llm","Qwen3","2025",RMS,PRE,QK,"—","—","Dropped QKV bias, added QK-Norm. Qwen3-Next uses a zero-centred RMSNorm in gated attention."],
+  ["llm","DeepSeek-V2 / V3","2024",RMS,PRE,NOQK,"—","—","MLA adds extra RMSNorms on the compressed KV and query latents — a norm placement decision hiding inside an attention variant."],
+  ["llm","Phi-3 / Phi-4","2024–25",RMS,PRE,UNC,"—","—","Llama-shaped backbone; the interesting choices are in data, not normalization."],
+  ["llm","Pangu (DSSN)","2025",RMS,P("p-peri","depth-scaled sandwich"),UNC,"—","—","Depth-scaled Sandwich-Norm. Reported zero loss spikes across a 38B pretraining run; post-RMSNorm absorbed at inference to recover ~6% throughput."],
+  // ---------- vision encoders ----------
+  ["enc","ViT","2020",LN,PRE,NOQK,"—","—","Pre-LN from the start, plus a final LN before the head."],
+  ["enc","CLIP ViT-L/14","2021",LN,PRE,NOQK,"—","—","The default VLM tower for three years. Mean/std (0.481,0.457,0.408)/(0.268,0.261,0.276)."],
+  ["enc","SigLIP / SigLIP 2","2023–25",LN,PRE,NOQK,"—","—","LayerNorm throughout. Preprocessing mean/std both (0.5,0.5,0.5) — different from CLIP's."],
+  ["enc","EVA-02","2023",LN,P("p-peri","Sub-LN"),NOQK,"—","—","Sub-LN (Magneto-style extra norms inside each sublayer) plus SwiGLU and 2D RoPE."],
+  ["enc","DINOv2","2023",LN,PRE,NOQK,"—","—","LayerScale on every branch; registers added later to soak up the high-norm artifact tokens."],
+  ["enc","Swin Transformer V2","2022",LN,REORD,P("p-qk","scaled cosine attn"),"—","—","Introduced res-post-norm AND replaced the dot product with scaled cosine similarity — two independent bounding mechanisms, both later borrowed by LLMs."],
+  ["enc","ViT-22B","2023",LN,PRE,QK,"—","—","Where QK-Norm was introduced, to stop attention entropy collapse at 22B vision params."],
+  ["enc","ConvNeXt","2022",LN,"—",NOQK,"—","—","LayerNorm inside a CNN — one of the ConvNet-modernization moves that closed the gap to ViTs."],
+  ["enc","NFNet-F6","2021",P("p-none","none"),"—",NOQK,"—","—","No normalization layers at all: Weight Standardization + scaled residuals + Adaptive Gradient Clipping. Flamingo's tower."],
+  ["enc","InternViT-6B","2023",LN,PRE,UNC,"—","—","LayerScale on branches; the tower most VLMs in the InternVL line inherit."],
+  ["enc","MoonViT-SO400M","2025",LN,PRE,UNC,"—","—","SigLIP-SO400M lineage with NaViT-style packing for native resolution. Measured output L2 ≈ 72."],
+  // ---------- VLMs ----------
+  ["vlm","Flamingo","2022",LN,PRE,NOQK,"NFNet-F6 (no norms)","Perceiver Resampler + tanh-gated x-attn","Three normalization philosophies in one model. The cross-attention gate is a zero-initialized tanh — LayerScale applied to the modality interface, so the frozen LM is untouched at step 0."],
+  ["vlm","OpenFlamingo","2023",RMS,PRE,NOQK,"CLIP ViT-L/14 (LN)","Perceiver + tanh gate","Open reproduction on MPT / LLaMA backbones; same zero-init gating."],
+  ["vlm","Kosmos-1 / 2","2023",P("p-ln","LayerNorm + Sub-LN"),PRE,NOQK,"CLIP ViT-L/14 (LN)","Resampler","Built on MAGNETO (Foundation Transformers), whose defining feature is Sub-LN — an extra LayerNorm inside each sublayer — with DeepNet-style init."],
+  ["vlm","LLaVA / 1.5 / NeXT","2023–24",RMS,PRE,NOQK,"CLIP ViT-L/14-336 (LN)","MLP, no norm","The reference late-fusion design, and the one with the worst measured norm alignment: projector output L2 ≈ 40 against text embeddings at ≈ 1.1."],
+  ["vlm","Idefics 1","2023",RMS,PRE,NOQK,"OpenCLIP (LN)","Gated cross-attention","Flamingo-style, LLaMA backbone."],
+  ["vlm","Idefics 2 / 3","2024",RMS,PRE,NOQK,"SigLIP-SO400M (LN)","Perceiver (v2) / pixel-shuffle MLP (v3)","Moved from resampler to a simpler projector between versions."],
+  ["vlm","Qwen-VL","2023",RMS,PRE,NOQK,"OpenCLIP ViT-bigG (LN)","Cross-attn resampler with LN","LayerNorm applied to the learned queries and to the image keys inside the resampler."],
+  ["vlm","Qwen2-VL","2024",RMS,PRE,NOQK,"ViT, dynamic resolution (LN)","MLP merger","Native dynamic resolution with M-RoPE. Its <code>&lt;|vision_start|&gt;</code> / <code>&lt;|vision_end|&gt;</code> embeddings grow to L2 ≈ 2.46 / 2.33 — larger than any token in the base Qwen2-7B (max 1.03)."],
+  ["vlm","Qwen2.5-VL","2025",RMS,PRE,NOQK,P("p-rms","ViT with RMSNorm + SwiGLU"),"MLP merger","Rebuilt the vision tower with RMSNorm and SwiGLU explicitly to match the Qwen2.5 LLM structure, plus window attention in all but four layers. Still shows a ≈57 vs 0.86 norm gap after the projector."],
+  ["vlm","InternVL 1.x / 2.x","2024",RMS,PRE,NOQK,"InternViT-6B (LN)","Pixel-shuffle + MLP","Large tower, small connector. Backbone norm follows whichever LLM is used (InternLM2 / Qwen)."],
+  ["vlm","InternVL 3","2025",RMS,PRE,UNC,"InternViT (LN)","Pixel-shuffle + MLP","Native multimodal pretraining rather than staged adaptation."],
+  ["vlm","InternLM-XComposer 2","2024",RMS,PRE,NOQK,"CLIP / EVA (LN)","Partial LoRA","Modality-specific low-rank adapters inside the LLM instead of a heavier connector."],
+  ["vlm","CogVLM","2023",RMS,PRE,NOQK,"EVA2-CLIP-E (LN)","MLP + visual expert","A separate QKV and FFN per modality inside each block. The norms are shared — so the layer meant to separate the modalities still pools their statistics."],
+  ["vlm","GLM-4.1V / 4.5V","2025",RMS,P("p-post","Post-norm lineage"),UNC,"AIMv2-Huge","MLP with norm","Descends from the GLM-130B DeepNorm line. Its connector compresses hard: measured output L2 ≈ 4.6, one of the two best-aligned in the survey."],
+  ["vlm","MiniCPM-V 2.x","2024",RMS,PRE,NOQK,"SigLIP-SO400M (LN)","Perceiver resampler with LN","Aggressive token compression via the resampler; the LNs come with the resampler's transformer."],
+  ["vlm","DeepSeek-VL","2024",RMS,PRE,NOQK,"SigLIP-L + SAM-B hybrid","2-layer MLP","Two towers with different normalization histories concatenated before the projector — a scale-matching problem by construction."],
+  ["vlm","DeepSeek-VL2","2024",RMS,PRE,NOQK,"SigLIP (LN)","MLP + tile tokens","MoE backbone with MLA; the extra RMSNorms on MLA latents apply to visual tokens too."],
+  ["vlm","Janus / Janus-Pro","2024–25",RMS,PRE,NOQK,"SigLIP (understand) + VQ (generate)","Two separate adaptors","Decoupled visual encoding: two encoders with completely different output statistics feeding one backbone."],
+  ["vlm","Pixtral 12B","2024",RMS,PRE,NOQK,P("p-rms","Pixtral-ViT with RMSNorm"),"MLP (GeLU)","Vision tower built with RMSNorm and 2D RoPE to match Mistral-NeMo — the other family besides Qwen2.5-VL that unified the operator across the interface."],
+  ["vlm","Molmo","2024",P("p-ln","OLMo LN / Qwen RMSNorm"),PRE,NOQK,"CLIP ViT-L-336 or SigLIP (LN)","Attentional pooling","The connector is a single cross-attention pooling block, so it carries its own LayerNorms and a variable-length reduction."],
+  ["vlm","MM1","2024",RMS,PRE,NOQK,"CLIP / ViT-H (LN)","C-Abstractor","Apple's large ablation study: image resolution and visual-token count dominated; connector <i>architecture</i> mattered surprisingly little — which is itself evidence that the interface is under-explored."],
+  ["vlm","VILA","2024",RMS,PRE,NOQK,"CLIP / SigLIP (LN)","Linear projector","Showed that unfreezing the LLM during interleaved pretraining matters — which also means the backbone's norms adapt to visual statistics rather than the reverse."],
+  ["vlm","Mini-Gemini","2024",RMS,PRE,NOQK,"CLIP ViT-L + ConvNeXt-L","Patch-info mining","Dual encoder: a Pre-LN ViT and a LayerNorm CNN with different output scales, fused by cross-attention."],
+  ["vlm","SPHINX","2023",RMS,PRE,NOQK,"CLIP + DINOv2 + Q-Former","Channel concatenation","Concatenating features from encoders trained under different objectives is a normalization problem before it is a fusion problem — the per-encoder scales differ substantially."],
+  ["vlm","Eagle","2024",RMS,PRE,NOQK,"Mixture of vision encoders","Channel concatenation","Same issue at larger scale; the ablation of <i>how</i> to combine encoders is largely an ablation of how to rescale them."],
+  ["vlm","CuMo","2024",RMS,PRE,NOQK,"CLIP ViT-L (LN)","MoE MLP connector","Co-upcycled MoE in both the connector and the LLM; needed auxiliary load-balancing losses, which are their own kind of statistic-balancing."],
+  ["vlm","Mantis","2024",RMS,PRE,NOQK,"SigLIP / CLIP (LN)","MLP","Interleaved multi-image instruction tuning on a LLaVA-shaped stack."],
+  ["vlm","Granite Vision","2025",RMS,PRE,UNC,"SigLIP (LN)","MLP","Document-focused; multi-layer feature fusion from the tower."],
+  ["vlm","Phi-3-V / Phi-4-MM","2024–25",RMS,PRE,UNC,"CLIP ViT-L-336 (LN)","MLP + LoRA adapters","Modality-specific LoRA inside the backbone — a soft version of CogVLM's expert idea."],
+  ["vlm","Florence-2","2024",LN,POST,NOQK,"DaViT (LN)","Linear + embedding","One of very few Post-LN VLMs — it is a BART-style encoder–decoder, not a decoder-only LM."],
+  ["vlm","Kimi-VL","2025",RMS,PRE,UNC,"MoonViT (NaViT packing, LN)","MLP + pixel shuffle","MoE backbone trained with Muon. Connector compresses to L2 ≈ 4.8, and correspondingly shows less visual/text update asymmetry than LLaVA-style models."],
+  ["vlm","Seed1.5-VL","2025",RMS,PRE,UNC,"SeedViT","MLP","MoE backbone; normalization details not specified in the report."],
+  ["vlm","MiMo-VL","2025",RMS,PRE,UNC,"Qwen2.5-ViT (RMSNorm)","MLP","Inherits Qwen2.5-VL's unified-operator tower."],
+  ["vlm","Chameleon","2024",RMS,REORD,QK,"VQ tokenizer (early fusion)","none — shared vocabulary","The clearest case study in the field. Softmax shift-invariance makes modalities compete for logit range; norms drift out of bf16 range mid-training. Needed QK-Norm (7B) plus Swin-style reordering (34B), plus z-loss."]
+  ];
+  const FAMS=[{k:"all",l:"all 60"},{k:"llm",l:"language backbones"},{k:"vlm",l:"vision-language"},{k:"enc",l:"vision encoders"}];
+  let fam="all", q="";
+  function render(){
+    body.innerHTML="";
+    M.filter(r=>(fam==="all"||r[0]===fam) && (!q || (r[1]+" "+r[7]+" "+r[5]).toLowerCase().includes(q)))
+     .forEach(r=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML = `<td style="font-weight:600;white-space:nowrap">${r[1]}</td>
+        <td class="mono" style="color:var(--ink3)">${r[2]}</td>
+        <td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td>
+        <td style="font-size:13.5px">${r[6]}</td><td style="font-size:13.5px">${r[7]}</td>
+        <td style="font-size:13.5px;min-width:280px">${r[8]}</td>`;
+      body.appendChild(tr);
+    });
+  }
+  const ctl=document.getElementById("mx-ctl");
+  const bs=FAMS.map((f,i)=>{ const b=document.createElement("button"); b.textContent=f.l;
+    b.setAttribute("aria-pressed", i===0?"true":"false");
+    b.onclick=()=>{ bs.forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); fam=f.k; render(); };
+    ctl.appendChild(b); return b; });
+  const inp=document.createElement("input"); inp.type="search"; inp.placeholder="search model or note…";
+  inp.addEventListener("input",()=>{ q=inp.value.toLowerCase().trim(); render(); });
+  ctl.appendChild(inp);
+  FAMS[0].l = "all "+M.length; bs[0].textContent = "all "+M.length;
+  render();
+})();
+
+/* ============================================================
+   TIMELINE
+   ============================================================ */
+(function(){
+  const mount=document.getElementById("tl-mount"); if(!mount) return;
+  const EV=[
+  ["2012","<b>Local Response Norm</b> ships in AlexNet — divisive normalization borrowed from neuroscience, retired within three years."],
+  ["2015","<b>BatchNorm.</b> Ioffe &amp; Szegedy. Sold as a fix for internal covariate shift; that explanation does not survive, but the layer does."],
+  ["2016","<b>LayerNorm</b> (Ba, Kiros &amp; Hinton), <b>InstanceNorm</b> (Ulyanov), <b>WeightNorm</b> (Salimans &amp; Kingma). Three different escapes from the batch axis in one year."],
+  ["2017","<b>Transformer</b> ships with Post-LN and a mandatory warmup. <b>AdaIN</b> makes normalization statistics a conditioning channel."],
+  ["2018","<b>GroupNorm</b> (Wu &amp; He) rescues small-batch vision. <b>Spectral Norm</b> (Miyato) bounds Lipschitz constants in GANs. Santurkar et al. dismantle the covariate-shift story."],
+  ["2019","<b>RMSNorm</b> (Zhang &amp; Sennrich). <b>Fixup</b> trains a 10,000-layer ResNet with no normalization. <b>Weight Standardization</b> + GroupNorm matches BN at batch size 1."],
+  ["2020","<b>Pre-LN formalized</b> (Xiong et al.) — the warmup mystery gets an answer. <b>ReZero</b>/<b>SkipInit</b>. <b>PowerNorm</b> tries to rescue batch statistics for text. Henry et al. propose <b>QK-Norm</b> for NMT."],
+  ["2021","<b>NFNets</b> remove normalization from ResNets entirely. <b>Sandwich-LN</b> in CogView, for a text-to-image transformer that kept overflowing fp16. <b>LayerScale</b> in CaiT. <b>NormFormer</b>."],
+  ["2022","<b>DeepNorm</b> trains 1000 layers. <b>Swin-V2 res-post-norm</b> + scaled cosine attention. <b>GLM-130B</b> reports Pre-LN, Post-LN and Sandwich-LN all failing at 130B. <b>Magneto/Sub-LN</b>. <b>Flamingo</b> ships with a normalizer-free vision tower."],
+  ["2023","<b>ViT-22B</b> introduces QK-Norm to production, naming attention entropy collapse. <b>adaLN-Zero</b> in DiT becomes the conditioning mechanism for every diffusion transformer. <b>LLaMA</b> makes RMSNorm + Pre-LN the default."],
+  ["2024","<b>Chameleon</b> documents modality competition for softmax range and needs QK-Norm + Swin reordering. <b>OLMo 2</b> lands the same combination independently. <b>Gemma 2</b> quietly ships four RMSNorms per block. <b>Massive activations</b> get named. <b>nGPT</b> puts everything on a hypersphere."],
+  ["2025","A remarkable year. <b>Peri-LN</b> names and analyses the Gemma/OLMo scheme. <b>Curse of Depth</b> + <b>LayerNorm Scaling</b> explains why deep Pre-LN layers do nothing. <b>HybridNorm</b> splits the choice inside the block. <b>Mix-LN</b> splits it across blocks. <b>DyT</b> shows a tanh can replace the layer outright. <b>Gemma 3</b> swaps soft-capping for QK-Norm. <b>Qwen2.5-VL</b> and <b>Pixtral</b> rebuild vision towers with RMSNorm. <b>Pangu</b> ships depth-scaled sandwich norm."],
+  ["2026","The frontier moves to <b>what the norms are doing mechanistically</b>: attention sinks as gradient sinks, massive activations as adaptive regulators, gated rescaling to keep the function without the outliers, and lossless LN→RMSNorm folding for inference. Plus <b>Derf</b> and bounded-tanh variants pushing past DyT."]
+  ];
+  EV.forEach(([y,t])=>{
+    const r=document.createElement("div"); r.className="tlrow";
+    r.innerHTML=`<div class="yr">${y}</div><div class="ev">${t}</div>`;
+    mount.appendChild(r);
+  });
+})();
+</script>
+</body></html>

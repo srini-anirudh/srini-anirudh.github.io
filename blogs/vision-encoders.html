@@ -9,22 +9,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Spectral:ital,wght@0,300;0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#10110D;
-  --panel:#191B15;
-  --panel2:#22251C;
-  --line:#3A3E30;
-  --line-soft:#2B2F24;
-  --fg:#F4F2E8;
-  --muted:#BFC4AD;
-  --dim:#899078;
+  --ink:#0F1317;
+  --panel:#161C22;
+  --panel2:#1D252D;
+  --line:#2B3742;
+  --line-soft:#202A33;
+  --fg:#E4EAEE;
+  --muted:#AAB7C3;
+  --dim:#778692;
 
   /* family colours: these encode training paradigm, not decoration */
-  --con:#D8FF5B;   /* contrastive / language-supervised */
-  --ssl:#C8D986;   /* self-supervised */
-  --gen:#E6C775;   /* generative / LLM-aligned */
-  --dist:#A9D38A;  /* distilled / agglomerative */
-  --doc:#E8E2A4;   /* document & OCR specialists */
-  --warn:#F39A7E;  /* cost, loss, danger */
+  --con:#5AB2E8;   /* contrastive / language-supervised */
+  --ssl:#8B7BF7;   /* self-supervised */
+  --gen:#E8A33D;   /* generative / LLM-aligned */
+  --dist:#3FD1A0;  /* distilled / agglomerative */
+  --doc:#F0C76B;   /* document & OCR specialists */
+  --warn:#E4573C;  /* cost, loss, danger */
 
   --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
   --body:"Spectral",Georgia,"Times New Roman",serif;
@@ -39,8 +39,8 @@ html{scroll-behavior:smooth}
 body{
   margin:0;
   background:
-    radial-gradient(1100px 600px at 78% -12%, rgba(216,255,91,.12), transparent 62%),
-    radial-gradient(800px 520px at 8% 8%, rgba(169,211,138,.07), transparent 60%),
+    radial-gradient(1100px 600px at 78% -12%, rgba(90,178,232,.12), transparent 62%),
+    radial-gradient(800px 520px at 8% 8%, rgba(232,163,61,.07), transparent 60%),
     var(--ink);
   color:var(--fg);
   font-family:var(--body);
@@ -220,7 +220,7 @@ svg .hit:focus{outline:none}
   <div class="topbar-in">
     <div class="brandmark"><span class="dot"></span> Vision Encoders</div>
     <nav class="topnav">
-      <a href="index.html">Portfolio</a>
+      <a href="../index.html">Portfolio</a>
       <a href="#anatomy">Anatomy</a>
       <a href="#intake">Preprocessing</a>
       <a href="#sampling">Resolution</a>

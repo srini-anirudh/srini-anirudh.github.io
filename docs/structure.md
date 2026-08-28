@@ -6,6 +6,7 @@ This is a static GitHub Pages site. Keep root-level HTML files for clean URLs on
 - `about.html` - about, education, and experience
 - `research.html` - publications and paper resources
 - `projects.html` - applied project pages and demos
+- `blogs/` - blog index and self-contained blog articles
 
 Shared files live in `assets/`:
 
@@ -16,3 +17,5 @@ Shared files live in `assets/`:
 - `assets/pdfs/` - resume, project problem statements, and project artifacts
 
 When adding a new page, copy the existing page head/nav/footer pattern so dark mode, stars, and mobile navigation keep working consistently.
+
+For a new blog post, add a standalone HTML file in `blogs/` and add its title, summary, date, and tags to `blogs/index.html`.
