@@ -33,9 +33,10 @@ Use the variables already defined in `assets/css/stylesheet.css`; do not duplica
 ### Header and footer
 
 - Every page must expose Home, Research, Blogs, Projects, About, and Resume in that order in the main navigation.
-- Center page headings, introductory copy, and card copy on the main site pages. Keep long-form blog article prose left aligned for comfortable reading.
+- Center only the main page title and its introductory copy. Keep News, About body copy, Research/Projects cards, and long-form blog article prose left aligned for comfortable reading.
 - Use the home page identity, spacing, link order, blue brand, and orange active state throughout.
 - Every page footer must include the owner name plus Email, GitHub, LinkedIn, X, and Resume links.
+- Keep each blog article footer to one quiet line: `Anirudh Srinivasan · [ARTICLE TITLE]`. Put no implementation notes, animation instructions, or source disclaimers there.
 - Keep navigation available on narrow screens and make the link row horizontally scrollable when needed.
 
 ### Particle network
