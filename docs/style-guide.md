@@ -106,6 +106,13 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 2. Replace every bracketed placeholder, including title, description, tags, date, and reading time.
 3. Write the article inside `<main class="article-content">`.
 4. Finish the article with grouped, fully clickable References, and include References as the last TOC entry.
-5. Save the preview pair as `blogs/descriptive-slug/preview.gif` and `blogs/descriptive-slug/preview.png`, then add a card to `blogs/index.html` with matching metadata and reduced-motion fallback markup.
+5. Save the preview pair as `blogs/descriptive-slug/preview.gif` and `blogs/descriptive-slug/preview.png`, then add a chronological card to `blogs/index.html` with matching metadata, `data-blog-categories`, and reduced-motion fallback markup.
 6. Test the article at desktop and mobile widths, including the TOC, reference links, Share button, animation controls, and every main-navigation link.
 7. Run `git diff --check` before committing.
+
+### Blog-index archive
+
+- Treat the index as an editorial magazine: one featured newest post followed by compact chronological rows.
+- Assign every card one or more stable filter keys using `data-blog-categories`; the visible category labels and filter buttons must match those keys.
+- Display both the original publication date and the last-modified date on the index and inside the article. Use semantic `<time datetime="YYYY-MM-DD">` markup and matching `article:published_time` / `article:modified_time` metadata.
+- Keep publication dates honest and stable after publishing. Updating an article changes only its last-modified date.

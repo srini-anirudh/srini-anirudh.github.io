@@ -19,6 +19,6 @@ Shared files live in `assets/`:
 
 When adding a new page, copy the existing page head/nav/footer pattern so dark mode, stars, and mobile navigation keep working consistently.
 
-For a new blog post, create `blogs/descriptive-slug/index.html`, keep its preview GIF and PNG in the same folder, and add its title, summary, date, reading time, and tags to `blogs/index.html`. Keep References as the final section, grouped by topic with every entry linked.
+For a new blog post, create `blogs/descriptive-slug/index.html`, keep its preview GIF and PNG in the same folder, and add its title, summary, publication date, last-modified date, reading time, tags, and filter categories to `blogs/index.html`. Keep References as the final section, grouped by topic with every entry linked.
 
 See `docs/style-guide.md` for the visual and interaction rules. Copy `docs/blog-template.html` into the new article folder when starting a post.

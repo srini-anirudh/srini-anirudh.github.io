@@ -33,6 +33,55 @@ blogNavToggle?.addEventListener("keydown", (event) => {
   }
 });
 
+const blogFilterButtons = [...document.querySelectorAll("[data-blog-filter]")];
+const blogCards = [...document.querySelectorAll("[data-blog-categories]")];
+const blogFilterStatus = document.querySelector(".blog-filter-status");
+
+function applyBlogFilter(filter, updateAddress = true) {
+  if (!blogFilterButtons.length || !blogCards.length) return;
+
+  const selected = blogFilterButtons.some((button) => button.dataset.blogFilter === filter)
+    ? filter
+    : "all";
+  let visible = 0;
+
+  blogCards.forEach((card) => {
+    const categories = (card.dataset.blogCategories || "").split(/\s+/);
+    const show = selected === "all" || categories.includes(selected);
+    card.hidden = !show;
+    if (show) visible += 1;
+  });
+
+  blogFilterButtons.forEach((button) => {
+    const active = button.dataset.blogFilter === selected;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  if (blogFilterStatus) {
+    const label = blogFilterButtons.find((button) => button.dataset.blogFilter === selected)?.textContent.trim();
+    blogFilterStatus.textContent = selected === "all"
+      ? `Showing all ${visible} articles`
+      : `Showing ${visible} ${label} ${visible === 1 ? "article" : "articles"}`;
+  }
+
+  if (updateAddress) {
+    const url = new URL(window.location.href);
+    if (selected === "all") url.searchParams.delete("category");
+    else url.searchParams.set("category", selected);
+    window.history.replaceState({}, "", url);
+  }
+}
+
+blogFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => applyBlogFilter(button.dataset.blogFilter));
+});
+
+if (blogFilterButtons.length) {
+  const initialFilter = new URL(window.location.href).searchParams.get("category") || "all";
+  applyBlogFilter(initialFilter, false);
+}
+
 document.querySelectorAll(".article-share").forEach((button) => {
   button.addEventListener("click", async () => {
     const shareData = {
