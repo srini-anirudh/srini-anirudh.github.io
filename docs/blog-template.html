@@ -201,6 +201,27 @@
       </section>
     </main>
 
+    <!-- Keep References as the final section inside <main>. The citation block
+         sits after the article body and before the quiet article footer. -->
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. ([YEAR]). <cite>[ARTICLE TITLE]</cite> [Blog post]. <a href="[CANONICAL ARTICLE URL]">[CANONICAL ARTICLE URL]</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{[BIBTEX_KEY],
+  author       = {Srinivasan, Anirudh},
+  title        = {[ARTICLE TITLE]},
+  year         = {[YEAR]},
+  month        = {[THREE-LETTER MONTH]},
+  howpublished = {Blog post},
+  url          = {[CANONICAL ARTICLE URL]},
+  note         = {Published [PUBLICATION DATE]; updated [LAST MODIFIED DATE]}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
     <footer class="article-footer">
       <div class="article-wrap">
         <p>Anirudh Srinivasan &middot; [ARTICLE TITLE]</p>

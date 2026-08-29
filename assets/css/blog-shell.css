@@ -465,6 +465,93 @@ body.vision-article {
   padding-top: 42px;
 }
 
+.article-citation {
+  width: min(800px, calc(100% - 40px));
+  margin: 72px auto 0;
+  padding: 28px;
+  color: var(--blog-ink);
+  background: var(--blog-paper-bright);
+  border: 1px solid var(--blog-rule);
+  box-sizing: border-box;
+}
+
+.article-citation-kicker {
+  margin: 0 0 10px;
+  color: var(--blog-orange);
+  font: 600 10.5px/1.4 var(--blog-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.article-citation h2 {
+  margin: 0 0 14px;
+  color: var(--blog-ink);
+  font: 750 clamp(28px, 4vw, 42px)/1.05 var(--blog-display);
+  letter-spacing: -0.025em;
+}
+
+.article-citation-reference {
+  max-width: 68ch;
+  margin: 0 0 20px;
+  color: var(--blog-ink-soft);
+  font: 17px/1.55 var(--blog-body);
+}
+
+.article-citation-code {
+  position: relative;
+}
+
+.article-citation pre {
+  margin: 0;
+  padding: 18px;
+  overflow-x: auto;
+  color: #dce4e9;
+  background: #0f1317;
+  border: 1px solid #242c34;
+  font: 12px/1.65 var(--blog-mono);
+  white-space: pre;
+}
+
+.article-citation code {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+}
+
+.citation-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 7px 11px;
+  color: var(--blog-blue);
+  background: transparent;
+  border: 1px solid var(--blog-blue);
+  border-radius: 2px;
+  cursor: pointer;
+  font: 600 11px/1 var(--blog-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.citation-copy:hover {
+  color: #fff;
+  background: var(--blog-blue);
+}
+
+.citation-copy:focus-visible {
+  outline: 2px solid var(--blog-orange);
+  outline-offset: 3px;
+}
+
+.citation-status {
+  margin-left: 10px;
+  color: var(--blog-blue);
+  font: 11px/1.4 var(--blog-mono);
+}
+
 .blog-index .site-footer,
 .blog-article .site-footer {
   display: flex;
@@ -527,6 +614,12 @@ body.vision-article {
 }
 
 @media (max-width: 760px) {
+  .article-citation {
+    width: calc(100% - 32px);
+    margin-top: 54px;
+    padding: 20px;
+  }
+
   .article-meta-bar {
     align-items: flex-start;
   }

@@ -91,6 +91,7 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 - Place a clearly labelled table of contents after the article mast/lede. Use the Activation Atlas treatment: a bordered paper panel, numbered entries, concise section labels, and a one-column mobile layout.
 - Keep section anchors stable and offset them from the fixed navigation so TOC links never hide a heading.
 - Make `References` the final article section. Group references by topic rather than chronology, add a short description where useful, and make every title a direct link to the primary paper, proceedings page, report, or repository.
+- After `</main>`, add the shared `article-citation` block with a human-readable blog-post citation, canonical clickable URL, static `@misc` BibTeX, Copy BibTeX control, publication date, and last-modified date. This keeps References as the final article section while still putting citation guidance at the end of the post.
 - Do not repeat the main navigation, article metadata/share logic, or site footer inside article-specific CSS or JavaScript. Use the shared shell and reserve inline code for the article’s figures and interactions.
 
 ### Responsive and accessible behavior

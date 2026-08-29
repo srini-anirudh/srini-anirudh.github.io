@@ -108,3 +108,21 @@ document.querySelectorAll(".article-share").forEach((button) => {
     }
   });
 });
+
+document.querySelectorAll("[data-copy-citation]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const citation = button.closest(".article-citation")?.querySelector("code")?.textContent.trim();
+    const status = button.parentElement?.querySelector(".citation-status");
+    if (!citation) return;
+
+    try {
+      await navigator.clipboard.writeText(citation);
+      if (status) {
+        status.textContent = "BibTeX copied";
+        window.setTimeout(() => { status.textContent = ""; }, 2200);
+      }
+    } catch (_error) {
+      if (status) status.textContent = "Select the BibTeX above to copy";
+    }
+  });
+});
