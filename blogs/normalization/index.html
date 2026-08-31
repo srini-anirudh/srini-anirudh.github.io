@@ -10,14 +10,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A visual field guide to every normalization layer in deep learning — from BatchNorm to Peri-LN — and why the modality interface in a VLM is a normalization problem." />
-    <title>The Geometry of Normalization | Anirudh Srinivasan</title>
+    <title>The Geometry of Normalization: BatchNorm, LayerNorm &amp; RMSNorm | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
-    <meta property="og:title" content="The Geometry of Normalization" />
-    <meta property="og:description" content="28 operators, 11 placements, 70 models, 12 animated figures." />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/normalization/preview.png" />
     <meta property="article:published_time" content="2026-04-09" />
     <meta property="article:modified_time" content="2026-08-29" />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/normalization/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="The Geometry of Normalization: BatchNorm, LayerNorm &amp; RMSNorm" />
+    <meta property="og:description" content="A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/normalization/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/normalization/preview.png" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Geometry of Normalization: BatchNorm, LayerNorm &amp; RMSNorm" />
+    <meta name="twitter:description" content="A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/normalization/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/normalization/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/normalization/"},"headline":"The Geometry of Normalization: BatchNorm, LayerNorm and RMSNorm","description":"A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs.","image":"https://srini-anirudh.github.io/blogs/normalization/preview.png","datePublished":"2026-04-09","dateModified":"2026-08-29","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["normalization","BatchNorm","LayerNorm","RMSNorm","vision-language models","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
 
     <style id="chrome-fallback">
       /* Only used when the site stylesheets are absent — the real ones win by cascade order. */
@@ -1027,6 +1039,7 @@ x / <span class="cm">(</span>√mean<span class="cm">(</span>x²<span class="cm"
 <hr class="rule">
 <!-- ============================== 16 ============================== -->
 <section id="s16"><div class="wrap">
+  <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../activation-functions/">The Activation Atlas</a></li><li><a href="../optimizers/">How Models Take a Step</a></li><li><a href="../vision-encoders/">From Pixels to Visual Tokens</a></li></ul></nav>
   <p class="eyebrow"><b>&sect; 16</b><span class="ln"></span><span>References</span></p>
   <h2>References</h2>
   <div class="prose">

@@ -82,6 +82,33 @@ if (blogFilterButtons.length) {
   applyBlogFilter(initialFilter, false);
 }
 
+const animatedPreviewCards = [...document.querySelectorAll(".blog-card")]
+  .filter((card) => card.querySelector("[data-animated-src]"));
+const previewMotionAllowed = window.matchMedia("(prefers-reduced-motion: no-preference)");
+const hoverPreviewAvailable = window.matchMedia("(hover: hover) and (pointer: fine)");
+
+function setPreviewMotion(card, animate) {
+  const preview = card.querySelector("[data-animated-src]");
+  if (!preview) return;
+  const nextSource = animate && previewMotionAllowed.matches
+    ? preview.dataset.animatedSrc
+    : preview.dataset.stillSrc;
+  if (nextSource && preview.getAttribute("src") !== nextSource) preview.setAttribute("src", nextSource);
+}
+
+animatedPreviewCards.forEach((card) => {
+  card.addEventListener("mouseenter", () => {
+    if (hoverPreviewAvailable.matches) setPreviewMotion(card, true);
+  });
+  card.addEventListener("mouseleave", () => setPreviewMotion(card, false));
+  card.addEventListener("focus", () => setPreviewMotion(card, true));
+  card.addEventListener("blur", () => setPreviewMotion(card, false));
+});
+
+previewMotionAllowed.addEventListener?.("change", (event) => {
+  if (!event.matches) animatedPreviewCards.forEach((card) => setPreviewMotion(card, false));
+});
+
 document.querySelectorAll(".article-share").forEach((button) => {
   button.addEventListener("click", async () => {
     const shareData = {

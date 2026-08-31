@@ -13,11 +13,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A block-by-block comparison of the language Transformer and the Vision Transformer: tokenization vs patchification, embedding tables vs linear projections, position encodings, masks, and heads." />
-    <meta property="og:title" content="One Transformer, Two Modalities" />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/preview.png" />
     <meta property="article:published_time" content="2026-06-11" />
     <meta property="article:modified_time" content="2026-08-29" />
-    <title>One Transformer, Two Modalities | Anirudh Srinivasan</title>
+    <title>One Transformer, Two Modalities: Transformers vs Vision Transformers | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="One Transformer, Two Modalities: Transformers vs Vision Transformers" />
+    <meta property="og:description" content="A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="One Transformer, Two Modalities: Transformers vs Vision Transformers" />
+    <meta name="twitter:description" content="A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/"},"headline":"One Transformer, Two Modalities: Transformers vs Vision Transformers","description":"A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads.","image":"https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/preview.png","datePublished":"2026-06-11","dateModified":"2026-08-29","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["transformer","Vision Transformer","ViT","patch embeddings","attention","computer vision"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -372,6 +386,7 @@
         <h3>Where they merge again</h3>
         <p>A vision-language model is the punchline to all of this. A ViT encodes the image bidirectionally into patch tokens; a connector — a linear layer, an MLP, or attentional pooling — maps those into the language model's <span class="k">d</span> and, in effect, into its <em>vocabulary space</em>; and then the LLM treats them as ordinary tokens in its causal stream. Two front doors, one corridor. The image tokens were never symbols and never will be, but by the time they reach block one of the decoder, the machine has stopped being able to tell.</p>
       </section>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../vision-transformers/">An Image Is a Sentence</a></li><li><a href="../vision-encoders/">From Pixels to Visual Tokens</a></li><li><a href="../position-embeddings/">How Models Know Where They Are</a></li></ul></nav>
       <section id="refs">
         <h2>11 · References</h2>
         <p>Grouped by the part of the stack they belong to. Every row is a link to the paper.</p>

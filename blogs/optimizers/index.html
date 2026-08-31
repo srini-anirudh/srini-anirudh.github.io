@@ -4,11 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A mechanical tour of neural network optimizers — from SGD to Muon — covering how each builds its update, what it costs in bytes per parameter, and where it bottlenecks a training run." />
-    <meta property="og:title" content="How Models Take a Step" />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/optimizers/preview.png" />
     <meta property="article:published_time" content="2026-02-19" />
     <meta property="article:modified_time" content="2026-08-29" />
-    <title>How Models Take a Step | Anirudh Srinivasan</title>
+    <title>How Models Take a Step: Neural Network Optimizers Explained | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/optimizers/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="How Models Take a Step: Neural Network Optimizers Explained" />
+    <meta property="og:description" content="A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/optimizers/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/optimizers/preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How Models Take a Step: Neural Network Optimizers Explained" />
+    <meta name="twitter:description" content="A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/optimizers/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/optimizers/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/optimizers/"},"headline":"How Models Take a Step: Neural Network Optimizers Explained","description":"A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks.","image":"https://srini-anirudh.github.io/blogs/optimizers/preview.png","datePublished":"2026-02-19","dateModified":"2026-08-29","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["neural network optimizers","SGD","AdamW","Muon","deep learning","model training"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -746,6 +760,7 @@
         <p>And the standing advice regardless of which one you pick: <strong>measure the update-to-weight RMS ratio per layer.</strong> One scalar per tensor, logged every few hundred steps. Healthy training keeps <code>RMS(Δθ)/RMS(θ)</code> in a band around 10⁻³. If a layer drifts an order of magnitude off, you have found your problem before the loss curve shows it — and that diagnostic works identically for every optimizer in this article, because it measures the only thing they all agree they are doing.</p>
       </section>
 
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../normalization/">The Geometry of Normalization</a></li><li><a href="../activation-functions/">The Activation Atlas</a></li><li><a href="../evolution-of-architectures/">Evolution of ML Architectures</a></li></ul></nav>
       <section id="references">
         <h2>References</h2>
         <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>

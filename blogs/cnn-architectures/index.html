@@ -4,11 +4,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A visual, interactive field guide to convolution and the thirty-year lineage of CNN architectures — from the sliding-window arithmetic to LeNet, AlexNet, VGG, Inception, ResNet, DenseNet, MobileNet, EfficientNet and ConvNeXt." />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/cnn-architectures/preview.png" />
-    <meta property="og:title" content="Across the CNNVerse" />
     <meta property="article:published_time" content="2025-11-20" />
     <meta property="article:modified_time" content="2026-08-29" />
-    <title>Across the CNNVerse | Anirudh Srinivasan</title>
+    <title>Across the CNNVerse: A Visual Guide to CNN Architectures | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/cnn-architectures/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Across the CNNVerse: A Visual Guide to CNN Architectures" />
+    <meta property="og:description" content="A visual field guide to convolution and the lineage of CNN architectures, from LeNet to ConvNeXt." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/cnn-architectures/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/cnn-architectures/preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Across the CNNVerse: A Visual Guide to CNN Architectures" />
+    <meta name="twitter:description" content="A visual field guide to convolution and the lineage of CNN architectures, from LeNet to ConvNeXt." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/cnn-architectures/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/cnn-architectures/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/cnn-architectures/"},"headline":"Across the CNNVerse: A Visual Guide to CNN Architectures","description":"A visual field guide to convolution and the lineage of CNN architectures, from LeNet to ConvNeXt.","image":"https://srini-anirudh.github.io/blogs/cnn-architectures/preview.png","datePublished":"2025-11-20","dateModified":"2026-08-29","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["CNN architectures","convolutional neural networks","ResNet","EfficientNet","ConvNeXt","computer vision"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -865,6 +879,7 @@ Activation checkpointing trades ~30% extra compute for O(sqrt(L)) memory.</span>
         <p>Convolution didn't lose to attention; it got absorbed. Every serious vision-language backbone has convolutional patch embedding at the front, most efficient ViT variants use depthwise convolution in the FFN for local mixing, and hybrid designs — convolutional stem and early stages, attention at low resolution — remain the practical optimum for anything latency-sensitive. The inductive bias is still worth what it costs whenever you have less than a few hundred million images. What changed is that convolution is now a component rather than the whole design.</p>
       </div>
 
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../evolution-of-architectures/">Evolution of ML Architectures</a></li><li><a href="../vision-transformers/">An Image Is a Sentence</a></li><li><a href="../vision-encoders/">From Pixels to Visual Tokens</a></li></ul></nav>
       <section id="references">
         <h2>References</h2>
         <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>

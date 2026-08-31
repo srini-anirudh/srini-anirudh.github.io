@@ -10,10 +10,25 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="An illustrated survey of neural network activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU, with animated derivations and a map of which LLMs and VLMs use which." />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/activation-functions/preview.png" />
     <meta property="article:published_time" content="2026-03-12" />
     <meta property="article:modified_time" content="2026-08-29" />
-    <title>The Activation Atlas | Anirudh Srinivasan</title>
+    <title>The Activation Atlas: Activation Functions Explained Visually | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/activation-functions/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="The Activation Atlas: Activation Functions Explained Visually" />
+    <meta property="og:description" content="An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/activation-functions/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/activation-functions/preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Activation Atlas: Activation Functions Explained Visually" />
+    <meta name="twitter:description" content="An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/activation-functions/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/activation-functions/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/activation-functions/"},"headline":"The Activation Atlas: Activation Functions Explained Visually","description":"An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU.","image":"https://srini-anirudh.github.io/blogs/activation-functions/preview.png","datePublished":"2026-03-12","dateModified":"2026-08-29","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["activation functions","ReLU","GELU","SwiGLU","neural networks","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -492,6 +507,7 @@ GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather 
 
       <p>The meta-lesson: activation functions stopped being about expressivity a long time ago, and stopped being about trainability once normalisation and residuals arrived. What remains is a systems question — sparsity, memory, quantization tails, kernel fusion — and that is why the answer keeps moving. It will move again when the hardware does.</p>
 
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../normalization/">The Geometry of Normalization</a></li><li><a href="../optimizers/">How Models Take a Step</a></li><li><a href="../transformers-vs-vision-transformers/">One Transformer, Two Modalities</a></li></ul></nav>
       <h2 id="sec-11"><span class="section-index">11</span><br />References</h2>
 
       <p>Grouped by what each paper is actually about rather than by date. Every entry links out to the paper, the proceedings page, or — where the choice only exists in code — the implementation. The tag on the right of each line is the activation the paper is a primary source for.</p>

@@ -103,15 +103,28 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 - Honor `prefers-reduced-motion` and never make animation necessary to understand a figure.
 - Maintain visible focus, sufficient contrast, and touch targets around 40px where practical.
 
+### Search and AI discovery
+
+- Give every published page one descriptive `<title>`, one meta description, and one absolute canonical URL. Creative display titles can stay in the article; the browser title should also name the subject people search for.
+- Include complete Open Graph and Twitter card fields using the static `preview.png`, plus `article:published_time` and `article:modified_time` on posts.
+- Add a static `BlogPosting` JSON-LD block to every article. Keep its headline, description, canonical URL, image, dates, keywords, and author consistent with the visible page; connect the author to `about.html#person`.
+- Preserve exactly one descriptive `<h1>`, a logical heading hierarchy, useful image alt text, captions, server-rendered explanatory prose, and direct primary-source links. These benefit conventional search and AI answer systems alike.
+- Link each article to a few genuinely related posts before References. Avoid generic or unrelated link lists.
+- Keep `robots.txt`, `sitemap.xml`, and `feed.xml` synchronized with the canonical page set. Do not add redirect aliases, templates, or other `noindex` pages to the sitemap or feed.
+- Permit search crawlers deliberately. The current policy allows ordinary crawlers, OAI-SearchBot, and GPTBot while excluding `/docs/`; revise that policy explicitly if future preferences change.
+- Do not add speculative AI-only files or markup. Accurate crawlable content, authorship, dates, citations, structured data, and internal links are the source of truth.
+
 ## Publishing a blog post
 
 1. Create `blogs/descriptive-slug/` and copy `docs/blog-template.html` to `blogs/descriptive-slug/index.html`.
-2. Replace every bracketed placeholder, including title, description, tags, date, and reading time.
+2. Remove the template-only `noindex` meta tag and replace every bracketed placeholder, including canonical slug, descriptive search title, description, JSON-LD fields, tags, dates, and reading time.
 3. Write the article inside `<main class="article-content">`.
 4. Finish the article with grouped, fully clickable References, and include References as the last TOC entry.
-5. Save the preview pair as `blogs/descriptive-slug/preview.gif` and `blogs/descriptive-slug/preview.png`, then add a chronological card to `blogs/index.html` with matching metadata, `data-blog-categories`, and reduced-motion fallback markup.
-6. Test the article at desktop and mobile widths, including the TOC, reference links, Share button, animation controls, and every main-navigation link.
-7. Run `git diff --check` before committing.
+5. Add a short related-reading block immediately before References.
+6. Save the preview pair as `blogs/descriptive-slug/preview.gif` and `blogs/descriptive-slug/preview.png`, then add a chronological card to `blogs/index.html` with matching metadata and `data-blog-categories`. Use the PNG as the initial image and put the GIF URL in `data-animated-src` so it loads only on interaction.
+7. Add the canonical URL to `sitemap.xml`, `feed.xml`, and the IndexNow workflow URL list.
+8. Test the article at desktop and mobile widths, including metadata, heading order, the TOC, related and reference links, Share button, animation controls, and every main-navigation link.
+9. Run `git diff --check` and validate the JSON-LD, sitemap, feed, and local links before committing.
 
 ### Blog-index archive
 
