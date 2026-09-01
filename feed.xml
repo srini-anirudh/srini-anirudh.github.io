@@ -8,95 +8,102 @@
     <lastBuildDate>Tue, 01 Sep 2026 00:00:00 +0530</lastBuildDate>
     <atom:link href="https://srini-anirudh.github.io/feed.xml" rel="self" type="application/rss+xml" />
     <item>
+      <title>The Parallelism Playbook: How Large Models Train Across Clusters</title>
+      <link>https://srini-anirudh.github.io/blogs/parallelism-playbook/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/parallelism-playbook/</guid>
+      <pubDate>Tue, 01 Sep 2026 00:00:00 +0530</pubDate>
+      <description>A first-principles guide to distributed training, from NCCL collectives and DDP to ZeRO/FSDP, tensor, pipeline, context, and expert parallelism.</description>
+    </item>
+    <item>
       <title>Talk is not cheap: From PCIe and NVLink to InfiniBand</title>
       <link>https://srini-anirudh.github.io/blogs/talk-is-not-cheap/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/talk-is-not-cheap/</guid>
-      <pubDate>Tue, 01 Sep 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 21 Aug 2026 00:00:00 +0530</pubDate>
       <description>A guide to GPU communication through PCIe, NVLink, NVSwitch, RDMA, InfiniBand, network topology, collectives, and overlap.</description>
     </item>
     <item>
       <title>Bound by Bytes: Compute-Bound and Memory-Bound Workloads</title>
       <link>https://srini-anirudh.github.io/blogs/bound-by-bytes/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/bound-by-bytes/</guid>
-      <pubDate>Fri, 14 Aug 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 17 Jul 2026 00:00:00 +0530</pubDate>
       <description>A practical guide to the Roofline model, arithmetic intensity, machine balance, and diagnosing compute-bound versus memory-bound workloads.</description>
     </item>
     <item>
       <title>New Mask, Same Task: CPU and GPU Parallelism Explained</title>
       <link>https://srini-anirudh.github.io/blogs/new-mask-same-task/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/new-mask-same-task/</guid>
-      <pubDate>Wed, 08 Jul 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 12 Jun 2026 00:00:00 +0530</pubDate>
       <description>A first-principles guide to CPU and GPU parallelism, execution hierarchies, memory hierarchies, coalescing, tiling, and tensor cores.</description>
     </item>
     <item>
       <title>The VLM Architecture Gallery</title>
       <link>https://srini-anirudh.github.io/blogs/vlm-architecture-gallery/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/vlm-architecture-gallery/</guid>
-      <pubDate>Thu, 21 May 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 21 Nov 2025 00:00:00 +0530</pubDate>
       <description>Seventy-one vision-language model architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.</description>
     </item>
     <item>
       <title>From Pixels to Visual Tokens</title>
       <link>https://srini-anirudh.github.io/blogs/vision-encoders/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/vision-encoders/</guid>
-      <pubDate>Fri, 17 Apr 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 17 Oct 2025 00:00:00 +0530</pubDate>
       <description>What changed in the visual half of VLMs: intake geometry, resolution, objectives, connectors, and the encoders models actually ship.</description>
     </item>
     <item>
       <title>One Transformer, Two Modalities</title>
       <link>https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/transformers-vs-vision-transformers/</guid>
-      <pubDate>Wed, 11 Mar 2026 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 19 Sep 2025 00:00:00 +0530</pubDate>
       <description>A block-by-block comparison of language Transformers and Vision Transformers.</description>
-    </item>
-    <item>
-      <title>How Models Know Where They Are</title>
-      <link>https://srini-anirudh.github.io/blogs/position-embeddings/</link>
-      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/position-embeddings/</guid>
-      <pubDate>Mon, 16 Feb 2026 00:00:00 +0530</pubDate>
-      <description>Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier position features, and multimodal M-RoPE explained visually.</description>
-    </item>
-    <item>
-      <title>The Geometry of Normalization</title>
-      <link>https://srini-anirudh.github.io/blogs/normalization/</link>
-      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/normalization/</guid>
-      <pubDate>Fri, 09 Jan 2026 00:00:00 +0530</pubDate>
-      <description>Normalization from BatchNorm to Peri-LN, including why the modality interface in a VLM is a normalization problem.</description>
-    </item>
-    <item>
-      <title>The Activation Atlas</title>
-      <link>https://srini-anirudh.github.io/blogs/activation-functions/</link>
-      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/activation-functions/</guid>
-      <pubDate>Fri, 12 Dec 2025 00:00:00 +0530</pubDate>
-      <description>From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU, with animated derivations and model comparisons.</description>
-    </item>
-    <item>
-      <title>How Models Take a Step</title>
-      <link>https://srini-anirudh.github.io/blogs/optimizers/</link>
-      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/optimizers/</guid>
-      <pubDate>Wed, 19 Nov 2025 00:00:00 +0530</pubDate>
-      <description>A mechanical tour from SGD to Muon: optimizer updates, state costs, and distributed training bottlenecks.</description>
-    </item>
-    <item>
-      <title>Evolution of ML Architectures</title>
-      <link>https://srini-anirudh.github.io/blogs/evolution-of-architectures/</link>
-      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/evolution-of-architectures/</guid>
-      <pubDate>Fri, 24 Oct 2025 00:00:00 +0530</pubDate>
-      <description>Sixty-seven years of neural architectures, information flow, training cost, inference state, and gradient paths.</description>
     </item>
     <item>
       <title>An Image Is a Sentence: How Vision Transformers See</title>
       <link>https://srini-anirudh.github.io/blogs/vision-transformers/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/vision-transformers/</guid>
-      <pubDate>Thu, 18 Sep 2025 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 15 Aug 2025 00:00:00 +0530</pubDate>
       <description>An interactive field guide to ViT, DeiT, PVT, Swin, CvT, ConViT, CoAtNet, MViT, TimeSformer, and ViViT.</description>
     </item>
     <item>
       <title>Across the CNNVerse</title>
       <link>https://srini-anirudh.github.io/blogs/cnn-architectures/</link>
       <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/cnn-architectures/</guid>
-      <pubDate>Wed, 20 Aug 2025 00:00:00 +0530</pubDate>
+      <pubDate>Fri, 11 Jul 2025 00:00:00 +0530</pubDate>
       <description>A visual field guide to convolution and the lineage from LeNet through ResNet, EfficientNet, and ConvNeXt.</description>
+    </item>
+    <item>
+      <title>Evolution of ML Architectures</title>
+      <link>https://srini-anirudh.github.io/blogs/evolution-of-architectures/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/evolution-of-architectures/</guid>
+      <pubDate>Fri, 23 May 2025 00:00:00 +0530</pubDate>
+      <description>Sixty-seven years of neural architectures, information flow, training cost, inference state, and gradient paths.</description>
+    </item>
+    <item>
+      <title>How Models Know Where They Are</title>
+      <link>https://srini-anirudh.github.io/blogs/position-embeddings/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/position-embeddings/</guid>
+      <pubDate>Fri, 18 Apr 2025 00:00:00 +0530</pubDate>
+      <description>Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier position features, and multimodal M-RoPE explained visually.</description>
+    </item>
+    <item>
+      <title>How Models Take a Step</title>
+      <link>https://srini-anirudh.github.io/blogs/optimizers/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/optimizers/</guid>
+      <pubDate>Fri, 21 Mar 2025 00:00:00 +0530</pubDate>
+      <description>A mechanical tour from SGD to Muon: optimizer updates, state costs, and distributed training bottlenecks.</description>
+    </item>
+    <item>
+      <title>The Geometry of Normalization</title>
+      <link>https://srini-anirudh.github.io/blogs/normalization/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/normalization/</guid>
+      <pubDate>Fri, 14 Feb 2025 00:00:00 +0530</pubDate>
+      <description>Normalization from BatchNorm to Peri-LN, including why the modality interface in a VLM is a normalization problem.</description>
+    </item>
+    <item>
+      <title>The Activation Atlas</title>
+      <link>https://srini-anirudh.github.io/blogs/activation-functions/</link>
+      <guid isPermaLink="true">https://srini-anirudh.github.io/blogs/activation-functions/</guid>
+      <pubDate>Fri, 17 Jan 2025 00:00:00 +0530</pubDate>
+      <description>From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU, with animated derivations and model comparisons.</description>
     </item>
   </channel>
 </rss>
