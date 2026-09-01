@@ -139,6 +139,15 @@ html.dark-mode body.blog-article {
   transform: translateY(-50%);
 }
 
+/* On large desktop canvases the TOC owns a fixed left lane. Wide article
+   blocks are detected by the shared shell and nudged into the content lane. */
+@media (min-width: 1440px) {
+  .blog-article .blog-gutter-contained {
+    max-width: calc(100vw - 290px) !important;
+    translate: var(--blog-gutter-nudge, 0px) 0;
+  }
+}
+
 html.distill-side-toc-active .blog-article .tocbar {
   display: none !important;
 }

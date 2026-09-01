@@ -216,8 +216,48 @@ function initializeDistillSideToc() {
   let ticking = false;
   let layoutDirty = true;
   let gutterIntruders = [];
+  const desktopMinimum = 1440;
+  const railLeft = 32;
+  const railWidth = 200;
+  const railGap = 32;
+  const contentBoundary = railLeft + railWidth + railGap;
+
+  function containWideBlocks() {
+    article.querySelectorAll(".blog-gutter-contained").forEach((element) => {
+      element.classList.remove("blog-gutter-contained");
+      element.style.removeProperty("--blog-gutter-nudge");
+    });
+    if (window.innerWidth < desktopMinimum) return;
+
+    const articleRect = article.getBoundingClientRect();
+    const wideThreshold = articleRect.width * 1.12;
+    const candidates = [...article.querySelectorAll("*")].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width < wideThreshold || rect.left >= contentBoundary) return false;
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && style.position !== "fixed";
+    });
+    const candidateSet = new Set(candidates);
+
+    candidates
+      .filter((element) => {
+        let parent = element.parentElement;
+        while (parent && parent !== article) {
+          if (candidateSet.has(parent)) return false;
+          parent = parent.parentElement;
+        }
+        return true;
+      })
+      .forEach((element) => {
+        element.classList.add("blog-gutter-contained");
+        const rect = element.getBoundingClientRect();
+        const nudge = Math.max(0, Math.ceil(contentBoundary - rect.left));
+        element.style.setProperty("--blog-gutter-nudge", `${nudge}px`);
+      });
+  }
 
   function measureGutterIntruders() {
+    containWideBlocks();
     const articleRect = article.getBoundingClientRect();
     gutterIntruders = [...article.querySelectorAll("*")].filter((element) => {
       const rect = element.getBoundingClientRect();
@@ -244,19 +284,15 @@ function initializeDistillSideToc() {
   function placeRail() {
     const gutter = availableGutterBoundary();
     const pastInlineToc = !sourceToc || sourceToc.getBoundingClientRect().bottom <= 88;
-    const safetyGap = 32;
-    const minimumWidth = 176;
-    const maximumWidth = 232;
-    const availableWidth = Math.floor(gutter - safetyGap - 18);
-    visible = pastInlineToc && window.innerWidth >= 1180 && availableWidth >= minimumWidth;
+    const contentKeepsLaneClear = gutter >= contentBoundary - 1;
+    visible = pastInlineToc && window.innerWidth >= desktopMinimum && contentKeepsLaneClear;
 
     rail.classList.toggle("is-visible", visible);
     document.documentElement.classList.toggle("distill-side-toc-active", visible);
     if (!visible) return;
 
-    const width = Math.min(maximumWidth, availableWidth);
-    rail.style.width = `${width}px`;
-    rail.style.left = `${Math.max(18, Math.floor(gutter - safetyGap - width))}px`;
+    rail.style.width = `${railWidth}px`;
+    rail.style.left = `${railLeft}px`;
   }
 
   function markCurrentSection() {

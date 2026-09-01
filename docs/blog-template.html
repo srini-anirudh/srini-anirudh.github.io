@@ -193,10 +193,11 @@
     <main class="article-content">
       <!-- Required TOC source for both layouts: this inline version remains
            visible at every width, while assets/js/blogs.js derives the shared
-           side rail only after this main TOC has scrolled past and only on wide
-           screens with enough gutter space. The rail hides beside wide figures,
-           tables, or interactives rather than overlapping them. Keep every href
-           paired with a stable section id. Do not add a separate fixed rail. -->
+           side rail only after this main TOC has scrolled past. On large desktop
+           screens it owns a fixed left column, and the shared shell keeps wide
+           figures, tables, and interactives in the content canvas to its right.
+           Keep every href paired with a stable section id. Do not add a separate
+           fixed rail or a viewport-centred exception. -->
       <nav class="toc" aria-labelledby="toc-heading">
         <h2 id="toc-heading">Contents</h2>
         <ol>
