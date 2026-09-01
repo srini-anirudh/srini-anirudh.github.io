@@ -60,26 +60,24 @@
       .article-wrap{width:min(1180px,calc(100% - 52px));margin:0 auto}
       .article-mast{padding:46px 0 30px}
       .article-eyebrow{color:#7b8388;font:600 11.5px/1.4 var(--mono);letter-spacing:.16em;text-transform:uppercase}
-      .article-title{max-width:13ch;margin:28px 0 18px;font:800 clamp(48px,9vw,112px)/.92 var(--display);letter-spacing:-.045em;color:var(--page-ink)}
-      .article-title em{font-style:normal;color:#0f6f92}
+      .article-title{max-width:12ch;margin:28px 0 18px;font:800 clamp(48px,9vw,112px)/.92 var(--display);letter-spacing:-.045em;color:var(--page-ink)}
+      .article-title em{font-style:normal;color:var(--blog-blue)}
       .article-subtitle{max-width:58ch;margin:0;color:var(--ink-soft);font-size:clamp(20px,2.3vw,25px);font-style:italic;line-height:1.4}
-      .article-taxonomy{display:flex;flex-wrap:wrap;gap:8px;margin:26px 0 0}
-      .article-taxonomy span{font:500 10.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#5c6469;border:1px solid var(--rule);border-radius:20px;padding:6px 11px}
-      .article-meta-bar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin:22px 0 0;padding-top:16px;border-top:1px solid var(--rule);font:12px/1.6 var(--mono);color:#7b8388}
-      .article-share{display:inline-flex;align-items:center;gap:7px;background:none;border:1px solid var(--rule);border-radius:20px;padding:6px 12px;font:12px var(--mono);color:#474e53;cursor:pointer}
-      .article-share svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.6}
-      .article-toc{margin:34px 0 0;padding-top:22px;border-top:1px solid var(--rule)}
-      .toc-label{margin:0 0 14px;color:#7b8388;font:600 11px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase}
-      ul.toc{list-style:none;margin:0;padding:0;columns:2;column-gap:44px}
-      ul.toc li{break-inside:avoid;margin:0 0 2px}
-      ul.toc a{display:flex;align-items:baseline;gap:14px;padding:7px 10px 7px 0;color:#3d4449;text-decoration:none;border-bottom:1px solid transparent;font:16px/1.35 var(--body)}
-      ul.toc a span{flex:none;width:2.2em;color:#9aa1a6;font:500 11px/1 var(--mono);letter-spacing:.08em}
-      ul.toc a:hover{color:#0f6f92;border-bottom-color:rgba(15,111,146,.35)}
-      ul.toc a:hover span{color:#0f6f92}
-      ul.toc a:focus-visible{outline:2px solid #0f6f92;outline-offset:2px;border-radius:3px}
-      @media(max-width:720px){ul.toc{columns:1}}
-      .article-content{width:min(72ch,calc(100% - 32px));margin:40px auto 0}
-      .article-footer{padding:32px 0 26px;color:#7b8388;border-top:1px solid var(--rule);font:12px/1.8 var(--mono);margin-top:70px}
+      .article-content{width:min(70ch,calc(100% - 32px));margin:54px auto}
+      .article-content h2{margin:64px 0 16px;font:700 clamp(30px,4.5vw,50px)/1.04 var(--display);letter-spacing:-.025em}
+      .article-content h3{margin:38px 0 10px;font:700 26px/1.1 var(--display);letter-spacing:-.015em}
+      .article-footer{padding:32px 0 0;color:var(--blog-muted);border-top:1px solid var(--blog-rule);font:12px/1.8 var(--blog-mono)}
+
+      .toc{margin:8px 0 46px;padding:22px 24px 18px;background:var(--blog-paper-bright);border:1px solid var(--blog-rule)}
+      .toc-heading{margin:0 0 14px!important;color:var(--blog-muted);font:600 10.5px/1 var(--blog-mono)!important;letter-spacing:.16em;text-transform:uppercase}
+      .toc-list{margin:0;padding:0;list-style:none}
+      .toc-list li{margin:0;border-top:1px solid var(--blog-rule)}
+      .toc-list li:first-child{border-top:0}
+      .toc-list a{display:flex;align-items:baseline;gap:12px;padding:9px 2px;color:var(--blog-ink);border:0;text-decoration:none}
+      .toc-list a:hover{color:var(--blog-blue);background:rgba(11,94,168,.05)}
+      .toc-list a:focus-visible{outline:2px solid var(--blog-blue);outline-offset:-2px}
+      .toc-num{flex:none;width:22px;color:var(--blog-muted);font:600 11px/1.6 var(--blog-mono)}
+      .toc-name{font:600 17px/1.3 var(--blog-display)}
       @media(max-width:640px){.article-wrap{width:calc(100% - 32px)}.article-content{width:calc(100% - 32px)}}
     </style>
 <style>
@@ -329,27 +327,6 @@ svg .hit:focus{outline:none}
           </button>
           <span class="share-status" aria-live="polite"></span>
         </div>
-        <nav class="article-toc" aria-label="Table of contents">
-          <p class="toc-label">Contents</p>
-          <ul class="toc">
-            <li><a href="#s1"><span>01</span>The intake bench</a></li>
-            <li><a href="#s2"><span>02</span>Anatomy of an encoder</a></li>
-            <li><a href="#s3"><span>03</span>Preprocessing, step by step</a></li>
-            <li><a href="#s4"><span>04</span>Resolution strategies</a></li>
-            <li><a href="#s5"><span>05</span>Training objectives</a></li>
-            <li><a href="#s6"><span>06</span>The family atlas</a></li>
-            <li><a href="#s7"><span>07</span>Encoder walkthroughs</a></li>
-            <li><a href="#s8"><span>08</span>Data and curation</a></li>
-            <li><a href="#s9"><span>09</span>Field notes</a></li>
-            <li><a href="#s10"><span>10</span>Qwen, InternVL &amp; Molmo</a></li>
-            <li><a href="#s11"><span>11</span>The connector zoo</a></li>
-            <li><a href="#s12"><span>12</span>Text-rich images</a></li>
-            <li><a href="#s13"><span>13</span>Multi-image &amp; video</a></li>
-            <li><a href="#s14"><span>14</span>Evaluation</a></li>
-            <li><a href="#s15"><span>15</span>Choosing an encoder</a></li>
-            <li><a href="#s16"><span>16</span>References</a></li>
-          </ul>
-        </nav>
       </div>
     </header>
 
@@ -442,6 +419,27 @@ table.data .num{text-align:right;font-variant-numeric:tabular-nums}
 </style>
 
 <main class="article-content">
+<nav class="toc" aria-labelledby="toc-heading">
+  <h2 id="toc-heading" class="toc-heading">Contents</h2>
+  <ol class="toc-list">
+    <li><a href="#s1"><span class="toc-num">01</span><span class="toc-name">The intake bench</span></a></li>
+    <li><a href="#s2"><span class="toc-num">02</span><span class="toc-name">Anatomy of an encoder</span></a></li>
+    <li><a href="#s3"><span class="toc-num">03</span><span class="toc-name">Preprocessing, step by step</span></a></li>
+    <li><a href="#s4"><span class="toc-num">04</span><span class="toc-name">Resolution strategies</span></a></li>
+    <li><a href="#s5"><span class="toc-num">05</span><span class="toc-name">Training objectives</span></a></li>
+    <li><a href="#s6"><span class="toc-num">06</span><span class="toc-name">The family atlas</span></a></li>
+    <li><a href="#s7"><span class="toc-num">07</span><span class="toc-name">Encoder walkthroughs</span></a></li>
+    <li><a href="#s8"><span class="toc-num">08</span><span class="toc-name">Data and curation</span></a></li>
+    <li><a href="#s9"><span class="toc-num">09</span><span class="toc-name">Field notes</span></a></li>
+    <li><a href="#s10"><span class="toc-num">10</span><span class="toc-name">Qwen, InternVL &amp; Molmo</span></a></li>
+    <li><a href="#s11"><span class="toc-num">11</span><span class="toc-name">The connector zoo</span></a></li>
+    <li><a href="#s12"><span class="toc-num">12</span><span class="toc-name">Text-rich images</span></a></li>
+    <li><a href="#s13"><span class="toc-num">13</span><span class="toc-name">Multi-image &amp; video</span></a></li>
+    <li><a href="#s14"><span class="toc-num">14</span><span class="toc-name">Evaluation</span></a></li>
+    <li><a href="#s15"><span class="toc-num">15</span><span class="toc-name">Choosing an encoder</span></a></li>
+    <li><a href="#s16"><span class="toc-num">16</span><span class="toc-name">References</span></a></li>
+  </ol>
+</nav>
 <section class="sec" id="s1">
   <div class="wrap">
     <p class="lede">
@@ -5947,12 +5945,13 @@ body.blog-article{
   --ink:#e4e2dc; --panel:#efece6; --panel2:#e3e0d8;
   --line:#cac6bd; --line-soft:#dad6cd;
   --fg:#14171a; --muted:#474e53; --dim:#7b8388;
-  --con:#0f6f92; --ssl:#6a45b8; --gen:#9c5a12; --dist:#0d7355; --doc:#8a6600; --warn:#b23a2f;
+  --con:var(--blog-blue); --ssl:#6a45b8; --gen:var(--blog-orange); --dist:#0d7355; --doc:#8a6600; --warn:#b23a2f;
   --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
   --body:"Newsreader",Georgia,"Times New Roman",serif;
   --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
 }
 body.blog-article .sec{padding:56px 0 4px;scroll-margin-top:92px}
+body.blog-article .toc + .sec{padding-top:0}
 body.blog-article .wrap{width:100%;max-width:none;padding:0}
 body.blog-article .wrap-wide{
   width:min(1180px,calc(100vw - 52px));
@@ -5963,15 +5962,19 @@ body.blog-article .wrap-wide{
   body.blog-article .wrap-wide{width:100%;margin-left:0}
 }
 body.blog-article h2{color:var(--page-ink)}
-body.blog-article h3,body.blog-article h4{color:#1c2126}
+body.blog-article h3,body.blog-article h4{color:var(--page-ink)}
 body.blog-article .lede{color:var(--ink-soft)}
-body.blog-article strong{color:#0b0e11}
-body.blog-article em{color:#2a3035}
-body.blog-article a{color:#0f6f92;border-bottom-color:rgba(15,111,146,.3)}
-body.blog-article code{background:rgba(15,111,146,.09);border-color:#cdd6da;color:#0d5a76}
+body.blog-article strong{color:var(--page-ink)}
+body.blog-article em{color:var(--ink-soft)}
+body.blog-article .article-title em{color:var(--blog-blue)}
+body.blog-article a{color:var(--blog-blue);border-bottom-color:rgba(11,94,168,.3)}
+body.blog-article .article-content code{background:rgba(11,94,168,.09);border-color:#cdd6da;color:var(--blog-blue)}
 body.blog-article .eyebrow{color:#7b8388}
 body.blog-article .eyebrow::after{background:linear-gradient(90deg,var(--rule),transparent)}
 body.blog-article .caption{color:#7b8388}
+body.blog-article .toc-heading{color:var(--blog-muted)}
+body.blog-article .toc-list a{color:var(--blog-ink);border-bottom:0}
+body.blog-article .toc-list a:hover{color:var(--blog-blue)}
 
 /* prose-flow components on paper */
 body.blog-article .card{background:var(--paper-bright);border-color:var(--rule)}
@@ -6013,14 +6016,27 @@ body.blog-article .reading li{color:#5c6469}
 body.blog-article .reading li a{color:#22282c;border-bottom-color:rgba(34,40,44,.22)}
 body.blog-article .reading li span{color:#8a9196}
 body.blog-article .chip{background:#eae7e0;border-color:var(--rule);color:#4a5257}
-body.blog-article .chip:hover{border-color:#0f6f92;color:#0b0e11}
-body.blog-article .chip[aria-pressed="true"]{background:#0f6f92;border-color:#0f6f92;color:#fff}
+body.blog-article .chip:hover{border-color:var(--blog-blue);color:var(--page-ink)}
+body.blog-article .chip[aria-pressed="true"]{background:var(--blog-blue);border-color:var(--blog-blue);color:var(--blog-paper-bright)}
 body.blog-article .mxsearch{background:var(--paper-bright);border-color:var(--rule);color:var(--page-ink)}
 body.blog-article table.mx th{border-bottom-color:var(--rule)}
 body.blog-article table.mx td{color:#33393e;border-bottom-color:#dcd8d0}
 body.blog-article table.mx td.mdl{color:#0b0e11}
 body.blog-article table.mx tr:hover td{background:rgba(15,111,146,.05)}
 body.blog-article .mxcount,body.blog-article .mxempty{color:#7b8388}
+
+/* References use the same single-column editorial rhythm as the other posts. */
+body.blog-article .reading{columns:1;margin:28px 0}
+body.blog-article .reading .grp{margin:0 0 30px}
+body.blog-article .reading h4{
+  margin:0 0 12px;padding-bottom:7px;color:var(--blog-ink-soft);
+  border-bottom:1px solid var(--blog-rule);font:600 11.5px/1.4 var(--blog-mono);
+  letter-spacing:.14em;text-transform:uppercase
+}
+body.blog-article .reading li{margin:0 0 13px;color:var(--blog-ink-soft);font:16.5px/1.45 var(--blog-body)}
+body.blog-article .reading li a{color:var(--blog-ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--blog-rule);text-underline-offset:3px}
+body.blog-article .reading li a:hover{color:var(--blog-blue);text-decoration-color:var(--blog-blue)}
+body.blog-article .reading li span{margin-top:2px;color:var(--blog-muted);font:11px/1.5 var(--blog-mono)}
 
 /* charts sit on their own dark plates */
 body.blog-article .sens,body.blog-article .ladder,body.blog-article .adopt{
@@ -6080,17 +6096,17 @@ body.blog-article .figbox .caption{color:#5E6B80}
 
 /* dark mode: the page follows the panels */
 html.dark-mode body.blog-article{
-  --paper:#0b0f14;--paper-bright:#111820;--page-ink:#E6EAF2;--ink-soft:#AEBACA;--rule:#232d39;
+  --paper:var(--blog-paper);--paper-bright:var(--blog-paper-bright);--page-ink:var(--blog-ink);--ink-soft:var(--blog-ink-soft);--rule:var(--blog-rule);
   --ink:#080B11;--panel:#0E141E;--panel2:#141C29;--line:#243044;--line-soft:#1A2333;
   --fg:#E6EAF2;--muted:#8B9AB3;--dim:#5E6B80;
-  --con:#4BC8E8;--ssl:#B48BFF;--gen:#F5A65B;--dist:#5FE0A8;--doc:#FFD166;--warn:#FF7A70;
-  background-color:#0b0f14;
+  --con:var(--blog-blue);--ssl:#B48BFF;--gen:var(--blog-orange);--dist:#5FE0A8;--doc:#FFD166;--warn:#FF7A70;
+  background-color:var(--blog-paper);
   background-image:linear-gradient(rgba(120,160,200,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(120,160,200,.035) 1px,transparent 1px);
 }
-html.dark-mode body.blog-article ul.toc a{color:#B9C4D6}
-html.dark-mode body.blog-article ul.toc a span{color:#6C7A88}
-html.dark-mode body.blog-article ul.toc a:hover,html.dark-mode body.blog-article ul.toc a:hover span{color:#4BC8E8}
-html.dark-mode body.blog-article .article-toc{border-top-color:#232d39}
+html.dark-mode body.blog-article .toc{background:var(--blog-paper-bright);border-color:var(--blog-rule)}
+html.dark-mode body.blog-article .toc-list li{border-color:var(--blog-rule)}
+html.dark-mode body.blog-article .toc-list a{color:var(--blog-ink)}
+html.dark-mode body.blog-article .toc-list a:hover{color:var(--blog-blue);background:rgba(111,183,255,.06)}
 html.dark-mode body.blog-article .card,html.dark-mode body.blog-article .nt,
 html.dark-mode body.blog-article .stop,html.dark-mode body.blog-article .fam,
 html.dark-mode body.blog-article .gd,html.dark-mode body.blog-article .split .col{background:#0E141E;border-color:#1A2333}
@@ -6101,10 +6117,41 @@ html.dark-mode body.blog-article table.data td,html.dark-mode body.blog-article 
 html.dark-mode body.blog-article strong,html.dark-mode body.blog-article table.data td b,
 html.dark-mode body.blog-article table.mx td.mdl{color:#fff}
 html.dark-mode body.blog-article .chip{background:#141C29;border-color:#243044;color:#8B9AB3}
-html.dark-mode body.blog-article .chip[aria-pressed="true"]{background:#4BC8E8;border-color:#4BC8E8;color:#06131A}
+html.dark-mode body.blog-article .chip[aria-pressed="true"]{background:var(--blog-blue);border-color:var(--blog-blue);color:var(--blog-paper)}
 html.dark-mode body.blog-article .reading li a{color:#C7D3E4}
 html.dark-mode body.blog-article .mxsearch{background:#0A0F17;border-color:#243044;color:#E6EAF2}
-html.dark-mode body.blog-article code{background:rgba(75,200,232,.09);border-color:#1A2333;color:#BEE9F6}
+html.dark-mode body.blog-article .article-content code{background:rgba(75,200,232,.09);border-color:#1A2333;color:#BEE9F6}
+
+/* Square editorial geometry matches the rest of the blog system. These rules
+   come last so the legacy component declarations cannot reintroduce radii. */
+body.vision-encoder-article .card,
+body.vision-encoder-article .panel,
+body.vision-encoder-article .bench,
+body.vision-encoder-article .figbox,
+body.vision-encoder-article .calc,
+body.vision-encoder-article .trace,
+body.vision-encoder-article .treebox,
+body.vision-encoder-article .fam,
+body.vision-encoder-article .nt,
+body.vision-encoder-article .stop,
+body.vision-encoder-article .gd,
+body.vision-encoder-article .switcher,
+body.vision-encoder-article .zoo,
+body.vision-encoder-article .tasks,
+body.vision-encoder-article .cxwrap,
+body.vision-encoder-article .split .col,
+body.vision-encoder-article .sens,
+body.vision-encoder-article .ladder,
+body.vision-encoder-article .adopt,
+body.vision-encoder-article .animation-controls,
+body.vision-encoder-article .animation-controls button,
+body.vision-encoder-article .chip,
+body.vision-encoder-article .trace-btn,
+body.vision-encoder-article .cxbtn,
+body.vision-encoder-article .mxsearch{border-radius:2px}
+body.vision-encoder-article :is(.card,.panel,.bench,.figbox,.calc,.trace,.treebox,.fam,.nt,.stop,.gd,.switcher,.zoo,.tasks,.cxwrap,.split .col) :is(h3,h4){color:var(--fg)}
+body.vision-encoder-article .ireadout em{color:var(--doc)}
+body.vision-encoder-article .fam-line li em{color:var(--dim)}
 </style>
 
     <script src="../../assets/js/blogs.js"></script>
