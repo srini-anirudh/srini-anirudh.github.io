@@ -167,6 +167,7 @@ function initializeDistillSideToc() {
 
   const article = document.querySelector("main.article-content");
   const sourceLinks = [...document.querySelectorAll('.toc a[href^="#"]')];
+  const sourceToc = sourceLinks[0]?.closest(".toc");
   const seenTargets = new Set();
   const entries = sourceLinks.flatMap((sourceLink) => {
     const id = decodeURIComponent(sourceLink.hash.slice(1));
@@ -242,11 +243,12 @@ function initializeDistillSideToc() {
 
   function placeRail() {
     const gutter = availableGutterBoundary();
+    const pastInlineToc = !sourceToc || sourceToc.getBoundingClientRect().bottom <= 88;
     const safetyGap = 32;
     const minimumWidth = 176;
     const maximumWidth = 232;
     const availableWidth = Math.floor(gutter - safetyGap - 18);
-    visible = window.innerWidth >= 1180 && availableWidth >= minimumWidth;
+    visible = pastInlineToc && window.innerWidth >= 1180 && availableWidth >= minimumWidth;
 
     rail.classList.toggle("is-visible", visible);
     document.documentElement.classList.toggle("distill-side-toc-active", visible);
