@@ -232,21 +232,8 @@
       .takeaway p { margin: 0; font: 16px/1.6 var(--body); }
       .term { font-weight: 700; font-style: italic; }
 
-      /* ---------- sticky scrollspy rail ---------- */
-      .spy-rail { position: fixed; top: 50%; left: 22px; z-index: 40; transform: translateY(-50%); max-height: 74vh; overflow: hidden; }
-      .spy-rail ol { margin: 0; padding: 0; list-style: none; }
-      .spy-rail li { margin: 0; }
-      .spy-rail a { display: flex; align-items: center; gap: 8px; padding: 2px 0; color: var(--muted); text-decoration: none; font: 500 10.5px/1.5 var(--mono); }
-      .spy-rail .dash { display: block; width: 13px; height: 1px; background: var(--rule); transition: width 0.22s ease, background 0.22s ease; }
-      .spy-rail .txt { max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width 0.24s ease, opacity 0.24s ease; }
-      .spy-rail:hover .txt, .spy-rail a:focus-visible .txt { max-width: 220px; opacity: 1; }
-      .spy-rail a[aria-current="true"] { color: var(--ink); }
-      .spy-rail a[aria-current="true"] .dash { width: 26px; background: var(--ink); }
-      @media (max-width: 1400px) { .spy-rail { display: none; } }
-
       @media (prefers-reduced-motion: reduce) {
         html { scroll-behavior: auto; }
-        .spy-rail .dash, .spy-rail .txt { transition: none; }
       }
 
       @media (max-width: 900px) {
@@ -301,8 +288,6 @@
         <nav class="article-series" aria-label="Hardware and Performance Foundations series"><p>Part I · Hardware + Performance Foundations</p><ol><li><a href="../new-mask-same-task/" aria-current="page">01 New Mask, Same Task</a></li><li><a href="../bound-by-bytes/">02 Bound by Bytes</a></li><li><a href="../talk-is-not-cheap/">03 Talk is not cheap</a></li></ol></nav>
       </div>
     </header>
-
-    <nav class="spy-rail" aria-label="Section progress"></nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -5468,47 +5453,6 @@
           });
         });
 
-        /* --- scrollspy rail: built from the sections actually present --- */
-        ready(function () {
-          var rail = document.querySelector(".spy-rail");
-          if (!rail || rail.children.length) return;
-          var toc = document.querySelectorAll(".toc ol a");
-          if (!toc.length) return;
-
-          var list = document.createElement("ol");
-          var links = [];
-          Array.prototype.forEach.call(toc, function (a) {
-            var id = a.getAttribute("href").slice(1);
-            var section = document.getElementById(id);
-            if (!section) return;
-            var li = document.createElement("li");
-            var link = document.createElement("a");
-            link.href = "#" + id;
-            link.textContent = a.textContent;
-            link.setAttribute("aria-current", "false");
-            li.appendChild(link);
-            list.appendChild(li);
-            links.push({ link: link, section: section });
-          });
-          if (!links.length) return;
-          rail.appendChild(list);
-
-          var current = null;
-          function mark(entryTarget) {
-            links.forEach(function (l) {
-              var on = l.section === entryTarget;
-              l.link.setAttribute("aria-current", on ? "true" : "false");
-            });
-          }
-          if (!("IntersectionObserver" in window)) return;
-          var io = new IntersectionObserver(function (entries) {
-            entries.forEach(function (e) {
-              if (e.isIntersecting) { current = e.target; }
-            });
-            if (current) mark(current);
-          }, { rootMargin: "-20% 0px -70% 0px", threshold: 0 });
-          links.forEach(function (l) { io.observe(l.section); });
-        });
       })();
     </script>
   </body>
