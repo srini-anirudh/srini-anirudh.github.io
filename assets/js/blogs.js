@@ -161,3 +161,115 @@ document.querySelectorAll("[data-copy-citation]").forEach((button) => {
     }
   });
 });
+
+function initializeDistillSideToc() {
+  if (!document.body.classList.contains("blog-article")) return;
+
+  const article = document.querySelector("main.article-content");
+  const sourceLinks = [...document.querySelectorAll('.toc a[href^="#"]')];
+  const seenTargets = new Set();
+  const entries = sourceLinks.flatMap((sourceLink) => {
+    const id = decodeURIComponent(sourceLink.hash.slice(1));
+    const target = id ? document.getElementById(id) : null;
+    if (!target || seenTargets.has(id)) return [];
+    seenTargets.add(id);
+
+    const namedLabel = sourceLink.querySelector(".toc-name")?.textContent;
+    const labelClone = sourceLink.cloneNode(true);
+    labelClone.querySelectorAll(".toc-num, .toc-tag, .toc-sub").forEach((node) => node.remove());
+    const firstChild = labelClone.firstElementChild;
+    if (firstChild && /^\s*\d+[.·]?\s*$/.test(firstChild.textContent || "")) firstChild.remove();
+    const label = (namedLabel || labelClone.textContent || target.textContent)
+      .replace(/\s+/g, " ")
+      .trim();
+    return label ? [{ id, target, label }] : [];
+  });
+
+  if (!article || entries.length < 2) return;
+
+  document.querySelectorAll(".toc-rail, .spy-rail, .distill-side-toc").forEach((rail) => rail.remove());
+
+  const rail = document.createElement("nav");
+  rail.className = "distill-side-toc";
+  rail.setAttribute("aria-label", "On this page");
+  const heading = document.createElement("h2");
+  heading.textContent = "Contents";
+  const list = document.createElement("ol");
+
+  entries.forEach((entry) => {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.href = `#${entry.id}`;
+    link.textContent = entry.label;
+    link.title = entry.label;
+    item.appendChild(link);
+    list.appendChild(item);
+    entry.link = link;
+  });
+
+  rail.append(heading, list);
+  document.body.appendChild(rail);
+
+  let visible = false;
+  let currentIndex = -1;
+  let ticking = false;
+
+  function placeRail() {
+    const articleRect = article.getBoundingClientRect();
+    const gutter = articleRect.left;
+    const safetyGap = 32;
+    const minimumWidth = 176;
+    const maximumWidth = 232;
+    const availableWidth = Math.floor(gutter - safetyGap - 18);
+    visible = window.innerWidth >= 1180 && availableWidth >= minimumWidth;
+
+    rail.classList.toggle("is-visible", visible);
+    document.documentElement.classList.toggle("distill-side-toc-active", visible);
+    if (!visible) return;
+
+    const width = Math.min(maximumWidth, availableWidth);
+    rail.style.width = `${width}px`;
+    rail.style.left = `${Math.max(18, Math.floor(gutter - safetyGap - width))}px`;
+  }
+
+  function markCurrentSection() {
+    if (!visible) return;
+    const readingLine = Math.max(112, window.innerHeight * 0.3);
+    let nextIndex = 0;
+    entries.forEach((entry, index) => {
+      if (entry.target.getBoundingClientRect().top <= readingLine) nextIndex = index;
+    });
+    if (nextIndex === currentIndex) return;
+    currentIndex = nextIndex;
+    entries.forEach((entry, index) => {
+      if (index === currentIndex) entry.link.setAttribute("aria-current", "location");
+      else entry.link.removeAttribute("aria-current");
+    });
+    const activeLink = entries[currentIndex].link;
+    const linkTop = activeLink.offsetTop;
+    const linkBottom = linkTop + activeLink.offsetHeight;
+    if (linkTop < rail.scrollTop) {
+      rail.scrollTop = linkTop;
+    } else if (linkBottom > rail.scrollTop + rail.clientHeight) {
+      rail.scrollTop = linkBottom - rail.clientHeight;
+    }
+  }
+
+  function update() {
+    placeRail();
+    markCurrentSection();
+    ticking = false;
+  }
+
+  function requestUpdate() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(update);
+  }
+
+  window.addEventListener("scroll", requestUpdate, { passive: true });
+  window.addEventListener("resize", requestUpdate, { passive: true });
+  update();
+}
+
+initializeDistillSideToc();

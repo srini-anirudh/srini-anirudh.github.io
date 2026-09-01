@@ -60,6 +60,95 @@ html.dark-mode body.blog-article {
   scroll-margin-top: 78px;
 }
 
+/* Distill-inspired contents rail. JavaScript measures the actual article
+   gutter before revealing it, so the rail never sits over prose or figures. */
+.distill-side-toc {
+  --side-toc-accent: var(--blog-orange);
+  position: fixed;
+  top: 88px;
+  z-index: 38;
+  display: none;
+  max-height: calc(100vh - 116px);
+  overflow: hidden auto;
+  padding: 2px 14px 12px 0;
+  color: var(--blog-muted);
+  scrollbar-width: thin;
+  scrollbar-color: var(--blog-rule) transparent;
+}
+
+.distill-side-toc.is-visible {
+  display: block;
+}
+
+.distill-side-toc h2 {
+  margin: 0 0 12px;
+  color: var(--blog-ink);
+  font: 700 15px/1.2 var(--blog-display);
+  letter-spacing: -0.01em;
+}
+
+.distill-side-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.distill-side-toc li {
+  margin: 0;
+  padding: 0;
+}
+
+.distill-side-toc a {
+  position: relative;
+  display: block;
+  padding: 4px 0 4px 13px;
+  overflow: hidden;
+  color: var(--blog-muted);
+  border-left: 1px solid var(--blog-rule);
+  font: 500 11px/1.35 var(--blog-mono);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.distill-side-toc a:hover,
+.distill-side-toc a:focus-visible {
+  color: var(--blog-ink);
+}
+
+.distill-side-toc a:focus-visible {
+  outline: 2px solid var(--blog-blue);
+  outline-offset: -2px;
+}
+
+.distill-side-toc a[aria-current="location"] {
+  color: var(--blog-ink);
+  border-left: 2px solid var(--side-toc-accent);
+  font-weight: 600;
+}
+
+.distill-side-toc a[aria-current="location"]::before {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 3px;
+  height: 3px;
+  background: var(--side-toc-accent);
+  border-radius: 50%;
+  content: "";
+  transform: translateY(-50%);
+}
+
+html.distill-side-toc-active .blog-article .tocbar {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .distill-side-toc {
+    scroll-behavior: auto;
+  }
+}
+
 .blog-article .toc-label {
   margin: 0 0 12px;
   color: var(--blog-muted);

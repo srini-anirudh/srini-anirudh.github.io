@@ -3642,28 +3642,6 @@
           var code = document.querySelector(".article-citation-code code");
           if (code && navigator.clipboard) navigator.clipboard.writeText(code.textContent).then(function () { if (cs) cs.textContent = "BibTeX copied"; });
         });
-        /* sticky scrollspy rail generated from the inline table of contents */
-        var toc = document.querySelector(".toc ol");
-        if (toc && window.matchMedia("(min-width: 1180px)").matches) {
-          var rail = document.createElement("nav");
-          rail.className = "toc-rail"; rail.setAttribute("aria-label", "Section navigation");
-          var ul = document.createElement("ul");
-          Array.prototype.forEach.call(toc.querySelectorAll("a"), function (a) {
-            var li = document.createElement("li"), b = document.createElement("a");
-            b.href = a.getAttribute("href"); b.textContent = a.textContent;
-            li.appendChild(b); ul.appendChild(li);
-          });
-          rail.appendChild(ul); document.body.appendChild(rail);
-          var targets = Array.prototype.map.call(ul.querySelectorAll("a"), function (a) { return document.querySelector(a.getAttribute("href")); });
-          var spy = new IntersectionObserver(function (es) {
-            es.forEach(function (e) {
-              if (!e.isIntersecting) return;
-              var i = targets.indexOf(e.target);
-              Array.prototype.forEach.call(ul.querySelectorAll("a"), function (a, j) { a.classList.toggle("active", i === j); });
-            });
-          }, { rootMargin: "-20% 0px -70% 0px" });
-          targets.forEach(function (t2) { if (t2) spy.observe(t2); });
-        }
       })();
     </script>
   </body>
