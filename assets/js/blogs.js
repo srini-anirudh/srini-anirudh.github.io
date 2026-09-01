@@ -213,10 +213,35 @@ function initializeDistillSideToc() {
   let visible = false;
   let currentIndex = -1;
   let ticking = false;
+  let layoutDirty = true;
+  let gutterIntruders = [];
+
+  function measureGutterIntruders() {
+    const articleRect = article.getBoundingClientRect();
+    gutterIntruders = [...article.querySelectorAll("*")].filter((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 1 || rect.height <= 1 || rect.left >= articleRect.left - 1) return false;
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden" && style.position !== "fixed";
+    });
+    layoutDirty = false;
+  }
+
+  function availableGutterBoundary() {
+    if (layoutDirty) measureGutterIntruders();
+
+    const railTop = 88;
+    const railBottom = window.innerHeight - 28;
+    let boundary = article.getBoundingClientRect().left;
+    gutterIntruders.forEach((element) => {
+      const rect = element.getBoundingClientRect();
+      if (rect.bottom > railTop && rect.top < railBottom) boundary = Math.min(boundary, rect.left);
+    });
+    return boundary;
+  }
 
   function placeRail() {
-    const articleRect = article.getBoundingClientRect();
-    const gutter = articleRect.left;
+    const gutter = availableGutterBoundary();
     const safetyGap = 32;
     const minimumWidth = 176;
     const maximumWidth = 232;
@@ -268,7 +293,18 @@ function initializeDistillSideToc() {
   }
 
   window.addEventListener("scroll", requestUpdate, { passive: true });
-  window.addEventListener("resize", requestUpdate, { passive: true });
+  window.addEventListener("resize", () => {
+    layoutDirty = true;
+    requestUpdate();
+  }, { passive: true });
+  window.addEventListener("load", () => {
+    layoutDirty = true;
+    requestUpdate();
+  }, { once: true });
+  document.fonts?.ready.then(() => {
+    layoutDirty = true;
+    requestUpdate();
+  });
   update();
 }
 
