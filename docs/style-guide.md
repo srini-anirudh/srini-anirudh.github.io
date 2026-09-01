@@ -132,3 +132,5 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 - Assign every card one or more stable filter keys using `data-blog-categories`; the visible category labels and filter buttons must match those keys.
 - Display both the original publication date and the last-modified date on the index and inside the article. Use semantic `<time datetime="YYYY-MM-DD">` markup and matching `article:published_time` / `article:modified_time` metadata.
 - Keep publication dates honest and stable after publishing. Updating an article changes only its last-modified date.
+- For a named series, keep its cards contiguous and show a compact series heading on the index. Add a stable category filter, number every entry visibly, and repeat a linked series navigator after each article mast.
+- Connect series members in structured data with one stable `CreativeWorkSeries` `@id`; each member remains a `BlogPosting` and part of the main blog as well.

@@ -23,6 +23,6 @@ Shared files live in `assets/`:
 
 When adding a new page, copy the existing page head/nav/footer pattern so dark mode, stars, and mobile navigation keep working consistently.
 
-For a new blog post, create `blogs/descriptive-slug/index.html`, keep its preview GIF and PNG in the same folder, and add its title, summary, publication date, last-modified date, reading time, tags, and filter categories to `blogs/index.html`. Add its canonical URL to the sitemap, RSS feed, and IndexNow workflow. Keep References as the final section, grouped by topic with every entry linked.
+For a new blog post, create `blogs/descriptive-slug/index.html`, keep its preview GIF and PNG in the same folder, and add its title, summary, publication date, last-modified date, reading time, tags, and filter categories to `blogs/index.html`. Add its canonical URL to the sitemap, RSS feed, and IndexNow workflow. Keep References as the final section, grouped by topic with every entry linked. If it belongs to a series, add the shared series navigator and `CreativeWorkSeries` identifier used by its sibling posts.
 
 See `docs/style-guide.md` for the visual and interaction rules. Copy `docs/blog-template.html` into the new article folder when starting a post.

@@ -1,4 +1,6 @@
 const blogColorModeToggle = document.querySelector(".color-mode-toggle");
+window.__blogShellReady = true;
+document.documentElement.setAttribute("data-shell-ready", "true");
 const blogSun = blogColorModeToggle?.querySelector(".sun");
 const blogMoon = blogColorModeToggle?.querySelector(".moon");
 const blogNavToggle = document.querySelector(".nav-toggle");
@@ -52,6 +54,11 @@ function applyBlogFilter(filter, updateAddress = true) {
     if (show) visible += 1;
   });
 
+  document.querySelectorAll("[data-blog-series-heading]").forEach((heading) => {
+    const series = heading.dataset.blogSeriesHeading;
+    heading.hidden = !blogCards.some((card) => !card.hidden && card.dataset.blogSeries === series);
+  });
+
   blogFilterButtons.forEach((button) => {
     const active = button.dataset.blogFilter === selected;
     button.classList.toggle("is-active", active);
@@ -93,6 +100,7 @@ function setPreviewMotion(card, animate) {
   const nextSource = animate && previewMotionAllowed.matches
     ? preview.dataset.animatedSrc
     : preview.dataset.stillSrc;
+  card.classList.toggle("is-animating-preview", Boolean(animate && previewMotionAllowed.matches));
   if (nextSource && preview.getAttribute("src") !== nextSource) preview.setAttribute("src", nextSource);
 }
 

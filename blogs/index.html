@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Illustrated Notes on Vision-Language Models &amp; Deep Learning | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
-    <meta name="description" content="Animated, illustrated deep dives by Anirudh Srinivasan on vision-language models, vision transformers, CNNs, normalization, optimization, and neural architectures." />
+    <meta name="description" content="Animated, illustrated deep dives by Anirudh Srinivasan on machine learning systems, GPU performance, vision-language models, deep learning, and neural architectures." />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/" />
     <link rel="alternate" type="application/rss+xml" title="Illustrated Notes by Anirudh Srinivasan" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
     <meta property="og:title" content="Illustrated Notes | Anirudh Srinivasan" />
-    <meta property="og:description" content="Animated, visual explanations of vision-language models, deep learning, and the systems around them." />
+    <meta property="og:description" content="Animated, visual explanations of machine learning systems, GPU performance, vision-language models, and deep learning." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/" />
-    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/vlm-architecture-gallery/preview.png" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Illustrated Notes | Anirudh Srinivasan" />
-    <meta name="twitter:description" content="Animated, visual explanations of vision-language models and deep learning." />
-    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/vlm-architecture-gallery/preview.png" />
+    <meta name="twitter:description" content="Animated, visual explanations of machine learning systems, GPU performance, vision-language models, and deep learning." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png" />
     <link rel="icon" href="../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" href="../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../assets/css/blog-shell.css" />
@@ -31,9 +31,10 @@
         "@id": "https://srini-anirudh.github.io/blogs/#blog",
         "url": "https://srini-anirudh.github.io/blogs/",
         "name": "Illustrated Notes",
-        "description": "Animated, illustrated deep dives on vision-language models, deep learning, and neural architectures.",
+        "description": "Animated, illustrated deep dives on machine learning systems, GPU performance, vision-language models, deep learning, and neural architectures.",
         "author": { "@id": "https://srini-anirudh.github.io/about.html#person" },
-        "isPartOf": { "@id": "https://srini-anirudh.github.io/#website" }
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/#website" },
+        "hasPart": { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#hardware-performance-foundations", "name": "Part I — Hardware + Performance Foundations" }
       }
     </script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -71,7 +72,7 @@
           <p class="blog-magazine-kicker">Animated Deepdives</p>
           <h1 id="blogs-heading">Illustrated Notes</h1>
           <p class="blog-magazine-dek">Long-form, visual explanations of vision-language models, deep learning, and the systems around them.</p>
-          <div class="blog-magazine-byline"><span>By Anirudh Srinivasan</span><span>Ten illustrated essays</span></div>
+          <div class="blog-magazine-byline"><span>By Anirudh Srinivasan</span><span>Thirteen illustrated essays</span></div>
         </header>
 
         <nav class="blog-filter-bar" aria-label="Filter articles by category">
@@ -81,11 +82,50 @@
           <button type="button" class="blog-filter" data-blog-filter="architecture" aria-pressed="false">Architecture</button>
           <button type="button" class="blog-filter" data-blog-filter="foundations" aria-pressed="false">Foundations</button>
           <button type="button" class="blog-filter" data-blog-filter="training" aria-pressed="false">Training</button>
+          <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 10 articles</p>
+        <p class="blog-filter-status" aria-live="polite">Showing all 13 articles</p>
 
         <div class="blog-list">
-          <a class="blog-card blog-card-featured" href="vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
+          <header class="blog-series-heading" data-blog-series-heading="hardware-performance"><p>Part I · Three-part series</p><h2>Hardware + Performance Foundations</h2></header>
+          <a class="blog-card blog-card-featured" href="talk-is-not-cheap/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
+            <picture class="blog-card-media">
+              <img src="talk-is-not-cheap/preview.png" data-still-src="talk-is-not-cheap/preview.png" data-animated-src="talk-is-not-cheap/preview.gif" width="960" height="540" loading="eager" fetchpriority="high" decoding="async" alt="Animated communication hierarchy connecting GPUs through NVLink, PCIe, and an RDMA fabric." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>Talk is not cheap</strong><em>From PCIe and NVLink to InfiniBand</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Part I · 03 · Systems</span>
+              <h3>Talk is not cheap</h3>
+              <p>From PCIe and NVLink to InfiniBand: links, fabrics, collectives, topology, overlap, and the real cost of making GPUs communicate.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-01">September 1, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>62 min read</span></div>
+              <div class="blog-tags"><span>PCIe</span><span>NVLink</span><span>InfiniBand</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="bound-by-bytes/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
+            <picture class="blog-card-media">
+              <img src="bound-by-bytes/preview.png" data-still-src="bound-by-bytes/preview.png" data-animated-src="bound-by-bytes/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated Roofline chart locating workloads beneath compute and memory-bandwidth ceilings." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Part I · 02 · Systems</span>
+              <h3>Bound by Bytes</h3>
+              <p>Compute-bound and memory-bound workloads, derived through arithmetic intensity and applied to GEMM, attention, fusion, optimizers, and distributed training.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-08-01">August 1, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>Roofline</span><span>Arithmetic Intensity</span><span>Performance</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="new-mask-same-task/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
+            <picture class="blog-card-media">
+              <img src="new-mask-same-task/preview.png" data-still-src="new-mask-same-task/preview.png" data-animated-src="new-mask-same-task/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison of CPU and GPU execution and memory hierarchies." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Part I · 01 · Systems</span>
+              <h3>New Mask, Same Task</h3>
+              <p>CPU and GPU parallelism explained through pipelines, SIMD and SIMT, execution hierarchies, memory, coalescing, tiling, and tensor cores.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-07-01">July 1, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>CPU vs GPU</span><span>Parallelism</span><span>Memory Hierarchy</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
             <picture class="blog-card-media">
               <img src="vlm-architecture-gallery/preview.png" data-still-src="vlm-architecture-gallery/preview.png" data-animated-src="vlm-architecture-gallery/preview.gif" width="960" height="540" loading="eager" fetchpriority="high" decoding="async" alt="Animated standardized plates comparing vision-language model architectures." />
             </picture>
@@ -93,7 +133,7 @@
               <span class="blog-card-label">Featured · VLM architectures</span>
               <h3>The VLM Architecture Gallery</h3>
               <p>Seventy-one architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-08-21">August 21, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2026-05-21">May 21, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
             </div>
           </a>
@@ -105,7 +145,7 @@
               <span class="blog-card-label">Vision-language models</span>
               <h3>From Pixels to Visual Tokens</h3>
               <p>What changed in the visual half of VLMs: intake geometry, resolution, objectives, connectors, and the encoders models actually ship.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-07-17">July 17, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>42 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2026-04-17">April 17, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>42 min read</span></div>
               <div class="blog-tags"><span>Vision Encoders</span><span>VLMs</span><span>Multimodal</span></div>
             </div>
           </a>
@@ -117,7 +157,7 @@
               <span class="blog-card-label">Architecture · Foundations</span>
               <h3>One Transformer, Two Modalities</h3>
               <p>A block-by-block comparison: tokenizing versus patchifying, lookup tables versus projections, positions, masks, and heads.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-06-11">June 11, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>24 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2026-03-11">March 11, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>24 min read</span></div>
               <div class="blog-tags"><span>Transformers</span><span>ViT</span><span>Attention</span></div>
             </div>
           </a>
@@ -129,7 +169,7 @@
               <span class="blog-card-label">Architecture · Foundations</span>
               <h3>How Models Know Where They Are</h3>
               <p>Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier features, and multimodal M-RoPE—explained visually.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-05-16">May 16, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>38 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2026-02-16">February 16, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>38 min read</span></div>
               <div class="blog-tags"><span>Position Encoding</span><span>RoPE</span><span>Long Context</span></div>
             </div>
           </a>
@@ -141,7 +181,7 @@
               <span class="blog-card-label">Training · Foundations</span>
               <h3>The Geometry of Normalization</h3>
               <p>Every normalization layer from BatchNorm to Peri-LN, plus why the modality interface in a VLM is a normalization problem.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-04-09">April 9, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>45 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2026-01-09">January 9, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>45 min read</span></div>
               <div class="blog-tags"><span>Normalization</span><span>Transformers</span><span>Training Stability</span></div>
             </div>
           </a>
@@ -153,7 +193,7 @@
               <span class="blog-card-label">Training · Foundations</span>
               <h3>The Activation Atlas</h3>
               <p>From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU—with animated derivations and a map of what modern models use.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-03-12">March 12, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2025-12-12">December 12, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>Activation Functions</span><span>Transformers</span><span>Optimization</span></div>
             </div>
           </a>
@@ -165,7 +205,7 @@
               <span class="blog-card-label">Training · Optimization</span>
               <h3>How Models Take a Step</h3>
               <p>A mechanical tour from SGD to Muon: how optimizers build an update, what their state costs, and where a training step stalls.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-02-19">February 19, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2025-11-19">November 19, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>Optimizers</span><span>Distributed Training</span><span>Memory</span></div>
             </div>
           </a>
@@ -177,7 +217,7 @@
               <span class="blog-card-label">Architecture · Foundations</span>
               <h3>Evolution of ML Architectures</h3>
               <p>Sixty-seven years of neural architectures, including how information moves, what training costs, what inference carries, and how gradients flow backward.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-01-24">January 24, 2026</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>64 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2025-10-24">October 24, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>64 min read</span></div>
               <div class="blog-tags"><span>Architectures</span><span>Complexity</span><span>State Space Models</span></div>
             </div>
           </a>
@@ -189,7 +229,7 @@
               <span class="blog-card-label">Architecture &middot; Computer vision</span>
               <h3>An Image Is a Sentence</h3>
               <p>How Vision Transformers see, from the first patch embedding through ViT, DeiT, PVT, Swin, video transformers, and the cost of attention.</p>
-              <div class="blog-meta"><span>Published <time datetime="2025-12-18">December 18, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>48 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2025-09-18">September 18, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>48 min read</span></div>
               <div class="blog-tags"><span>Vision Transformers</span><span>Attention</span><span>Video</span></div>
             </div>
           </a>
@@ -201,7 +241,7 @@
               <span class="blog-card-label">Architecture &middot; Computer vision</span>
               <h3>Across the CNNVerse</h3>
               <p>Thirty years of convolutional architecture, from sliding-window arithmetic and receptive fields to ResNet, EfficientNet, and ConvNeXt.</p>
-              <div class="blog-meta"><span>Published <time datetime="2025-11-20">November 20, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>58 min read</span></div>
+              <div class="blog-meta"><span>Published <time datetime="2025-08-20">August 20, 2025</time></span><span>Updated <time datetime="2026-08-29">August 29, 2026</time></span><span>58 min read</span></div>
               <div class="blog-tags"><span>Convolution</span><span>CNNs</span><span>Architecture</span></div>
             </div>
           </a>
