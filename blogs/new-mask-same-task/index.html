@@ -161,12 +161,6 @@
       .provenance-key dd { margin: 0; font-size: 15px; line-height: 1.45; }
       @media (max-width: 620px) { .provenance-key dl { grid-template-columns: 1fr; gap: 3px 0; } .provenance-key dd { margin-bottom: 9px; } }
 
-      .article-citation { margin: 44px 0 0; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
-      .article-citation h3 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
-      .article-citation pre { margin: 0; overflow-x: auto; color: var(--ink-soft); font: 12.5px/1.7 var(--mono); white-space: pre; }
-      .article-citation button { min-height: 36px; margin-top: 14px; padding: 7px 12px; color: var(--ink); background: transparent; border: 1px solid var(--rule); cursor: pointer; font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
-      .article-citation button:hover { background: var(--rule); }
-      .cite-status { margin-left: 10px; color: var(--muted); font: 11px/1 var(--mono); }
       .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
 
       /* ---------- figures ---------- */
@@ -5335,25 +5329,31 @@
 
         <p class="fig-note">Two further microbenchmark studies of Hopper were consulted for the latency figures in §13 but are not linked here, because their identifiers could not be verified while this article was written offline. Treat all cache and memory latencies in this article as approximate, measured quantities rather than specifications — the shape of the ladder is robust, the individual numbers are not.</p>
 
-        <div class="article-citation">
-          <h3>Cite this article</h3>
-          <pre id="bibtex">@misc{srinivasan2026newmask,
-  author = {Srinivasan, Anirudh},
-  title  = {New Mask, Same Task: CPU and GPU Parallelism Explained},
-  year   = {2026},
-  month  = {July},
-  url    = {https://srini-anirudh.github.io/blogs/new-mask-same-task/}
-}</pre>
-          <button type="button" class="cite-copy">Copy BibTeX</button>
-          <span class="cite-status" aria-live="polite"></span>
-        </div>
-
         <footer class="article-footer">
           <p>Written September 2026. Figures are generated programmatically in SVG; there are no images in this article. Every animation honours <code>prefers-reduced-motion</code> and is fully keyboard operable.</p>
           <p>Corrections and disagreements are welcome — several of the quantitative claims here are derived rather than published, and are flagged where that is the case.</p>
         </footer>
       </section>
     </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>New Mask, Same Task: CPU and GPU Parallelism Explained</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/new-mask-same-task/">https://srini-anirudh.github.io/blogs/new-mask-same-task/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026newmask,
+  author       = {Srinivasan, Anirudh},
+  title        = {New Mask, Same Task: CPU and GPU Parallelism Explained},
+  year         = {2026},
+  month        = {July},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/new-mask-same-task/},
+  note         = {Published July 8, 2026; updated September 1, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
 
     <footer class="site-footer" aria-label="Contact links">
       <span>Anirudh Srinivasan</span>
@@ -5424,33 +5424,6 @@
               });
             }
           }, 400);
-        });
-
-        /* --- BibTeX copy: always ours, the shell does not own this --- */
-        ready(function () {
-          var btn = document.querySelector(".cite-copy");
-          var pre = document.getElementById("bibtex");
-          var status = document.querySelector(".cite-status");
-          if (!btn || !pre) return;
-          btn.addEventListener("click", function () {
-            var text = pre.textContent;
-            function done(msg) {
-              if (status) {
-                status.textContent = msg;
-                setTimeout(function () { status.textContent = ""; }, 2400);
-              }
-            }
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-              navigator.clipboard.writeText(text).then(function () { done("Copied"); }, function () { done("Press ⌘C to copy"); });
-            } else {
-              var sel = window.getSelection();
-              var range = document.createRange();
-              range.selectNodeContents(pre);
-              sel.removeAllRanges();
-              sel.addRange(range);
-              done("Press ⌘C to copy");
-            }
-          });
         });
 
       })();

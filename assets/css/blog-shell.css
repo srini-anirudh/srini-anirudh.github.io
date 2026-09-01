@@ -626,6 +626,23 @@ body.vision-article {
   font: 17px/1.55 var(--blog-body);
 }
 
+.article-citation-reference a {
+  color: var(--blog-blue);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.article-citation-reference a:hover {
+  color: var(--blog-orange);
+}
+
+.article-citation-reference a:focus-visible {
+  outline: 2px solid var(--blog-blue);
+  outline-offset: 3px;
+}
+
 .article-citation-code {
   position: relative;
 }

@@ -143,11 +143,6 @@
       .nuance-index .n { flex: 0 0 auto; color: var(--muted); font: 600 12px/1.7 var(--mono); }
       .nuance-index a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
       .nuance-index em { color: var(--ink-soft); font-family: var(--body); font-style: italic; }
-      .article-citation { margin: 44px 0 30px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
-      .article-citation h3 { margin: 0 0 8px; color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
-      .article-citation p { margin: 0 0 12px; font-size: 16.5px; }
-      .article-citation pre { margin: 0; overflow-x: auto; }
-      .article-citation code { display: block; padding: 14px; background: var(--paper); border: 1px solid var(--rule); font: 12.5px/1.6 var(--mono); white-space: pre; }
       .dl-terms { margin: 22px 0; }
       .dl-terms dt { margin-top: 14px; font: 600 14px/1.4 var(--mono); }
       .dl-terms dd { margin: 4px 0 0; color: var(--ink-soft); }
@@ -4271,24 +4266,29 @@
         </div>
       </section>
 
-      <aside class="article-citation" aria-label="How to cite this article">
-        <h3>Citation</h3>
-        <p>If you found this useful and want to point at it:</p>
-        <pre><code>@misc{srinivasan2026talkisnotcheap,
-  title  = {Talk is not cheap: From PCIe and NVLink to InfiniBand},
-  author = {Srinivasan, Anirudh},
-  year   = {2026},
-  month  = {September},
-  url    = {https://srini-anirudh.github.io/blogs/talk-is-not-cheap/}
-}</code></pre>
-        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
-        <span class="citation-status" aria-live="polite"></span>
-      </aside>
-
       <footer class="article-footer">
         <p>Written September 2026. All seventeen figures are generated programmatically as SVG in this single file — there are no image assets, and every animation can be stepped frame by frame with the Previous and Next controls. The twenty-two nuance callouts are collected in <a href="#nuances">one index</a> near the end, so the corrections can be checked without rereading the arguments around them. Corrections and disagreements are welcome.</p>
       </footer>
     </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Talk is not cheap: From PCIe and NVLink to InfiniBand</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/">https://srini-anirudh.github.io/blogs/talk-is-not-cheap/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026talkisnotcheap,
+  author       = {Srinivasan, Anirudh},
+  title        = {Talk is not cheap: From PCIe and NVLink to InfiniBand},
+  year         = {2026},
+  month        = {September},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/talk-is-not-cheap/},
+  note         = {Published September 1, 2026; updated September 1, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
 
     <footer class="site-footer" aria-label="Contact links">
       <span>Anirudh Srinivasan</span>
