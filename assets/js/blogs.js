@@ -162,11 +162,80 @@ document.querySelectorAll("[data-copy-citation]").forEach((button) => {
   });
 });
 
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      if (existing.dataset.loaded === "true") resolve();
+      else {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.defer = true;
+    script.addEventListener("load", () => {
+      script.dataset.loaded = "true";
+      resolve();
+    }, { once: true });
+    script.addEventListener("error", reject, { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+async function initializeBlogMath() {
+  if (!document.body.classList.contains("blog-article")) return;
+
+  const article = document.querySelector("main.article-content, main.article-wrap, main");
+  if (!article || !/(\$\$|\\\(|\\\[)/.test(article.textContent || "")) return;
+
+  const version = "0.16.11";
+  const base = `https://cdn.jsdelivr.net/npm/katex@${version}/dist`;
+  if (!document.querySelector('link[data-blog-math="katex"]')) {
+    const stylesheet = document.createElement("link");
+    stylesheet.rel = "stylesheet";
+    stylesheet.href = `${base}/katex.min.css`;
+    stylesheet.dataset.blogMath = "katex";
+    document.head.appendChild(stylesheet);
+  }
+
+  try {
+    if (!window.katex) await loadScriptOnce(`${base}/katex.min.js`);
+    if (!window.renderMathInElement) await loadScriptOnce(`${base}/contrib/auto-render.min.js`);
+    window.renderMathInElement(article, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\[", right: "\\]", display: true },
+        { left: "\\(", right: "\\)", display: false },
+      ],
+      ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code", "svg"],
+      throwOnError: false,
+    });
+    document.documentElement.dataset.mathReady = "true";
+  } catch (_error) {
+    document.documentElement.dataset.mathReady = "failed";
+  }
+}
+
+initializeBlogMath();
+
 function initializeDistillSideToc() {
   if (!document.body.classList.contains("blog-article")) return;
 
-  const article = document.querySelector("main.article-content");
-  const sourceLinks = [...document.querySelectorAll('.toc a[href^="#"]')];
+  const article = document.querySelector("main.article-content, main.article-wrap, main");
+  let sourceLinks = [...document.querySelectorAll('.toc a[href^="#"], .article-toc a[href^="#"]')];
+  if (!sourceLinks.length && article) {
+    sourceLinks = [...article.querySelectorAll("section[id] > h2:first-child, h2[id]")].map((heading) => ({
+      hash: `#${heading.closest("section[id]")?.id || heading.id}`,
+      textContent: heading.textContent,
+      cloneNode: () => heading.cloneNode(true),
+      closest: () => null,
+      querySelector: () => null,
+    }));
+  }
   const sourceToc = sourceLinks[0]?.closest(".toc");
   const seenTargets = new Set();
   const entries = sourceLinks.flatMap((sourceLink) => {

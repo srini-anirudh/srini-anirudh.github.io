@@ -166,6 +166,73 @@ html.distill-side-toc-active .blog-article .tocbar {
   text-transform: uppercase;
 }
 
+/* Shared survey matrix: use the same compact, scannable comparison treatment
+   instead of repeating one paper at a time in long prose. */
+.blog-article .comparison-table-wrap {
+  max-width: 100%;
+  margin: 24px 0 28px;
+  overflow-x: auto;
+  border: 1px solid var(--blog-rule);
+  background: var(--blog-paper-bright);
+}
+
+.blog-article .comparison-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  color: var(--blog-ink);
+  font: 500 12px/1.45 var(--blog-mono);
+}
+
+.blog-article .comparison-table caption {
+  padding: 13px 15px;
+  color: var(--blog-muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.blog-article .comparison-table th,
+.blog-article .comparison-table td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--blog-rule);
+  border-right: 1px solid var(--blog-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.blog-article .comparison-table th:last-child,
+.blog-article .comparison-table td:last-child {
+  border-right: 0;
+}
+
+.blog-article .comparison-table thead th {
+  color: var(--blog-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.blog-article .comparison-table .matrix-mark {
+  color: var(--blog-orange);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.blog-article .field-direction {
+  padding: 15px 17px;
+  margin: 22px 0 30px;
+  border-left: 3px solid var(--blog-orange);
+  background: var(--blog-paper-soft);
+}
+
+.blog-article .field-direction strong:first-child {
+  color: var(--blog-orange);
+  font-family: var(--blog-display);
+}
+
 .ml-series-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles, animated walk through everything that changed between the 2017 Transformer and the Llama, Qwen, DeepSeek, and GLM-class models of today." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Anatomy of a Modern LLM: What Changed Between 2017 and Now" />
+    <meta property="og:description" content="A first-principles, animated walk through everything that changed between the 2017 Transformer and the Llama, Qwen, DeepSeek, and GLM-class models of today." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/preview.png" />
+    <meta property="article:published_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-09-04" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Anatomy of a Modern LLM: What Changed Between 2017 and Now" />
+    <meta name="twitter:description" content="A first-principles, animated walk through everything that changed between the 2017 Transformer and the Llama, Qwen, DeepSeek, and GLM-class models of today." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/preview.png" />
+    <title>Anatomy of a Modern LLM | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/" },
+        "headline": "Anatomy of a Modern LLM",
+        "description": "A first-principles, animated walk through everything that changed between the 2017 Transformer and the Llama, Qwen, DeepSeek, and GLM-class models of today.",
+        "image": "https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/preview.png",
+        "datePublished": "2026-09-04",
+        "dateModified": "2026-09-04",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["Transformer architecture", "Large language models", "Attention", "Mixture of Experts", "RoPE", "KV cache"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 9px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article-specific additions ---------- */
+      .lede { font-size: 20.5px; }
+      .lede strong { font-weight: 600; }
+
+      .article-panel { --f-ink: #e4eaee; --f-dim: #93a0a8; --f-line: #39454e; --f-accent: #3fd1a0; --f-warm: #f2b45f; --f-cool: #5ab2e8; --f-red: #ef7a7a; --f-violet: #b48ce8; --f-plum: #2a2130; }
+      .article-panel:focus-visible { outline: 2px solid var(--f-cool); outline-offset: 3px; }
+      .animation-stage { min-height: 40px; }
+      .animation-stage svg { display: block; width: 100%; height: auto; max-height: 62vh; }
+      .figure-caption { margin: 14px 0 0; color: #a9b5bd; font: 400 14.5px/1.55 var(--body); }
+      .figure-caption strong { color: #e4eaee; font-weight: 600; }
+      .figure-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; color: #93a0a8; font: 10.5px/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+      .figure-legend i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 2px; }
+      .figure-note { margin-top: 10px; color: #7f8b93; font: 400 12.5px/1.6 var(--mono); }
+      .panel-title { margin: 0 0 4px; color: #f2f6f8; font: 700 15px/1.3 var(--display); letter-spacing: 0.01em; }
+      .panel-kicker { margin: 0 0 16px; color: #6f7c85; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }
+
+      .panel-toggles { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+      .panel-toggles button { min-height: 32px; padding: 6px 10px; color: #b9c4cb; background: #131a20; border: 1px solid #2c3740; cursor: pointer; font: 600 10.5px/1 var(--mono); letter-spacing: 0.05em; }
+      .panel-toggles button[aria-pressed="true"] { color: #06120e; background: var(--f-cool); border-color: var(--f-cool); }
+      .panel-toggles button:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 2px; }
+
+      .eqbox { margin: 26px 0; padding: 18px 20px; background: var(--paper-bright); border-left: 3px solid var(--ink); overflow-x: auto; }
+      .eqbox .katex-display { margin: 0.35em 0; }
+      .eqnote { margin: 8px 0 0; color: var(--muted); font: 400 14px/1.5 var(--mono); }
+
+      .callout { margin: 28px 0; padding: 18px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid #3f8f74; }
+      .callout p:last-child { margin-bottom: 0; }
+      .callout .callout-kicker { margin: 0 0 8px; color: #3f8f74; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }
+      .callout.warn { border-left-color: #b8703a; }
+      .callout.warn .callout-kicker { color: #b8703a; }
+
+      .datatable { width: 100%; margin: 24px 0; border-collapse: collapse; font: 400 14px/1.45 var(--mono); }
+      .datatable th, .datatable td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+      .datatable th { color: var(--muted); font-weight: 600; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+      .datatable td:first-child { font-weight: 600; white-space: nowrap; }
+      .datatable tr.era td { padding-top: 18px; color: var(--muted); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; border-bottom: 0; }
+      .table-scroll { overflow-x: auto; margin: 24px -8px; padding: 0 8px; }
+
+      .calc-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr); gap: 22px; }
+      @media (max-width: 720px) { .calc-grid { grid-template-columns: 1fr; } }
+      .calc-field { margin: 0 0 11px; }
+      .calc-field label { display: flex; justify-content: space-between; gap: 10px; color: #93a0a8; font: 600 10.5px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .calc-field label b { color: var(--f-accent); font-weight: 600; }
+      .calc-field input[type="range"] { width: 100%; margin: 5px 0 0; accent-color: #3fd1a0; }
+      .calc-field select { width: 100%; margin: 5px 0 0; padding: 6px 8px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; font: 500 12px/1.3 var(--mono); }
+      .readout { margin: 0 0 10px; padding: 10px 12px; background: #141a20; border: 1px solid #232d35; }
+      .readout dt { color: #7f8b93; font: 600 10px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .readout dd { margin: 5px 0 0; color: #eef3f6; font: 600 20px/1.15 var(--display); }
+      .readout dd small { display: block; margin-top: 3px; color: #93a0a8; font: 400 11.5px/1.4 var(--mono); }
+      .bar-row { display: flex; align-items: center; gap: 9px; margin: 0 0 6px; font: 500 11px/1.3 var(--mono); color: #b9c4cb; }
+      .bar-row span:first-child { flex: 0 0 96px; color: #93a0a8; }
+      .bar-track { flex: 1; height: 12px; background: #1a222a; border: 1px solid #26313a; }
+      .bar-fill { height: 100%; background: var(--f-accent); }
+
+      .keyline { margin: 46px 0; border: 0; border-top: 1px solid var(--rule); }
+      .article-content figcaption { margin: 10px 0 0; color: var(--muted); font: 400 14px/1.5 var(--body); font-style: italic; }
+      .xref { display: block; margin: 22px 0; padding: 12px 16px; background: var(--paper-bright); border-left: 3px solid var(--rule); color: var(--ink-soft); font: 400 15.5px/1.55 var(--body); text-decoration: none; }
+      .xref:hover { border-left-color: var(--ink); }
+      .xref b { display: block; color: var(--ink); font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 5px; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 15px; }
+        .animation-status { flex-basis: 100%; margin-left: 0; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article anatomy-of-a-modern-llm-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Understanding LLMs</p>
+        <h1 class="article-title">Anatomy of a Modern LLM</h1>
+        <p class="article-subtitle">The 2017 Transformer and a 2026 frontier model share a skeleton. Almost every organ has been replaced. This is a part-by-part inventory of what changed, and the pressure that forced each change.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Transformers</span><span>Architecture</span><span>KV Cache</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>52 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Understanding LLMs">
+      <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
+      <span class="ml-series-nav__position">01 of 09 &middot; The Architecture</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../evolution-of-architectures/"><span>Prerequisite</span><strong>Evolution of ML Architectures</strong></a>
+        <a class="ml-series-nav__link" href="../parameters-tokens-compute/"><span>Next published &middot; 03</span><strong>Parameters, Tokens, Compute</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#skeleton">Same skeleton, new organs</a></li>
+          <li><a href="#residual-stream">The residual stream is the object</a></li>
+          <li><a href="#position">Where the position went</a></li>
+          <li><a href="#normalization">Fewer statistics, more placements</a></li>
+          <li><a href="#ffn">The FFN learned to gate</a></li>
+          <li><a href="#kv-cache">The KV cache became the constraint</a></li>
+          <li><a href="#masks">The mask grew holes</a></li>
+          <li><a href="#moe">One FFN became hundreds</a></li>
+          <li><a href="#beyond-softmax">Past softmax: the 2026 hybrids</a></li>
+          <li><a href="#small-things">Small changes that aren't small</a></li>
+          <li><a href="#build">Build a model</a></li>
+          <li><a href="#spec-sheet">The spec sheet</a></li>
+          <li><a href="#unchanged">What didn't change</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="skeleton">
+        <h2>Same skeleton, new organs</h2>
+
+        <p class="lede">Open the modeling file for Llama 3, Qwen3, DeepSeek-V3, or Olmo 3 and you will find something that would be legible to someone who had only read <em>Attention Is All You Need</em>. Embed tokens. Loop over blocks. Each block: attention, residual add, feed-forward network, residual add. Project to vocabulary. Softmax. That is still the whole program.</p>
+
+        <p>And yet almost nothing inside those four steps is the same object it was in 2017. The normalization layer computes different statistics and sits in a different place. Position information is no longer added to the input; it is applied inside attention as a rotation. The feed-forward network has three weight matrices instead of two, and in the largest models there are two hundred and fifty-six of them per layer with only nine running per token. Attention no longer gives each head its own keys and values. Three quarters of the layers cannot see past the last four thousand tokens.</p>
+
+        <p>The interesting thing is that <strong>almost none of these changes were motivated by better language modeling.</strong> Sweep the ablations and the accuracy deltas are mostly within noise. What drove them was a different set of pressures: memory bandwidth during decoding, numerical stability at low precision and large scale, the cost of a cross-feature reduction on a GPU, the fact that a 128k-token KV cache does not fit next to the weights, and — above everything else — the desire to add parameters without adding FLOPs.</p>
+
+        <p>This article is an inventory. For each part of the block, I want to do three things: state what the 2017 version did, derive why it stopped being the right choice, and show what replaced it in models you can download today. Where the community has genuinely not settled a question, I will say so rather than manufacturing a clean story.</p>
+
+        <p>The animation below is the whole argument in fourteen steps. Each step applies exactly one change to the 2017 decoder block and holds everything else fixed. The rest of the article expands one step at a time.</p>
+
+        <div class="article-panel" id="fig-morph" tabindex="0" role="group" aria-label="Animated fourteen-stage morph from the 2017 Transformer decoder block to a 2026 frontier block">
+          <p class="panel-kicker">Figure 1 · The morph</p>
+          <p class="panel-title">One change at a time, 2017 &rarr; 2026</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 14</span>
+          </div>
+          <p class="figure-note">Autoplay pauses while you step manually and resumes about twelve seconds after your last interaction. Arrow keys step frames when the figure has focus.</p>
+        </div>
+
+        <p>Two honest caveats before we start. First, architecture is probably not where most of the last eight years of capability came from. Data scale, data quality, and post-training moved the benchmarks far more than any of these components did, and the labs that publish ablations tend to report architecture deltas of a fraction of a point. Second, these changes are not independent. QK-norm exists partly because RMSNorm removed a stabilizer. Sliding-window attention is affordable partly because RoPE handles relative position gracefully. I will flag the couplings as they come up.</p>
+
+        <a class="xref" href="../evolution-of-architectures/"><b>Companion piece</b>If you want the longer arc — perceptrons through CNNs, RNNs, Transformers, and state-space models — <em>Evolution of ML Architectures</em> covers the sixty-seven years before this article starts.</a>
+      </section>
+
+      <section id="residual-stream">
+        <h2>The residual stream is the object</h2>
+
+        <p>Before touching any component, it helps to fix the right mental picture of what a Transformer block <em>is</em>, because every later design decision is easier to read against it.</p>
+
+        <p>A decoder-only Transformer maintains one tensor of shape \((B, S, d)\) from the embedding layer to the final norm. Call it the residual stream. Every sublayer reads the stream, computes something, and adds the result back. Nothing ever overwrites it:</p>
+
+        <div class="eqbox">
+          $$x_{\ell+1} = x_\ell + \mathrm{Attn}_\ell\!\big(\mathrm{Norm}(x_\ell)\big) + \mathrm{FFN}_\ell\!\big(\mathrm{Norm}(x_\ell + \mathrm{Attn}_\ell(\cdots))\big)$$
+          <p class="eqnote">Pre-norm form. Each sublayer contributes an additive delta; the stream itself is never transformed in place.</p>
+        </div>
+
+        <p>Three consequences follow immediately, and they explain a surprising fraction of modern design.</p>
+
+        <p><strong>The stream is a shared bus with a fixed width.</strong> Every layer writes into the same \(d\)-dimensional space, so features have to be arranged in a way that later layers can find. This is why \(d\) is expensive to grow — attention parameters scale as \(d^2\), FFN parameters scale as \(d \cdot d_\text{ff}\), and the KV cache scales linearly in \(d\) too. Almost every efficiency trick of the last three years is a way to buy capacity <em>without</em> growing \(d\).</p>
+
+        <p><strong>The identity path means gradients reach layer 1 unattenuated.</strong> The Jacobian of the residual add is \(I + \partial(\text{sublayer})\). Stack \(L\) of them and you get a product whose dominant term is the identity. That is the whole reason a 94-layer model trains at all. It is also why <em>where</em> you put the normalization matters so much: put it on the identity path and you break it, put it on the branch and you preserve it. Section 4 is entirely about this.</p>
+
+        <p><strong>Variance accumulates.</strong> If each sublayer writes a roughly independent delta of similar scale, then \(\|x_\ell\|^2 \approx \|x_0\|^2 + \ell\sigma^2\), so \(\|x_\ell\|\) grows like \(\sqrt{\ell}\). Real models show exactly this: the residual norm climbs monotonically with depth, often by an order of magnitude. That growth is benign as long as every consumer of the stream normalizes first — and catastrophic if some consumer does not.</p>
+
+        <p>The figure below traces one token's stream through a 24-layer model, showing the deltas being written, the norm growing, and where a normalization layer intervenes under three different placement conventions.</p>
+
+        <div class="article-panel" id="fig-stream" tabindex="0" role="group" aria-label="Animated residual stream showing sublayer deltas accumulating across twenty-four layers under three normalization placements">
+          <p class="panel-kicker">Figure 2 · The residual stream</p>
+          <p class="panel-title">Deltas accumulate; norms decide who sees what</p>
+          <div class="panel-toggles" role="group" aria-label="Normalization placement">
+            <button type="button" data-variant="post" aria-pressed="false">Post-LN (2017)</button>
+            <button type="button" data-variant="pre" aria-pressed="true">Pre-LN (GPT-2 &rarr;)</button>
+            <button type="button" data-variant="sandwich" aria-pressed="false">Pre+Post (Gemma 3, Olmo 2)</button>
+          </div>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 13</span>
+          </div>
+        </div>
+
+        <p>Keep this picture. When we get to multi-head latent attention, sliding windows, and mixture-of-experts routing, each one is a statement about what a layer is allowed to read from the bus and how much it is allowed to write.</p>
+      </section>
+
+      <section id="position">
+        <h2>Where the position went</h2>
+
+        <p>Attention is permutation-equivariant. Shuffle the tokens in the input and the attention output shuffles identically — the mechanism has no idea which token came first. Position has to be injected somewhere, and the history of how we inject it is one of the cleanest stories in the field.</p>
+
+        <h3>Three generations of answer</h3>
+
+        <p><strong>2017: add a sinusoid.</strong> The original Transformer added a fixed vector \(p_m\) to the token embedding, with \(p_{m,2i} = \sin(m/10000^{2i/d})\) and cosine in the odd slots. Fixed, not learned, and chosen so that \(p_{m+k}\) is a linear function of \(p_m\) — the paper hoped this would make relative offsets easy to learn.</p>
+
+        <p><strong>2018–2020: learn it.</strong> GPT-2 and GPT-3 replaced the sinusoid with a learned lookup table \(P \in \mathbb{R}^{S_\max \times d}\), added to the embedding. Simple, works, and has a hard failure mode: row \(m\) for \(m \ge S_\max\) does not exist. GPT-2 could not process a 1025th token at all. Extending context meant training new rows from scratch.</p>
+
+        <p>Both share a deeper problem. Position enters once, at the input, as an <em>additive</em> perturbation of the content vector. By layer 40 the model has to have preserved that perturbation through forty rounds of mixing in order to still know where it is. And the thing attention actually cares about is not absolute position — it is the offset between the query and the key.</p>
+
+        <h3>The requirement, stated properly</h3>
+
+        <p>Here is the design question rotary embeddings answer. We want a function \(f\) that takes a vector and a position, such that the attention logit between query at position \(m\) and key at position \(n\) depends only on the two vectors and their <em>difference</em>:</p>
+
+        <div class="eqbox">
+          $$\big\langle f(q, m),\; f(k, n) \big\rangle \;=\; g\big(q,\, k,\, m-n\big)$$
+          <p class="eqnote">Relative position for free, in the inner product, with no extra terms in the attention score.</p>
+        </div>
+
+        <p>In two dimensions there is an obvious candidate: rotation. Let \(R_\theta\) be the 2&times;2 rotation matrix by angle \(\theta\), and set \(f(q, m) = R_{m\theta}q\). Then, because rotations are orthogonal and \(R_a^\top R_b = R_{b-a}\):</p>
+
+        <div class="eqbox">
+          $$\langle R_{m\theta}q,\; R_{n\theta}k\rangle \;=\; q^\top R_{m\theta}^\top R_{n\theta} k \;=\; q^\top R_{(n-m)\theta}\, k$$
+          <p class="eqnote">The absolute positions cancel exactly. Only \(n-m\) survives.</p>
+        </div>
+
+        <p>That is the whole idea. RoPE splits the \(d\)-dimensional head into \(d/2\) coordinate pairs and rotates pair \(i\) by \(m\theta_i\), with the frequencies geometrically spaced:</p>
+
+        <div class="eqbox">
+          $$\theta_i \;=\; b^{-2i/d}, \qquad i = 0, 1, \dots, \tfrac{d}{2}-1$$
+          <p class="eqnote">\(b\) is the RoPE base. Pair 0 rotates once per token; the last pair completes a cycle every \(2\pi b\) tokens.</p>
+        </div>
+
+        <p>The geometric spacing gives the model a positional "clock" with hands at many speeds — fast pairs resolve nearby offsets precisely, slow pairs carry coarse long-range information. And critically, the rotation is applied to \(q\) and \(k\) <em>inside every attention layer</em>, not once at the input. Position is re-asserted at layer 40 rather than remembered from layer 0.</p>
+
+        <div class="article-panel" id="fig-rope" tabindex="0" role="group" aria-label="Animated derivation of rotary position embeddings, from the permutation-equivariance problem to frequency bands and context extension">
+          <p class="panel-kicker">Figure 3 · Rotary position embeddings</p>
+          <p class="panel-title">Why a rotation is the right shape of answer</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 12</span>
+          </div>
+        </div>
+
+        <h3>The base is a context-length dial</h3>
+
+        <p>The slowest RoPE frequency has wavelength \(2\pi b\) tokens. If \(b = 10{,}000\), positions further apart than roughly 63,000 tokens start aliasing — the model has literally never seen a full period of its slowest dial during training, and offsets beyond training length map to angles it has no calibration for. This is why RoPE models degrade sharply past their training context rather than gracefully.</p>
+
+        <p>The field's response has been to turn the dial up and to rescale. Llama 2 used \(b = 10^4\). Llama 3 uses \(5\times10^5\). Qwen3 uses \(10^6\). Gemma 3 goes further and uses <em>two</em> bases: \(10^4\) for its local sliding-window layers, where only short offsets ever occur, and \(10^6\) for the sparse global layers that need to span the full context. YaRN and NTK-aware scaling go a step beyond retuning the base: they interpolate the low-frequency dials while leaving high-frequency ones alone, on the argument that fast dials already generalize and slow ones do not.</p>
+
+        <div class="callout">
+          <p class="callout-kicker">Where this is going</p>
+          <p>The most interesting recent move is <em>removing</em> position encoding. SmolLM3 and Arcee's Trinity Large use NoPE — no positional embedding at all — in their global attention layers, keeping RoPE only in the local ones. The causal mask alone already breaks permutation symmetry: token \(m\) sees \(m\) predecessors and token \(n\) sees \(n\), so the model can infer ordering from the attention pattern itself. Dropping RoPE from the global layers removes exactly the frequencies that fail to extrapolate.</p>
+        </div>
+
+        <a class="xref" href="../position-embeddings/"><b>Deep dive</b>Sinusoidal, learned, relative, ALiBi, RoPE, NoPE, 2D and M-RoPE, with animated derivations for each — <em>How Models Know Where They Are</em>.</a>
+      </section>
+
+      <section id="normalization">
+        <h2>Fewer statistics, more placements</h2>
+
+        <p>Normalization changed along two independent axes: <em>what</em> it computes, and <em>where</em> it sits. The two are often conflated. They shouldn't be.</p>
+
+        <h3>Axis one: LayerNorm &rarr; RMSNorm</h3>
+
+        <p>LayerNorm standardizes across the feature dimension, then applies a learned scale and shift:</p>
+
+        <div class="eqbox">
+          $$\mathrm{LN}(x) = \gamma \odot \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}} + \beta, \qquad \mu = \tfrac{1}{d}\textstyle\sum_j x_j,\quad \sigma^2 = \tfrac{1}{d}\textstyle\sum_j (x_j-\mu)^2$$
+        </div>
+
+        <p>RMSNorm drops the mean subtraction and the shift:</p>
+
+        <div class="eqbox">
+          $$\mathrm{RMS}(x) = \gamma \odot \frac{x}{\sqrt{\tfrac{1}{d}\sum_j x_j^2 + \epsilon}}$$
+          <p class="eqnote">One reduction instead of two. No \(\beta\). Scale control without re-centering.</p>
+        </div>
+
+        <p>Why does dropping the mean cost nothing? Because the thing being normalized is immediately consumed by a linear layer whose weights can absorb any constant offset, and because the residual stream's mean is not a meaningful quantity to begin with — it is an artifact of the embedding initialization, not a signal. The RMSNorm paper's claim, which has held up, is that <em>re-scaling</em> is the part that stabilizes optimization and <em>re-centering</em> is decoration.</p>
+
+        <p>The practical argument is sharper. A cross-feature reduction on a GPU is a warp-level or block-level sum: it forces a synchronization point and, under tensor parallelism where \(d\) is sharded across devices, an actual collective. LayerNorm needs two such reductions (mean, then variance about the mean); RMSNorm needs one. On a normalization layer that runs twice per block across 60–90 blocks, at every token, in a memory-bound regime, halving the reductions is a real throughput number rather than a rounding error.</p>
+
+        <h3>Axis two: where it sits</h3>
+
+        <p>The 2017 paper put normalization <em>after</em> the residual add: \(x_{\ell+1} = \mathrm{LN}(x_\ell + F(x_\ell))\). This puts a normalization layer directly on the identity path. Backpropagating through \(L\) of them multiplies \(L\) LayerNorm Jacobians together, and the clean identity term is gone. Post-LN Transformers famously require a learning-rate warmup to train at all, and the deeper they get the more fragile they become.</p>
+
+        <p>Pre-norm — \(x_{\ell+1} = x_\ell + F(\mathrm{Norm}(x_\ell))\) — moves the normalization onto the branch. GPT-2 already did this in 2019 and essentially every model since has followed. The identity path is now literally the identity, warmup requirements relax, and depth becomes cheap.</p>
+
+        <p>The cost is the variance growth from Section 2: with nothing constraining branch outputs, \(\|x_\ell\|\) grows unchecked and the effective contribution of deep layers shrinks relative to the accumulated stream. Two families of fix are in production:</p>
+
+        <ul>
+          <li><strong>Sandwich / peri-norm.</strong> Gemma 2 and 3 normalize both the input <em>and</em> the output of each sublayer, still inside the branch. The branch output is now scale-controlled, so the stream grows in a bounded way, and the identity path stays clean.</li>
+          <li><strong>Post-norm on the branch.</strong> Olmo 2 — and therefore Olmo 3 — normalizes only the sublayer output, keeping the residual path untouched. Ai2 reported this specifically as a training-stability result: fewer loss spikes at scale.</li>
+        </ul>
+
+        <p>Arcee's Trinity Large adds a third twist worth noting: the gain of the second RMSNorm in each block is initialized to roughly \(1/\sqrt{L}\), so early in training every branch writes a small delta and the model has to earn its way up to a larger residual scale. That is a depth-scaled initialization dressed up as a norm parameter.</p>
+
+        <h3>QK-norm: the stabilizer nobody expected to need</h3>
+
+        <p>Attention logits are \(q^\top k/\sqrt{d_h}\). Nothing bounds \(\|q\|\) or \(\|k\|\). If a head learns to increase both, logits grow, softmax saturates, gradients through it vanish, and in bf16 a large logit is also a precision problem. In practice this shows up as loss spikes.</p>
+
+        <p>QK-norm applies RMSNorm to \(q\) and \(k\) per head, immediately before the dot product. Bounding both vectors' scale caps the logit magnitude regardless of what the projections learn. It was popularized by the ViT-22B work and is now near-universal: Qwen3, Olmo 3, Gemma 3, and Trinity all use it.</p>
+
+        <p>Near-universal, not universal. Cohere's Tiny Aya dropped QK-norm, with the team's stated reason being that it can interact badly with long-context behaviour. That is a genuine open trade-off between training stability and inference behaviour, and I have not seen a clean public ablation resolving it.</p>
+
+        <div class="article-panel" id="fig-norm" tabindex="0" role="group" aria-label="Animated comparison of post-norm, pre-norm, and sandwich normalization placements showing gradient paths and residual growth">
+          <p class="panel-kicker">Figure 4 · Normalization placement</p>
+          <p class="panel-title">The identity path is the whole game</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 11</span>
+          </div>
+        </div>
+
+        <a class="xref" href="../normalization/"><b>Deep dive</b>BatchNorm through Peri-LN, why each one was proposed, and what the geometry actually does to a vector — <em>The Geometry of Normalization</em>.</a>
+      </section>
+
+      <section id="ffn">
+        <h2>The FFN learned to gate</h2>
+
+        <p>Two thirds of the parameters in a dense Transformer live in the feed-forward network, so a change here is a change to most of the model.</p>
+
+        <p>The 2017 FFN is two matrices with a pointwise nonlinearity between them, and an expansion factor of four:</p>
+
+        <div class="eqbox">
+          $$\mathrm{FFN}(x) = W_2\,\phi(W_1 x), \qquad W_1 \in \mathbb{R}^{4d \times d},\; W_2 \in \mathbb{R}^{d \times 4d}$$
+          <p class="eqnote">\(\phi = \mathrm{ReLU}\) in 2017, GELU by GPT-2. Parameter count: \(8d^2\).</p>
+        </div>
+
+        <p>The modern version is a gated linear unit with three matrices:</p>
+
+        <div class="eqbox">
+          $$\mathrm{SwiGLU}(x) = W_2\Big(\underbrace{\mathrm{SiLU}(W_g x)}_{\text{gate}} \;\odot\; \underbrace{W_u x}_{\text{value}}\Big), \qquad \mathrm{SiLU}(z) = z\,\sigma(z)$$
+          <p class="eqnote">Three matrices of shape \(d \times d_\text{ff}\). Parameter count: \(3\,d\,d_\text{ff}\).</p>
+        </div>
+
+        <h3>Two changes, not one</h3>
+
+        <p>It is worth separating them. The first is the activation: GELU \(\to\) SiLU/Swish. GELU requires the Gaussian error function, computed via polynomial approximation; SiLU needs one sigmoid. The curves are nearly identical and every honest ablation I have seen puts the modeling difference inside the noise band. This is a cost change, not a quality change. Google's Gemma line still uses GELU — in its gated form, GeGLU — which tells you how little rides on it.</p>
+
+        <p>The second change is the real one: the <em>gate</em>. The output is now a product of two learned projections of the same input. That multiplicative interaction is something a two-matrix MLP has to approximate with depth and width; here it is a primitive. The model can learn "route this feature through only when that other feature is present" in one layer, cheaply, per channel.</p>
+
+        <h3>The 8/3 accounting</h3>
+
+        <p>Adding a third matrix looks like it adds parameters. It doesn't, because the convention is to shrink \(d_\text{ff}\) to compensate. Setting \(3\,d\,d_\text{ff} = 8d^2\) gives:</p>
+
+        <div class="eqbox">
+          $$d_\text{ff} \;=\; \tfrac{8}{3}\,d \;\approx\; 2.667\,d$$
+          <p class="eqnote">Then rounded up to a hardware-friendly multiple, usually 128 or 256.</p>
+        </div>
+
+        <p>Llama 2 7B is the textbook case: \(d = 4096\), \(\tfrac{8}{3}d = 10{,}923\), shipped as 11,008 — the next multiple of 256. Llama 3 8B breaks the rule deliberately and uses 14,336 (\(3.5d\)), spending real extra parameters on the FFN because the team judged it worth the compute. So treat 8/3 as the parity convention, not a law.</p>
+
+        <div class="article-panel" id="fig-swiglu" tabindex="0" role="group" aria-label="Animated comparison of a classic two-matrix feed-forward network and a three-matrix gated SwiGLU, including parameter accounting">
+          <p class="panel-kicker">Figure 5 · Feed-forward, gated</p>
+          <p class="panel-title">Three matrices, same budget, one extra multiply</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 09</span>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <p class="callout-kicker">A caution on the standard story</p>
+          <p>The usual claim is that GLU variants "perform better." The evidence for that is largely one 2020 paper of small-scale ablations plus the fact that everyone adopted it. Noam Shazeer's own conclusion in that paper was, essentially, that the architectures work and he offers no explanation for why — "divine benevolence" was the phrase. Nine years later there is still no clean mechanistic account of the gain. Adopt it because it is the standard and it is cheap, not because the mechanism is settled.</p>
+        </div>
+
+        <a class="xref" href="../activation-functions/"><b>Deep dive</b>Sigmoid through squared ReLU, with derivations of each curve and a map of what production models actually ship — <em>The Activation Atlas</em>.</a>
+      </section>
+
+      <section id="kv-cache">
+        <h2>The KV cache became the constraint</h2>
+
+        <p>This is the section that explains the most changes, so it is worth being precise.</p>
+
+        <p>During autoregressive decoding you generate one token at a time. Every new query must attend to all previous keys and values. Recomputing them would be quadratic in the number of generated tokens, so you cache them. The cache is:</p>
+
+        <div class="eqbox">
+          $$\text{bytes}_\text{KV} \;=\; 2 \times L \times n_\text{kv} \times d_h \times s \times b \times \text{bytes/elt}$$
+          <p class="eqnote">The 2 is K and V. \(L\) layers, \(n_\text{kv}\) key/value heads, head dimension \(d_h\), sequence length \(s\), batch \(b\).</p>
+        </div>
+
+        <p>Put Llama-3-8B numbers in: \(L{=}32\), \(d_h{=}128\), bf16. With full multi-head attention (\(n_\text{kv} = 32\)) that is <strong>512 KiB per token</strong>, so a single 128k-token sequence needs <strong>64 GiB</strong> of KV cache — for a model whose weights are 16 GiB. One user would not fit on an H100.</p>
+
+        <h3>The bandwidth argument, which matters more</h3>
+
+        <p>Memory capacity is the obvious problem. The subtler one is bandwidth. At each decode step, attention in layer \(\ell\) must <em>read the entire KV cache for that layer</em> and does roughly \(4 n_q d_h s\) FLOPs against it. The arithmetic intensity is:</p>
+
+        <div class="eqbox">
+          $$I \;=\; \frac{4\,n_q d_h s}{2 \cdot 2\, n_\text{kv} d_h s} \;=\; \frac{n_q}{n_\text{kv}} \quad\text{FLOPs per byte (bf16)}$$
+          <p class="eqnote">Independent of \(s\), \(d_h\), and batch. It is purely the query-to-KV head ratio.</p>
+        </div>
+
+        <p>An H100 SXM does roughly 989 TFLOP/s of bf16 against 3.35 TB/s of HBM, so its ridge point is near <strong>295 FLOPs per byte</strong>. Full multi-head attention gives \(I = 1\). Decode attention is therefore memory-bound by nearly three orders of magnitude: the tensor cores are idle almost the entire time, waiting on the KV cache to stream in.</p>
+
+        <p>That single number explains the entire MHA \(\to\) MQA \(\to\) GQA \(\to\) MLA progression. You cannot make the attention math cheaper — the FLOPs are already negligible. You can only make it read fewer bytes.</p>
+
+        <h3>The progression</h3>
+
+        <ul>
+          <li><strong>MQA (2019).</strong> One key/value head shared by all queries. \(n_\text{kv} = 1\), so the cache shrinks by \(n_q\times\) and \(I = n_q\). Enormous win, measurable quality loss, and — as the GQA paper documented — unstable to train at scale.</li>
+          <li><strong>GQA (2023).</strong> Interpolate. Split \(n_q\) query heads into \(g\) groups, one KV head per group. Llama 3 uses 32 queries over 8 KV heads: cache down 4&times;, \(I = 4\). Qwen3-235B uses 64 over 4: cache down 16&times;. Ablations in the GQA paper and Llama 2 put the quality cost near zero, which is why GQA is now the default rather than an optimization.</li>
+          <li><strong>MLA (2024).</strong> DeepSeek's answer: don't shrink the number of heads, shrink what you store.</li>
+        </ul>
+
+        <h3>Multi-head latent attention, derived</h3>
+
+        <p>MLA observes that keys and values are both linear functions of the same hidden state, and that a full-rank \(K\) and \(V\) per head is more information than the cache needs to carry. So compress once, decompress per head:</p>
+
+        <div class="eqbox">
+          $$c_t \;=\; W^{DKV} h_t \in \mathbb{R}^{r}, \qquad k_t^{(i)} = W^{UK}_i c_t, \qquad v_t^{(i)} = W^{UV}_i c_t$$
+          <p class="eqnote">DeepSeek-V3: \(r = 512\), against \(d = 7168\) and 128 heads of dimension 128.</p>
+        </div>
+
+        <p>Cache only \(c_t\). At decode time the up-projections never need to be applied at all, because they can be absorbed into the projections on the other side of each product:</p>
+
+        <div class="eqbox">
+          $$q^\top k^{(i)} = q^\top W^{UK}_i c = \big(W^{UK\top}_i q\big)^\top c, \qquad \big(\text{softmax} \cdot v\big)W^O = \big(\text{softmax}\cdot c\big) W^{UV}W^O$$
+          <p class="eqnote">Fold \(W^{UK}\) into the query projection and \(W^{UV}\) into the output projection. \(K\) and \(V\) are never materialized.</p>
+        </div>
+
+        <p>There is one obstruction, and it is the interesting part. RoPE applies a position-dependent rotation to \(k\). If you rotate after the up-projection, \(R_n W^{UK} \ne W^{UK} R_n\), so absorption breaks — you would need a different absorbed matrix per position. DeepSeek's fix is a <em>decoupled</em> RoPE key: a small extra 64-dimensional key, shared across all heads, that carries the rotation and is cached directly alongside \(c_t\). Everything else stays position-free and absorbable.</p>
+
+        <p>The result, for DeepSeek-V3's 61 layers:</p>
+
+        <div class="eqbox">
+          $$\underbrace{61 \times (512 + 64) \times 2}_{\text{MLA}} = 70{,}272~\text{B/token} \;=\; 68.6~\text{KiB} \qquad\text{vs.}\qquad \underbrace{61 \times 128 \times (192{+}128) \times 2}_{\text{equivalent MHA}} = 4.77~\text{MiB}$$
+          <p class="eqnote">A <strong>71&times;</strong> reduction. At 128k context: 8.6 GiB instead of 610 GiB.</p>
+        </div>
+
+        <p>MLA is harder to implement and harder to shard than GQA, which is why it took two years to spread. It has now spread: GLM-5, Kimi K2.5, Ling 2.5, and Sarvam 105B all adopted it in the last year, while their smaller siblings stayed on GQA.</p>
+
+        <div class="article-panel" id="fig-kv" tabindex="0" role="group" aria-label="Animated KV cache growth comparing multi-head, grouped-query, multi-query, latent, and sliding-window attention as sequence length increases">
+          <p class="panel-kicker">Figure 6 · KV cache</p>
+          <p class="panel-title">What each attention variant asks you to store</p>
+          <div class="panel-toggles" role="group" aria-label="Model preset">
+            <button type="button" data-kvmodel="llama8b" aria-pressed="true">Llama 3 8B shape</button>
+            <button type="button" data-kvmodel="olmo32b" aria-pressed="false">Olmo 3 32B shape</button>
+            <button type="button" data-kvmodel="dsv3" aria-pressed="false">DeepSeek-V3 shape</button>
+          </div>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 11</span>
+          </div>
+        </div>
+
+        <a class="xref" href="../llm-inference/"><b>Systems companion</b>Why prefill and decode are two different machines, and what the KV cache does to batching, latency, and throughput — <em>One Token at a Time</em>.</a>
+      </section>
+
+      <section id="masks">
+        <h2>The mask grew holes</h2>
+
+        <p>GQA and MLA shrink the cache by a constant factor. Neither touches the fact that it still grows linearly in \(s\), or that attention FLOPs grow as \(s^2\). At 65k or 256k context, a constant factor is not enough.</p>
+
+        <p>Sliding-window attention is the blunt fix: restrict each query to the last \(w\) keys. Per-layer attention cost drops from \(O(s^2)\) to \(O(sw)\), and — the part that actually matters — the KV cache for that layer is capped at \(\min(s, w)\) tokens instead of \(s\). The cache stops growing.</p>
+
+        <p>The obvious objection is that the model can no longer see far. The answer is that it can, through depth. A stack of \(L\) local layers with window \(w\) has a receptive field of \(L \cdot w\) tokens, exactly like a stack of convolutions. Information travels, it just takes hops.</p>
+
+        <p>In practice nobody relies on hops alone. Every production design interleaves a few full-attention layers so that long-range information has a direct path:</p>
+
+        <div class="table-scroll">
+        <table class="datatable">
+          <thead><tr><th>Model</th><th>Local : global</th><th>Window</th><th>Note</th></tr></thead>
+          <tbody>
+            <tr><td>GPT-3 (2020)</td><td>1 : 1</td><td>banded</td><td>"alternating dense and locally banded sparse", per the paper</td></tr>
+            <tr><td>Mistral 7B (2023)</td><td>all local</td><td>4096</td><td>no interleaved global layers</td></tr>
+            <tr><td>Gemma 2 (2024)</td><td>1 : 1</td><td>4096</td><td></td></tr>
+            <tr><td>Gemma 3 (2025)</td><td>5 : 1</td><td>1024</td><td>separate RoPE base per layer type</td></tr>
+            <tr><td>gpt-oss (2025)</td><td>1 : 1</td><td>128</td><td>unusually small window</td></tr>
+            <tr><td>Olmo 3 (2025)</td><td>3 : 1</td><td>4096</td><td>full attention in the final layer</td></tr>
+            <tr><td>Trinity Large (2026)</td><td>3 : 1</td><td>4096</td><td>NoPE in the global layers</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>The spread of window sizes — 128 to 4096 — and ratios — 1:1 to 5:1 — is a good indicator that nobody has found the optimum. Gemma's own ablations report minimal quality impact across a wide range, which is consistent with the parameter simply not mattering much once you have <em>some</em> global path.</p>
+
+        <h3>What it buys, in bytes</h3>
+
+        <p>Take Olmo 3 32B at its full 65,536-token context: 64 layers, 8 KV heads, \(d_h = 128\), bf16. Per layer per token the cache is \(2 \times 8 \times 128 \times 2 = 4096\) bytes.</p>
+
+        <div class="eqbox">
+          $$\text{full} = 64 \times 65536 \times 4096 = 16~\text{GiB}$$
+          $$\text{3:1 SWA} = \underbrace{16 \times 65536 \times 4096}_{\text{global layers}} + \underbrace{48 \times 4096 \times 4096}_{\text{local layers, capped}} = 4.75~\text{GiB}$$
+          <p class="eqnote">A 3.4&times; reduction, and — more importantly — 75% of the layers now have a cache that does not grow with context at all.</p>
+        </div>
+
+        <p>The animation below shows both halves of the picture: the mask patterns themselves, and the receptive-field cone widening layer by layer under each interleaving scheme.</p>
+
+        <div class="article-panel" id="fig-mask" tabindex="0" role="group" aria-label="Animated attention mask patterns and receptive field growth for full attention, sliding window, and interleaved local-global schemes">
+          <p class="panel-kicker">Figure 7 · Attention masks</p>
+          <p class="panel-title">Holes in the mask, cones through the depth</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 12</span>
+          </div>
+        </div>
+
+        <div class="callout">
+          <p class="callout-kicker">Implementation note</p>
+          <p>Mixing window sizes across layers means you need two attention masks in the same forward pass, and — if you follow Gemma 3 — two RoPE frequency tables. In PyTorch this typically means two <code>BlockMask</code> objects and a per-layer dispatch. It is a small amount of code that silently costs you a lot of throughput if you build the mask once per step instead of once per run.</p>
+        </div>
+      </section>
+
+      <section id="moe">
+        <h2>One FFN became hundreds</h2>
+
+        <p>Every change so far has been a refinement. Mixture-of-experts is a change of kind, and it is the single largest architectural difference between a 2020 model and a 2026 one.</p>
+
+        <p>The premise: for a dense model, parameters and FLOPs are welded together. Every parameter participates in every token. Scaling laws say more parameters is better; serving economics say more FLOPs per token is worse. MoE cuts the weld.</p>
+
+        <p>Replace the single FFN with \(N\) independent FFNs — "experts" — plus a small router. For each token, score the experts, take the top \(k\), and run only those:</p>
+
+        <div class="eqbox">
+          $$g = \mathrm{softmax}\big(W_r x\big), \qquad \mathcal{T} = \operatorname{top-}k(g), \qquad y = \sum_{i \in \mathcal{T}} \tilde{g}_i \cdot \mathrm{FFN}_i(x)$$
+          <p class="eqnote">Total FFN parameters scale with \(N\). FLOPs per token scale with \(k\). \(W_r\) is a single \(d \times N\) matrix — the router is essentially free.</p>
+        </div>
+
+        <p>The numbers this produces are startling, and the trend is toward more extreme sparsity:</p>
+
+        <div class="table-scroll">
+        <table class="datatable">
+          <thead><tr><th>Model</th><th>Total</th><th>Active</th><th>Fraction</th><th>Experts</th><th>Top-k</th><th>Shared</th></tr></thead>
+          <tbody>
+            <tr><td>Mixtral 8&times;7B (2023)</td><td>46.7B</td><td>12.9B</td><td>27.6%</td><td>8</td><td>2</td><td>0</td></tr>
+            <tr><td>Qwen3-235B-A22B (2025)</td><td>235B</td><td>22B</td><td>9.4%</td><td>128</td><td>8</td><td>0</td></tr>
+            <tr><td>gpt-oss-120b (2025)</td><td>117B</td><td>5.1B</td><td>4.4%</td><td>128</td><td>4</td><td>0</td></tr>
+            <tr><td>DeepSeek-V3 (2024)</td><td>671B</td><td>37B</td><td>5.5%</td><td>256</td><td>8</td><td>1</td></tr>
+            <tr><td>Kimi K2.5 (2026)</td><td>1T</td><td>32B</td><td>3.2%</td><td>384</td><td>8</td><td>1</td></tr>
+            <tr><td>Qwen3-Coder-Next (2026)</td><td>80B</td><td>3B</td><td>3.8%</td><td>512</td><td>10</td><td>1</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h3>Why many small experts beat few large ones</h3>
+
+        <p>DeepSeekMoE's argument is combinatorial, and it is the cleanest first-principles case in this whole article. Fix the total expert parameter budget and the active budget. You can spend it as 8 experts with top-2, or 256 experts with top-8 where each expert is 32&times; smaller. Same parameters, same FLOPs. The difference is how many distinct <em>routing configurations</em> exist:</p>
+
+        <div class="eqbox">
+          $$\binom{8}{2} = 28 \qquad\text{versus}\qquad \binom{256}{8} \approx 4.1 \times 10^{14}$$
+          <p class="eqnote">Thirteen orders of magnitude more ways to combine specialists, at identical cost.</p>
+        </div>
+
+        <p>Finer granularity also reduces the pressure on any individual expert to be a generalist. With 8 experts each one must cover an eighth of everything the model does; with 256 an expert can plausibly specialize.</p>
+
+        <p>DeepSeek's second contribution is the <strong>shared expert</strong>: one expert that every token always uses, in addition to its top-\(k\). The reasoning is that some computation is genuinely universal — basic syntax, common formatting — and forcing every routed expert to independently relearn it wastes capacity. Adoption is split. DeepSeek, Kimi, GLM, and Qwen3-Next use a shared expert; Qwen3's main line and gpt-oss do not.</p>
+
+        <h3>The problem MoE creates</h3>
+
+        <p>Routing is learned, and learned routing collapses. If expert 7 is slightly better early in training, it gets more tokens, trains faster, gets more tokens. Left alone, a handful of experts absorb everything and the rest are dead weight.</p>
+
+        <p>The classical fix is an auxiliary load-balancing loss added to the objective, which is effective and also a gradient pointed away from the thing you actually want to minimize. DeepSeek-V3 introduced an auxiliary-loss-free alternative: keep a per-expert bias term that is added to routing scores only for the top-\(k\) selection, and adjust it up or down between steps based on observed load. Balance is enforced without ever touching the loss.</p>
+
+        <p>The systems consequence is larger than the modeling one. Experts do not fit on one device, so they are sharded — expert parallelism — and every MoE layer becomes an all-to-all: send each token to whichever devices hold its chosen experts, then gather the results back. Two all-to-alls per MoE layer, across 58 layers, over whatever fabric you have. On a cluster where the interconnect is much slower than NVLink, the routing pattern <em>is</em> the throughput.</p>
+
+        <div class="article-panel" id="fig-moe" tabindex="0" role="group" aria-label="Animated mixture-of-experts routing showing token dispatch, top-k selection, granularity comparison, and load imbalance">
+          <p class="panel-kicker">Figure 8 · Mixture of experts</p>
+          <p class="panel-title">Parameters without FLOPs</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 12</span>
+          </div>
+        </div>
+
+        <a class="xref" href="../parallelism-playbook/"><b>Systems companion</b>Expert parallelism, all-to-all, and how it composes with data, tensor, pipeline, and context parallelism — <em>The Parallelism Playbook</em>.</a>
+      </section>
+
+      <section id="beyond-softmax">
+        <h2>Past softmax: the 2026 hybrids</h2>
+
+        <p>Everything in Section 7 accepts softmax attention and rations access to it. The 2026 releases start replacing it outright in most layers.</p>
+
+        <p>The opening is a reassociation. Write attention without the softmax normalizer, as a kernel:</p>
+
+        <div class="eqbox">
+          $$o_m = \frac{\sum_{n \le m} \exp(q_m^\top k_n)\, v_n}{\sum_{n \le m} \exp(q_m^\top k_n)} \;\longrightarrow\; \frac{\sum_{n \le m} \phi(q_m)^\top \phi(k_n)\, v_n}{\sum_{n \le m} \phi(q_m)^\top \phi(k_n)}$$
+          <p class="eqnote">Replace \(\exp(q^\top k)\) with a factorizable feature map \(\phi(q)^\top\phi(k)\).</p>
+        </div>
+
+        <p>Once it factorizes, matrix multiplication is associative and you can regroup:</p>
+
+        <div class="eqbox">
+          $$\sum_{n \le m} \phi(q_m)^\top \phi(k_n) v_n \;=\; \phi(q_m)^\top \underbrace{\Big(\sum_{n\le m} \phi(k_n) v_n^\top\Big)}_{S_m,\;\text{a fixed } d\times d \text{ state}}$$
+          <p class="eqnote">\(S_m = S_{m-1} + \phi(k_m)v_m^\top\) is a running sum. No cache. \(O(1)\) memory and \(O(1)\) work per token, forever.</p>
+        </div>
+
+        <p>The catch is exactly the thing that makes softmax attention good: \(\exp\) is sharp. It can concentrate almost all mass on one key, which is what "retrieve the value associated with this specific earlier token" requires. A fixed-size state that only ever accumulates cannot do precise retrieval — it superposes everything and interference grows.</p>
+
+        <p>Gated DeltaNet is the current best answer to that. Instead of a pure sum, the state is updated with a <em>delta rule</em>: write the new association, and subtract the old one first, with a learned gate controlling how much is erased and a decay controlling how fast old memories fade.</p>
+
+        <div class="eqbox">
+          $$S_m \;=\; S_{m-1}\big(\alpha_m I - \beta_m k_m k_m^\top\big) \;+\; \beta_m v_m k_m^\top$$
+          <p class="eqnote">\(\alpha\) decays, \(\beta\) controls the strength of the write. The \(kk^\top\) term removes the state's existing prediction for that key before writing the new one.</p>
+        </div>
+
+        <p>Nobody ships this alone. Qwen3-Next, Qwen3-Coder-Next, and Qwen3.5 use a <strong>3:1 ratio</strong> of Gated DeltaNet blocks to gated softmax-attention blocks. Ant Group's Ling 2.5 does the same with Lightning Attention instead of DeltaNet. The reasoning mirrors sliding windows: most layers do not need precise long-range retrieval, and the handful that do can be full attention.</p>
+
+        <p>The third family is sparse selection. DeepSeek's Sparse Attention runs a cheap "indexer" that scores all previous tokens and keeps only the top few thousand per query, then does exact softmax attention over that subset. GLM-5 adopted it in 2026. The cache is unchanged; the compute is not.</p>
+
+        <div class="article-panel" id="fig-linear" tabindex="0" role="group" aria-label="Animated comparison of softmax attention, linear attention with a fixed state, gated DeltaNet, and hybrid interleaving">
+          <p class="panel-kicker">Figure 9 · Beyond softmax</p>
+          <p class="panel-title">A growing cache versus a fixed state</p>
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 10</span>
+          </div>
+        </div>
+
+        <div class="callout warn">
+          <p class="callout-kicker">Open question</p>
+          <p>There is no public apples-to-apples ablation — same data, same budget, same post-training — comparing a hybrid-attention model against a full-attention one at frontier scale. What we have is that Qwen moved hybrid attention from an experimental branch into their main line, which is a strong revealed preference but not a controlled experiment. Treat "linear hybrids match full attention" as a working hypothesis that several serious labs are betting on, not a settled result.</p>
+        </div>
+      </section>
+
+      <section id="small-things">
+        <h2>Small changes that aren't small</h2>
+
+        <h3>The vocabulary quadrupled, and it costs you memory you didn't budget</h3>
+
+        <p>GPT-2 had 50,257 tokens. Llama 3 has 128,256. Qwen3 has 151,936. Gemma 3 has 262,144. The driver is coverage: a tokenizer trained mostly on English fragments Hindi, Arabic, and CJK into many tokens per word, which wastes context and compute on exactly the users you were trying to serve. Sarvam's team rebuilt the tokenizer from scratch and reported a 4&times; token-efficiency gain on Indian languages.</p>
+
+        <p>The cost is not in the embedding table — that is \(Vd\), a rounding error at 671B. The cost is the <em>logits</em>. Cross-entropy needs a tensor of shape \((B, S, V)\), and it is conventionally computed in fp32:</p>
+
+        <div class="eqbox">
+          $$8 \times 8192 \times 151{,}936 \times 4~\text{bytes} \;\approx\; 37~\text{GiB}$$
+          <p class="eqnote">One tensor. Before the backward pass allocates its twin.</p>
+        </div>
+
+        <p>This is why fused and chunked cross-entropy kernels went from a nice-to-have to a requirement. You compute logits for a slice of the sequence, take the loss, discard, repeat — never materializing the full tensor. If you are training a large-vocabulary model and your memory profile has an unexplained cliff at the loss, this is it.</p>
+
+        <h3>Weight tying came back, for small models only</h3>
+
+        <p>Tying the input embedding to the output projection saves \(Vd\) parameters. At 671B that is irrelevant; at 0.6B, where the embedding can be a third of the model, it is not. So Gemma 3 and Qwen3-0.6B tie, and everything above a few billion parameters does not. The reported trade-off is consistent: tying reduces parameters and slightly worsens loss.</p>
+
+        <h3>Biases went away, then came partly back</h3>
+
+        <p>Modern models drop the bias vector from every linear layer, including QKV projections. The argument is that after a normalization layer with its own learned scale, an additive bias is largely redundant, and the parameters are better spent elsewhere. Then gpt-oss shipped with attention biases, which surprised people. A 2023 analysis shows the key bias is provably redundant, and the empirical difference with and without is small — so this looks like a preserved internal convention rather than a finding.</p>
+
+        <h3>Dropout is gone</h3>
+
+        <p>Dropout was designed for many-epoch training on small datasets. Frontier pretraining is a single pass over trillions of tokens; the model never sees an example twice, so there is nothing to overfit. Removing it is free speed. A 2025 study on Pythia-scale models found dropout actively <em>hurts</em> in single-epoch regimes.</p>
+
+        <h3>Attention sinks</h3>
+
+        <p>Softmax forces the attention weights to sum to one. If nothing in the context is relevant to a query, the head still has to put its mass somewhere — and empirically it dumps it on the first token, which becomes a de facto null destination. This is fine until you evict early tokens for long-context streaming, at which point the head's dumping ground disappears and behaviour degrades.</p>
+
+        <p>gpt-oss handles this with a learned per-head logit appended to the softmax denominator:</p>
+
+        <div class="eqbox">
+          $$a_n = \frac{\exp(z_n)}{\exp(\sigma_h) + \sum_{j} \exp(z_j)}$$
+          <p class="eqnote">\(\sigma_h\) is a learned scalar per head. Mass can leave the sequence entirely; the weights over real tokens no longer have to sum to one.</p>
+        </div>
+
+        <p>Trinity Large reaches the same goal differently, with a sigmoid output gate on the attention result before the residual add — if the head has nothing to say, the gate closes.</p>
+
+        <h3>Multi-token prediction</h3>
+
+        <p>Attach small extra heads that predict tokens \(t{+}2, t{+}3, \dots\) alongside the usual \(t{+}1\), and sum the losses. It is a denser training signal for the same forward pass. DeepSeek-V3 used one extra head during training and made it optional at inference; Step 3.5 Flash and GLM-4.7 use three and keep them at inference, where the extra heads double as a built-in speculative decoder.</p>
+
+        <h3>Width versus depth</h3>
+
+        <p>gpt-oss-20b and Qwen3-30B-A3B are close in size and opposite in shape: 24 layers of width 2880 versus 48 layers of width 2048. Deeper models are more expressive per parameter but harder to train and impossible to parallelize along depth; wider models are faster to serve. GLM-5 went the other way from its predecessor, cutting layers from 92 to 78 while widening, presumably for latency. The only controlled comparison I know of is Gemma 2's Table 9, which found a wider 9B slightly ahead of a deeper one — a single data point, at one scale.</p>
+      </section>
+
+      <section id="build">
+        <h2>Build a model</h2>
+
+        <p>All of the above is easier to feel than to read. The panel below implements the parameter, cache, and FLOP arithmetic from this article. Pick a preset to load a real configuration, then move the dials and watch which numbers move together.</p>
+
+        <p>The formulas it uses, in full, so you can check it:</p>
+
+        <div class="eqbox">
+          $$P_\text{attn} = 2\,L\,d\,d_h(n_q + n_\text{kv}), \qquad P_\text{ffn}^\text{dense} = 3\,L\,d\,d_\text{ff}, \qquad P_\text{ffn}^\text{moe} = 3\,L\,d\,d_e(N + N_\text{shared})$$
+          $$P_\text{active} = P_\text{attn} + 3\,L\,d\,d_e(k + N_\text{shared}), \qquad \text{FLOPs/token} \approx 2 P_\text{active} + 4 L\, n_q d_h s$$
+          <p class="eqnote">Embeddings counted once if tied, twice if not. The second FLOP term is attention scores and value aggregation, which the first term misses because it has no weights.</p>
+        </div>
+
+        <div class="article-panel" id="fig-calc" role="group" aria-label="Interactive architecture calculator computing parameters, KV cache, and FLOPs per token from a model configuration">
+          <p class="panel-kicker">Figure 10 · Interactive</p>
+          <p class="panel-title">Configuration &rarr; parameters, cache, FLOPs</p>
+          <div class="panel-toggles" role="group" aria-label="Model presets">
+            <button type="button" data-preset="gpt2xl" aria-pressed="false">GPT-2 XL</button>
+            <button type="button" data-preset="llama2" aria-pressed="false">Llama 2 7B</button>
+            <button type="button" data-preset="llama3" aria-pressed="true">Llama 3 8B</button>
+            <button type="button" data-preset="olmo3" aria-pressed="false">Olmo 3 32B</button>
+            <button type="button" data-preset="qwen3" aria-pressed="false">Qwen3-235B-A22B</button>
+            <button type="button" data-preset="gptoss" aria-pressed="false">gpt-oss-120b</button>
+            <button type="button" data-preset="dsv3" aria-pressed="false">DeepSeek-V3</button>
+          </div>
+          <div class="calc-grid">
+            <div id="calc-controls"></div>
+            <div id="calc-readout"></div>
+          </div>
+          <p class="figure-note">MLA presets use the latent-cache formula; GQA presets use the standard one. Attention FLOPs assume full attention at the stated sequence length and ignore the sliding-window discount.</p>
+        </div>
+      </section>
+
+      <section id="spec-sheet">
+        <h2>The spec sheet</h2>
+
+        <p>Nine years of drift, in one table. Read down a column to see how quickly a convention hardened.</p>
+
+        <div class="table-scroll">
+        <table class="datatable">
+          <thead>
+            <tr><th>Model</th><th>Norm</th><th>Position</th><th>FFN</th><th>Attention</th><th>Vocab</th><th>Context</th></tr>
+          </thead>
+          <tbody>
+            <tr class="era"><td colspan="7">The original</td></tr>
+            <tr><td>Transformer (2017)</td><td>LayerNorm, post</td><td>sinusoidal, additive</td><td>ReLU, 2 mats, 4d</td><td>MHA, 8 heads</td><td>37k BPE</td><td>512</td></tr>
+            <tr><td>GPT-2 XL (2019)</td><td>LayerNorm, pre</td><td>learned absolute</td><td>GELU, 2 mats, 4d</td><td>MHA, 25 heads</td><td>50,257</td><td>1,024</td></tr>
+            <tr><td>GPT-3 175B (2020)</td><td>LayerNorm, pre</td><td>learned absolute</td><td>GELU, 2 mats, 4d</td><td>MHA, alternating banded</td><td>50,257</td><td>2,048</td></tr>
+            <tr class="era"><td colspan="7">The consolidation</td></tr>
+            <tr><td>Llama 2 7B (2023)</td><td>RMSNorm, pre</td><td>RoPE, b=10<sup>4</sup></td><td>SwiGLU, 11008 = 8d/3</td><td>MHA, 32 heads</td><td>32,000</td><td>4,096</td></tr>
+            <tr><td>Mistral 7B (2023)</td><td>RMSNorm, pre</td><td>RoPE</td><td>SwiGLU</td><td>GQA 32:8, SWA 4096</td><td>32,000</td><td>8,192</td></tr>
+            <tr><td>Llama 3 8B (2024)</td><td>RMSNorm, pre</td><td>RoPE, b=5&times;10<sup>5</sup></td><td>SwiGLU, 14336 = 3.5d</td><td>GQA 32:8</td><td>128,256</td><td>8k &rarr; 128k</td></tr>
+            <tr class="era"><td colspan="7">The sparse turn</td></tr>
+            <tr><td>DeepSeek-V3 (2024)</td><td>RMSNorm, pre</td><td>RoPE, decoupled</td><td>MoE 256+1, top-8</td><td>MLA, r=512, 128 heads</td><td>129,280</td><td>128k</td></tr>
+            <tr><td>Qwen3-235B-A22B (2025)</td><td>RMSNorm + QK-norm</td><td>RoPE, b=10<sup>6</sup></td><td>MoE 128, top-8</td><td>GQA 64:4</td><td>151,936</td><td>32k &rarr; 131k</td></tr>
+            <tr><td>gpt-oss-120b (2025)</td><td>RMSNorm + QK-norm</td><td>RoPE + sinks</td><td>MoE 128, top-4</td><td>GQA 64:8, SWA 128 at 1:1</td><td>201,088</td><td>131k</td></tr>
+            <tr><td>Gemma 3 27B (2025)</td><td>RMSNorm, sandwich</td><td>dual RoPE base</td><td>GeGLU</td><td>GQA, SWA 1024 at 5:1</td><td>262,144</td><td>128k</td></tr>
+            <tr><td>Olmo 3 32B (2025)</td><td>RMSNorm, post-branch</td><td>RoPE, b=5&times;10<sup>5</sup>, YaRN</td><td>SwiGLU</td><td>GQA 40:8, SWA 4096 at 3:1</td><td>~100k</td><td>65,536</td></tr>
+            <tr class="era"><td colspan="7">The hybrid turn</td></tr>
+            <tr><td>Trinity Large (2026)</td><td>RMSNorm &times;4, depth-scaled</td><td>RoPE local, NoPE global</td><td>MoE, DeepSeek-style</td><td>gated GQA, SWA 4096 at 3:1</td><td>&mdash;</td><td>256k</td></tr>
+            <tr><td>Kimi K2.5 (2026)</td><td>RMSNorm</td><td>RoPE, decoupled</td><td>MoE 384+1, top-8</td><td>MLA</td><td>&mdash;</td><td>256k</td></tr>
+            <tr><td>Qwen3.5-397B-A17B (2026)</td><td>RMSNorm + zero-centred QK</td><td>partial RoPE</td><td>MoE + shared</td><td>Gated DeltaNet : gated attn, 3:1</td><td>&mdash;</td><td>262k</td></tr>
+            <tr><td>GLM-5 (2026)</td><td>RMSNorm</td><td>RoPE</td><td>MoE 256+1, top-8</td><td>MLA + sparse attention</td><td>&mdash;</td><td>&mdash;</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p class="figure-note" style="color: var(--muted);">Dashes mark values I could not verify from a primary source at time of writing. Configuration details for the 2026 releases come from technical reports and model-hub configs; treat the last block as the most likely to have drifted.</p>
+      </section>
+
+      <section id="unchanged">
+        <h2>What didn't change</h2>
+
+        <p>An inventory of replacements can leave the impression that everything is in motion. It isn't, and the fixed points are informative.</p>
+
+        <p><strong>Softmax attention still anchors every model.</strong> Even the hybrids keep one full attention layer in four, and the reason is specific: exact retrieval of a particular earlier token. Every attempt to remove it entirely has, so far, given that capability up.</p>
+
+        <p><strong>The block is still attention-then-MLP with residual adds.</strong> Nine years, and the alternation between "mix across positions" and "compute within a position" has not been improved on. Even the parallel-block variants in Command-A and Tiny Aya keep both operations; they just stop making one wait for the other.</p>
+
+        <p><strong>It is still next-token prediction with cross-entropy.</strong> Multi-token prediction adds heads; it does not change the objective. Every reasoning model in the 2026 table is a next-token predictor with post-training on top.</p>
+
+        <p><strong>Decoder-only won completely.</strong> The 2017 paper was an encoder-decoder. The encoder-decoder split survives in translation and some multimodal connectors, but no frontier language model uses it.</p>
+
+        <p><strong>The FLOP rule still holds.</strong> Forward-plus-backward is still roughly \(6N\) FLOPs per token — you just have to read \(N\) as <em>active</em> parameters now. That substitution is the single most important thing MoE changed about how you budget a training run.</p>
+
+        <p>And the largest fixed point is the one from the introduction. Every architecture in the final table is derived from the same GPT design, they differ by a handful of efficiency choices, and their benchmark differences track parameter count and training recipe far more closely than they track any of those choices. The architecture work of the last three years bought throughput, context length, and serving cost. It is not what made the models smart.</p>
+
+        <p>Which is exactly the question the next article in this series takes up: given that these models are enormously overparameterized relative to anything classical learning theory would sanction, why do they generalize at all?</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>The baseline architecture</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Attention Is All You Need</a> · Vaswani et al., 2017</li>
+            <li><a href="https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf" target="_blank" rel="noopener noreferrer">Language Models are Unsupervised Multitask Learners (GPT-2)</a> · Radford et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener noreferrer">Language Models are Few-Shot Learners (GPT-3)</a> · Brown et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener noreferrer">Generating Long Sequences with Sparse Transformers</a> · Child et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/1207.0580" target="_blank" rel="noopener noreferrer">Improving neural networks by preventing co-adaptation of feature detectors (Dropout)</a> · Hinton et al., 2012</li>
+            <li><a href="https://arxiv.org/abs/2505.24788" target="_blank" rel="noopener noreferrer">Dropout in single-epoch language model training</a> · 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Normalization</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1607.06450" target="_blank" rel="noopener noreferrer">Layer Normalization</a> · Ba, Kiros &amp; Hinton, 2016</li>
+            <li><a href="https://arxiv.org/abs/1910.07467" target="_blank" rel="noopener noreferrer">Root Mean Square Layer Normalization</a> · Zhang &amp; Sennrich, 2019</li>
+            <li><a href="https://arxiv.org/abs/2002.04745" target="_blank" rel="noopener noreferrer">On Layer Normalization in the Transformer Architecture</a> · Xiong et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2302.05442" target="_blank" rel="noopener noreferrer">Scaling Vision Transformers to 22 Billion Parameters (QK-norm at scale)</a> · Dehghani et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2010.04245" target="_blank" rel="noopener noreferrer">Query-Key Normalization for Transformers</a> · Henry et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2501.00656" target="_blank" rel="noopener noreferrer">OLMo 2 Furious (post-norm placement for stability)</a> · OLMo team, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Position</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noopener noreferrer">RoFormer: Enhanced Transformer with Rotary Position Embedding</a> · Su et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2309.00071" target="_blank" rel="noopener noreferrer">YaRN: Efficient Context Window Extension of Large Language Models</a> · Peng et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2305.19466" target="_blank" rel="noopener noreferrer">The Impact of Positional Encoding on Length Generalization (NoPE)</a> · Kazemnejad et al., 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Feed-forward and activations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noopener noreferrer">GLU Variants Improve Transformer</a> · Shazeer, 2020</li>
+            <li><a href="https://arxiv.org/abs/1710.05941" target="_blank" rel="noopener noreferrer">Searching for Activation Functions (Swish/SiLU)</a> · Ramachandran et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1606.08415" target="_blank" rel="noopener noreferrer">Gaussian Error Linear Units (GELU)</a> · Hendrycks &amp; Gimpel, 2016</li>
+            <li><a href="https://arxiv.org/abs/1608.05859" target="_blank" rel="noopener noreferrer">Using the Output Embedding to Improve Language Models (weight tying)</a> · Press &amp; Wolf, 2016</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Attention efficiency</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener noreferrer">Fast Transformer Decoding: One Write-Head is All You Need (MQA)</a> · Shazeer, 2019</li>
+            <li><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">GQA: Training Generalized Multi-Query Transformer Models</a> · Ainslie et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noopener noreferrer">DeepSeek-V2 (multi-head latent attention)</a> · DeepSeek-AI, 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener noreferrer">DeepSeek-V3 Technical Report</a> · DeepSeek-AI, 2024</li>
+            <li><a href="https://arxiv.org/abs/2004.05150" target="_blank" rel="noopener noreferrer">Longformer: The Long-Document Transformer</a> · Beltagy et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2310.06825" target="_blank" rel="noopener noreferrer">Mistral 7B</a> · Jiang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener noreferrer">Efficient Streaming Language Models with Attention Sinks</a> · Xiao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2302.08626" target="_blank" rel="noopener noreferrer">On the redundancy of bias terms in attention</a> · 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Mixture of experts</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1701.06538" target="_blank" rel="noopener noreferrer">Outrageously Large Neural Networks: The Sparsely-Gated MoE Layer</a> · Shazeer et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/2101.03961" target="_blank" rel="noopener noreferrer">Switch Transformers</a> · Fedus et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2401.06066" target="_blank" rel="noopener noreferrer">DeepSeekMoE: Towards Ultimate Expert Specialization</a> · Dai et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.15664" target="_blank" rel="noopener noreferrer">Auxiliary-Loss-Free Load Balancing Strategy for MoE</a> · Wang et al., 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Beyond softmax attention</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2412.06464" target="_blank" rel="noopener noreferrer">Gated Delta Networks: Improving Mamba2 with Delta Rule</a> · Yang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2505.06708" target="_blank" rel="noopener noreferrer">Gated Attention for Large Language Models</a> · 2025</li>
+            <li><a href="https://arxiv.org/abs/2404.19737" target="_blank" rel="noopener noreferrer">Better &amp; Faster Large Language Models via Multi-token Prediction</a> · Gloeckle et al., 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Model reports referenced in the spec sheet</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener noreferrer">Llama 2: Open Foundation and Fine-Tuned Chat Models</a> · Touvron et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2407.21783" target="_blank" rel="noopener noreferrer">The Llama 3 Herd of Models</a> · Grattafiori et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2505.09388" target="_blank" rel="noopener noreferrer">Qwen3 Technical Report</a> · Qwen team, 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.19786" target="_blank" rel="noopener noreferrer">Gemma 3 Technical Report</a> · Gemma team, 2025</li>
+            <li><a href="https://arxiv.org/abs/2408.00118" target="_blank" rel="noopener noreferrer">Gemma 2: Improving Open Language Models at a Practical Size</a> · Gemma team, 2024</li>
+            <li><a href="https://allenai.org/blog/olmo3" target="_blank" rel="noopener noreferrer">Olmo 3: charting a path through the model flow</a> · Ai2, 2025</li>
+            <li><a href="https://openai.com/index/introducing-gpt-oss/" target="_blank" rel="noopener noreferrer">Introducing gpt-oss</a> · OpenAI, 2025</li>
+            <li><a href="https://arxiv.org/abs/2602.02276" target="_blank" rel="noopener noreferrer">Kimi K2.5 Technical Report</a> · Moonshot AI, 2026</li>
+            <li><a href="https://arxiv.org/abs/2602.15763" target="_blank" rel="noopener noreferrer">GLM-5 Technical Report</a> · z.ai, 2026</li>
+            <li><a href="https://arxiv.org/abs/2602.17004" target="_blank" rel="noopener noreferrer">Trinity Large Technical Report</a> · Arcee AI, 2026</li>
+            <li><a href="https://arxiv.org/abs/2602.10604" target="_blank" rel="noopener noreferrer">Step 3.5 Flash Technical Report</a> · StepFun, 2026</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Surveys and comparisons</h3>
+          <ul>
+            <li><a href="https://magazine.sebastianraschka.com/p/from-gpt-2-to-gpt-oss-analyzing-the" target="_blank" rel="noopener noreferrer">From GPT-2 to gpt-oss: Analyzing the Architectural Advances</a> · Raschka, 2025</li>
+            <li><a href="https://magazine.sebastianraschka.com/p/the-big-llm-architecture-comparison" target="_blank" rel="noopener noreferrer">The Big LLM Architecture Comparison</a> · Raschka, 2025</li>
+            <li><a href="https://magazine.sebastianraschka.com/p/a-dream-of-spring-for-open-weight" target="_blank" rel="noopener noreferrer">A Dream of Spring for Open-Weight LLMs: 10 Architectures from Jan–Feb 2026</a> · Raschka, 2026</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Anatomy of a Modern LLM</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/">https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026anatomyllm,
+  author       = {Srinivasan, Anirudh},
+  title        = {Anatomy of a Modern LLM},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/anatomy-of-a-modern-llm/},
+  note         = {Published September 4, 2026; updated September 4, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Anatomy of a Modern LLM</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+
+    <script src="../../assets/js/blogs.js"></script>
+    <script src="./figures.js"></script>
+  </body>
+</html>

@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/thinking-in-tokens/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Thinking in Tokens — What Reasoning Models Actually Do" />
+    <meta property="og:description" content="Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/thinking-in-tokens/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png" />
+    <meta property="article:published_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-09-04" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Thinking in Tokens — What Reasoning Models Actually Do" />
+    <meta name="twitter:description" content="Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png" />
+    <title>Thinking in Tokens: What Reasoning Models Actually Do | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/thinking-in-tokens/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/thinking-in-tokens/" },
+        "headline": "Thinking in Tokens: What Reasoning Models Actually Do",
+        "description": "Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work.",
+        "image": "https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png",
+        "datePublished": "2026-09-04",
+        "dateModified": "2026-09-04",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["reasoning models", "chain of thought", "test-time compute", "thinking budget", "latent reasoning", "serial depth"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+
+        /* Figure palette: five hues on near-black, extending the shell's own
+           accent (#3fd1a0) and focus colour (#5ab2e8). */
+        --fig-ink: #e4eaee;
+        --fig-dim: #93a0a8;
+        --fig-line: #39454e;
+        --fig-well: #161c22;
+        --fig-live: #3fd1a0;   /* the active computation */
+        --fig-tape: #5ab2e8;   /* the written trajectory */
+        --fig-cost: #e8b45a;   /* compute, budget, price */
+        --fig-fail: #e8746a;   /* wrong branch, pruned, collapsed */
+        --fig-latent: #a98ce8; /* continuous / non-verbal state */
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article-specific typography ---------------------------------- */
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.35em; }
+      .article-content li { margin: 0 0 9px; }
+      .article-content a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--rule); }
+      .article-content code { font: 500 0.86em/1.5 var(--mono); background: rgba(20,23,26,.055); padding: 1px 4px; }
+      .article-content pre { margin: 22px 0; padding: 18px 20px; overflow-x: auto; color: var(--fig-ink); background: var(--panel); border: 1px solid #242c34; }
+      .article-content pre code { background: none; padding: 0; color: inherit; font-size: 13.5px; line-height: 1.72; }
+      .lede { font-size: 21px; line-height: 1.6; }
+      .lede:first-letter { float: left; margin: 8px 10px 0 0; font: 700 62px/0.72 var(--display); }
+
+      /* A quiet marginal aside — used for caveats and honest hedges. */
+      .aside-note { margin: 26px 0; padding: 16px 20px; background: var(--paper-bright); border-left: 3px solid var(--fig-cost); font-size: 17px; line-height: 1.58; }
+      .aside-note strong { font-family: var(--display); font-weight: 700; }
+
+      /* Claim / status pairs, for the "what is actually established" passages. */
+      .ledger { margin: 26px 0; border-top: 1px solid var(--rule); }
+      .ledger-row { display: grid; grid-template-columns: 90px 1fr; gap: 18px; padding: 13px 2px; border-bottom: 1px solid var(--rule); align-items: baseline; }
+      .ledger-tag { color: var(--muted); font: 600 10.5px/1.5 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+      .ledger-row p { margin: 0; font-size: 17px; line-height: 1.55; }
+
+      figcaption { margin-top: 14px; color: var(--muted); font-size: 15.5px; line-height: 1.55; font-style: italic; }
+      .article-content figure { margin: 30px 0; }
+
+      /* Figure internals */
+      .animation-stage { position: relative; }
+      .animation-stage svg { display: block; width: 100%; height: auto; overflow: hidden; font-family: var(--mono); }
+      .cam { transition: transform 620ms cubic-bezier(.36,.06,.16,1); }
+      .fade { transition: opacity 460ms ease, transform 460ms cubic-bezier(.36,.06,.16,1); }
+      .draw { transition: stroke-dashoffset 700ms cubic-bezier(.36,.06,.16,1), opacity 380ms ease, stroke 380ms ease; }
+      .swap { transition: opacity 400ms ease, fill 400ms ease, stroke 400ms ease, transform 520ms cubic-bezier(.36,.06,.16,1); }
+      .fig-cap { color: var(--fig-dim); font: 11.5px/1.5 var(--mono); }
+      .fig-title { fill: var(--fig-ink); font: 600 13px var(--mono); }
+      .fig-label { fill: var(--fig-dim); font: 10.5px var(--mono); }
+      .fig-strong { fill: var(--fig-ink); font: 600 11.5px var(--mono); }
+      .fig-beat { min-height: 3.6em; margin: 14px 0 0; color: var(--fig-ink); font: 15px/1.5 var(--body); }
+      .fig-beat em { color: var(--fig-live); font-style: normal; }
+      .fig-slider { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--fig-dim); font: 11px var(--mono); }
+      .fig-slider input[type="range"] { flex: 1; min-width: 120px; accent-color: var(--fig-live); }
+      .fig-slider input[type="range"]:focus-visible { outline: 2px solid var(--fig-tape); outline-offset: 3px; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .cam, .fade, .draw, .swap { transition: none !important; }
+      }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+        .ledger-row { grid-template-columns: 1fr; gap: 4px; }
+        /* Scroll the figure rather than shrinking its labels out of legibility.
+           .article-panel already provides the horizontal scroll container. */
+        .animation-stage svg { min-width: 580px; }
+        .animation-controls { position: sticky; left: 0; }
+        .fig-beat, .fig-slider { position: sticky; left: 0; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article thinking-in-tokens-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Understanding LLMs</p>
+        <h1 class="article-title">Thinking in Tokens</h1>
+        <p class="article-subtitle">A reasoning model is the same Transformer you already know. Post-training changed what it writes before it answers — and writing is how a fixed-depth network buys itself more depth.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Reasoning models</span><span>Test-time compute</span><span>Chain of thought</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>44 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Understanding LLMs">
+      <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
+      <span class="ml-series-nav__position">08 of 09 &middot; What the computation is</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../rl-for-reasoning/"><span>Previous &middot; 07</span><strong>RL for Reasoning</strong></a>
+        <a class="ml-series-nav__link" href="../test-time-scaling/"><span>Next &middot; 09</span><strong>Test-Time Scaling</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#not-architecture">Not a new architecture</a></li>
+          <li><a href="#latent-variable">One latent variable</a></li>
+          <li><a href="#lineage">Prompt, sample, train, reward</a></li>
+          <li><a href="#serial-compute">What a token buys</a></li>
+          <li><a href="#behaviors">Reading a trace</a></li>
+          <li><a href="#longer-not-better">Longer is not better</a></li>
+          <li><a href="#search">Reasoning as search</a></li>
+          <li><a href="#refinement">Reasoning as refinement</a></li>
+          <li><a href="#latent-reasoning">When thought stops being text</a></li>
+          <li><a href="#budgets">Budgets and mode switching</a></li>
+          <li><a href="#does-it-think">So does it think?</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="not-architecture">
+        <h2>Not a new architecture</h2>
+        <p class="lede">The first thing to say about reasoning models is the least exciting thing, and almost everything else follows from it. When a model spends ninety seconds on a competition problem and emits eleven thousand tokens of deliberation before writing an answer, no new module has switched on. There is no planner, no external search tree, no scratch memory bolted onto the side. It is the same decoder-only Transformer, running the same forward pass, sampling one token at a time, left to right, exactly as it did when it was writing product descriptions.</p>
+
+        <p>What changed is the distribution over what it writes <em>before</em> it answers.</p>
+
+        <p>This is worth being pedantic about, because the vocabulary invites the opposite conclusion. We say the model "thinks," we say it "reflects," we call the tokens "reasoning tokens," and vendors put them behind a collapsible panel labelled with a brain icon. All of that framing suggests a separate faculty. Mechanically there isn't one. There is a probability distribution over sequences, and post-training moved mass from short sequences that jump straight to an answer toward long sequences that work through the problem first.</p>
+
+        <p>OpenAI's announcement of o1 is careful about this. The claim is not that a new component was added; it is that a large-scale reinforcement learning procedure taught the model to use its chain of thought productively, and that performance then improved along two separate compute axes — more reinforcement learning during training, and more time spent thinking at test time. Two axes, one architecture. DeepSeek-R1 later gave the open, detailed version of the same story, which is why it is the model most of this article's mechanics are drawn from.</p>
+
+        <p>So the interesting question is not "what did they add." It is: <strong>what does a model buy by writing a long intermediate trajectory, and what does it pay?</strong> That question has a surprisingly crisp answer, and the answer explains nearly every design decision downstream of it — why reasoning traces are long, why longer is not automatically better, why "thinking budget" is a coherent knob at all, and why some researchers now want to take the words out of the reasoning entirely.</p>
+
+        <p>This post is the companion to the previous one in this series. <a href="../rl-for-reasoning/">RL for Reasoning</a> covered the training algorithm: verifiable rewards, GRPO, what the gradient actually does. This one covers the resulting computation: what the model is doing when it runs.</p>
+      </section>
+
+      <section id="latent-variable">
+        <h2>One latent variable</h2>
+
+        <p>Here is the single equation the rest of this article hangs off. An ordinary language model gives you</p>
+
+        <p>\[ p_\theta(y \mid x) \]</p>
+
+        <p>the probability of an answer \(y\) given a question \(x\). A reasoning model gives you the same object, but factored through an intermediate sequence \(z\):</p>
+
+        <p>\[ p_\theta(y \mid x) \;=\; \sum_{z} \underbrace{p_\theta(z \mid x)}_{\text{which trajectory}} \; \underbrace{p_\theta(y \mid x, z)}_{\text{answer given it}} \]</p>
+
+        <p>That is not a new model. It is the same model with a marginalisation written out. Any autoregressive model over \((z, y)\) already implies this identity; the sum is over every string \(z\) the model could have written in between. Nothing has been assumed yet.</p>
+
+        <p>What makes it useful is that it names the two things training can change independently. You can change <em>which trajectories are likely</em> — that's \(p_\theta(z \mid x)\). And you can change <em>how reliably an answer follows from a trajectory</em> — that's \(p_\theta(y \mid x, z)\). Every technique in this article is a choice about what to do with \(z\), and they line up almost too neatly:</p>
+
+        <div class="ledger">
+          <div class="ledger-row"><span class="ledger-tag">Elicit</span><p>Chain-of-thought prompting: make the model produce a \(z\) at all, by showing it examples that contain one.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Marginalise</span><p>Self-consistency: the sum over \(z\) is intractable, so estimate it — sample many \(z\), read off the answer they agree on.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Fit</span><p>STaR: you don't have supervision for \(z\), so infer it. Keep the \(z\) that produced correct \(y\), fine-tune on them, repeat. Hard EM in a trench coat.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Optimise</span><p>RL with verifiable rewards: stop imitating good \(z\) and start maximising \(\mathbb{E}_{z \sim p_\theta}[R(y)]\) directly.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Search</span><p>Tree of Thoughts: \(z\) has prefixes, prefixes can be scored, so run an actual search over them instead of sampling whole strings.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Iterate</span><p>Self-Refine: let one \(z\) criticise the answer and produce the next \(z\), across separate model calls.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Re-encode</span><p>Coconut: stop making \(z\) a string of tokens at all. Let it be a sequence of vectors.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Bound</span><p>Thinking budgets: cap \(|z|\), because every element of it costs a forward pass.</p></div>
+        </div>
+
+        <p>Read down that column and you have the field. Read it as a chronology and you have roughly 2022 to now. The rest of this article walks it, but the spine is always the same object: an unobserved intermediate sequence that the model writes to itself.</p>
+
+        <p>One more thing before moving on, because it is the source of a lot of confusion. At inference the model does <em>not</em> compute that sum. It samples a single \(z\) and commits. So a single chain of thought is a one-sample Monte Carlo estimate of a marginal — which is exactly why the estimate is noisy, why sampling more chains helps, and why an early mistake in \(z\) is unrecoverable rather than merely down-weighted. Almost every failure mode later in this article is a property of the estimator, not of the model.</p>
+      </section>
+
+      <section id="lineage">
+        <h2>Prompt, sample, train, reward</h2>
+
+        <p>The lineage matters because each step is a strictly stronger intervention on the same latent variable, and because the jump people find surprising — that a model could learn to deliberate from a scalar reward — is the smallest step in the sequence, not the largest.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Four interventions on the same hidden reasoning trajectory</caption>
+            <thead><tr><th>Intervention</th><th>Changes weights?</th><th>Extra samples?</th><th>Needs a verifier?</th><th>What improves</th></tr></thead>
+            <tbody>
+              <tr><td>Prompt a worked example</td><td class="matrix-mark">&times;</td><td class="matrix-mark">&times;</td><td class="matrix-mark">&times;</td><td>Makes an existing reasoning style more likely</td></tr>
+              <tr><td>Sample and vote</td><td class="matrix-mark">&times;</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&times;</td><td>Reduces the noise of trusting one chain</td></tr>
+              <tr><td>Filter and imitate</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&#10003;</td><td>Moves successful trajectories into the model</td></tr>
+              <tr><td>Optimize reward</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&#10003;</td><td>Lets the model discover trajectories beyond demonstrations</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="field-direction"><strong>Why the field moved this way.</strong> Prompting was cheap but unreliable. Voting bought reliability by paying for many attempts. Filtering turned successful attempts into training data, but still copied a fixed set of examples. Reward optimization removed that ceiling: it kept only the success criterion and let trajectory shape and length adapt. The progression is therefore not four unrelated papers; it is a steady relaxation of how tightly humans specify the intermediate steps.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="lineage" role="img" aria-label="Animated timeline of four interventions on the reasoning trajectory: prompting it into existence, sampling many and voting, filtering and fine-tuning on the ones that worked, and finally optimising them against a verifier reward.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 16</span>
+            </div>
+          </div>
+          <figcaption>Four escalating interventions on the same latent variable. Each era does not replace the previous one — self-consistency still works on a reasoning model, and a reasoning model still benefits from a good prompt. They stack.</figcaption>
+        </figure>
+
+        <p>Notice what is <em>not</em> in that sequence: any change to the network. Between 2022 and 2025 the thing that got dramatically better at deliberating is architecturally the same family of model. The leverage came entirely from what the model was encouraged to write down.</p>
+      </section>
+
+      <section id="serial-compute">
+        <h2>What a token buys</h2>
+
+        <p>Now the mechanism. Why should writing more text before answering make a model better at anything? The lazy answer is "more compute," which is true and explains nothing. The precise answer is that a Transformer has a hard structural limit that generating tokens is the only way around.</p>
+
+        <h3>More context makes the machine wider. Only generation makes it deeper.</h3>
+
+        <p>Take a decoder with \(L\) layers. For any position in the sequence, the computation that produces that position's output runs through exactly \(L\) blocks. Attention in layer \(\ell\) can read the layer-\(\ell{-}1\) representations of every earlier position, which is enormous parallel reach. What it cannot do is read a layer-\(\ell{+}1\) representation of anything, anywhere. There is no loop. There is no way for the network to say "compute this sub-result first, then use it."</p>
+
+        <p>So the computation graph for a single forward pass has depth \(O(L)\) <em>no matter how long the input is</em>. Doubling the context doubles the width of the machine — more positions, more values to attend over — and leaves the depth untouched. This is the fact that makes Transformers train well, because depth is what you cannot parallelise. It is also the fact that caps what they can do in one shot.</p>
+
+        <p>Generating a token is the loop. The token is appended to the sequence, and on the next step it re-enters at layer 0. Whatever the network computed at layer \(L\) is now available as an input to layer 1. The serial depth available to the whole computation becomes</p>
+
+        <p>\[ \text{depth} \;\le\; L \cdot K \qquad \text{for } K \text{ generated tokens} \]</p>
+
+        <p>and it grows linearly in how long the model is willing to write. That is what a reasoning token buys. Not knowledge, not a new capability in the weights — depth.</p>
+
+        <div class="aside-note">
+          <p><strong>The concrete version.</strong> Ask a model for the parity of a thousand bits — the XOR of the whole string — and demand the answer immediately, no working. This is not a hard problem in any human sense. It is, however, provably outside what a constant-depth, constant-precision circuit can compute, no matter how wide. Now let it write the running parity after each bit. It becomes trivial. Nothing about the model changed between those two requests except that in the second one it was allowed to put something down.</p>
+        </div>
+
+        <h3>The formal statement</h3>
+
+        <p>That intuition has been made precise. Li, Liu, Zhou and Ma analysed decoder-only Transformers through circuit complexity and found a clean separation. Constant-depth Transformers with constant-bit precision, without a chain of thought, are confined to \(\mathsf{AC}^0\) — a proper subset of \(\mathsf{TC}^0\), and notably a class that cannot compute parity. With \(T\) steps of chain of thought, constant-depth Transformers using constant-bit precision and \(O(\log n)\) embedding size can solve any problem solvable by a Boolean circuit of size \(T\).</p>
+
+        <p>Read that second clause slowly. The bound on what the model can compute stops being a property of the architecture and becomes a property of <em>how long you let it write</em>. \(T\) is not a hyperparameter you set at training time. It is a runtime decision. Their experiments back the theory where it should bite hardest: chain of thought helps most on tasks that are inherently serial and resist parallelisation — composing permutation groups, iterated squaring, evaluating circuits — and helps most for shallow models, which have the least native depth to spend.</p>
+
+        <p>This is also, quietly, the best available justification for why "thinking budget" is a coherent product feature rather than marketing. You are not buying more effort in some vague sense. You are buying circuit size.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="depth" role="img" aria-label="Animation contrasting a fixed-depth Transformer forward pass with chain-of-thought generation. The fixed stack has L layers regardless of context length; generating a token feeds the top of the stack back to the bottom, so effective serial depth grows as L times the number of generated tokens.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 18</span>
+            </div>
+          </div>
+          <figcaption>Widening versus deepening. Adding context adds columns to the machine; adding generated tokens adds passes through it. Only the second one lifts the depth ceiling.</figcaption>
+        </figure>
+
+        <h3>An old idea wearing a new hat</h3>
+
+        <p>If this feels familiar, it should. A chain of thought is recurrence, reintroduced through the output channel. The recurrent state is the text, the tape is the KV cache, and the read head is attention over positions you have already written and can never rewrite. It is a Turing-machine-shaped computation running on an append-only tape.</p>
+
+        <p>Which gives us the useful analogy, and also the crack that section nine will lever open. When a person does long division on paper, the paper is not clever. It is a place to put the carry so the next step does not have to re-derive it. The chain of thought is that paper. But there is a detail in the analogy worth holding onto: <strong>the model's recurrent state has to fit through a token.</strong> Everything the forward pass computed — thousands of floating-point numbers in the residual stream — gets collapsed into a choice from a fixed vocabulary before the next step can use it. We will come back to how narrow that channel is.</p>
+
+        <h3>The bill</h3>
+
+        <p>Depth is not free, and the price has three separate line items. For a dense model with \(N\) non-embedding parameters, \(L\) layers, hidden size \(d\), a prompt of \(P\) tokens and \(K\) generated tokens:</p>
+
+        <p>\[ C_{\text{gen}} \;\approx\; \underbrace{2NK}_{\text{weights}} \;+\; \underbrace{4Ld\left(PK + \tfrac{K^2}{2}\right)}_{\text{attention}} \quad \text{FLOPs} \]</p>
+
+        <p>The first term is linear in \(K\): every token pays a full pass over the weights. The second is <em>quadratic</em> in \(K\), because each new token attends over everything written so far. At short lengths the weight term dominates and people ignore attention; at reasoning-model lengths it stops being ignorable. For a 32B-class dense model, the attention term is a few per cent of per-token cost at 1k context and roughly comparable to the weight term by 32k.</p>
+
+        <p>The second line item is memory. Every thinking token leaves a permanent KV entry:</p>
+
+        <p>\[ M_{\text{KV}} \;=\; 2 \, L \, n_{\text{kv}} \, d_{\text{head}} \, b \cdot K \quad \text{bytes} \]</p>
+
+        <p>which for a 64-layer model with 8 KV heads of width 128 in bfloat16 works out to 256&nbsp;KiB per token — so a ten-thousand-token deliberation costs about 2.6&nbsp;GB of HBM, per concurrent request, before you have served anyone else.</p>
+
+        <p>The third is latency, and it is the one users feel. Decoding is memory-bandwidth-bound, not compute-bound: at small batch sizes each step streams the entire weight matrix from HBM to produce a single token. Thirty-two billion parameters in bfloat16 is 64&nbsp;GB; at roughly 3.3&nbsp;TB/s that is about 19&nbsp;ms per token before you account for anything else. Ten thousand thinking tokens is three minutes of wall clock. Batching amortises the weight streaming across requests, which is why serving economics and reasoning length are the same conversation — the <a href="../index.html">Serving Playbook</a> and <a href="../index.html">One Token at a Time</a> posts in the systems series are the long version.</p>
+
+        <p>Put together: <strong>a thinking budget is a purchase order for serial depth, denominated in memory bandwidth.</strong> Drag the slider below and watch what you are actually buying.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="ledger" role="img" aria-label="Interactive compute ledger. A slider sets the number of thinking tokens; the figure shows the resulting FLOPs split between weight and attention terms, the KV cache footprint, and the decode latency at batch size one.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <div class="fig-slider">
+              <label for="ledger-k">Thinking tokens</label>
+              <input type="range" id="ledger-k" min="0" max="17" value="0" step="1" aria-label="Number of thinking tokens" />
+              <span data-kout>0</span>
+            </div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 18</span>
+            </div>
+          </div>
+          <figcaption>The cost of thought for a 32B-class dense model at batch size one. The weight term grows linearly, the attention term quadratically, the KV cache linearly and permanently, and the latency in direct proportion to all of it.</figcaption>
+        </figure>
+      </section>
+
+      <section id="behaviors">
+        <h2>Reading a trace</h2>
+
+        <p>If you read enough reasoning traces you start to see the same moves recurring, and it is worth naming them — partly because they are genuinely the vocabulary of the thing, and partly because naming them makes it easier to say precisely what we do and do not know about them.</p>
+
+        <p><strong>Decomposition.</strong> Splitting a problem into named sub-problems before touching any of them. <em>"There are two parts here: first find the radius, then use it for the area."</em></p>
+
+        <p><strong>Planning.</strong> Choosing an approach before executing it, sometimes with an explicit reason for the choice. <em>"Coordinates will be messy; try the synthetic argument first."</em></p>
+
+        <p><strong>Exploration.</strong> Trying an approach with visible provisionality. <em>"Suppose the answer is a perfect square. Then…"</em></p>
+
+        <p><strong>Verification.</strong> Re-deriving a result by a second route, or substituting back. <em>"Check: 17 × 23 = 391, and 391 + 9 = 400. Good."</em></p>
+
+        <p><strong>Backtracking.</strong> Abandoning a line explicitly. <em>"Wait — that assumed the sequence was increasing, which was never given."</em></p>
+
+        <p><strong>Constraint checking.</strong> Returning to the problem statement to confirm a candidate satisfies everything, not just the part being worked on.</p>
+
+        <p><strong>Alternative approaches.</strong> Solving the same thing twice by different means and comparing.</p>
+
+        <p>These are the behaviours the "aha moment" discourse is about. They are real, they are visible, and they are the reason reasoning traces read the way they do. Here is where to be careful. There are three distinct claims in the neighbourhood, and they are usually collapsed into one:</p>
+
+        <div class="ledger">
+          <div class="ledger-row"><span class="ledger-tag">Observed</span><p>The generated text contains verification steps, backtracking, and the rest. This is simply what the strings look like. Not in dispute.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Supported</span><p>Those tokens are load-bearing: truncate them, corrupt them, or cut the budget and accuracy moves. The trace is doing computational work, not decorating a conclusion reached elsewhere.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Contested</span><p>The text is a <em>faithful report</em> of the computation — that when the trace says "I checked," a check happened, and when the trace omits a factor, that factor did not influence the answer.</p></div>
+        </div>
+
+        <p>The third claim is the one that keeps failing tests. Turpin and colleagues showed in 2023 that models will produce plausible chains of thought that never mention the feature actually driving the answer — reorder the multiple-choice options so the correct one is always (A), and the model follows the pattern while explaining its answer on the merits.</p>
+
+        <p>The reasoning-model era did not fix this. Chen and colleagues at Anthropic evaluated frontier reasoning models across six kinds of hint planted in prompts and measured how often the model's chain of thought admitted using a hint it demonstrably used. Reveal rates were above the floor but frequently under 20%. Outcome-based reinforcement learning improved faithfulness early and then plateaued well short of saturation. And when RL drove the model toward exploiting a hint more often — reward hacking — the propensity to say so out loud did not rise with it.</p>
+
+        <p>That result matters beyond epistemics. A readable chain of thought is one of the few windows we have into what a capable model is doing, and there is an active argument that preserving that window is worth real capability cost. Hold that thought; it becomes the central trade-off in section nine.</p>
+
+        <div class="aside-note">
+          <p><strong>The honest formulation.</strong> These are behaviours in a generated trajectory, described using the words we use for human deliberation because those are the words we have. Saying "the model backtracked" is a statement about the token sequence. Whether it is also a statement about an internal process is a separate question, currently open, and not settled by reading the trace — the trace is the thing under suspicion.</p>
+        </div>
+      </section>
+
+      <section id="longer-not-better">
+        <h2>Longer is not better</h2>
+
+        <p>The last two sections make an argument that could be read as "more tokens, more depth, more better." It is worth killing that reading immediately, because it is wrong in an interesting way.</p>
+
+        <p>What helps is <em>serial depth spent on the problem</em>. Token count is a proxy for that. Proxies get hacked — sometimes by the optimiser, sometimes by the model, sometimes by nobody in particular. There are four distinct ways length inflates without depth following it.</p>
+
+        <p><strong>Overthinking.</strong> Chen and colleagues documented the flagrant case: ask an o1-style model what two plus three is and it will spend orders of magnitude more tokens than a conventional model, exploring multiple solution strategies for a problem with one. They introduced efficiency metrics for this and showed a self-training recipe that trims it without hurting accuracy on GSM8K, MATH500, GPQA and AIME. The cost is not academic — it is latency and dollars on every trivial query in production.</p>
+
+        <p><strong>Underthinking.</strong> The mirror image, and less obvious. Wang and colleagues found o1-like models that abandon promising lines of reasoning too early and thrash between approaches — lots of tokens, little progress down any one of them. Long <em>and</em> shallow. This is a good reminder that "depth" is the quantity of interest, not "length": a trace that restarts twenty times has spent its budget on twenty shallow attempts.</p>
+
+        <p><strong>Length hacking.</strong> If the training objective rewards length even incidentally, the policy will find it. The normalisation term in GRPO is the standard example — dividing the objective by response length creates an asymmetry that can systematically favour long incorrect responses over short ones, which is why several follow-ups strip or replace it. The <a href="../rl-for-reasoning/">previous post</a> derives that bias in full. The general lesson is the ordinary one about reward design: the model optimises the number you wrote down, not the thing you meant.</p>
+
+        <p><strong>Rationalisation.</strong> The subtlest. A model that has committed to a wrong answer early can spend the rest of its budget constructing support for it — which looks, token for token, exactly like verification. The failure of self-correction to reliably fix errors without external feedback is closely related, and section eight returns to it.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="curve" role="img" aria-label="Animated plot of accuracy against thinking-token budget, drawn progressively. A hard problem improves and then plateaus; an easy problem is flat from the start, so extra tokens are pure cost; and at high problem complexity accuracy collapses while the model paradoxically spends fewer thinking tokens.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 16</span>
+            </div>
+          </div>
+          <figcaption>Three regimes, one knob. The curve that motivates thinking budgets is also the curve that shows why a fixed budget is the wrong default.</figcaption>
+        </figure>
+
+        <h3>Two deflations worth knowing about</h3>
+
+        <p>Because this is a field guide and not a press release, two results that cut against the standard narrative.</p>
+
+        <p>The first concerns the "aha moment" itself. The DeepSeek-R1 report describes self-reflection emerging during pure RL, accompanied by growing response length, and dozens of replications reported the same. Then people checked the baseline. The Sea AI Lab study found self-reflection patterns already present in base models at epoch zero, before any RL — what they called superficial self-reflection, where the reflective phrasing appears but does not lead anywhere. A follow-up hosted DeepSeek-V3-Base itself, the actual starting point for R1-Zero, and found it generating "wait," "verify," and even "Aha" unprompted on math problems. Their reading is that the growth in response length during RL is largely RL optimising a well-shaped rule-based reward, rather than reflection coming into existence. RL made the behaviour <em>reliable and productive</em>, which is a real and valuable thing, but it did not conjure it.</p>
+
+        <p>The second concerns the ceiling. Apple's "Illusion of Thinking" ran frontier reasoning models on controllable puzzle families — Tower of Hanoi, blocks world, river crossing, checkers jumping — and reported three regimes: below some complexity, non-reasoning models are both more accurate and cheaper; in a middle band, reasoning models win; past a model-specific threshold, accuracy collapses to near zero. The striking part is the effort curve, which rises with complexity and then <em>falls</em> as the collapse approaches, with token budget still available. The rebuttal, by Lawsen with Claude Opus 4, argued much of the collapse is an output-length artifact — printing a fifteen-disk Hanoi solution requires over 32,000 moves — and that models given a compressed programmatic answer format succeed far past the stated threshold; it also noted some river-crossing instances in the benchmark were unsolvable as posed while being scored as failures. An independent group later replicated and refined both contested benchmarks and landed between the two camps. All three are worth reading in full. My own reading is that the effort-drop finding survives the methodological objections better than the collapse finding does, and it is the more interesting of the two: a system that spends <em>less</em> when a problem gets harder is not allocating compute the way you would want.</p>
+      </section>
+
+      <section id="search">
+        <h2>Reasoning as search</h2>
+
+        <p>Go back to the estimator problem. A single chain of thought is one sample of \(z\), and its answer is whatever that one sample happened to produce. Left-to-right decoding gives you no undo: if step three is wrong, steps four through forty are conditioned on a false premise and the model is now working hard on the wrong problem. The natural response is to stop treating one sample as the answer.</p>
+
+        <h3>Vote</h3>
+
+        <p>Self-consistency is the cheapest fix. Sample \(N\) chains independently at nonzero temperature, extract each final answer \(y_i\), and return the plurality:</p>
+
+        <p>\[ \hat{y} \;=\; \arg\max_{y} \sum_{i=1}^{N} \mathbb{1}\!\left[y_i = y\right] \]</p>
+
+        <p>It is worth being explicit about why this works, because the condition is sharp and it tells you exactly when it will fail. Let \(q(y)\) be the marginal probability the model lands on answer \(y\). Plurality voting converges to \(\arg\max_y q(y)\) as \(N\) grows. So self-consistency helps precisely when the correct answer is the <em>mode</em> of the answer marginal — when the model is right more often than it makes any single specific mistake.</p>
+
+        <p>That is a much weaker requirement than being right most of the time. A model can be correct 40% of the time and still be recovered by voting, as long as the remaining 60% is spread thinly over many different wrong answers. And it explains the method's domain: it is excellent on problems with one canonical answer and a wide error distribution, like arithmetic and competition math, and useless where the answers do not admit an equality test, like essays. It also fails silently against a <em>systematic</em> error — if the model reliably drops the same minus sign, every chain drops it and the vote confirms it with high confidence.</p>
+
+        <h3>Branch</h3>
+
+        <p>Voting evaluates nothing until the end. It pays the full cost of every doomed path all the way to the leaf and only then discovers it was doomed. Tree of Thoughts spends compute differently: score the partial trajectories and stop paying for the bad ones.</p>
+
+        <p>Yao and colleagues framed problem solving as search over a tree whose nodes are "thoughts" — coherent intermediate steps rather than single tokens. The model plays three roles: it proposes candidate next thoughts, it evaluates partial states heuristically, and a standard search procedure (breadth-first, depth-first, beam) decides where to expand next. In their Game of 24 setup, thoughts are the three intermediate equations, a beam of the best five candidates is retained at each step, and the model is asked to judge each partial state as sure, maybe, or impossible with respect to reaching 24, with values sampled several times per node.</p>
+
+        <p>The headline number is the one worth remembering: GPT-4 with standard chain-of-thought prompting solved on the order of 4% of Game of 24 puzzles; the same model wrapped in tree search solved 74%. Nothing about the weights changed. Only the policy for spending inference compute.</p>
+
+        <p>And that compute is substantial. A contemporaneous analysis estimated the Game of 24 configuration visited roughly seventy nodes with several model calls per node, putting it in the neighbourhood of a hundred times the cost of generating one chain. Tree search is not a free lunch; it is a different point on the same cost–accuracy frontier, and it buys its accuracy with an evaluator.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="search" role="img" aria-label="Animation morphing between four ways of spending inference compute: a single chain of thought, self-consistency sampling many chains and voting, tree search that branches, scores and prunes with backtracking, and an outer refinement loop that critiques and regenerates.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 22</span>
+            </div>
+          </div>
+          <figcaption>Four topologies over the same latent variable. Read them as budget-allocation policies: how wide, how deep, where to evaluate, and whether you are allowed to go back.</figcaption>
+        </figure>
+
+        <h3>The tree moved inside the sequence</h3>
+
+        <p>Here is the development that makes this section historically interesting rather than merely a taxonomy. Tree of Thoughts was an <em>outer loop</em>: an orchestrator in Python, calling the model repeatedly, maintaining an explicit frontier. Read a modern reasoning trace and you will find the same shapes — proposing an approach, evaluating it mid-flight, abandoning it, trying another — happening <em>inside a single sample</em>. Reinforcement learning moved the search into the trajectory.</p>
+
+        <p>The trade is not neutral. In-trajectory search is much cheaper per node: everything shares one KV cache, there is no re-prefill, and the model can reference its earlier attempts for free. But it cannot truly discard a branch. An abandoned line of reasoning is still sitting in the context window, still being attended over, still exerting influence on every subsequent token. An outer loop can throw a branch away. A trajectory can only write "never mind" and keep going.</p>
+      </section>
+
+      <section id="refinement">
+        <h2>Reasoning as refinement</h2>
+
+        <p>Search assumes you can evaluate a partial state. Refinement assumes something weaker and often more available: that you can look at a finished artefact and say what is wrong with it.</p>
+
+        <p>Self-Refine, from Madaan and colleagues, is the minimal version. One model, three prompts: produce an output, critique your own output, revise it using the critique. Loop. No weight updates, no additional training data, no external supervision, no second model. It is a pure inference-time procedure, and on a range of tasks it beats the model's own first draft.</p>
+
+        <p>The distinction that actually matters here is one of conditioning, and it is easy to miss because both things get called "self-correction."</p>
+
+        <div class="ledger">
+          <div class="ledger-row"><span class="ledger-tag">In-trace</span><p>The model backtracks inside one trajectory. The next token is conditioned on \(z_{1:t}\), which still contains the mistake. Cheap — one KV cache, no re-prefill — but the error stays in context and keeps pulling.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Across calls</span><p>An outer loop builds a fresh prompt \(x' = (\text{task}, y_{\text{prev}}, \text{critique})\) and samples a new \(z\) from scratch. Expensive — full re-prefill each round — but you get to choose what survives into the next context.</p></div>
+        </div>
+
+        <p>Same word, different computations, different failure modes. In-trace correction is anchored by its own history; across-call correction is anchored by whatever you decided to carry forward, which is a design choice rather than an accident.</p>
+
+        <h3>The caveat that decides when this works</h3>
+
+        <p>The self-correction literature is genuinely mixed, and the shape of the disagreement is instructive. Huang and colleagues made the case that large language models cannot reliably self-correct reasoning on their own: when the only feedback is the model's own judgement, iterations often make things worse, flipping correct answers to incorrect ones. Broadly, the critical reviews converge on three points — no convincing demonstration of self-correction from prompted self-feedback alone except on tasks unusually suited to it; reliable gains when feedback comes from an external, trustworthy source; and reliable gains from large-scale fine-tuning that teaches correction explicitly.</p>
+
+        <p>The unifying way to say it: <strong>refinement is a verifier amplifier, not a knowledge amplifier.</strong> If you have something that can tell right from wrong — a unit test, a compiler, a proof checker, a numeric substitution, a reward model that is actually calibrated — then iterating turns that signal into accuracy, and the more iterations the better. If your verifier is the same fallible process that produced the error, iterating mostly produces more confident versions of the same error.</p>
+
+        <p>Which is why the generator–verifier gap is the load-bearing asymmetry of this entire field. Checking a factorisation is easier than finding one. Running a test is easier than writing code that passes it. Everything that works at inference time — voting, search, refinement, best-of-\(n\) — is a way of converting that gap into accuracy, and everything that fails at inference time fails because the gap was not there.</p>
+      </section>
+
+      <section id="latent-reasoning">
+        <h2>When thought stops being text</h2>
+
+        <p>Return to something planted back in section four. A chain of thought is recurrence through the output channel — and the output channel is a token.</p>
+
+        <p>Look at what happens at each generation step. The forward pass produces a residual-stream vector \(h_t \in \mathbb{R}^{d}\), a continuous, high-dimensional object holding whatever the model has worked out at this position. The language-modelling head projects it to logits over the vocabulary, and sampling collapses those logits to a single index. That index selects one of \(V\) fixed embedding vectors, which becomes the input at the next position.</p>
+
+        <p>So the interface between one reasoning step and the next is a selection from a finite codebook. Its capacity is</p>
+
+        <p>\[ \log_2 V \;\approx\; \log_2 (151{,}669) \;\approx\; 17.2 \ \text{bits} \]</p>
+
+        <p>per step, using Qwen3's vocabulary as a concrete case, while the state that produced the selection is a continuous vector in a space of several thousand dimensions.</p>
+
+        <div class="aside-note">
+          <p><strong>Be careful with this argument.</strong> It does <em>not</em> mean the model forgets everything else. The KV cache retains per-layer projections of every earlier position, so the next step re-reads all of it; nothing is erased. What the discrete channel constrains is the <em>new</em> content a step can inject at the new position — that must be one of \(V\) fixed vectors. It is a quantisation constraint, not amnesia. And the count of raw bits in \(h_t\) is not its information content; the representation is highly structured and mostly recomputable from context.</p>
+        </div>
+
+        <p>The quantisation is arguably the smaller problem. The bigger one is <strong>commitment</strong>. Sampling forces the model to pick. It cannot carry "probably \(A\), possibly \(B\), and if \(B\) then the earlier assumption breaks" forward as a superposition — it has to write a word, and the word is either \(A\) or \(B\). Every ambiguity is resolved at the moment of decoding, whether or not the model was ready to resolve it. That is the mechanism behind the failure mode from section seven: an early wrong commitment that the rest of the trajectory is then conditioned on.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="bottleneck" role="img" aria-label="Animation of the decoding bottleneck. A continuous residual-stream vector passes through the language-modelling head to logits over a large vocabulary, is collapsed by sampling to a single token index of about seventeen bits, and is re-expanded by embedding lookup to one of a finite set of fixed vectors. The alternative path bypasses the head entirely and feeds the hidden state back directly.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 20</span>
+            </div>
+          </div>
+          <figcaption>The pinch point. Sampling is not just narrow — it is a forced decision, taken once per step, before the model necessarily has grounds to take it.</figcaption>
+        </figure>
+
+        <h3>Coconut: keep the vector</h3>
+
+        <p>Hao and colleagues at Meta asked the obvious question. If the useful state is \(h_t\), why decode it at all? Coconut — Chain of Continuous Thought — takes the last hidden state, calls it a "continuous thought," and feeds it straight back as the next input embedding, skipping the language head and the embedding table entirely. The model runs in a latent mode for some number of steps, then switches to language mode to write the answer; switching can be handled by a fixed-length latent segment or a learned binary classifier, and the paper reports both working comparably. Training uses a multi-stage curriculum that progressively replaces written reasoning steps with latent ones, so the latent states inherit structure from language supervision before being cut loose from it.</p>
+
+        <p>The interesting result is not the accuracy number. It is the emergent behaviour: a continuous thought can encode <em>multiple alternative next steps at once</em>, letting the model carry something like a breadth-first frontier instead of committing to a single path. Coconut beats chain of thought on logical reasoning tasks that require substantial backtracking during planning, and does it with fewer thinking steps. Follow-up work has developed the superposition reading formally and analysed how it emerges from the training objective.</p>
+
+        <p>Which is exactly the prediction the bottleneck argument makes. Remove the forced commitment and you get search for free, because the state can be a distribution over branches instead of a choice among them.</p>
+
+        <h3>Quiet-STaR: think everywhere, not just at answers</h3>
+
+        <p>A different attack on the same seam. STaR learned rationales in a narrow setting — question, rationale, answer, filtered by correctness. But reasoning is implicit in nearly all text: the steps left out of a proof, the theory of mind under a line of dialogue. Zelikman and colleagues generalised it so that the model generates rationales at <em>every</em> token to explain the text that follows, and learns from whether those rationales improve its predictions.</p>
+
+        <p>The architectural detail that matters most for this article is the mixing head: the model blends its with-thought and without-thought next-token distributions, so thinking is a graded, learned, per-token decision rather than a mode you switch on. The authors point out the natural extension themselves — if the mixing weight were predicted <em>before</em> the thought, it could be used to allocate compute dynamically during generation. That is the research seed of everything in the next section.</p>
+
+        <p>The wider family is worth knowing exists: compressed chains of thought that distil reasoning into dense representations, self-distillation approaches that internalise the chain, and the striking result that even contentless pause tokens strictly increase the expressivity of constant-depth Transformers — which is section four's argument in its purest form, since a pause token carries no information at all and still buys depth.</p>
+
+        <h3>The cost, stated plainly</h3>
+
+        <p>Latent reasoning trades away the trace. Section five established that the trace is an imperfect window — reveal rates under 20% in the hint experiments — but an imperfect window is not the same as no window. If the intermediate state is an activation, there is nothing to read, nothing to monitor, and no way to notice that the model considered and discarded something you would have wanted to know about. There is now an explicit research agenda around treating chain-of-thought monitorability as a property worth protecting, on the grounds that it is both valuable and fragile.</p>
+
+        <div class="aside-note">
+          <p><strong>Status check.</strong> This is active research, demonstrated on relatively small models and constrained task families. It is not a description of how any deployed commercial reasoning model works. As far as public documentation goes, o-series, R1, Gemini and Claude reasoning modes all emit token chains of thought. Read this section as a live question about where the field might go, not as the architecture of the thing in your API console.</p>
+        </div>
+      </section>
+
+      <section id="budgets">
+        <h2>Budgets and mode switching</h2>
+
+        <p>Everything so far points at one conclusion: the amount of thinking a model does is a runtime parameter, not a property of the weights. That raises two engineering questions, and they are more different than the shared vocabulary suggests. <em>Should</em> the model think on this request at all? And if so, <em>how much</em>? Qwen3 is the best public worked example of both, because the technical report is unusually explicit about the mechanism, so it is worth going through in detail.</p>
+
+        <h3>Why one model rather than two</h3>
+
+        <p>The pre-Qwen3 arrangement was to ship two models: a chat model for ordinary requests and a separate reasoning model for hard ones. That is operationally awful. Two sets of weights in memory, two deployments, two evaluation suites, and a routing decision made by the application layer, which knows the least about the difficulty of the query. Qwen3's stated goal was to fold both modes into a single model, so switching becomes a request parameter instead of a deployment.</p>
+
+        <p>Getting there took a four-stage post-training pipeline. The first two stages build the thinking model: a long chain-of-thought cold start on carefully filtered math, code, logic and STEM problems with verified answers, then reasoning RL with GRPO over a small, deliberately hard set of query–verifier pairs — 3,995 of them, chosen to be unused in cold start, learnable, as challenging as possible, and broad in coverage. Over 170 RL steps the flagship model's AIME'24 score moved from 70.1 to 85.1.</p>
+
+        <p>The last two stages put the non-thinking mode back in. Stage three, <em>thinking mode fusion</em>, is continual supervised fine-tuning on a mixture of thinking and non-thinking data. The thinking half is generated by rejection sampling with the stage-two model itself, specifically so the extra SFT does not erode what RL just built. Stage four is general RL across more than twenty task types.</p>
+
+        <h3>The template is the mechanism</h3>
+
+        <p>Here is the part that is easy to skim past and is actually the whole trick. The two modes are two <em>target formats</em>, distinguished by a flag in the user message:</p>
+
+        <pre><code>Thinking mode                        Non-thinking mode
+─────────────────────────────        ─────────────────────────────
+&lt;|im_start|&gt;user                     &lt;|im_start|&gt;user
+{query} /think&lt;|im_end|&gt;             {query} /no_think&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant                &lt;|im_start|&gt;assistant
+&lt;think&gt;                              &lt;think&gt;
+{thinking content}
+&lt;/think&gt;                             &lt;/think&gt;
+{response}&lt;|im_end|&gt;                 {response}&lt;|im_end|&gt;</code></pre>
+
+        <p>Notice that the non-thinking target keeps the <code>&lt;think&gt;</code> block. It is just <em>empty</em>. That looks like a stylistic quirk and it is the load-bearing design decision, for two reasons.</p>
+
+        <p>First, every assistant turn now has identical structure, so the model never has to learn "sometimes there's a think block and sometimes there isn't" — only "sometimes it has content."</p>
+
+        <p>Second, and this is the practical payoff: a deployer can <strong>prefill</strong> an empty think block into the assistant turn. Once <code>&lt;think&gt;\n\n&lt;/think&gt;</code> is already in the context, the model cannot think, because the closing tag has already been emitted. It is not being persuaded not to think; it is structurally past the point where thinking was possible. This is the difference between a soft and a hard control, and it matters:</p>
+
+        <div class="ledger">
+          <div class="ledger-row"><span class="ledger-tag">Soft</span><p>The <code>/think</code> and <code>/no_think</code> flags are instructions the model was trained to obey. Qwen3's in-house mode-following benchmark went from 88.7 after mode fusion to 98.9 after general RL — excellent compliance, and still not a guarantee.</p></div>
+          <div class="ledger-row"><span class="ledger-tag">Hard</span><p>Prefilling the closed empty think block is a constraint on the token sequence, not a request. Compliance is 100% because non-compliance is not representable.</p></div>
+        </div>
+
+        <p>Two details worth knowing if you deploy this. Thinking is the default, so the pipeline includes thinking-mode examples with no flag at all. And in multi-turn conversations, flags are inserted randomly during training and the model is taught to follow the <em>most recent</em> one — so a <code>/no_think</code> three turns ago does not silently persist. Mode following is also an explicit reward target in stage four's general RL, alongside instruction following and format adherence. None of this comes free; it is trained.</p>
+
+        <h3>The budget: interrupt, then salvage</h3>
+
+        <p>Now the second question. A binary switch is coarse — most requests want neither zero thinking nor unbounded thinking. What you want is a dial.</p>
+
+        <p>The elegant part of Qwen3's answer is that they did not train a length-conditioned policy. They noticed that mode fusion produces a capability for free. Once a model has been trained on both full-thinking and zero-thinking targets, it has implicitly learned to handle the cases in between — to produce a final answer from <em>incomplete</em> deliberation. The report is explicit that this was not trained for; it emerged from having both distributions in the same model.</p>
+
+        <p>So the budget is enforced at decoding time, by interruption. Count thinking tokens as they are generated. When the count hits the user's threshold, stop sampling and splice in a stop-thinking instruction — the report gives it verbatim, and it reads roughly as the model telling itself that time is short and it will have to answer from what it has, followed immediately by the closing <code>&lt;/think&gt;</code> tag. Generation then resumes, and the model writes its answer conditioned on the partial trace.</p>
+
+        <p>Read the phrasing of that injected string again, because it is doing real work. It is not a control token. It is a sentence that places the model in a context where "answer now from incomplete work" is the natural continuation — a distributional nudge rather than a mechanism. The model was never taught to stop at token 4,096; it was taught what it looks like to wrap up early, and the injection invokes that.</p>
+
+        <p>The consequence is worth stating plainly, because it is widely misunderstood: <strong>a thinking budget is not "deliberate for N tokens and then conclude." It is "deliberate until interrupted, then salvage."</strong> The model does not plan around the budget. It gets cut off. Whether that matters depends entirely on whether reasoning traces degrade gracefully when truncated, and empirically they mostly do — Qwen3 reports smooth, monotone improvement in AIME, LiveCodeBench and GPQA as the budget grows, which is exactly the curve you would want if truncation were benign.</p>
+
+        <figure>
+          <div class="article-panel" data-figure="budget" role="img" aria-label="Animation of four ways to control thinking at decode time: default thinking mode, the no-think flag, a prefilled empty think block that makes non-thinking structurally impossible to violate, a budget interrupt that splices in a stop-thinking instruction and closing tag, and budget forcing that suppresses the end-of-thinking token and appends a continuation word to extend deliberation.">
+            <div class="animation-stage" aria-live="polite"></div>
+            <p class="fig-beat" data-beat></p>
+            <div class="animation-controls" role="group" aria-label="Animation controls">
+              <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+              <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+              <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+              <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+              <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+              <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+              <span class="animation-status" data-status>Frame 01 / 20</span>
+            </div>
+          </div>
+          <figcaption>Every control in this figure operates on the token stream, not the weights. That is the whole reason a single set of weights can serve a spectrum from zero to tens of thousands of thinking tokens.</figcaption>
+        </figure>
+
+        <h3>Budget forcing: the same knob, backwards</h3>
+
+        <p>If a budget is a decoding intervention, it should run in both directions, and s1 is the clean demonstration. Muennighoff and colleagues fine-tuned Qwen2.5-32B-Instruct on just a thousand carefully selected questions with reasoning traces, then added two decode-time interventions they call budget forcing:</p>
+
+        <ul>
+          <li><strong>To cap:</strong> append the end-of-thinking delimiter, forcing termination.</li>
+          <li><strong>To extend:</strong> suppress the end-of-thinking delimiter when the model tries to stop, and append the word "Wait" instead. The model, now in a context where it has apparently just hesitated, keeps going — and frequently double-checks itself and repairs an earlier mistake.</li>
+        </ul>
+
+        <p>Their illustrative example is perfect in its stupidity: the model counts the letter r in "raspberry," concludes there are two, and moves to stop. Suppress the delimiter, append "Wait," and it re-reads the word letter by letter and corrects itself to three.</p>
+
+        <p>The numbers make the argument. s1-32B with budget forcing exceeded o1-preview on competition math by up to 27 points on MATH and AIME24, and — the striking part — forcing extended thinking pushed it <em>past its own unintervened ceiling</em>, from 50% to 57% on AIME24. Same weights, same prompt. The only change was refusing to let it stop.</p>
+
+        <p>Take those two mechanisms together and the picture is clear. Qwen3 truncates by injection; s1 extends by suppression. Both are string surgery on the decode loop. Neither touches a parameter.</p>
+
+        <h3>What the APIs actually expose</h3>
+
+        <p>The industry has converged, and the convergence is on the same abstraction: reasoning effort as a per-request integer.</p>
+
+        <p>Anthropic's API takes a <code>thinking</code> block with <code>type: "enabled"</code> and <code>budget_tokens</code>. The budget must be less than <code>max_tokens</code>, it applies to the full thinking tokens rather than the summarised output shown to the user, and — an honest and telling caveat in the documentation — larger budgets can improve quality on hard problems but the model may not use the whole allocation, particularly above around 32k. It is a ceiling, not a quota.</p>
+
+        <p>Google's Gemini 2.5 exposes <code>thinking_budget</code> in its thinking config, with zero disabling thinking on the variants that support it, and thinking tokens billed at the ordinary output rate — which is the correct billing model and also a useful reminder of what you are paying for. Qwen3's Hugging Face chat template exposes <code>enable_thinking=False</code>, which does the empty-block prefill described above.</p>
+
+        <p>Three vendors, three mechanisms underneath, one surface. That convergence is the real signal in this section: the field has decided that reasoning depth belongs in the request, next to temperature and max tokens.</p>
+
+        <h3>What a budget cannot do, and where this goes</h3>
+
+        <p>Two limits are worth naming before moving on.</p>
+
+        <p>First, thinking is not universally beneficial, and a fixed budget will therefore be wrong somewhere. Qwen3's own long-context evaluation makes this concrete: on RULER they capped thinking at 8,192 tokens specifically to stop the model being verbose over long inputs, and thinking mode still scored slightly <em>worse</em> than non-thinking mode. Their hypothesis is that deliberation does not help pure retrieval and may actively interfere with it. That is a real result about a real model, published by the people who built it.</p>
+
+        <p>Second, unification costs something at the top. Comparing the flagship dense model across post-training stages, AIME'24 in thinking mode goes from 83.8 after reasoning RL to 81.4 after mode fusion and general RL, with LiveCodeBench moving similarly. The Qwen team names the trade-off explicitly and accepts it for versatility. Making one model do both jobs shaves a little off the specialist.</p>
+
+        <p>Which leaves the obvious question hanging. If a fixed budget is wrong for easy queries and wrong for retrieval and wrong for whatever comes next, the budget should not be fixed — the model should decide. Quiet-STaR's authors saw this in 2024 and said so: predict the usefulness of a thought <em>before</em> generating it, and the prediction becomes a compute allocator. Qwen3's intermediate-case handling is the accidental version. A growing line of work trains the decision directly, either as a mode choice or as a length-controlled policy.</p>
+
+        <p>That is where the series goes next. Once effort is a dial, the interesting question stops being "does it think" and becomes "how should the budget be spent" — sequentially, in parallel, on search, on verification. <a href="../test-time-scaling/">Test-Time Scaling</a> is the whole post on that.</p>
+      </section>
+
+      <section id="does-it-think">
+        <h2>So does it think?</h2>
+
+        <p>The honest answer is that the question is doing less work than it appears to, and the useful move is to break it into claims that can actually be settled.</p>
+
+        <p><strong>Does the model use additional computation before answering?</strong> Yes, demonstrably and quantifiably. Every reasoning token is a forward pass; the serial depth of the computation grows linearly with trajectory length; the circuit-complexity separation says this is not a marginal effect but a change in what is computable at all.</p>
+
+        <p><strong>Is that computation doing useful work, or is the trace decorative?</strong> Useful. Cut the budget and accuracy falls, smoothly and reproducibly, on hard benchmarks. Extend it past where the model wanted to stop and accuracy rises. The tokens are load-bearing.</p>
+
+        <p><strong>Does the model deliberate in the sense of considering, evaluating and rejecting alternatives?</strong> The trace contains those moves. It also contained many of them before any reinforcement learning, which is the deflation from section six worth keeping in mind. What RL reliably did was make the behaviour productive and consistent rather than superficial — a real achievement, and a narrower claim than "the model learned to reflect."</p>
+
+        <p><strong>Is the trace a faithful account of the computation?</strong> Often not. This is the claim that keeps failing, and it fails in the direction that matters most for oversight: models use information they do not verbalise, and outcome-based RL improves this only up to a plateau.</p>
+
+        <p>Put those together and here is what I think is defensible. "Thinking," as the word is used about these systems, names a change in the output distribution that buys serial compute and, along the way, produces text that reads like deliberation. The compute is real. The improvement is real. The text is a partial and sometimes misleading account of what produced it. Whether that assemblage deserves the word is a question about the word, and I do not think the answer changes anything you would do with the system.</p>
+
+        <p>What would change things is progress on two fronts. Interpretability that could tell us when a stated step corresponds to the computation rather than merely coinciding with it. And training that makes faithfulness saturate rather than plateau — because if latent reasoning turns out to be the efficient path, we will be trading away the last legible window we have at precisely the moment models get good enough that we want to look through it.</p>
+
+        <p>There is a smaller prediction I am more confident about. "Reasoning model" is probably not a lasting category. Qwen3 already folded both modes into one set of weights and exposed the difference as a request parameter; the other labs converged on the same surface within months. What we are heading toward is not models that think and models that don't, but models that estimate how much computation a request is worth and spend accordingly — at which point the interesting engineering question is not whether the model thinks, but whether its estimate is any good.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Eliciting and aggregating reasoning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2201.11903" target="_blank" rel="noopener noreferrer">Chain-of-Thought Prompting Elicits Reasoning in Large Language Models</a> · Wei, Wang, Schuurmans, Bosma, Ichter, Xia, Chi, Le, Zhou, 2022</li>
+            <li><a href="https://arxiv.org/abs/2203.11171" target="_blank" rel="noopener noreferrer">Self-Consistency Improves Chain of Thought Reasoning in Language Models</a> · Wang, Wei, Schuurmans, Le, Chi, Narang, Chowdhery, Zhou, 2022</li>
+            <li><a href="https://proceedings.neurips.cc/paper_files/paper/2022/hash/639a9a172c044fbb64175b5fad42e9a5-Abstract-Conference.html" target="_blank" rel="noopener noreferrer">STaR: Bootstrapping Reasoning With Reasoning</a> · Zelikman, Wu, Mu, Goodman, 2022</li>
+            <li><a href="https://arxiv.org/abs/2403.09629" target="_blank" rel="noopener noreferrer">Quiet-STaR: Language Models Can Teach Themselves to Think Before Speaking</a> · Zelikman, Harik, Shao, Jayasiri, Haber, Goodman, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Reasoning models</h3>
+          <ul>
+            <li><a href="https://openai.com/index/learning-to-reason-with-llms/" target="_blank" rel="noopener noreferrer">Learning to Reason with LLMs</a> · OpenAI, 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener noreferrer">DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning</a> · DeepSeek-AI, 2025</li>
+            <li><a href="https://arxiv.org/abs/2505.09388" target="_blank" rel="noopener noreferrer">Qwen3 Technical Report</a> · Qwen Team, 2025</li>
+            <li><a href="https://github.com/QwenLM/Qwen3" target="_blank" rel="noopener noreferrer">Qwen3 model and chat-template implementation</a> · Qwen Team, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Why intermediate tokens buy computation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2402.12875" target="_blank" rel="noopener noreferrer">Chain of Thought Empowers Transformers to Solve Inherently Serial Problems</a> · Li, Liu, Zhou, Ma, 2024</li>
+            <li><a href="https://arxiv.org/abs/2310.07923" target="_blank" rel="noopener noreferrer">The Expressive Power of Transformers with Chain of Thought</a> · Merrill, Sabharwal, 2023</li>
+            <li><a href="https://arxiv.org/abs/2505.21024" target="_blank" rel="noopener noreferrer">Pause Tokens Strictly Increase the Expressivity of Constant-Depth Transformers</a> · London, Kanade, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Search, verification and refinement</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2305.10601" target="_blank" rel="noopener noreferrer">Tree of Thoughts: Deliberate Problem Solving with Large Language Models</a> · Yao, Yu, Zhao, Shafran, Griffiths, Cao, Narasimhan, 2023</li>
+            <li><a href="https://openreview.net/forum?id=S37hOerQLB" target="_blank" rel="noopener noreferrer">Self-Refine: Iterative Refinement with Self-Feedback</a> · Madaan et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.01798" target="_blank" rel="noopener noreferrer">Large Language Models Cannot Self-Correct Reasoning Yet</a> · Huang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2305.20050" target="_blank" rel="noopener noreferrer">Let's Verify Step by Step</a> · Lightman, Kosaraju, Burda, Edwards, Baker, Lee, Leike, Schulman, Sutskever, Cobbe, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Length, overthinking and limits</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2412.21187" target="_blank" rel="noopener noreferrer">Do NOT Think That Much for 2+3=? On the Overthinking of o1-Like LLMs</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.18585" target="_blank" rel="noopener noreferrer">Thoughts Are All Over the Place: On the Underthinking of o1-Like LLMs</a> · Wang et al., 2025</li>
+            <li><a href="https://machinelearning.apple.com/research/illusion-of-thinking" target="_blank" rel="noopener noreferrer">The Illusion of Thinking: Understanding the Strengths and Limitations of Reasoning Models via the Lens of Problem Complexity</a> · Shojaee et al., Apple, 2025</li>
+            <li><a href="https://arxiv.org/abs/2507.01231" target="_blank" rel="noopener noreferrer">Rethinking the Illusion of Thinking</a> · Dellibarda Varela, Romero-Sorozabal, Rocon, Cebrian, 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.20783" target="_blank" rel="noopener noreferrer">Understanding R1-Zero-Like Training: A Critical Perspective</a> · Liu et al., 2025</li>
+            <li><a href="https://github.com/sail-sg/oat-zero" target="_blank" rel="noopener noreferrer">There May Not Be an Aha Moment in R1-Zero-Like Training</a> · Sea AI Lab, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Faithfulness and monitorability</h3>
+          <ul>
+            <li><a href="https://openreview.net/forum?id=bzs4uPLXvi" target="_blank" rel="noopener noreferrer">Language Models Don't Always Say What They Think: Unfaithful Explanations in Chain-of-Thought Prompting</a> · Turpin, Michael, Perez, Bowman, 2023</li>
+            <li><a href="https://arxiv.org/abs/2505.05410" target="_blank" rel="noopener noreferrer">Reasoning Models Don't Always Say What They Think</a> · Chen et al., Anthropic, 2025</li>
+            <li><a href="https://arxiv.org/abs/2307.13702" target="_blank" rel="noopener noreferrer">Measuring Faithfulness in Chain-of-Thought Reasoning</a> · Lanham et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2507.11473" target="_blank" rel="noopener noreferrer">Chain of Thought Monitorability: A New and Fragile Opportunity for AI Safety</a> · Korbak et al., 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Latent and continuous reasoning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2412.06769" target="_blank" rel="noopener noreferrer">Training Large Language Models to Reason in a Continuous Latent Space (Coconut)</a> · Hao, Sukhbaatar, Su, Li, Hu, Weston, Tian, 2024</li>
+            <li><a href="https://github.com/facebookresearch/coconut" target="_blank" rel="noopener noreferrer">Coconut reference implementation</a> · FAIR at Meta, 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.14838" target="_blank" rel="noopener noreferrer">From Explicit CoT to Implicit CoT: Learning to Internalize CoT Step by Step</a> · Deng, Choi, Shieber, 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.13171" target="_blank" rel="noopener noreferrer">Compressed Chain of Thought: Efficient Reasoning Through Dense Representations</a> · Cheng, Van Durme, 2024</li>
+            <li><a href="https://arxiv.org/abs/2509.23365" target="_blank" rel="noopener noreferrer">Emergence of Superposition: Unveiling the Training Dynamics of Chain of Continuous Thought</a> · Zhu et al., 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Controlling the budget</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2501.19393" target="_blank" rel="noopener noreferrer">s1: Simple Test-Time Scaling</a> · Muennighoff, Yang, Shi, Li, Fei-Fei, Hajishirzi, Zettlemoyer, Liang, Candès, Hashimoto, 2025</li>
+            <li><a href="https://github.com/simplescaling/s1" target="_blank" rel="noopener noreferrer">s1 code, data and budget-forcing implementation</a> · Muennighoff et al., 2025</li>
+            <li><a href="https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking" target="_blank" rel="noopener noreferrer">Extended thinking and budget_tokens</a> · Anthropic developer documentation</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Thinking in Tokens: What Reasoning Models Actually Do</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/thinking-in-tokens/">https://srini-anirudh.github.io/blogs/thinking-in-tokens/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026thinkingintokens,
+  author       = {Srinivasan, Anirudh},
+  title        = {Thinking in Tokens: What Reasoning Models Actually Do},
+  year         = {2026},
+  month        = {sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/thinking-in-tokens/},
+  note         = {Published September 4, 2026; updated September 4, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Thinking in Tokens: What Reasoning Models Actually Do</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script>
+    /* =====================================================================
+       Figure engine for "Thinking in Tokens".
+
+       Every animated figure in this article is built once as a static SVG
+       scene, then driven through a list of named states. CSS transitions do
+       the interpolation, so motion is continuous rather than a frame flip,
+       and the camera is a single <g> whose transform is retargeted per state.
+
+       Contract handled centrally here: Previous / Play-Pause / Next, three
+       playback speeds with aria-pressed, a live frame counter that survives
+       speed changes and resumes, autoplay only while on screen, autoplay
+       suspended on manual interaction, and prefers-reduced-motion support
+       (no autoplay, no camera moves, every state still reachable by hand).
+       ===================================================================== */
+    (function () {
+      "use strict";
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+
+      function cam(g, cx, cy, s, W, H) {
+        if (REDUCED) { g.style.transform = "translate(0px, 0px) scale(1)"; return; }
+        /* Damped: authored zooms read well as intent but too strong in practice. */
+        s = 1 + (s - 1) * 0.5;
+        var tx = W / 2 - s * cx, ty = H / 2 - s * cy;
+        /* Clamp so the scaled scene always fills the viewport. CW/CH describe
+           the drawn extent, which for the panned strip figures is wider than
+           the viewBox. */
+        var cw = arguments.length > 6 ? arguments[6] : W, ch = arguments.length > 7 ? arguments[7] : H;
+        tx = Math.min(0, Math.max(W - s * cw, tx));
+        ty = Math.min(0, Math.max(H - s * ch, ty));
+        g.style.transform = "translate(" + tx + "px, " + ty + "px) scale(" + s + ")";
+      }
+      function put(node, x, y, s) {
+        node.style.transform = "translate(" + x + "px, " + y + "px)" + (s === undefined ? "" : " scale(" + s + ")");
+      }
+      function show(node, on, dim) {
+        node.style.opacity = on ? (dim === undefined ? 1 : dim) : 0;
+      }
+      function drawLine(node, on) {
+        var len = node.getTotalLength ? node.getTotalLength() : 400;
+        node.style.strokeDasharray = len;
+        node.style.strokeDashoffset = on ? 0 : len;
+        node.style.opacity = on ? 1 : 0;
+      }
+
+      function Figure(panel, spec) {
+        this.panel = panel;
+        this.spec = spec;
+        this.stage = panel.querySelector(".animation-stage");
+        this.beatEl = panel.querySelector("[data-beat]");
+        this.statusEl = panel.querySelector("[data-status]");
+        this.playBtn = panel.querySelector('[data-action="play-pause"]');
+        this.n = spec.states.length;
+        this.i = 0;
+        this.speed = 1;
+        this.timer = null;
+        this.visible = false;
+        this.userPaused = REDUCED;
+        this.stage.innerHTML = spec.markup;
+        /* Everything the states toggle gets the shared opacity/transform
+           transition, so no figure has to remember to ask for it. */
+        Array.prototype.forEach.call(
+          this.stage.querySelectorAll("g[data-b],g[data-c],g[data-row],g[data-col],g[data-gen],g[data-a],g[data-eg],g[data-bar],g.need,g.lawbox,g.meter"),
+          function (n) { n.classList.add("fade"); }
+        );
+        this.ctx = spec.build ? spec.build(this.stage) : {};
+        this.bind();
+        this.render();
+        this.observe();
+      }
+
+      Figure.prototype.render = function () {
+        var st = this.spec.states[this.i];
+        this.spec.apply(this.ctx, this.i, st, REDUCED);
+        if (this.beatEl) this.beatEl.innerHTML = st.beat || "";
+        if (this.statusEl) this.statusEl.textContent = "Frame " + pad(this.i + 1) + " / " + pad(this.n);
+      };
+
+      Figure.prototype.go = function (i) {
+        this.i = ((i % this.n) + this.n) % this.n;
+        this.render();
+      };
+
+      Figure.prototype.tick = function () {
+        var self = this;
+        clearTimeout(this.timer);
+        if (this.userPaused || !this.visible || REDUCED) return;
+        var st = this.spec.states[this.i];
+        var hold = (st.hold || this.spec.interval || 2500) / this.speed;
+        this.timer = setTimeout(function () { self.go(self.i + 1); self.tick(); }, hold);
+      };
+
+      Figure.prototype.setPlaying = function (playing) {
+        this.userPaused = !playing;
+        this.playBtn.textContent = playing ? "Pause" : "Play";
+        this.playBtn.setAttribute("aria-pressed", playing ? "true" : "false");
+        this.playBtn.setAttribute("aria-label", playing ? "Pause animation" : "Play animation");
+        this.tick();
+      };
+
+      Figure.prototype.bind = function () {
+        var self = this;
+        this.panel.querySelector('[data-action="previous"]').addEventListener("click", function () {
+          self.setPlaying(false); self.go(self.i - 1);
+        });
+        this.panel.querySelector('[data-action="next"]').addEventListener("click", function () {
+          self.setPlaying(false); self.go(self.i + 1);
+        });
+        this.playBtn.addEventListener("click", function () { self.setPlaying(self.userPaused); });
+        Array.prototype.forEach.call(this.panel.querySelectorAll("[data-speed]"), function (btn) {
+          btn.addEventListener("click", function () {
+            self.speed = parseFloat(btn.getAttribute("data-speed"));
+            Array.prototype.forEach.call(self.panel.querySelectorAll("[data-speed]"), function (b) {
+              b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+            });
+            self.tick(); /* position is preserved; only the dwell time changes */
+          });
+        });
+        if (REDUCED) {
+          this.playBtn.textContent = "Play";
+          this.playBtn.setAttribute("aria-pressed", "false");
+          this.playBtn.setAttribute("aria-label", "Autoplay is disabled because reduced motion is preferred");
+          this.playBtn.disabled = true;
+        }
+      };
+
+      Figure.prototype.observe = function () {
+        var self = this;
+        if (!("IntersectionObserver" in window)) { this.visible = true; this.tick(); return; }
+        new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) { self.visible = e.isIntersecting; self.tick(); });
+        }, { threshold: 0.35 }).observe(this.panel);
+      };
+
+      /* ------------------------------------------------------------------
+         Small SVG builders shared across figures.
+         ------------------------------------------------------------------ */
+      function box(x, y, w, h, cls, extra) {
+        return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" ' +
+          'class="' + (cls || "") + '" ' + (extra || "") + '/>';
+      }
+      function txt(x, y, s, cls, anchor) {
+        return '<text x="' + x + '" y="' + y + '" class="' + (cls || "fig-label") + '" text-anchor="' +
+          (anchor || "middle") + '">' + s + "</text>";
+      }
+      var DEFS =
+        '<defs>' +
+        '<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+        '<path d="M0,0 L10,5 L0,10 z" fill="#93a0a8"/></marker>' +
+        '<marker id="ar-live" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+        '<path d="M0,0 L10,5 L0,10 z" fill="#3fd1a0"/></marker>' +
+        '<marker id="ar-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+        '<path d="M0,0 L10,5 L0,10 z" fill="#e8746a"/></marker>' +
+        '</defs>' +
+        '<style>' +
+        '.nd circle,.nd rect{stroke-width:1.4}' +
+        '.ln{fill:none;stroke:#39454e;stroke-width:1.4}' +
+        '.ln.live{stroke:#3fd1a0}.ln.fail{stroke:#e8746a}.ln.tape{stroke:#5ab2e8}' +
+        '.cell{fill:#161c22;stroke:#39454e;stroke-width:1}' +
+        '.cell.on{fill:#12261f;stroke:#3fd1a0}' +
+        '.cell.tape{fill:#111e28;stroke:#5ab2e8}' +
+        '.cell.cost{fill:#241d10;stroke:#e8b45a}' +
+        '.cell.fail{fill:#251413;stroke:#e8746a}' +
+        '.cell.lat{fill:#1c1428;stroke:#a98ce8}' +
+        '.rule{stroke:#242c34;stroke-width:1}' +
+        'text{font-family:"IBM Plex Mono",ui-monospace,monospace}' +
+        '</style>';
+
+      /* ==================================================================
+         FIGURE 1 — Lineage. Four eras on one wide strip; the camera pans.
+         ================================================================== */
+      var LIN_W = 520, LIN_H = 300;
+      function lineagePanel(k, title, year, body) {
+        var ox = k * LIN_W;
+        return '<g class="era" data-era="' + k + '">' +
+          txt(ox + LIN_W / 2, 34, title, "fig-title") +
+          txt(ox + LIN_W / 2, 52, year, "fig-label") +
+          body(ox + 70) + "</g>";
+      }
+      var figLineage = {
+        interval: 1700,
+        markup: (function () {
+          var inner = "";
+          /* Era 0 — elicit */
+          inner += lineagePanel(0, "Elicit", "2022 · chain-of-thought prompting", function (o) {
+            return '<g class="e0">' +
+              '<g class="fade" data-p="0.0">' + box(o + 30, 96, 74, 40, "cell") + txt(o + 67, 121, "prompt x", "fig-strong") + "</g>" +
+              '<path class="ln draw" data-p="0.1" d="M' + (o + 104) + ' 116 H' + (o + 146) + '" marker-end="url(#ar)"/>' +
+              '<g class="fade" data-p="0.1">' + box(o + 30, 158, 74, 34, "cell tape") + txt(o + 67, 179, "exemplars", "fig-label") +
+              '<path class="ln tape" d="M' + (o + 67) + ' 158 V' + 140 + '" marker-end="url(#ar)"/></g>' +
+              '<g class="fade" data-p="0.1">' + box(o + 148, 96, 84, 40, "cell tape") + txt(o + 190, 121, "trajectory z", "fig-label") + "</g>" +
+              '<path class="ln live draw" data-p="0.2" d="M' + (o + 232) + ' 116 H' + (o + 274) + '" marker-end="url(#ar-live)"/>' +
+              '<g class="fade" data-p="0.2">' + box(o + 276, 96, 68, 40, "cell on") + txt(o + 310, 121, "answer y", "fig-strong") + "</g>" +
+              '<g class="fade" data-p="0.3">' + txt(o + 190, 230, "no training \u00b7 condition on a prefix", "fig-label") +
+              txt(o + 190, 250, "that makes long z likely", "fig-label") + "</g></g>";
+          });
+          /* Era 1 — marginalise */
+          inner += lineagePanel(1, "Marginalise", "2022 \u00b7 self-consistency", function (o) {
+            var s = "";
+            s += '<g class="fade" data-p="1.0">' + box(o + 22, 130, 56, 36, "cell") + txt(o + 50, 153, "x", "fig-strong") + "</g>";
+            var ys = [92, 126, 160, 194], labs = ["24", "24", "18", "24"];
+            for (var i = 0; i < 4; i++) {
+              s += '<path class="ln draw" data-p="1.1" d="M' + (o + 78) + ' 148 C' + (o + 106) + ' 148 ' + (o + 106) + ' ' + (ys[i] + 13) + ' ' + (o + 134) + ' ' + (ys[i] + 13) + '" marker-end="url(#ar)"/>';
+              s += '<g class="fade" data-p="1.1">' + box(o + 136, ys[i], 62, 26, "cell tape") + txt(o + 167, ys[i] + 18, "z" + (i + 1), "fig-label") + "</g>";
+              s += '<g class="fade" data-p="1.2">' + box(o + 206, ys[i], 36, 26, i === 2 ? "cell fail" : "cell on") + txt(o + 224, ys[i] + 18, labs[i], "fig-label") + "</g>";
+            }
+            s += '<g class="fade" data-p="1.3">' + box(o + 258, 118, 82, 60, "cell on") + txt(o + 299, 143, "plurality", "fig-label") + txt(o + 299, 163, "24", "fig-strong") + "</g>";
+            s += '<g class="fade" data-p="1.3">' + txt(o + 190, 240, "estimate the sum over z by sampling it", "fig-label") + "</g>";
+            return "<g>" + s + "</g>";
+          });
+          /* Era 2 — fit */
+          inner += lineagePanel(2, "Fit", "2022 \u00b7 STaR", function (o) {
+            var s = "";
+            s += '<g class="fade" data-p="2.0">' + box(o + 26, 100, 76, 36, "cell") + txt(o + 64, 123, "model \u03b8", "fig-strong") + "</g>";
+            s += '<path class="ln draw" data-p="2.0" d="M' + (o + 102) + ' 118 H' + (o + 140) + '" marker-end="url(#ar)"/>';
+            s += '<g class="fade" data-p="2.1">' + box(o + 142, 100, 74, 36, "cell tape") + txt(o + 179, 123, "sample z", "fig-label") + "</g>";
+            s += '<path class="ln draw" data-p="2.1" d="M' + (o + 216) + ' 118 H' + (o + 252) + '" marker-end="url(#ar)"/>';
+            s += '<g class="fade" data-p="2.2">' + box(o + 254, 96, 90, 44, "cell") +
+              txt(o + 280, 114, "\u2713 keep", "fig-label") + txt(o + 282, 132, "\u2717 drop", "fig-label") + "</g>";
+            s += '<path class="ln live draw" data-p="2.3" d="M' + (o + 299) + ' 140 V186 H' + (o + 64) + ' V136" marker-end="url(#ar-live)"/>';
+            s += '<g class="fade" data-p="2.3">' + txt(o + 182, 206, "fine-tune on what worked \u00b7 repeat", "fig-label") + "</g>";
+            s += '<g class="fade" data-p="2.3">' + txt(o + 190, 244, "supervision for a variable never observed", "fig-label") + "</g>";
+            return "<g>" + s + "</g>";
+          });
+          /* Era 3 — reward */
+          inner += lineagePanel(3, "Reward", "2024\u201325 \u00b7 o1, R1", function (o) {
+            var s = "";
+            s += '<g class="fade" data-p="3.0">' + box(o + 20, 116, 66, 36, "cell") + txt(o + 53, 139, "policy", "fig-strong") + "</g>";
+            var ys = [86, 116, 146, 176];
+            for (var i = 0; i < 4; i++) {
+              s += '<path class="ln draw" data-p="3.1" d="M' + (o + 86) + ' 134 C' + (o + 110) + ' 134 ' + (o + 110) + ' ' + (ys[i] + 12) + ' ' + (o + 134) + ' ' + (ys[i] + 12) + '"/>';
+              s += '<g class="fade" data-p="3.1">' + box(o + 136, ys[i], 66, 24, "cell tape") + txt(o + 169, ys[i] + 17, "rollout", "fig-label") + "</g>";
+            }
+            s += '<g class="fade" data-p="3.2">' + box(o + 216, 96, 66, 80, "cell cost") + txt(o + 249, 128, "verifier", "fig-label") + txt(o + 249, 150, "R \u2208 {0,1}", "fig-label") + "</g>";
+            s += '<path class="ln live draw" data-p="3.3" d="M' + (o + 282) + ' 136 H' + (o + 316) + ' V214 H' + (o + 53) + ' V152" marker-end="url(#ar-live)"/>';
+            s += '<g class="fade" data-p="3.3">' + txt(o + 190, 234, "policy gradient \u00b7 no length anchor", "fig-label") + "</g>";
+            s += '<g class="fade" data-p="3.3">' + txt(o + 190, 262, "maximise E[R], stop imitating", "fig-label") + "</g>";
+            return "<g>" + s + "</g>";
+          });
+          return '<svg viewBox="0 0 ' + LIN_W + " " + LIN_H + '" role="presentation">' + DEFS +
+            '<g class="cam">' + inner + "</g></svg>";
+        })(),
+        build: function (stage) {
+          var parts = {};
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-p]"), function (n) {
+            var k = n.getAttribute("data-p");
+            (parts[k] = parts[k] || []).push(n);
+          });
+          return { cam: stage.querySelector(".cam"), parts: parts, eras: stage.querySelectorAll(".era") };
+        },
+        states: (function () {
+          var out = [], eras = [
+            ["Elicit", ["A prompt is the cheapest intervention there is: show the model working, and it works.",
+              "Exemplars make a long trajectory <em>likely</em> \u2014 the model could always produce one.",
+              "The answer is now conditioned on the trajectory, not on the question alone.",
+              "Nothing was trained. Only <em>p(z | x)</em> moved."]],
+            ["Marginalise", ["If one chain is a sample, stop treating it as the answer.",
+              "Sample four trajectories independently at nonzero temperature.",
+              "Read the final answer off each. One of them is wrong \u2014 that is expected.",
+              "Take the plurality. This works when the correct answer is the <em>mode</em>."]],
+            ["Fit", ["Now change the weights. But there is no supervision for z.",
+              "So generate it: sample trajectories from the model itself.",
+              "Keep the ones that reached the right answer, discard the rest.",
+              "Fine-tune, repeat. The model bootstraps its own reasoning data."]],
+            ["Reward", ["The last step drops imitation entirely.",
+              "Sample a group of rollouts from the current policy.",
+              "Score only the final answer with a verifier \u2014 no step labels.",
+              "Push up what scored well. Trajectory length is now unanchored."]]
+          ];
+          for (var e = 0; e < 4; e++) for (var p = 0; p < 4; p++) {
+            out.push({ era: e, step: p, hold: p === 3 ? 2600 : 1700, beat: "<em>" + eras[e][0] + "</em> \u2014 " + eras[e][1][p] });
+          }
+          return out;
+        })(),
+        apply: function (c, i, st, reduced) {
+          var W = LIN_W, H = LIN_H;
+          cam(c.cam, st.era * W + W / 2, H / 2 - 6, reduced ? 1 : 1.02, W, H, W * 4, H);
+          Object.keys(c.parts).forEach(function (k) {
+            var e = parseInt(k.split(".")[0], 10), p = parseInt(k.split(".")[1], 10);
+            var on = (e < st.era) || (e === st.era && p <= st.step);
+            c.parts[k].forEach(function (n) {
+              if (n.classList.contains("draw")) drawLine(n, on);
+              else show(n, on);
+            });
+          });
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 2 — Depth. Width versus depth, and the generation loop.
+         ================================================================== */
+      var DW = 760, DH = 360, LAYERS = 6;
+      var figDepth = {
+        interval: 1900,
+        markup: (function () {
+          var s = "";
+          /* five context columns, each a stack of LAYERS blocks */
+          for (var c = 0; c < 5; c++) {
+            var x = 60 + c * 62;
+            s += '<g class="col" data-col="' + c + '">';
+            for (var l = 0; l < LAYERS; l++) {
+              s += box(x, 226 - l * 26, 46, 20, "cell", 'data-layer="' + l + '" data-c="' + c + '"');
+            }
+            s += txt(x + 23, 258, c === 0 ? "x\u2081" : "x" + "\u2082\u2083\u2084\u2085".charAt(c - 1), "fig-label");
+            s += "</g>";
+          }
+          /* generated tokens continue the row */
+          for (var g = 0; g < 4; g++) {
+            var gx = 60 + (5 + g) * 62;
+            s += '<g class="gen" data-gen="' + g + '">';
+            for (var l2 = 0; l2 < LAYERS; l2++) {
+              s += box(gx, 226 - l2 * 26, 46, 20, "cell", 'data-glayer="' + l2 + '" data-g="' + g + '"');
+            }
+            s += txt(gx + 23, 258, "z" + (g + 1), "fig-label");
+            s += '<path class="ln tape loop" data-loop="' + g + '" d="M' + (gx - 39) + ' 60 C' + (gx - 20) + ' 34 ' + (gx + 4) + ' 34 ' + (gx + 23) + ' 60 V' + 200 + '" marker-end="url(#ar)"/>';
+            s += "</g>";
+          }
+          s += '<line class="rule ceil" x1="40" y1="66" x2="700" y2="66" stroke-dasharray="4 5"/>';
+          s += txt(700, 60, "depth ceiling of one pass", "fig-label", "end");
+          s += '<g class="need">' + box(46, 66, 8, 160, "cell fail") + "</g>";
+
+          s += '<g class="lawbox">' + box(300, 96, 300, 76, "cell tape") +
+            txt(450, 122, "no CoT: constant depth \u2192 AC\u2070", "fig-label") +
+            txt(450, 144, "with T steps: circuits of size T", "fig-label") + "</g>";
+          var hud = '<g class="meter"><rect x="60" y="322" width="0" height="12" fill="#3fd1a0" opacity=".8"/>' +
+            '<rect x="60" y="322" width="580" height="12" fill="none" stroke="#39454e"/>' +
+            '<text x="650" y="333" class="fig-strong" text-anchor="start">depth 6</text></g>';
+          return '<svg viewBox="0 0 ' + DW + " " + DH + '" role="presentation">' + DEFS +
+            '<g class="cam">' + s + "</g>" + hud + "</svg>";
+        })(),
+        build: function (stage) {
+          return {
+            cam: stage.querySelector(".cam"),
+            cols: Array.prototype.slice.call(stage.querySelectorAll("[data-col]")),
+            gens: Array.prototype.slice.call(stage.querySelectorAll("[data-gen]")),
+            loops: Array.prototype.slice.call(stage.querySelectorAll("[data-loop]")),
+            layers: Array.prototype.slice.call(stage.querySelectorAll("[data-layer]")),
+            glayers: Array.prototype.slice.call(stage.querySelectorAll("[data-glayer]")),
+            ceil: stage.querySelector(".ceil"),
+            need: stage.querySelector(".need"),
+            meter: stage.querySelector(".meter rect"),
+            depthTxt: stage.querySelector(".meter text"),
+            law: stage.querySelector(".lawbox")
+          };
+        },
+        states: [
+          { cols: 1, lit: 1, gens: 0, ceil: 0, need: 0, meter: 0, law: 0, zoom: [110, 150, 1.9], beat: "One position. The forward pass runs through <em>L = 6</em> blocks, bottom to top." },
+          { cols: 1, lit: 4, gens: 0, ceil: 0, need: 0, meter: 1, law: 0, zoom: [110, 150, 1.9], beat: "Layer three can read layer two anywhere in the sequence. It cannot read layer four anywhere." },
+          { cols: 1, lit: 6, gens: 0, ceil: 1, need: 0, meter: 1, law: 0, zoom: [110, 150, 1.7], beat: "So the serial depth available for producing this token is exactly six. That is the ceiling." },
+          { cols: 3, lit: 6, gens: 0, ceil: 1, need: 0, meter: 1, law: 0, zoom: [200, 150, 1.35], beat: "Add context. More positions to attend over \u2014 genuinely more computation." },
+          { cols: 5, lit: 6, gens: 0, ceil: 1, need: 0, meter: 1, law: 0, zoom: [230, 150, 1.15], beat: "Five positions now. The machine got <em>wider</em>." },
+          { cols: 5, lit: 6, gens: 0, ceil: 1, need: 0, meter: 1, law: 0, zoom: [230, 150, 1.15], beat: "The ceiling did not move. Width is free; depth is the thing you cannot parallelise." },
+          { cols: 5, lit: 6, gens: 0, ceil: 1, need: 1, meter: 1, law: 0, zoom: [120, 140, 1.6], beat: "Here is a problem needing nine serial steps \u2014 the parity of a long bit string, say." },
+          { cols: 5, lit: 6, gens: 0, ceil: 1, need: 1, meter: 1, law: 0, zoom: [120, 140, 1.6], beat: "It does not fit. Not \"hard\": <em>not representable</em> in one pass, at any width." },
+          { cols: 5, lit: 6, gens: 1, ceil: 1, need: 1, meter: 2, law: 0, zoom: [330, 150, 1.2], beat: "Now generate a token. It is appended to the sequence \u2014 and re-enters at layer zero." },
+          { cols: 5, lit: 6, gens: 1, ceil: 1, need: 1, meter: 2, law: 0, zoom: [400, 150, 1.25], beat: "Whatever layer six computed is now an input to layer one. That is the loop." },
+          { cols: 5, lit: 6, gens: 2, ceil: 1, need: 0, meter: 3, law: 0, zoom: [460, 150, 1.25], beat: "Eighteen serial steps. The ceiling from four frames ago is already behind us." },
+          { cols: 5, lit: 6, gens: 3, ceil: 1, need: 0, meter: 4, law: 0, zoom: [520, 150, 1.2], beat: "Twenty-four. The KV cache is the tape; attention is the read head." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 5, law: 0, zoom: [560, 150, 1.15], beat: "Thirty, and counting for as long as the model keeps writing." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 6, law: 0, zoom: [380, 160, 1], beat: "Depth \u2264 <em>L \u00b7 K</em>. Linear in how long you let it go." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 6, law: 1, zoom: [380, 150, 1], beat: "Formally: constant-depth, constant-precision Transformers without CoT sit inside AC\u2070." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 6, law: 1, zoom: [450, 134, 1.5], beat: "AC\u2070 cannot compute parity. That is not a metaphor \u2014 it is why the bit-string demand fails." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 6, law: 1, zoom: [450, 134, 1.5], beat: "With <em>T</em> steps of chain of thought: anything a Boolean circuit of size <em>T</em> can do." },
+          { cols: 5, lit: 6, gens: 4, ceil: 1, need: 0, meter: 6, law: 1, zoom: [380, 160, 1], hold: 3200, beat: "The bound stopped being a property of the architecture and became a runtime decision." }
+        ],
+        apply: function (c, i, st, reduced) {
+          var back = st.law ? 0.16 : 1;
+          c.cols.forEach(function (n, k) { show(n, k < st.cols, back); });
+          c.layers.forEach(function (n) {
+            var l = +n.getAttribute("data-layer"), col = +n.getAttribute("data-c");
+            n.setAttribute("class", "cell" + (col === 0 && l < st.lit ? " on" : ""));
+          });
+          c.gens.forEach(function (n, k) { show(n, k < st.gens, back); });
+          c.loops.forEach(function (n, k) { drawLine(n, k < st.gens); n.style.opacity = (k < st.gens ? back : 0); });
+          c.glayers.forEach(function (n) {
+            var g = +n.getAttribute("data-g");
+            n.setAttribute("class", "cell" + (g < st.gens ? " tape" : ""));
+          });
+          show(c.ceil, st.ceil);
+          show(c.ceil.nextElementSibling, st.ceil);
+          show(c.need, st.need);
+          show(c.law, st.law);
+          var passes = 1 + st.gens;
+          c.meter.setAttribute("width", Math.round(580 * passes / 5));
+          c.depthTxt.textContent = "depth " + (LAYERS * passes);
+          show(c.meter.parentNode, st.meter > 0);
+          cam(c.cam, st.zoom[0], st.zoom[1], reduced ? 1 : st.zoom[2], DW, DH);
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 3 — Compute ledger. Interactive; the slider drives frames.
+         ================================================================== */
+      var LK = [0, 32, 64, 128, 256, 512, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 49152];
+      var N_P = 32e9, N_L = 64, N_D = 5120, P_LEN = 500, KV_TOK = 262144, BW = 3.35e12, W_BYTES = 64e9;
+      function ledgerVals(K) {
+        var fw = 2 * N_P * K;
+        var fa = 4 * N_L * N_D * (P_LEN * K + K * K / 2);
+        return { fw: fw, fa: fa, kv: KV_TOK * K, lat: K * (W_BYTES / BW) };
+      }
+      var LMAX = ledgerVals(LK[LK.length - 1]);
+      var figLedger = {
+        interval: 1500,
+        markup: (function () {
+          var rows = [
+            ["compute", "flops", "#e8b45a"],
+            ["KV cache", "kv", "#5ab2e8"],
+            ["latency", "lat", "#a98ce8"]
+          ], s = "";
+          s += txt(24, 34, "One request, 32B dense model, batch size 1", "fig-title", "start");
+          for (var i = 0; i < 3; i++) {
+            var y = 84 + i * 62;
+            s += txt(24, y - 12, rows[i][0], "fig-label", "start");
+            s += box(24, y, 560, 26, "cell");
+            if (i === 0) {
+              s += '<g class="bar" data-bar="fw"><rect x="24" y="' + y + '" width="560" height="26" fill="#e8b45a" opacity=".72"/></g>';
+              s += '<g class="bar" data-bar="fa"><rect x="24" y="' + y + '" width="560" height="26" fill="#e8746a" opacity=".55"/></g>';
+            } else {
+              s += '<g class="bar" data-bar="' + rows[i][1] + '"><rect x="24" y="' + y + '" width="560" height="26" fill="' + rows[i][2] + '" opacity=".62"/></g>';
+            }
+            s += '<text x="600" y="' + (y + 18) + '" class="fig-strong" text-anchor="start" data-out="' + rows[i][1] + '">\u2014</text>';
+          }
+          s += txt(24, 274, "weights 2NK", "fig-label", "start");
+          s += '<rect x="120" y="264" width="12" height="10" fill="#e8b45a" opacity=".72"/>';
+          s += txt(150, 274, "attention 4Ld(PK + K\u00b2/2)", "fig-label", "start");
+          s += '<rect x="330" y="264" width="12" height="10" fill="#e8746a" opacity=".55"/>';
+          s += '<text x="736" y="274" class="fig-label" text-anchor="end" data-out="k">K = 0</text>';
+          return '<svg viewBox="0 0 760 292" role="presentation">' + DEFS + '<g class="cam">' + s + "</g></svg>";
+        })(),
+        build: function (stage) {
+          var bars = {}, outs = {};
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-bar]"), function (n) { bars[n.getAttribute("data-bar")] = n; });
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-out]"), function (n) { outs[n.getAttribute("data-out")] = n; });
+          return { cam: stage.querySelector(".cam"), bars: bars, outs: outs };
+        },
+        states: LK.map(function (K, i) {
+          var beats = [
+            "Zero thinking tokens. The model answers from the prompt. This is the baseline everything is measured against.",
+            "Thirty-two tokens \u2014 barely a sentence. Almost free.",
+            "The weight term dominates: every token pays one full pass over 32 billion parameters.",
+            "Attention is still a rounding error at this context length.",
+            "A short paragraph of deliberation. Notice the latency bar has become visible.",
+            "Five hundred tokens. Roughly where a careful non-reasoning answer sits.",
+            "One thousand. Now the attention term starts to be worth drawing.",
+            "The attention segment grows <em>quadratically</em>; the weight segment only linearly.",
+            "Two thousand tokens: about eight seconds of wall clock, at batch size one.",
+            "Three thousand. The KV cache is now most of a gigabyte, held for the whole request.",
+            "Four thousand \u2014 a typical medium thinking budget.",
+            "Six thousand. Two minutes. Users notice two minutes.",
+            "Eight thousand: the budget Qwen3 caps to on long-context retrieval evals.",
+            "Twelve thousand. Attention is no longer a correction term.",
+            "Sixteen thousand tokens for one question, on one request, on one GPU.",
+            "Twenty-four thousand. Four gigabytes of cache that cannot be evicted mid-request.",
+            "Thirty-two thousand \u2014 near the output ceiling most reasoning evals are run at.",
+            "Beyond the ceiling. This is the shape of the bill you are approving when you set a budget."
+          ];
+          return { k: K, hold: i === 0 ? 2200 : 1500, beat: beats[i] };
+        }),
+        apply: function (c, i, st, reduced) {
+          var v = ledgerVals(st.k), W = 560;
+          var totMax = LMAX.fw + LMAX.fa;
+          var wFw = W * v.fw / totMax, wFa = W * v.fa / totMax;
+          c.bars.fw.style.transform = "translate(0px,0px) scale(" + Math.max(0.0001, wFw / W) + ",1)";
+          c.bars.fw.style.transformOrigin = "24px 0px";
+          c.bars.fa.style.transform = "translate(" + wFw + "px,0px) scale(" + Math.max(0.0001, wFa / W) + ",1)";
+          c.bars.fa.style.transformOrigin = "24px 0px";
+          c.bars.kv.style.transform = "scale(" + Math.max(0.0001, v.kv / LMAX.kv) + ",1)";
+          c.bars.kv.style.transformOrigin = "24px 0px";
+          c.bars.lat.style.transform = "scale(" + Math.max(0.0001, v.lat / LMAX.lat) + ",1)";
+          c.bars.lat.style.transformOrigin = "24px 0px";
+          c.outs.flops.textContent = ((v.fw + v.fa) / 1e15).toFixed(2) + " PFLOP";
+          c.outs.kv.textContent = (v.kv / 1e9).toFixed(2) + " GB";
+          c.outs.lat.textContent = v.lat < 60 ? v.lat.toFixed(1) + " s" : (v.lat / 60).toFixed(1) + " min";
+          c.outs.k.textContent = "K = " + st.k.toLocaleString();
+          cam(c.cam, 380, 146, 1, 760, 292);
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 4 — Search topologies. Shared node pool morphs between four
+         ways of spending inference compute.
+         ================================================================== */
+      var SW = 760, SH = 380;
+      var SPOS = [
+        /* stage 0: single chain */
+        [[110, 190, "x", "on"], [240, 190, "z\u2081", "tape"], [360, 190, "z\u2082", "tape"], [480, 190, "z\u2083", "tape"], [610, 190, "y", "on"],
+         null, null, null, null, null, null, null, null, null],
+        /* stage 1: self-consistency */
+        [[70, 190, "x", "on"],
+         [200, 70, "z", "tape"], [320, 70, "z", "tape"], [430, 70, "24", "on"],
+         [200, 150, "z", "tape"], [320, 150, "z", "tape"], [430, 150, "24", "on"],
+         [200, 230, "z", "tape"], [320, 230, "z", "tape"], [430, 230, "18", "fail"],
+         [200, 310, "z", "tape"], [320, 310, "z", "tape"], [430, 310, "24", "on"],
+         [590, 190, "24", "on"]],
+        /* stage 2: tree */
+        [[70, 190, "x", "on"],
+         [220, 90, ".3", "tape"], [220, 190, ".8", "tape"], [220, 300, ".1", "tape"],
+         [370, 130, ".4", "tape"], [370, 240, ".9", "tape"],
+         [510, 190, ".2", "tape"], [510, 300, ".95", "tape"],
+         [650, 300, "y", "on"], null, null, null, null, null],
+        /* stage 3: refinement loop */
+        [[90, 190, "x", "on"], [270, 100, "draft", "tape"], [470, 190, "critique", "cost"], [270, 280, "revise", "tape"],
+         [660, 190, "y", "on"], null, null, null, null, null, null, null, null, null]
+      ];
+      var SEDGE = [
+        ["M125 190 H225", "M255 190 H345", "M375 190 H465", "M495 190 H595"],
+        ["M85 190 C140 190 140 70 185 70", "M215 70 H305", "M335 70 H415",
+         "M85 190 C140 190 140 150 185 150", "M215 150 H305", "M335 150 H415",
+         "M85 190 C140 190 140 230 185 230", "M215 230 H305", "M335 230 H415",
+         "M85 190 C140 190 140 310 185 310", "M215 310 H305", "M335 310 H415",
+         "M445 70 C520 70 520 190 575 190", "M445 150 C520 150 520 190 575 190",
+         "M445 230 C520 230 520 190 575 190", "M445 310 C520 310 520 190 575 190"],
+        ["M85 190 C150 190 150 90 205 90", "M85 190 H205", "M85 190 C150 190 150 300 205 300",
+         "M235 190 C300 190 300 130 355 130", "M235 190 C300 190 300 240 355 240",
+         "M385 240 C450 240 450 190 495 190", "M385 240 C450 240 450 300 495 300",
+         "M525 300 H635"],
+        ["M105 190 C170 190 180 100 255 100", "M285 100 C360 100 400 150 455 185",
+         "M470 205 C420 250 350 275 285 280", "M255 280 C180 280 170 220 105 200",
+         "M485 190 H645"]
+      ];
+      var figSearch = {
+        interval: 1900,
+        markup: (function () {
+          var s = "", i, j;
+          for (i = 0; i < 4; i++) {
+            s += '<g class="egroup" data-eg="' + i + '">';
+            for (j = 0; j < SEDGE[i].length; j++) {
+              s += '<path class="ln" data-e="' + i + "-" + j + '" d="' + SEDGE[i][j] + '"/>';
+            }
+            s += "</g>";
+          }
+          for (i = 0; i < 14; i++) {
+            s += '<g class="nd swap" data-n="' + i + '">' +
+              '<circle r="17" fill="#161c22" stroke="#39454e"/>' +
+              '<text y="4" text-anchor="middle" class="fig-label"></text></g>';
+          }
+          s += '<g class="anno" data-a="0">' + txt(360, 60, "one sample of z \u00b7 no undo", "fig-title") + "</g>";
+          s += '<g class="anno" data-a="1">' + txt(300, 355, "plurality over independent samples", "fig-title") + "</g>";
+          s += '<g class="anno" data-a="2">' + txt(300, 40, "score partial states \u00b7 prune \u00b7 backtrack", "fig-title") + "</g>";
+          s += '<g class="anno" data-a="3">' + txt(370, 350, "critique and regenerate \u00b7 needs a real verifier", "fig-title") + "</g>";
+          return '<svg viewBox="0 0 ' + SW + " " + SH + '" role="presentation">' + DEFS + '<g class="cam">' + s + "</g></svg>";
+        })(),
+        build: function (stage) {
+          return {
+            cam: stage.querySelector(".cam"),
+            nodes: Array.prototype.slice.call(stage.querySelectorAll("[data-n]")),
+            egroups: Array.prototype.slice.call(stage.querySelectorAll("[data-eg]")),
+            edges: Array.prototype.slice.call(stage.querySelectorAll("[data-e]")),
+            annos: Array.prototype.slice.call(stage.querySelectorAll("[data-a]"))
+          };
+        },
+        states: [
+          { s: 0, n: 1, e: 0, bad: [], zoom: [360, 190, 1], beat: "A single chain. One sample of the latent trajectory, and whatever it produces is the answer." },
+          { s: 0, n: 2, e: 1, bad: [], zoom: [300, 190, 1.2], beat: "Step one is fine." },
+          { s: 0, n: 3, e: 2, bad: [2], zoom: [360, 190, 1.6], beat: "Step two is wrong. Nothing detects this \u2014 there is no evaluator anywhere in the loop." },
+          { s: 0, n: 4, e: 3, bad: [2], zoom: [430, 190, 1.4], beat: "And now step three is conditioned on a false premise. The model is working hard on the wrong problem." },
+          { s: 0, n: 5, e: 4, bad: [2], hold: 2600, zoom: [360, 190, 1], beat: "The answer inherits the error. A single chain is a one-sample estimate, and this is what a bad sample costs." },
+          { s: 1, n: 1, e: 0, bad: [], zoom: [360, 190, 1], beat: "So stop treating one sample as the answer. Sample many." },
+          { s: 1, n: 7, e: 6, bad: [], zoom: [300, 150, 1.05], beat: "Four independent trajectories, at nonzero temperature. They diverge immediately." },
+          { s: 1, n: 13, e: 12, bad: [], zoom: [330, 190, 1.05], beat: "Each runs to completion and reports a final answer." },
+          { s: 1, n: 13, e: 12, bad: [9], zoom: [430, 230, 1.5], beat: "One of them is wrong. Expected \u2014 and expensive: it was paid for all the way to the leaf." },
+          { s: 1, n: 14, e: 16, bad: [9], zoom: [500, 190, 1.2], beat: "Take the plurality. Three votes for 24, one for 18." },
+          { s: 1, n: 14, e: 16, bad: [9], hold: 2800, zoom: [360, 190, 1], beat: "This works when the correct answer is the <em>mode</em> \u2014 not when it is merely common." },
+          { s: 2, n: 1, e: 0, bad: [], zoom: [360, 190, 1], beat: "Voting evaluates nothing until the end. Tree search evaluates as it goes." },
+          { s: 2, n: 4, e: 3, bad: [], zoom: [200, 190, 1.2], beat: "Propose several next thoughts, then ask the model to score each partial state." },
+          { s: 2, n: 4, e: 3, bad: [1], zoom: [220, 140, 1.5], beat: "Two branches score badly." },
+          { s: 2, n: 4, e: 3, bad: [1, 3], zoom: [220, 240, 1.5], beat: "They are pruned here \u2014 before any compute is spent extending them." },
+          { s: 2, n: 6, e: 5, bad: [1, 3, 4], zoom: [380, 190, 1.15], beat: "Expand only the survivor. Score again. Prune again." },
+          { s: 2, n: 8, e: 7, bad: [1, 3, 4, 6], zoom: [520, 250, 1.3], beat: "A dead end deeper down is recoverable, because the frontier still holds alternatives." },
+          { s: 2, n: 9, e: 8, bad: [1, 3, 4, 6], hold: 2800, zoom: [400, 200, 1], beat: "On Game of 24 this took GPT-4 from roughly 4% to 74% \u2014 for around a hundred times the compute." },
+          { s: 3, n: 2, e: 1, bad: [], zoom: [360, 190, 1], beat: "The fourth policy assumes less: not that you can score a partial state, only that you can criticise a finished one." },
+          { s: 3, n: 3, e: 2, bad: [], zoom: [400, 160, 1.15], beat: "Generate, critique, revise \u2014 across separate calls, so you choose what survives into the next context." },
+          { s: 3, n: 4, e: 4, bad: [], zoom: [360, 190, 1.05], beat: "Loop. Every round converts verifier signal into accuracy." },
+          { s: 3, n: 5, e: 5, bad: [], hold: 3200, zoom: [380, 190, 1], beat: "And if the critic is the same fallible process that made the error, the loop mostly produces confidence." }
+        ],
+        apply: function (c, i, st, reduced) {
+          var pos = SPOS[st.s];
+          c.nodes.forEach(function (g, k) {
+            var p = pos[k];
+            var live = p && k < st.n;
+            show(g, live ? 1 : 0);
+            if (!p) return;
+            put(g, p[0], p[1]);
+            var cls = (st.bad.indexOf(k) >= 0) ? "fail" : p[3];
+            var circle = g.querySelector("circle"), t = g.querySelector("text");
+            circle.setAttribute("fill", cls === "on" ? "#12261f" : cls === "fail" ? "#251413" : cls === "cost" ? "#241d10" : "#111e28");
+            circle.setAttribute("stroke", cls === "on" ? "#3fd1a0" : cls === "fail" ? "#e8746a" : cls === "cost" ? "#e8b45a" : "#5ab2e8");
+            t.textContent = p[2];
+            t.setAttribute("fill", cls === "fail" ? "#e8746a" : "#e4eaee");
+          });
+          c.egroups.forEach(function (g, k) { show(g, k === st.s); });
+          c.edges.forEach(function (p) {
+            var parts = p.getAttribute("data-e").split("-");
+            var sg = +parts[0], idx = +parts[1];
+            if (sg !== st.s) { p.style.opacity = 0; return; }
+            drawLine(p, idx < st.e);
+          });
+          c.annos.forEach(function (g, k) { show(g, k === st.s && st.n > 2); });
+          cam(c.cam, st.zoom[0], st.zoom[1], reduced ? 1 : st.zoom[2], SW, SH);
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 5 — Accuracy against budget; three regimes and the effort drop.
+         ================================================================== */
+      var CW = 760, CH = 340;
+      var figCurve = {
+        interval: 2000,
+        markup: (function () {
+          var s = "", i;
+          s += '<line class="rule" x1="78" y1="272" x2="700" y2="272"/>';
+          s += '<line class="rule" x1="78" y1="48" x2="78" y2="272"/>';
+          var ticks = ["64", "256", "1k", "4k", "16k", "64k"];
+          for (i = 0; i < 6; i++) {
+            var x = 78 + i * 124;
+            s += '<line class="rule" x1="' + x + '" y1="272" x2="' + x + '" y2="277"/>';
+            s += txt(x, 292, ticks[i], "fig-label");
+          }
+          s += txt(390, 314, "thinking tokens (log scale)", "fig-label");
+          s += '<text x="26" y="60" class="fig-label" text-anchor="start">accuracy</text>';
+          s += '<g data-c="shade"><path d="M78 96 H700 V72 H78 Z" fill="#e8b45a" opacity=".14"/>' +
+            txt(400, 88, "pure cost \u2014 every token here buys nothing", "fig-label") + "</g>";
+          s += '<path class="ln live draw" data-c="hard" d="M78 250 C180 250 210 130 330 116 C450 104 560 100 700 98"/>';
+          s += '<path class="ln draw" data-c="easy" stroke="#e8b45a" d="M78 84 H700"/>';
+          s += '<path class="ln fail draw" data-c="vhard" d="M78 262 C150 258 200 214 260 206 C320 200 350 214 396 240 C440 264 520 268 700 268"/>';
+          s += '<g data-c="l1">' + txt(600, 128, "hard problem \u00b7 gains then plateau", "fig-label", "end") + "</g>";
+          s += '<g data-c="l2">' + txt(690, 70, "easy problem", "fig-label", "end") + "</g>";
+          s += '<g data-c="l3">' + txt(660, 250, "past the collapse threshold", "fig-label", "end") + "</g>";
+          s += '<g data-c="knee"><circle cx="300" cy="119" r="20" fill="none" stroke="#3fd1a0" stroke-dasharray="3 4"/>' +
+            txt(300, 162, "the knee", "fig-label") + "</g>";
+          /* inset: effort against complexity */
+          s += '<g data-c="inset">' + box(430, 118, 264, 138, "cell") +
+            txt(562, 140, "thinking tokens spent", "fig-strong") +
+            txt(562, 156, "against problem complexity", "fig-label") +
+            '<path class="ln" stroke="#a98ce8" fill="none" d="M452 238 C500 238 520 186 560 180 C600 174 618 196 668 232"/>' +
+            txt(562, 250, "rises, then falls with budget left", "fig-label") + "</g>";
+          return '<svg viewBox="0 0 ' + CW + " " + CH + '" role="presentation">' + DEFS + '<g class="cam">' + s + "</g></svg>";
+        })(),
+        build: function (stage) {
+          var m = {};
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-c]"), function (n) { m[n.getAttribute("data-c")] = n; });
+          return { cam: stage.querySelector(".cam"), m: m };
+        },
+        states: [
+          { on: [], zoom: [390, 170, 1.0], beat: "Accuracy against thinking budget, for one model on three kinds of problem." },
+          { on: ["hard"], zoom: [300, 190, 1.15], beat: "A genuinely hard problem. Early tokens buy a lot: this is the serial-depth argument paying off." },
+          { on: ["hard", "knee"], zoom: [300, 150, 1.25], beat: "Then the knee. The problem's serial depth has been covered; further tokens have nothing left to compute." },
+          { on: ["hard", "knee", "l1"], zoom: [400, 165, 1.1], beat: "Beyond it the curve is nearly flat. Not harmful \u2014 just no longer worth what it costs." },
+          { on: ["hard", "l1"], zoom: [390, 170, 1.0], beat: "This single curve is the entire argument for a thinking budget." },
+          { on: ["hard", "l1", "easy"], zoom: [390, 140, 1.12], beat: "Now an easy problem. The model already knows the answer at token zero." },
+          { on: ["hard", "l1", "easy", "l2", "shade"], zoom: [390, 132, 1.15], beat: "Everything in the shaded band is overthinking: latency and dollars for no accuracy." },
+          { on: ["hard", "l1", "easy", "l2", "shade"], zoom: [390, 170, 1.0], beat: "Asking an o1-style model what two plus three is can cost orders of magnitude more tokens than a plain model." },
+          { on: ["hard", "l1", "easy", "l2", "shade", "vhard"], zoom: [280, 210, 1.2], beat: "Third case: a problem past what the model can hold. It climbs a little\u2026" },
+          { on: ["hard", "l1", "easy", "l2", "shade", "vhard"], zoom: [400, 228, 1.2], beat: "\u2026and then collapses. Apple's puzzle families showed this cliff for every reasoning model tested." },
+          { on: ["hard", "l1", "easy", "l2", "shade", "vhard", "l3"], zoom: [390, 170, 1.0], beat: "Part of that cliff is an output-length artifact \u2014 printing a fifteen-disk Hanoi solution needs over 32,000 moves." },
+          { on: ["hard", "l1", "easy", "l2", "shade", "vhard", "l3"], zoom: [390, 170, 1.0], beat: "So read the collapse cautiously. The more interesting finding is the one underneath it." },
+          { on: ["hard", "easy", "vhard", "inset"], zoom: [560, 190, 1.15], beat: "Effort against complexity. It rises as problems get harder, as you would hope." },
+          { on: ["hard", "easy", "vhard", "inset"], zoom: [600, 200, 1.25], beat: "And then it <em>falls</em> as the collapse approaches \u2014 with token budget still unspent." },
+          { on: ["hard", "easy", "vhard", "inset"], zoom: [560, 190, 1.15], beat: "A system that spends less when a problem gets harder is not allocating compute the way you want." },
+          { on: ["hard", "l1", "easy", "l2", "shade", "vhard", "l3"], hold: 3200, zoom: [390, 170, 1.0], beat: "Three regimes, one knob. Which is why the right budget is not a constant." }
+        ],
+        apply: function (c, i, st, reduced) {
+          Object.keys(c.m).forEach(function (k) {
+            var on = st.on.indexOf(k) >= 0, n = c.m[k];
+            if (n.classList.contains("draw")) drawLine(n, on); else show(n, on);
+          });
+          cam(c.cam, st.zoom[0], st.zoom[1], reduced ? 1 : st.zoom[2], CW, CH);
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 6 — The decoding bottleneck, and the bypass.
+         ================================================================== */
+      var BW_W = 760, BW_H = 358;
+      var figBottle = {
+        interval: 2000,
+        markup: (function () {
+          var s = "", i;
+          /* continuous residual vector */
+          s += '<g data-b="h">' + box(44, 66, 46, 198, "cell");
+          for (i = 0; i < 22; i++) {
+            var v = 0.25 + 0.7 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.6));
+            s += '<rect x="44" y="' + (66 + i * 9) + '" width="46" height="7" fill="#3fd1a0" opacity="' + v.toFixed(2) + '"/>';
+          }
+          s += box(44, 66, 46, 198, "", 'fill="none" stroke="#39454e"') + txt(67, 52, "h\u209c \u2208 \u211d\u1d48", "fig-strong") + txt(67, 282, "continuous", "fig-label") + "</g>";
+          s += '<path class="ln draw" data-b="a1" d="M92 165 H132" marker-end="url(#ar)"/>';
+          s += '<g data-b="head"><path d="M136 96 L196 132 L196 198 L136 234 Z" fill="#161c22" stroke="#39454e"/>' +
+            txt(166, 170, "LM", "fig-label") + txt(166, 84, "head", "fig-label") + "</g>";
+          /* logits */
+          s += '<g data-b="logits">';
+          for (i = 0; i < 46; i++) {
+            var hh = 6 + 92 * Math.pow(Math.abs(Math.sin(i * 2.3 + 1)), 6);
+            if (i === 27) hh = 118;
+            s += '<rect x="' + (214 + i * 5.4) + '" y="' + (222 - hh) + '" width="3.4" height="' + hh + '" fill="' + (i === 27 ? "#3fd1a0" : "#5ab2e8") + '" opacity="' + (i === 27 ? 1 : 0.5) + '"/>';
+          }
+          s += txt(338, 244, "logits over V \u2248 151,669", "fig-label") + "</g>";
+          /* the pinch */
+          s += '<g data-b="pinch"><path d="M462 104 L516 156 L516 178 L462 230 Z" fill="#241d10" stroke="#e8b45a"/>' +
+            txt(489, 92, "argmax / sample", "fig-label") + "</g>";
+          s += '<g data-b="chip">' + box(524, 142, 82, 48, "cell cost") + txt(565, 164, "one id", "fig-label") +
+            txt(565, 182, "17.2 bits", "fig-strong") + "</g>";
+          s += '<path class="ln draw" data-b="a2" d="M608 166 H648" marker-end="url(#ar)"/>';
+          s += '<g data-b="emb">' + box(650, 66, 66, 198, "cell") + txt(683, 52, "embeddings", "fig-label") +
+            '<rect x="650" y="150" width="66" height="14" fill="#5ab2e8" opacity=".6"/>' +
+            txt(683, 282, "one of V fixed", "fig-label") + "</g>";
+          /* bypass */
+          s += '<path class="ln tape draw" data-b="bypass" d="M67 300 C260 330 520 330 683 300" marker-end="url(#ar)" stroke-width="2"/>';
+          s += '<g data-b="blabel">' + txt(380, 344, "continuous thought \u00b7 feed h\u209c back as the next input embedding", "fig-strong") + "</g>";
+          s += '<g data-b="sup">' + box(210, 88, 128, 34, "cell tape") + txt(274, 110, "branch A", "fig-label") +
+            box(210, 128, 128, 34, "cell tape") + txt(274, 150, "branch B", "fig-label") +
+            txt(274, 182, "carried at once", "fig-label") + "</g>";
+          return '<svg viewBox="0 0 ' + BW_W + " " + BW_H + '" role="presentation">' + DEFS + '<g class="cam">' + s + "</g></svg>";
+        })(),
+        build: function (stage) {
+          var m = {};
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-b]"), function (n) { m[n.getAttribute("data-b")] = n; });
+          return { cam: stage.querySelector(".cam"), m: m };
+        },
+        states: [
+          { on: ["h"], dim: [], zoom: [200, 170, 1.1], beat: "At every generation step the forward pass produces a residual-stream vector." },
+          { on: ["h"], dim: [], zoom: [67, 165, 2.1], beat: "Thousands of continuous dimensions holding whatever the model has worked out at this position." },
+          { on: ["h", "a1", "head"], dim: [], zoom: [140, 165, 1.6], beat: "The language-modelling head projects it out to the vocabulary." },
+          { on: ["h", "a1", "head", "logits"], dim: [], zoom: [330, 170, 1.15], beat: "A hundred and fifty thousand logits. Still continuous, still holding the model's full uncertainty." },
+          { on: ["h", "a1", "head", "logits", "pinch"], dim: [], zoom: [420, 170, 1.25], beat: "Then sampling." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip"], dim: [], zoom: [520, 166, 1.9], beat: "One index. The channel from this step to the next carries at most log\u2082 V \u2248 17.2 bits." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip"], dim: [], zoom: [520, 166, 1.9], beat: "The KV cache still holds everything earlier \u2014 this is a quantisation constraint, not amnesia." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], zoom: [600, 170, 1.35], beat: "The index selects one of V fixed vectors, which becomes the input at the next position." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], zoom: [380, 170, 1], beat: "A continuous state, quantised onto a finite codebook, once per step, for thousands of steps." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], zoom: [489, 166, 1.7], beat: "But the narrowness is the smaller problem. The bigger one is that sampling forces a <em>choice</em>." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], zoom: [489, 166, 1.7], beat: "\"Probably A, possibly B\" is not expressible. The model must write a word, and the word is one of them." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], zoom: [380, 170, 1], beat: "Which is exactly the early-commitment failure from the search section, seen at the mechanism level." },
+          { on: ["h", "head", "logits", "pinch", "chip", "emb", "bypass"], dim: ["head", "logits", "pinch", "chip"], zoom: [380, 240, 1.05], beat: "So Coconut asks the obvious question: if the useful state is h\u209c, why decode it at all?" },
+          { on: ["h", "head", "logits", "pinch", "chip", "emb", "bypass", "blabel"], dim: ["head", "logits", "pinch", "chip"], zoom: [380, 260, 1.15], beat: "Take the last hidden state and feed it straight back as the next input embedding. Skip the head entirely." },
+          { on: ["h", "head", "logits", "pinch", "chip", "emb", "bypass", "blabel"], dim: ["head", "logits", "pinch", "chip"], zoom: [380, 200, 1], beat: "Training uses a curriculum that progressively replaces written steps with latent ones." },
+          { on: ["h", "emb", "bypass", "blabel", "sup"], dim: [], zoom: [380, 190, 1.0], beat: "And then the interesting thing happens. A continuous thought can hold several next steps at once." },
+          { on: ["h", "emb", "bypass", "blabel", "sup"], dim: [], zoom: [380, 190, 1.0], beat: "Something like a breadth-first frontier, carried in the state rather than committed to in the text." },
+          { on: ["h", "emb", "bypass", "blabel", "sup"], dim: [], zoom: [380, 200, 1], beat: "It beats chain of thought on logic tasks that need backtracking \u2014 with fewer thinking steps." },
+          { on: ["h", "emb", "bypass", "blabel", "sup"], dim: [], zoom: [380, 200, 1], beat: "Which is what the bottleneck argument predicts: remove the forced commitment and search comes free." },
+          { on: ["h", "a1", "head", "logits", "pinch", "chip", "a2", "emb"], dim: [], hold: 3400, zoom: [380, 170, 1], beat: "The cost is the trace. An activation cannot be read, monitored, or disagreed with." }
+        ],
+        apply: function (c, i, st, reduced) {
+          Object.keys(c.m).forEach(function (k) {
+            var n = c.m[k], on = (st.on || []).indexOf(k) >= 0, dim = (st.dim || []).indexOf(k) >= 0;
+            if (n.classList.contains("draw")) { drawLine(n, on); if (on && dim) n.style.opacity = 0.22; }
+            else show(n, on, dim ? 0.22 : 1);
+          });
+          cam(c.cam, st.zoom[0], st.zoom[1], reduced ? 1 : st.zoom[2], BW_W, BW_H);
+        }
+      };
+
+      /* ==================================================================
+         FIGURE 7 — Controlling the budget at decode time.
+         ================================================================== */
+      var GW = 760, GH = 452;
+      var GROWS = [
+        { label: "default", sub: "thinking is on", chips: [["open", "&lt;think&gt;"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["close", "&lt;/think&gt;"], ["a"], ["a"], ["a"], ["a"]] },
+        { label: "/no_think", sub: "soft \u00b7 trained instruction", chips: [["flag", "/no_think"], ["open", "&lt;think&gt;"], ["close", "&lt;/think&gt;"], ["a"], ["a"], ["a"], ["a"]] },
+        { label: "prefill", sub: "hard \u00b7 structural", chips: [["lock", "prefilled"], ["open", "&lt;think&gt;"], ["close", "&lt;/think&gt;"], ["a"], ["a"], ["a"], ["a"]] },
+        { label: "budget", sub: "interrupt, then salvage", chips: [["open", "&lt;think&gt;"], ["t"], ["t"], ["t"], ["t"], ["t"], ["t"], ["cut"], ["inject", "\u2026 give the solution now"], ["close", "&lt;/think&gt;"], ["a"], ["a"], ["a"], ["a"]] },
+        { label: "forcing", sub: "suppress the delimiter", chips: [["open", "&lt;think&gt;"], ["t"], ["t"], ["t"], ["t"], ["xclose", "&lt;/think&gt;"], ["wait", "Wait"], ["t"], ["t"], ["t"], ["t"], ["close", "&lt;/think&gt;"], ["a"], ["a"], ["a"], ["a"]] }
+      ];
+      var figBudget = {
+        interval: 1800,
+        markup: (function () {
+          var s = "", r, i;
+          for (r = 0; r < GROWS.length; r++) {
+            var y = 62 + r * 78, row = GROWS[r], x = 40;
+            s += '<g data-row="' + r + '">';
+            s += '<text x="40" y="' + (y - 26) + '" class="fig-title" text-anchor="start">' + row.label +
+              '<tspan class="fig-label" dx="12">' + row.sub + "</tspan></text>";
+            for (i = 0; i < row.chips.length; i++) {
+              var kind = row.chips[i][0], lab = row.chips[i][1] || "", w = 22, cls = "cell", ty = "#93a0a8";
+              if (kind === "open" || kind === "close") { w = 62; cls = "cell tape"; ty = "#5ab2e8"; }
+              if (kind === "xclose") { w = 62; cls = "cell fail"; ty = "#e8746a"; }
+              if (kind === "flag") { w = 76; cls = "cell cost"; ty = "#e8b45a"; }
+              if (kind === "lock") { w = 76; cls = "cell lat"; ty = "#a98ce8"; }
+              if (kind === "inject") { w = 188; cls = "cell cost"; ty = "#e8b45a"; }
+              if (kind === "wait") { w = 54; cls = "cell tape"; ty = "#5ab2e8"; }
+              if (kind === "t") { cls = "cell tape"; }
+              if (kind === "a") { cls = "cell on"; }
+              if (kind === "cut") {
+                s += '<g class="fade" data-chip="' + r + "-" + i + '">' +
+                  '<line x1="' + (x + 4) + '" y1="' + (y - 6) + '" x2="' + (x + 4) + '" y2="' + (y + 40) + '" stroke="#e8b45a" stroke-dasharray="3 4"/>' +
+                  '<text x="' + (x + 8) + '" y="' + (y - 10) + '" class="fig-label" text-anchor="middle" fill="#e8b45a">budget</text></g>';
+                x += 10; continue;
+              }
+              s += '<g class="fade" data-chip="' + r + "-" + i + '">' + box(x, y, w, 30, cls);
+              if (lab) s += '<text x="' + (x + w / 2) + '" y="' + (y + 20) + '" class="fig-label" text-anchor="middle" fill="' + ty + '">' + lab + "</text>";
+              if (kind === "xclose") s += '<line x1="' + (x + 6) + '" y1="' + (y + 24) + '" x2="' + (x + w - 6) + '" y2="' + (y + 6) + '" stroke="#e8746a" stroke-width="1.6"/>';
+              s += "</g>";
+              x += w + 4;
+            }
+            s += "</g>";
+          }
+          return '<svg viewBox="0 0 ' + GW + " " + GH + '" role="presentation">' + DEFS + '<g class="cam">' + s + "</g></svg>";
+        })(),
+        build: function (stage) {
+          var chips = {};
+          Array.prototype.forEach.call(stage.querySelectorAll("[data-chip]"), function (n) { chips[n.getAttribute("data-chip")] = n; });
+          return { cam: stage.querySelector(".cam"), chips: chips, rows: Array.prototype.slice.call(stage.querySelectorAll("[data-row]")) };
+        },
+        states: [
+          { r: 0, n: 1, zoom: [380, 80, 1.05], beat: "Thinking mode is the default. The assistant turn opens a think block." },
+          { r: 0, n: 8, zoom: [380, 80, 1.05], beat: "Deliberation fills the block, token by token, exactly like any other generation." },
+          { r: 0, n: 12, zoom: [380, 80, 1.05], beat: "The model closes the block when it decides it is done." },
+          { r: 0, n: 16, zoom: [380, 80, 1.05], beat: "Then the answer. Everything after this figure is a way of interfering with that sequence." },
+          { r: 1, n: 1, zoom: [380, 158, 1.05], beat: "The flag goes in the user message. It is an ordinary token sequence, not an API field." },
+          { r: 1, n: 2, zoom: [380, 158, 1.05], beat: "The think block still opens \u2014 format consistency was a deliberate design choice." },
+          { r: 1, n: 3, zoom: [380, 158, 1.05], beat: "\u2026and closes immediately, empty. Non-thinking mode is a think block with nothing in it." },
+          { r: 1, n: 7, zoom: [380, 158, 1.05], beat: "Trained compliance reached 98.9% on Qwen3's mode-following benchmark. Excellent. Not a guarantee." },
+          { r: 2, n: 1, zoom: [380, 236, 1.05], beat: "Which is why the empty block matters more than it looks. A deployer can write it themselves." },
+          { r: 2, n: 3, zoom: [380, 236, 1.05], beat: "Prefill the closed block into the assistant turn and the model is already past the point of thinking." },
+          { r: 2, n: 7, zoom: [380, 236, 1.05], beat: "Not persuasion \u2014 constraint. Non-compliance is not representable in the token sequence." },
+          { r: 2, n: 7, zoom: [380, 236, 1.05], beat: "This is the difference between a soft control and a hard one, and it is worth knowing which you have." },
+          { r: 3, n: 4, zoom: [380, 314, 1.05], beat: "Now the dial. Thinking begins normally; nothing about generation has changed yet." },
+          { r: 3, n: 8, zoom: [380, 314, 1.05], beat: "A counter tracks thinking tokens. At the threshold, sampling stops mid-deliberation." },
+          { r: 3, n: 9, zoom: [380, 314, 1.05], beat: "A stop-thinking sentence is spliced in \u2014 a distributional nudge, not a control token." },
+          { r: 3, n: 14, zoom: [380, 314, 1.05], beat: "Then the closing tag and the answer. Not \"think for N and conclude\": <em>think until cut off, then salvage</em>." },
+          { r: 4, n: 5, zoom: [380, 392, 1.05], beat: "The same knob runs backwards. Here the model tries to stop after five tokens of thinking." },
+          { r: 4, n: 6, zoom: [380, 392, 1.05], beat: "Suppress the end-of-thinking delimiter so it never lands." },
+          { r: 4, n: 8, zoom: [380, 392, 1.05], beat: "Append \"Wait\" instead. The model, apparently having just hesitated, keeps going \u2014 and re-checks itself." },
+          { r: 4, n: 16, hold: 3400, zoom: [380, 392, 1.05], beat: "This pushed s1-32B past its own unintervened ceiling on AIME24. String surgery on the decode loop; no weights touched." }
+        ],
+        apply: function (c, i, st, reduced) {
+          c.rows.forEach(function (g, r) { show(g, true, r === st.r ? 1 : 0.24); });
+          Object.keys(c.chips).forEach(function (k) {
+            var p = k.split("-"), r = +p[0], idx = +p[1];
+            show(c.chips[k], r < st.r || (r === st.r && idx < st.n));
+          });
+          cam(c.cam, st.zoom[0], st.zoom[1], reduced ? 1 : st.zoom[2], GW, GH);
+        }
+      };
+
+      /* ================================ init ============================= */
+      var FIGS = {
+        lineage: figLineage, depth: figDepth, ledger: figLedger, search: figSearch,
+        curve: figCurve, bottleneck: figBottle, budget: figBudget
+      };
+      Array.prototype.forEach.call(document.querySelectorAll("[data-figure]"), function (panel) {
+        var spec = FIGS[panel.getAttribute("data-figure")];
+        if (!spec) return;
+        var fig;
+        try { fig = new Figure(panel, spec); }
+        catch (err) { if (window.console) console.error("figure failed:", panel.getAttribute("data-figure"), err); return; }
+
+        if (panel.getAttribute("data-figure") === "ledger") {
+          var slider = panel.querySelector("#ledger-k"), kout = panel.querySelector("[data-kout]");
+          var base = fig.render.bind(fig);
+          fig.render = function () {
+            base();
+            if (slider) slider.value = fig.i;
+            if (kout) kout.textContent = LK[fig.i].toLocaleString();
+          };
+          fig.render();
+          if (slider) slider.addEventListener("input", function () {
+            fig.setPlaying(false);
+            fig.go(parseInt(slider.value, 10));
+          });
+        }
+      });
+    })();
+    </script>
+  </body>
+</html>

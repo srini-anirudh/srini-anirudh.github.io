@@ -82,9 +82,11 @@
           <button type="button" class="blog-filter" data-blog-filter="architecture" aria-pressed="false">Architecture</button>
           <button type="button" class="blog-filter" data-blog-filter="foundations" aria-pressed="false">Foundations</button>
           <button type="button" class="blog-filter" data-blog-filter="training" aria-pressed="false">Training</button>
+          <button type="button" class="blog-filter" data-blog-filter="posttraining" aria-pressed="false">Post-training</button>
+          <button type="button" class="blog-filter" data-blog-filter="reasoning" aria-pressed="false">Reasoning</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 18 articles</p>
+        <p class="blog-filter-status" aria-live="polite">Showing all 25 articles</p>
 
         <div class="blog-list">
           <a class="blog-card blog-card-featured" href="vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
@@ -97,6 +99,90 @@
               <p>Seventy-one architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-11-21">November 21, 2025</time></span><span>Updated <time datetime="2025-11-26">November 26, 2025</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
+            </div>
+          </a>
+          <a class="blog-card" id="understanding-llms" href="anatomy-of-a-modern-llm/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures">
+            <picture class="blog-card-media">
+              <img src="anatomy-of-a-modern-llm/preview.png" data-still-src="anatomy-of-a-modern-llm/preview.png" data-animated-src="anatomy-of-a-modern-llm/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated Transformer decoder block evolving from the 2017 design into a modern LLM block." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Architectures &middot; Modern LLMs</span>
+              <h3>Anatomy of a Modern LLM</h3>
+              <p>What changed between the original Transformer and today&rsquo;s Llama, Qwen, DeepSeek, and GLM-class models&mdash;one design pressure at a time.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>Transformers</span><span>Architecture</span><span>KV Cache</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="parameters-tokens-compute/" target="_self" data-blog-categories="training foundations" data-blog-series="training-science">
+            <picture class="blog-card-media">
+              <img src="parameters-tokens-compute/preview.png" data-still-src="parameters-tokens-compute/preview.png" data-animated-src="parameters-tokens-compute/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated fixed-compute frontier trading model parameters against training tokens while loss traces a shallow valley." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Training Science &middot; Scaling Laws</span>
+              <h3>Parameters, Tokens, Compute</h3>
+              <p>Where C = 6ND comes from, why tokens per parameter is not a constant, and how to plan a large run from small experiments.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>39 min read</span></div>
+              <div class="blog-tags"><span>Scaling Laws</span><span>Chinchilla</span><span>Compute</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="rl-from-first-principles/" target="_self" data-blog-categories="posttraining training foundations" data-blog-series="post-training">
+            <picture class="blog-card-media">
+              <img src="rl-from-first-principles/preview.png" data-still-src="rl-from-first-principles/preview.png" data-animated-src="rl-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated sampled answers receiving binary rewards and advantages around the group mean." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Post-training &middot; RL Foundations</span>
+              <h3>Reward Without Targets</h3>
+              <p>Policy gradients, baselines, advantages, GAE, trust regions, and PPO derived first, then translated into language-model rollouts.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>58 min read</span></div>
+              <div class="blog-tags"><span>Reinforcement Learning</span><span>Policy Gradients</span><span>PPO</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="rlhf-to-dpo/" target="_self" data-blog-categories="posttraining training" data-blog-series="post-training">
+            <picture class="blog-card-media">
+              <img src="rlhf-to-dpo/preview.png" data-still-src="rlhf-to-dpo/preview.png" data-animated-src="rlhf-to-dpo/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated KL-temperature sweep moving a policy from its reference distribution toward higher-reward completions." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Post-training &middot; Preferences</span>
+              <h3>Teaching a Model What We Prefer</h3>
+              <p>How comparisons become reward, why RLHF needs a KL leash, and how the same objective turns into DPO&rsquo;s direct loss.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>54 min read</span></div>
+              <div class="blog-tags"><span>RLHF</span><span>DPO</span><span>Preference Learning</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="rl-for-reasoning/" target="_self" data-blog-categories="reasoning posttraining training" data-blog-series="reasoning-models">
+            <picture class="blog-card-media">
+              <img src="rl-for-reasoning/preview.png" data-still-src="rl-for-reasoning/preview.png" data-animated-src="rl-for-reasoning/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated group of reasoning rollouts receiving verifiable rewards and normalized relative advantages." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Reasoning Models &middot; RLVR</span>
+              <h3>When Correctness Is the Reward</h3>
+              <p>What changes when answers can be checked automatically: verifiers, GRPO, DeepSeek-R1, exploration, and the limits of short RL runs.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>46 min read</span></div>
+              <div class="blog-tags"><span>RLVR</span><span>GRPO</span><span>DeepSeek-R1</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="thinking-in-tokens/" target="_self" data-blog-categories="reasoning foundations" data-blog-series="reasoning-models">
+            <picture class="blog-card-media">
+              <img src="thinking-in-tokens/preview.png" data-still-src="thinking-in-tokens/preview.png" data-animated-src="thinking-in-tokens/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison of one reasoning chain, sampled voting, tree search, and critique-and-revise loops." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Reasoning Models &middot; Mechanisms</span>
+              <h3>Thinking in Tokens</h3>
+              <p>Why a familiar Transformer can buy serial compute by writing, what reasoning traces reveal, and when longer thought makes answers worse.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>44 min read</span></div>
+              <div class="blog-tags"><span>Chain of Thought</span><span>Search</span><span>Latent Reasoning</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="test-time-scaling/" target="_self" data-blog-categories="reasoning systems" data-blog-series="reasoning-models">
+            <picture class="blog-card-media">
+              <img src="test-time-scaling/preview.png" data-still-src="test-time-scaling/preview.png" data-animated-src="test-time-scaling/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated problem grid becoming solved as inference sampling compute rises and a coverage curve approaches its verifier ceiling." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Reasoning Models &middot; Test-time Compute</span>
+              <h3>More Compute, Same Weights</h3>
+              <p>Longer chains, more samples, search, and verifiers&mdash;plus why the best inference budget depends on the prompt rather than one global setting.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>48 min read</span></div>
+              <div class="blog-tags"><span>Test-time Scaling</span><span>Verification</span><span>Compute Allocation</span></div>
             </div>
           </a>
           <a class="blog-card" id="ml-systems" href="finding-the-bottleneck/" target="_self" data-blog-categories="systems foundations" data-blog-series="ml-systems">
