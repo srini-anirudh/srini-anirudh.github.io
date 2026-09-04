@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="One Model, Many Skills: The Science of Post-Training Data Mixtures" />
+    <meta property="og:title" content="Mixing Data Without Losing Capabilities" />
     <meta property="og:description" content="Why making a model better at one skill can make it worse at another — negative transfer, catastrophic forgetting, mixture laws, replay and merging, derived from first principles." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/post-training-data-mixtures/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/post-training-data-mixtures/preview.png" />
     <meta property="article:published_time" content="2026-09-05" />
     <meta property="article:modified_time" content="2026-09-05" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="One Model, Many Skills: The Science of Post-Training Data Mixtures" />
+    <meta name="twitter:title" content="Mixing Data Without Losing Capabilities" />
     <meta name="twitter:description" content="Why making a model better at one skill can make it worse at another — negative transfer, catastrophic forgetting, mixture laws, replay and merging, derived from first principles." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/post-training-data-mixtures/preview.png" />
-    <title>One Model, Many Skills: Post-Training Data Mixtures | Anirudh Srinivasan</title>
+    <title>Mixing Data Without Losing Capabilities | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/post-training-data-mixtures/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/post-training-data-mixtures/" },
-        "headline": "One Model, Many Skills: The Science of Post-Training Data Mixtures",
+        "headline": "Mixing Data Without Losing Capabilities",
         "description": "Why making a model better at one skill can make it worse at another — negative transfer, catastrophic forgetting, mixture laws, replay and merging, derived from first principles.",
         "image": "https://srini-anirudh.github.io/blogs/post-training-data-mixtures/preview.png",
         "datePublished": "2026-09-05",
@@ -178,7 +178,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">A field guide · Post-training</p>
-        <h1 class="article-title">One model, many skills</h1>
+        <h1 class="article-title">Mixing Data Without Losing Capabilities</h1>
         <p class="article-subtitle">A model has to be good at code, at maths, at chat, at tool calls, at refusing the right things. Push one up and something else quietly falls. This is the science of why — and what to do about it.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>Data mixtures</span><span>Multi-task learning</span><span>Catastrophic forgetting</span><span>Instruction tuning</span>
@@ -4651,7 +4651,7 @@
           <p>A mixture is a loss weighting. Whatever you choose, and however you choose it, you are picking coefficients in a weighted sum of objectives that interfere. That framing is not in dispute, it makes the trade-offs explicit, and it turns most of the arguments in this field into arguments about how to set numbers rather than arguments about what is happening.</p>
         </div>
 
-        <p>The systems side of all of this — how a mixture actually becomes batches, what the data loader does with per-source weights, and where the throughput goes — is the subject of <a href="../anatomy-of-a-training-step/">Inside a Training Step</a>. The scaling side, and where the token budget in §13 comes from, is in <a href="../parameters-tokens-compute/">Parameters, Tokens, Compute</a>.</p>
+        <p>The systems side of all of this — how a mixture actually becomes batches, what the data loader does with per-source weights, and where the throughput goes — is the subject of <a href="../anatomy-of-a-training-step/">Inside a Training Step</a>. The scaling side, and where the token budget in §13 comes from, is in <a href="../parameters-tokens-compute/">Scaling Laws from First Principles</a>.</p>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -4735,11 +4735,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="kicker">Reuse</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026, September 4). <em>One model, many skills: post-training data mixtures</em>. Anirudh Srinivasan. https://srini-anirudh.github.io/blogs/post-training-data-mixtures/</p>
+      <p class="article-citation-reference">Srinivasan, A. (2026, September 4). <em>Mixing Data Without Losing Capabilities</em>. Anirudh Srinivasan. https://srini-anirudh.github.io/blogs/post-training-data-mixtures/</p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026mixtures,
   author       = {Srinivasan, Anirudh},
-  title        = {One Model, Many Skills: Post-Training Data Mixtures},
+  title        = {Mixing Data Without Losing Capabilities},
   year         = {2026},
   month        = {September},
   howpublished = {\url{https://srini-anirudh.github.io/blogs/post-training-data-mixtures/}},

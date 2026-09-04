@@ -6,22 +6,22 @@
     <meta name="description" content="A mechanical tour of neural network optimizers — from SGD to Muon — covering how each builds its update, what it costs in bytes per parameter, and where it bottlenecks a training run." />
     <meta property="article:published_time" content="2025-03-21" />
     <meta property="article:modified_time" content="2025-03-27" />
-    <title>How Models Take a Step: Neural Network Optimizers Explained | Anirudh Srinivasan</title>
+    <title>What an Optimizer Actually Does | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/optimizers/" />
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="How Models Take a Step: Neural Network Optimizers Explained" />
+    <meta property="og:title" content="What an Optimizer Actually Does" />
     <meta property="og:description" content="A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/optimizers/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/optimizers/preview.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="How Models Take a Step: Neural Network Optimizers Explained" />
+    <meta name="twitter:title" content="What an Optimizer Actually Does" />
     <meta name="twitter:description" content="A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/optimizers/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/optimizers/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/optimizers/"},"headline":"How Models Take a Step: Neural Network Optimizers Explained","description":"A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks.","image":"https://srini-anirudh.github.io/blogs/optimizers/preview.png","datePublished":"2025-03-21","dateModified":"2025-03-27","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["neural network optimizers","SGD","AdamW","Muon","deep learning","model training"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/optimizers/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/optimizers/"},"headline":"What an Optimizer Actually Does","description":"A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks.","image":"https://srini-anirudh.github.io/blogs/optimizers/preview.png","datePublished":"2025-03-21","dateModified":"2025-03-27","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["neural network optimizers","SGD","AdamW","Muon","deep learning","model training"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -212,7 +212,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">A field guide · Optimization &amp; systems</p>
-        <h1 class="article-title">How Models Take a Step</h1>
+        <h1 class="article-title">What an Optimizer Actually Does</h1>
         <p class="article-subtitle">Every optimizer is a cheap answer to the same expensive question. A mechanical tour from SGD to Muon — how each one builds an update, what it costs you in bytes per parameter, and where it stalls the run.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>Optimizers</span><span>Distributed training</span><span>Memory</span>
@@ -760,7 +760,7 @@
         <p>And the standing advice regardless of which one you pick: <strong>measure the update-to-weight RMS ratio per layer.</strong> One scalar per tensor, logged every few hundred steps. Healthy training keeps <code>RMS(Δθ)/RMS(θ)</code> in a band around 10⁻³. If a layer drifts an order of magnitude off, you have found your problem before the loss curve shows it — and that diagnostic works identically for every optimizer in this article, because it measures the only thing they all agree they are doing.</p>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../bound-by-bytes/">Bound by Bytes</a></li><li><a href="../talk-is-not-cheap/">Talk is not cheap</a></li><li><a href="../normalization/">The Geometry of Normalization</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../bound-by-bytes/">Why Fast GPUs Still Wait for Memory</a></li><li><a href="../talk-is-not-cheap/">Talk is not cheap</a></li><li><a href="../normalization/">The Geometry of Normalization</a></li></ul></nav>
       <section id="references">
         <h2>References</h2>
         <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
@@ -827,11 +827,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2025). <cite>How Models Take a Step</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/optimizers/">https://srini-anirudh.github.io/blogs/optimizers/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2025). <cite>What an Optimizer Actually Does</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/optimizers/">https://srini-anirudh.github.io/blogs/optimizers/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2025optimizerstep,
   author       = {Srinivasan, Anirudh},
-  title        = {How Models Take a Step},
+  title        = {What an Optimizer Actually Does},
   year         = {2025},
   month        = {mar},
   howpublished = {Blog post},
@@ -845,7 +845,7 @@
 
     <footer class="article-footer">
       <div class="article-wrap">
-        <p>Anirudh Srinivasan &middot; How Models Take a Step</p>
+        <p>Anirudh Srinivasan &middot; What an Optimizer Actually Does</p>
       </div>
     </footer>
     <footer class="site-footer" aria-label="Contact links">

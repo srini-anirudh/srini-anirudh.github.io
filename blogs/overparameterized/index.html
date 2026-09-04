@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="Too Many Parameters: Why Deep Networks Don't Behave Like Textbook Statistics" />
+    <meta property="og:title" content="The Puzzle of Overparameterization" />
     <meta property="og:description" content="A network with more parameters than data points can memorize its training set exactly. Modern ones mostly don't. Classical model-capacity intuition says that shouldn't happen, and the honest answer to why is that nobody has one." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/overparameterized/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/overparameterized/preview.png" />
     <meta property="article:published_time" content="2026-09-05" />
     <meta property="article:modified_time" content="2026-09-05" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Too Many Parameters: Why Deep Networks Don't Behave Like Textbook Statistics" />
+    <meta name="twitter:title" content="The Puzzle of Overparameterization" />
     <meta name="twitter:description" content="Interpolation, double descent, benign overfitting, implicit bias, grokking - and an honest account of which of them explain anything about LLMs." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/overparameterized/preview.png" />
-    <title>Too Many Parameters | Anirudh Srinivasan</title>
+    <title>The Puzzle of Overparameterization | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/overparameterized/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/overparameterized/" },
-        "headline": "Too Many Parameters",
+        "headline": "The Puzzle of Overparameterization",
         "description": "Why do models with more parameters than data points generalize? Interpolation, double descent and its limits, benign overfitting, implicit bias, NTK, grokking, and what any of it says about LLM pretraining.",
         "image": "https://srini-anirudh.github.io/blogs/overparameterized/preview.png",
         "datePublished": "2026-09-05",
@@ -163,7 +163,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">Understanding LLMs &middot; Part 2</p>
-        <h1 class="article-title">Too Many Parameters</h1>
+        <h1 class="article-title">The Puzzle of Overparameterization</h1>
         <p class="article-subtitle">A network with more parameters than training examples can memorize the training set exactly, and we can prove it by making it do so. Modern ones mostly don't. Every clean story about why turns out to be a special case.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>Generalization</span><span>Learning theory</span><span>Interactive</span>
@@ -183,8 +183,8 @@
       <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
       <span class="ml-series-nav__position">02 of 09 &middot; Generalization</span>
       <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../anatomy-of-a-modern-llm/"><span>Previous &middot; 01</span><strong>Anatomy of a Modern LLM</strong></a>
-        <a class="ml-series-nav__link" href="../parameters-tokens-compute/"><span>Next &middot; 03</span><strong>Parameters, Tokens, Compute</strong></a>
+        <a class="ml-series-nav__link" href="../anatomy-of-a-modern-llm/"><span>Previous &middot; 01</span><strong>What Changed Inside the Transformer?</strong></a>
+        <a class="ml-series-nav__link" href="../parameters-tokens-compute/"><span>Next &middot; 03</span><strong>Scaling Laws from First Principles</strong></a>
       </div>
     </nav>
 
@@ -827,11 +827,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Too Many Parameters: Why Deep Networks Don't Behave Like Textbook Statistics</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/overparameterized/">https://srini-anirudh.github.io/blogs/overparameterized/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Puzzle of Overparameterization</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/overparameterized/">https://srini-anirudh.github.io/blogs/overparameterized/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026overparameterized,
   author       = {Srinivasan, Anirudh},
-  title        = {Too Many Parameters: Why Deep Networks Don't Behave Like Textbook Statistics},
+  title        = {The Puzzle of Overparameterization},
   year         = {2026},
   month        = {sep},
   howpublished = {Blog post},
@@ -845,7 +845,7 @@
 
     <footer class="article-footer">
       <div class="article-wrap">
-        <p>Anirudh Srinivasan &middot; Understanding LLMs, Part 2 &middot; Too Many Parameters</p>
+        <p>Anirudh Srinivasan &middot; Understanding LLMs, Part 2 &middot; The Puzzle of Overparameterization</p>
       </div>
     </footer>
     <footer class="site-footer" aria-label="Contact links">

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Anatomy of a Modern LLM — figure engine and animations
+   What Changed Inside the Transformer? — figure engine and animations
    All figures share one playback controller so that every animated panel
    satisfies the same contract: Previous / Play-Pause / Next, 0.5x-1x-2x speed,
    a frame counter, keyboard access, reduced-motion support, and autoplay that

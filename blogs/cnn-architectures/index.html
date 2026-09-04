@@ -879,7 +879,7 @@ Activation checkpointing trades ~30% extra compute for O(sqrt(L)) memory.</span>
         <p>Convolution didn't lose to attention; it got absorbed. Every serious vision-language backbone has convolutional patch embedding at the front, most efficient ViT variants use depthwise convolution in the FFN for local mixing, and hybrid designs — convolutional stem and early stages, attention at low resolution — remain the practical optimum for anything latency-sensitive. The inductive bias is still worth what it costs whenever you have less than a few hundred million images. What changed is that convolution is now a component rather than the whole design.</p>
       </div>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../evolution-of-architectures/">Evolution of ML Architectures</a></li><li><a href="../vision-transformers/">An Image Is a Sentence</a></li><li><a href="../vision-encoders/">From Pixels to Visual Tokens</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../evolution-of-architectures/">Evolution of ML Architectures</a></li><li><a href="../vision-transformers/">An Image Is a Sentence</a></li><li><a href="../vision-encoders/">Inside a Modern Vision Encoder</a></li></ul></nav>
       <section id="references">
         <h2>References</h2>
         <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>

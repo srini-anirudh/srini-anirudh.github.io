@@ -254,7 +254,7 @@
     <nav class="ml-series-nav" aria-label="ML Systems from First Principles">
       <a class="ml-series-nav__identity" href="../index.html#ml-systems">ML Systems from First Principles</a>
       <span class="ml-series-nav__position">05 of 08 · Part III · Scaling the Workload</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../anatomy-of-a-training-step/"><span>Previous · 04</span><strong>Inside a Training Step</strong></a><a class="ml-series-nav__link" href="../llm-inference/"><span>Next · 06</span><strong>One Token at a Time</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../anatomy-of-a-training-step/"><span>Previous · 04</span><strong>Inside a Training Step</strong></a><a class="ml-series-nav__link" href="../llm-inference/"><span>Next · 06</span><strong>The Mechanics of LLM Inference</strong></a></div>
     </nav>
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -1161,7 +1161,7 @@
 
         <p>Serving is not that. There is no backward pass, so two thirds of the FLOPs vanish and most of the memory ledger with them — which sounds easier, and is not. What replaces them is a workload that <em>arrives dynamically</em>, one request at a time, with no advance knowledge of how long any of them will run; and a computation that is autoregressive, so its state grows one token at a time and must be kept alive between steps for every request in flight simultaneously.</p>
 
-        <p>The unit of work stops being a step and becomes a token. The memory that matters stops being parameters and becomes KV cache. The question stops being "how do I split this" and becomes "how do I batch things that did not arrive together". That is the next article: <a href="../llm-inference/">One Token at a Time</a>.</p>
+        <p>The unit of work stops being a step and becomes a token. The memory that matters stops being parameters and becomes KV cache. The question stops being "how do I split this" and becomes "how do I batch things that did not arrive together". That is the next article: <a href="../llm-inference/">The Mechanics of LLM Inference</a>.</p>
       </section>
 
       <section id="references">

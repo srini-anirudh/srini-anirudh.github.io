@@ -51,17 +51,17 @@
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="From Cores to Warps: CPU and GPU Parallelism from First Principles" />
+    <meta property="og:title" content="Why GPUs Are Built for Deep Learning" />
     <meta property="og:description" content="Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/new-mask-same-task/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/new-mask-same-task/preview.png" />
     <meta property="article:published_time" content="2026-02-13" />
     <meta property="article:modified_time" content="2026-02-17" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="From Cores to Warps: CPU and GPU Parallelism from First Principles" />
+    <meta name="twitter:title" content="Why GPUs Are Built for Deep Learning" />
     <meta name="twitter:description" content="Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/new-mask-same-task/preview.png" />
-    <title>From Cores to Warps | Anirudh Srinivasan</title>
+    <title>Why GPUs Are Built for Deep Learning | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -70,7 +70,7 @@
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/new-mask-same-task/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/new-mask-same-task/"},"headline":"From Cores to Warps: CPU and GPU Parallelism from First Principles","description":"Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores.","image":"https://srini-anirudh.github.io/blogs/new-mask-same-task/preview.png","datePublished": "2026-02-13","dateModified":"2026-02-17","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["CPU vs GPU", "GPU parallelism", "SIMT", "latency hiding", "GPU memory hierarchy", "Tensor Cores"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/new-mask-same-task/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/new-mask-same-task/"},"headline":"Why GPUs Are Built for Deep Learning","description":"Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores.","image":"https://srini-anirudh.github.io/blogs/new-mask-same-task/preview.png","datePublished": "2026-02-13","dateModified":"2026-02-17","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["CPU vs GPU", "GPU parallelism", "SIMT", "latency hiding", "GPU memory hierarchy", "Tensor Cores"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
       :root {
         --paper: #e4e2dc;
@@ -284,7 +284,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">ML Systems from First Principles · 01 of 08</p>
-        <h1 class="article-title">From Cores to Warps</h1>
+        <h1 class="article-title">Why GPUs Are Built for Deep Learning</h1>
         <p class="article-subtitle">CPU and GPU parallelism from first principles. Both machines have the same parts and a finite transistor budget; they spend it on opposite bets. Derive the difference, and the GPU execution model stops being a list of terms to memorise.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>GPU architecture</span><span>Memory hierarchy</span><span>Parallelism</span><span>Performance engineering</span>
@@ -302,7 +302,7 @@
     <nav class="ml-series-nav" aria-label="ML Systems from First Principles">
       <a class="ml-series-nav__identity" href="../index.html#ml-systems">ML Systems from First Principles</a>
       <span class="ml-series-nav__position">01 of 08 · Part I · Understanding the Machine</span>
-      <div class="ml-series-nav__links"><span class="ml-series-nav__empty">Start of the series</span><a class="ml-series-nav__link" href="../bound-by-bytes/"><span>Next · 02</span><strong>Bound by Bytes</strong></a></div>
+      <div class="ml-series-nav__links"><span class="ml-series-nav__empty">Start of the series</span><a class="ml-series-nav__link" href="../bound-by-bytes/"><span>Next · 02</span><strong>Why Fast GPUs Still Wait for Memory</strong></a></div>
     </nav>
 
     <nav class="spy-rail" aria-label="Section progress"></nav>
@@ -3814,7 +3814,7 @@
 
         <div class="takeaway">
           <h4>Next in this series</h4>
-          <p><b><a href="../bound-by-bytes/">Blog 02 — Bound by Bytes.</a></b> Arithmetic intensity defined properly; the roofline as a way to predict which of the two ceilings you are under; the CPU cache hierarchy, set conflicts and the TLB; why the compute-to-bandwidth gap has widened with every hardware generation; and FlashAttention as the case study where taking all of it seriously changed what models could be trained. The question it answers: <b>when is your program limited by arithmetic, and when by the distance to its data?</b></p>
+          <p><b><a href="../bound-by-bytes/">Blog 02 — Why Fast GPUs Still Wait for Memory.</a></b> Arithmetic intensity defined properly; the roofline as a way to predict which of the two ceilings you are under; the CPU cache hierarchy, set conflicts and the TLB; why the compute-to-bandwidth gap has widened with every hardware generation; and FlashAttention as the case study where taking all of it seriously changed what models could be trained. The question it answers: <b>when is your program limited by arithmetic, and when by the distance to its data?</b></p>
         </div>
       </section>
       <section id="cheatsheet">
@@ -3970,11 +3970,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>From Cores to Warps: CPU and GPU Parallelism from First Principles</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/new-mask-same-task/">https://srini-anirudh.github.io/blogs/new-mask-same-task/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Why GPUs Are Built for Deep Learning</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/new-mask-same-task/">https://srini-anirudh.github.io/blogs/new-mask-same-task/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026newmasksametask,
   author       = {Srinivasan, Anirudh},
-  title        = {From Cores to Warps: CPU and GPU Parallelism from First Principles},
+  title        = {Why GPUs Are Built for Deep Learning},
   year         = {2026},
   month        = {feb},
   howpublished = {Blog post},

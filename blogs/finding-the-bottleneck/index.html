@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="The Bottleneck Atlas: Profiling ML Systems from First Principles" />
+    <meta property="og:title" content="How to Find What Is Slowing Your Model" />
     <meta property="og:description" content="Every optimisation is a hypothesis about the bottleneck. Profiling exists to test it. A visual, first-principles guide to timelines, counters, roofline verdicts and the whack-a-mole that follows every fix." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/finding-the-bottleneck/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/finding-the-bottleneck/preview.png" />
     <meta property="article:published_time" content="2026-09-04" />
     <meta property="article:modified_time" content="2026-09-04" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="The Bottleneck Atlas: Profiling ML Systems from First Principles" />
+    <meta name="twitter:title" content="How to Find What Is Slowing Your Model" />
     <meta name="twitter:description" content="Every optimisation is a hypothesis about the bottleneck. Profiling exists to test it." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/finding-the-bottleneck/preview.png" />
-    <title>The Bottleneck Atlas: Profiling ML Systems from First Principles | Anirudh Srinivasan</title>
+    <title>How to Find What Is Slowing Your Model | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/finding-the-bottleneck/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/finding-the-bottleneck/" },
-        "headline": "The Bottleneck Atlas: Profiling ML Systems from First Principles",
+        "headline": "How to Find What Is Slowing Your Model",
         "description": "How to determine what is actually limiting an ML workload rather than guessing: timelines, counters, roofline verdicts, and a diagnosis tree for training and inference.",
         "image": "https://srini-anirudh.github.io/blogs/finding-the-bottleneck/preview.png",
         "datePublished": "2026-09-04",
@@ -199,7 +199,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">ML Systems from First Principles · 08 of 08</p>
-        <h1 class="article-title">The Bottleneck Atlas</h1>
+        <h1 class="article-title">How to Find What Is Slowing Your Model</h1>
         <p class="article-dek">Profiling ML systems from first principles</p>
         <p class="article-subtitle">Every optimisation you have ever applied was a hypothesis about what the machine was waiting for. Profiling is the experiment that tests it. This article builds the instrument from the ground up: a timeline, a small set of counters, one bound, and a decision procedure that turns three measured numbers into a verdict you can act on.</p>
         <div class="article-taxonomy" aria-label="Tags">
@@ -1089,7 +1089,7 @@
 
       <section id="roofline">
         <h2>Three numbers into a verdict</h2>
-        <p>Earlier in this series, <a href="../bound-by-bytes/">Bound by Bytes</a> derived the roofline from first principles. Here we only need its operational form, which is a procedure rather than a picture. Measure three things about a kernel or a phase: the useful FLOPs it performs, the bytes it moves at the DRAM boundary, and how long it took. From those, arithmetic intensity is FLOPs ÷ bytes, achieved performance is FLOPs ÷ time, and the ceiling for that intensity is the smaller of the machine's compute peak and its bandwidth times that intensity.</p>
+        <p>Earlier in this series, <a href="../bound-by-bytes/">Why Fast GPUs Still Wait for Memory</a> derived the roofline from first principles. Here we only need its operational form, which is a procedure rather than a picture. Measure three things about a kernel or a phase: the useful FLOPs it performs, the bytes it moves at the DRAM boundary, and how long it took. From those, arithmetic intensity is FLOPs ÷ bytes, achieved performance is FLOPs ÷ time, and the ceiling for that intensity is the smaller of the machine's compute peak and its bandwidth times that intensity.</p>
         <p>Then read off which of three situations you are in. <em>On the sloped roof</em>: you are bandwidth bound, and the only thing that helps is moving fewer bytes. <em>On the flat roof</em>: you are compute bound, and the only thing that helps is fewer or cheaper FLOPs. <em>Well below both roofs</em>: you are neither, which is the most common and most misdiagnosed case, and it means the kernel is limited by latency, occupancy, launch overhead or something else that stops the machine from ever reaching a throughput limit at all.</p>
         <p>That third case matters because it is where most unoptimised ML code actually lives, and because both instincts it triggers — "reduce FLOPs" and "reduce bytes" — are wrong there. Watch a real optimisation walk across the plot.</p>
 
@@ -2144,11 +2144,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Bottleneck Atlas: Profiling ML Systems from First Principles</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/finding-the-bottleneck/">https://srini-anirudh.github.io/blogs/finding-the-bottleneck/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>How to Find What Is Slowing Your Model</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/finding-the-bottleneck/">https://srini-anirudh.github.io/blogs/finding-the-bottleneck/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026bottleneck,
   author       = {Srinivasan, Anirudh},
-  title        = {The Bottleneck Atlas: Profiling ML Systems from First Principles},
+  title        = {How to Find What Is Slowing Your Model},
   year         = {2026},
   month        = {sep},
   howpublished = {Blog post},
@@ -2162,7 +2162,7 @@
 
     <footer class="article-footer">
       <div class="article-wrap">
-        <p>Anirudh Srinivasan &middot; The Bottleneck Atlas</p>
+        <p>Anirudh Srinivasan &middot; How to Find What Is Slowing Your Model</p>
       </div>
     </footer>
     <footer class="site-footer" aria-label="Contact links">

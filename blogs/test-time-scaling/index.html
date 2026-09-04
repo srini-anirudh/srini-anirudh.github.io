@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="More Compute, Same Weights — The Science of Test-Time Scaling" />
+    <meta property="og:title" content="How Models Improve Without Changing Their Weights" />
     <meta property="og:description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/test-time-scaling/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/test-time-scaling/preview.png" />
     <meta property="article:published_time" content="2026-09-04" />
     <meta property="article:modified_time" content="2026-09-04" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="More Compute, Same Weights — The Science of Test-Time Scaling" />
+    <meta name="twitter:title" content="How Models Improve Without Changing Their Weights" />
     <meta name="twitter:description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/test-time-scaling/preview.png" />
-    <title>More Compute, Same Weights: The Science of Test-Time Scaling | Anirudh Srinivasan</title>
+    <title>How Models Improve Without Changing Their Weights | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/test-time-scaling/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/test-time-scaling/" },
-        "headline": "More Compute, Same Weights — The Science of Test-Time Scaling",
+        "headline": "How Models Improve Without Changing Their Weights",
         "description": "A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth.",
         "image": "https://srini-anirudh.github.io/blogs/test-time-scaling/preview.png",
         "datePublished": "2026-09-04",
@@ -171,7 +171,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">A field guide · Inference-time compute</p>
-        <h1 class="article-title">More compute, same weights</h1>
+        <h1 class="article-title">How Models Improve Without Changing Their Weights</h1>
         <p class="article-subtitle">The weights are frozen. The only remaining question is how many tokens you are willing to burn before you answer — and where you spend them.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>Test-time scaling</span><span>Verification</span><span>Compute allocation</span>
@@ -218,7 +218,7 @@
 
       <section id="fourth-axis">
         <h2>A fourth axis</h2>
-        <p>Every scaling story in this series so far has been a story about training. In <a href="../parameters-tokens-compute/">Parameters, Tokens, Compute</a> the whole problem was a constrained optimisation over two numbers: given a training budget <span class="eq-inline">C<sub>train</sub></span>, how do you split it between parameters <span class="eq-inline">N</span> and tokens <span class="eq-inline">D</span>? Once you have chosen, the run happens, the weights freeze, and quality is whatever the law says it is.</p>
+        <p>Every scaling story in this series so far has been a story about training. In <a href="../parameters-tokens-compute/">Scaling Laws from First Principles</a> the whole problem was a constrained optimisation over two numbers: given a training budget <span class="eq-inline">C<sub>train</sub></span>, how do you split it between parameters <span class="eq-inline">N</span> and tokens <span class="eq-inline">D</span>? Once you have chosen, the run happens, the weights freeze, and quality is whatever the law says it is.</p>
         <div class="eq"><span class="lhs">Q = f(N, D, C<sub>train</sub>)</span><span class="note">The classical picture. Everything that determines quality is decided before deployment.</span></div>
         <p>That picture is incomplete, and the incompleteness is not a detail. A frozen model is not a lookup table; it is a sampler. You can query it once, or a thousand times. You can let it emit twelve tokens or twelve thousand. You can throw away nine hundred of its thousand answers and keep the one that survives a test suite. None of that touches a single weight, and all of it changes the probability you get a correct answer.</p>
         <div class="eq"><span class="lhs">Q = f(N, D, C<sub>train</sub>, C<sub>test</sub>)</span><span class="note">The modern picture. A fourth knob, turned per query, after the model has shipped.</span></div>
@@ -301,7 +301,7 @@
           </tbody>
         </table>
         <p>Two of those rows are worth pausing on. The KV-cache row is an equality that surprises people: <var>K</var> caches of length <var>T</var> and one cache of length <var>KT</var> hold the same number of token-slots, so the memory bill for going wide and going deep is the same. What differs is <em>shape</em> — going wide needs <var>K</var> concurrent batch slots, going deep needs one very long sequence. The attention row is a genuine asymmetry: because attention cost grows with position, a single long trajectory pays quadratically in its own length while <var>K</var> short ones pay quadratically only in <var>T</var>. Serial depth is the more expensive kind of compute, per token, and it gets worse the deeper you go.</p>
-        <p>The mechanics behind those rows — prefix caching, batch-slot pressure, the prefill/decode split, why decode is memory-bandwidth-bound rather than FLOPs-bound — are the subject of <a href="../llm-inference/">One Token at a Time</a> and <a href="../serving-playbook/">The Serving Playbook</a>. Here I only want the accounting, because it explains a practical asymmetry: <b>parallel width is cheap to add and hard to use; serial depth is expensive to add and easy to use.</b> Width gives you many candidates and no opinion about which is right. Depth gives you one candidate the model already believes in.</p>
+        <p>The mechanics behind those rows — prefix caching, batch-slot pressure, the prefill/decode split, why decode is memory-bandwidth-bound rather than FLOPs-bound — are the subject of <a href="../llm-inference/">The Mechanics of LLM Inference</a> and <a href="../serving-playbook/">The Serving Playbook</a>. Here I only want the accounting, because it explains a practical asymmetry: <b>parallel width is cheap to add and hard to use; serial depth is expensive to add and easy to use.</b> Width gives you many candidates and no opinion about which is right. Depth gives you one candidate the model already believes in.</p>
         <div class="nuance">
           <h4>Nuance 02 &middot; "FLOPs-matched" is not "cost-matched"</h4>
           <p class="said"><b>Often said:</b> a small model with test-time compute can match a model 14&times; larger at equal FLOPs, therefore it is the better deployment.</p>
@@ -691,11 +691,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>More Compute, Same Weights: The Science of Test-Time Scaling</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/test-time-scaling/">https://srini-anirudh.github.io/blogs/test-time-scaling/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>How Models Improve Without Changing Their Weights</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/test-time-scaling/">https://srini-anirudh.github.io/blogs/test-time-scaling/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026testtimescaling,
   author       = {Srinivasan, Anirudh},
-  title        = {More Compute, Same Weights: The Science of Test-Time Scaling},
+  title        = {How Models Improve Without Changing Their Weights},
   year         = {2026},
   month        = {Sep},
   howpublished = {Blog post},
@@ -709,7 +709,7 @@
 
     <footer class="article-footer">
       <div class="article-wrap">
-        <p>Anirudh Srinivasan &middot; More Compute, Same Weights: The Science of Test-Time Scaling</p>
+        <p>Anirudh Srinivasan &middot; How Models Improve Without Changing Their Weights</p>
       </div>
     </footer>
     <footer class="site-footer" aria-label="Contact links">

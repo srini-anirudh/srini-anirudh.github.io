@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------
-   Too Many Parameters - animated figures and interactive labs.
+   The Puzzle of Overparameterization - animated figures and interactive labs.
    A small frame engine, a small numerics kit, and thirteen hand-built
    SVG figures. Every figure honours the blog animation contract:
    Previous / Play-Pause / Next / 0.5x / 1x / 2x / frame counter,

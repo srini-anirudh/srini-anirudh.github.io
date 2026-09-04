@@ -45,7 +45,7 @@ The network appears in both portfolio themes. Light mode uses translucent blue n
 
 ## Blog-specific components
 
-Blogs use the same site-wide palette. The Activation Atlas is the canonical reference for article organization, editorial rhythm, table of contents, and grouped references; the normalization article remains the reference for dark technical instrument panels.
+Blogs use the same site-wide palette. Why Neural Networks Need Nonlinearity is the canonical reference for article organization, editorial rhythm, table of contents, and grouped references; the normalization article remains the reference for dark technical instrument panels.
 
 | Token | Value | Use |
 | --- | --- | --- |

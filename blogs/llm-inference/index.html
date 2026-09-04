@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="One Token at a Time: The Anatomy of LLM and VLM Inference" />
+    <meta property="og:title" content="The Mechanics of LLM Inference" />
     <meta property="og:description" content="A first-principles field guide to LLM inference: the autoregressive dependency, prefill and decode, the KV cache derived from scratch, arithmetic intensity and batching, latency metrics, quantization, distributed serving, and vision-language inference." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/llm-inference/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/llm-inference/preview.png" />
     <meta property="article:published_time" content="2026-07-17" />
     <meta property="article:modified_time" content="2026-07-23" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="One Token at a Time: The Anatomy of LLM and VLM Inference" />
+    <meta name="twitter:title" content="The Mechanics of LLM Inference" />
     <meta name="twitter:description" content="A first-principles field guide to LLM inference: prefill and decode, the KV cache, arithmetic intensity, latency metrics, and VLM serving." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/llm-inference/preview.png" />
-    <title>One Token at a Time | Anirudh Srinivasan</title>
+    <title>The Mechanics of LLM Inference | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/llm-inference/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/llm-inference/" },
-        "headline": "One Token at a Time: The Anatomy of LLM and VLM Inference",
+        "headline": "The Mechanics of LLM Inference",
         "description": "A first-principles field guide to LLM inference: prefill and decode, the KV cache derived from scratch, arithmetic intensity and batching, latency metrics, quantization, distributed serving, and vision-language inference.",
         "image": "https://srini-anirudh.github.io/blogs/llm-inference/preview.png",
         "datePublished": "2026-07-17",
@@ -199,7 +199,7 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">ML Systems from First Principles · 06 of 08</p>
-        <h1 class="article-title">One Token at a Time</h1>
+        <h1 class="article-title">The Mechanics of LLM Inference</h1>
         <p class="article-subtitle">Training and inference run the same weights through the same arithmetic, and produce two completely different machines. One serial dependency is responsible for all of it. This is the anatomy of that difference, derived from first principles and pushed through prefill, decode, the KV cache, batching, quantization, distributed serving and vision-language models.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>LLM inference</span><span>KV cache</span><span>Prefill &amp; decode</span><span>Serving</span>
@@ -222,7 +222,7 @@
 
     <script>
       /* ==================================================================
-         RF — shared figure engine for "One Token at a Time".
+         RF — shared figure engine for "The Mechanics of LLM Inference".
          Implements the blog animation contract: Previous / Play-Pause /
          Next, 0.5x-1x-2x speed with exclusive aria-pressed, "Stage NN / NN
          · name" status text, stage position preserved across speed changes,
@@ -3801,11 +3801,11 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>One Token at a Time: The Anatomy of LLM and VLM Inference</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/llm-inference/">https://srini-anirudh.github.io/blogs/llm-inference/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Mechanics of LLM Inference</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/llm-inference/">https://srini-anirudh.github.io/blogs/llm-inference/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026onetokenatatime,
   author       = {Srinivasan, Anirudh},
-  title        = {One Token at a Time: The Anatomy of LLM and VLM Inference},
+  title        = {The Mechanics of LLM Inference},
   year         = {2026},
   month        = {jul},
   howpublished = {Blog post},
