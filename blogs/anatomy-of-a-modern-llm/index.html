@@ -247,6 +247,21 @@
       <section id="skeleton">
         <h2>Same skeleton, new organs</h2>
 
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Component</th><th>2017 default</th><th>Modern default</th><th>Quality gain?</th><th>Pressure that drove it</th></tr></thead>
+            <tbody>
+              <tr><td><b>Position</b></td><td>Added absolute embedding</td><td>RoPE inside attention</td><td>Small</td><td>Length extrapolation and relative geometry</td></tr>
+              <tr><td><b>Normalization</b></td><td>Post-LayerNorm</td><td>Pre-RMSNorm</td><td>Small</td><td>Stable deep, low-precision training</td></tr>
+              <tr><td><b>FFN</b></td><td>ReLU, two matrices</td><td>SwiGLU, three matrices</td><td>Moderate</td><td>Better parameter use</td></tr>
+              <tr><td><b>KV heads</b></td><td>One pair per query head</td><td>Grouped or latent KV</td><td>Usually neutral</td><td>Decode memory bandwidth</td></tr>
+              <tr><td><b>Context</b></td><td>Dense attention</td><td>Sliding / hybrid layers</td><td>Task-dependent</td><td>KV-cache growth</td></tr>
+              <tr><td><b>Capacity</b></td><td>One dense FFN</td><td>Sparse experts at scale</td><td>Scaling gain</td><td>More parameters without equal FLOPs</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="field-direction"><b>The trend.</b> The block changed less to improve next-token prediction than to survive scale: numerical range during training, memory traffic during decoding, and the cost of activating every parameter on every token.</p>
+
         <p class="lede">Open the modeling file for Llama 3, Qwen3, DeepSeek-V3, or Olmo 3 and you will find something that would be legible to someone who had only read <em>Attention Is All You Need</em>. Embed tokens. Loop over blocks. Each block: attention, residual add, feed-forward network, residual add. Project to vocabulary. Softmax. That is still the whole program.</p>
 
         <p>And yet almost nothing inside those four steps is the same object it was in 2017. The normalization layer computes different statistics and sits in a different place. Position information is no longer added to the input; it is applied inside attention as a rotation. The feed-forward network has three weight matrices instead of two, and in the largest models there are two hundred and fifty-six of them per layer with only nine running per token. Attention no longer gives each head its own keys and values. Three quarters of the layers cannot see past the last four thousand tokens.</p>

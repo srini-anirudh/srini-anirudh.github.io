@@ -250,7 +250,23 @@
       </div>
       <p class="figcap"><b>Reading the plane.</b> The horizontal axis is serial depth <var>T</var> — tokens inside one trajectory. The vertical axis is parallel width <var>K</var> — independent trajectories. Total token spend is roughly the area <var>K</var>&thinsp;&times;&thinsp;<var>T</var>, which means the same budget can be spent anywhere along a hyperbola. The strategies differ in <em>where on that hyperbola they sit</em> and in <em>what they do with the resulting pile of text</em>.</p>
 
-      <p>Written out, the eight families are:</p>
+      <div class="comparison-table-wrap">
+        <table class="comparison-table">
+          <thead><tr><th>Strategy</th><th>Width</th><th>Depth</th><th>Selector</th><th>What compute buys</th><th>Main ceiling</th></tr></thead>
+          <tbody>
+            <tr><td><b>Long reasoning</b></td><td>1</td><td>High</td><td>None</td><td>Planning and backtracking</td><td>One bad trajectory</td></tr>
+            <tr><td><b>Repeated sampling</b></td><td>High</td><td>Fixed</td><td>None</td><td>Answer coverage</td><td>No way to choose</td></tr>
+            <tr><td><b>Self-consistency</b></td><td>High</td><td>Fixed</td><td>Vote</td><td>Robust consensus</td><td>Majority can be wrong</td></tr>
+            <tr><td><b>Best-of-N</b></td><td>High</td><td>Fixed</td><td>Outcome score</td><td>Selection</td><td>Verifier false positives</td></tr>
+            <tr><td><b>Tree search</b></td><td>Branched</td><td>Adaptive</td><td>Process score</td><td>Early pruning</td><td>Partial-state values</td></tr>
+            <tr><td><b>Refinement</b></td><td>1</td><td>Iterative</td><td>Critic</td><td>Error correction</td><td>Critique can reinforce errors</td></tr>
+            <tr><td><b>Tools</b></td><td>Varies</td><td>Varies</td><td>Execution</td><td>External facts and exact operations</td><td>Interface reliability</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="compact-deep-dive">
+      <summary>Read the seven strategies in prose</summary>
+      <p>The same families, written out:</p>
       <ul class="plain">
         <li><b>A. Longer serial reasoning.</b> One trajectory, more tokens. The model plans, backtracks, checks. This is what o1-style and R1-style models were trained to do; the reasoning trace itself is the compute.</li>
         <li><b>B. Repeated sampling.</b> <var>K</var> independent trajectories at temperature. No coordination, no selection yet — pure exploration of the output distribution.</li>
@@ -261,6 +277,7 @@
         <li><b>G. Iterative refinement.</b> Generate, critique, revise, repeat. Serial like A, but with an explicit critique step rather than a continuous stream.</li>
         <li><b>H. Tools.</b> Code execution, retrieval, search. Compute spent outside the model, which is often the cheapest correct answer in the whole taxonomy.</li>
       </ul>
+      </details>
 
       <div class="nuance">
         <h4>Nuance 01 &middot; Search is not a fifth thing</h4>

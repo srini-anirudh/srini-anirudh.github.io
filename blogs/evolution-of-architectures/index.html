@@ -273,6 +273,18 @@
 
       <section>
         <h2 id="axes">Three axes that define an architecture</h2>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Family</th><th>How positions mix</th><th>Longest path</th><th>Parallel training</th><th>Decode state</th><th>Main tradeoff</th></tr></thead>
+            <tbody>
+              <tr><td><b>MLP</b></td><td>Dense fixed map</td><td>1</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>None</td><td>No reusable spatial or sequential prior</td></tr>
+              <tr><td><b>CNN</b></td><td>Shared local kernel</td><td><code>O(N/k)</code></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Local window</td><td>Distant information needs depth</td></tr>
+              <tr><td><b>RNN</b></td><td>Recurrent hidden state</td><td><code>O(N)</code></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><code>O(1)</code></td><td>Serial training and fading memory</td></tr>
+              <tr><td><b>Attention</b></td><td>Content-addressed all-pairs routing</td><td>1</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><code>O(N)</code> KV</td><td>Quadratic prefill; growing cache</td></tr>
+              <tr><td><b>Selective SSM</b></td><td>Input-dependent linear scan</td><td><code>O(N)</code></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><code>O(1)</code></td><td>Fixed state must compress the past</td></tr>
+            </tbody>
+          </table>
+        </div>
         <p class="lede">Almost every architecture argument in deep learning is a disagreement about one question: <em>how should information at position <code>i</code> reach position <code>j</code>?</em> Everything else — depth, width, normalization, activation function — is tuning. The mixing operator is the architecture.</p>
         <p>There have really only been five answers to that question in sixty-seven years. Don't mix at all and let a dense matrix memorize everything (the MLP). Mix locally with a shared kernel and stack until the receptive field is big enough (the CNN). Mix through a single hidden vector carried step by step (the RNN). Mix everything with everything, weighted by content similarity (attention). Or mix through a linear recurrence whose coefficients are themselves computed from the input (selective state spaces). Each answer buys something and mortgages something else, and the mortgage always comes due in one of three places.</p>
         <p><b>Axis 1 — path length.</b> How many operations separate two positions that need to interact? Attention says one. A stacked CNN says <code>O(N/k)</code> layers, or <code>O(log N)</code> if you dilate. An RNN says <code>O(N)</code>, which is why it forgets. Short paths mean gradients survive; long paths mean information is repeatedly re-encoded and degraded.</p>

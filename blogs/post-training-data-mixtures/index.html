@@ -1855,6 +1855,21 @@
       <section id="s5">
         <h2>The naive mixtures</h2>
 
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Strategy</th><th>Uses size?</th><th>Protects small tasks?</th><th>Adapts during training?</th><th>Extra signals</th><th>Characteristic failure</th></tr></thead>
+            <tbody>
+              <tr><td><b>Dataset-proportional</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>None</td><td>Cheap-to-collect data owns the run</td></tr>
+              <tr><td><b>Equal per task</b></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Task labels</td><td>Small sets see dozens of epochs</td></tr>
+              <tr><td><b>Temperature</b></td><td>Exponent <code>&alpha;</code></td><td>Partial</td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>One tuned scalar</td><td>Trades dominance for overfitting</td></tr>
+              <tr><td><b>Capped</b></td><td>Below cap</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Cap <code>&kappa;</code></td><td>Hard boundary ignores transfer</td></tr>
+              <tr><td><b>Learned static</b></td><td>Optional</td><td>Objective-dependent</td><td>Between runs</td><td>Proxy evaluations</td><td>Proxy ranking may not transfer</td></tr>
+              <tr><td><b>Curriculum / online</b></td><td>Optional</td><td>Responsive</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Live losses or gradients</td><td>Noisy controller chases short-term gains</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="field-direction"><b>Why the field moved beyond one fixed ratio.</b> Size is not value, equal exposure is not equal learning, and transfer changes over the run. Each newer method adds information&mdash;caps, proxy evaluations, gradients, or training phase&mdash;to repair one missing assumption.</p>
+
         <p>You have <span class="m">K</span> sources of wildly different sizes. Before any clever method, there are three obvious answers, and it is worth being precise about how each one fails, because every sophisticated method is a repair of one of them.</p>
 
         <h3>Dataset-proportional</h3>

@@ -683,6 +683,22 @@
       <section id="known">
         <h2>What we actually know</h2>
         <p>Assembling the pieces honestly:</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Explanation</th><th>Fits noise?</th><th>Selects a solution?</th><th>Feature learning?</th><th>Directly covers LLMs?</th><th>What it explains</th></tr></thead>
+            <tbody>
+              <tr><td><b>Double descent</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Fragility near interpolation</td></tr>
+              <tr><td><b>Benign overfitting</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Partial</td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>When fitting noise need not hurt</td></tr>
+              <tr><td><b>Implicit bias</b></td><td>Possible</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Limited theory</td><td>Open</td><td>Why optimization prefers one interpolant</td></tr>
+              <tr><td><b>NTK / lazy limit</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>An analyzable kernel regime</td></tr>
+              <tr><td><b>Grokking</b></td><td>Not its focus</td><td>Mechanistically</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Memorizing versus general rules</td></tr>
+              <tr><td><b>Compression</b></td><td>Penalizes it</td><td>After training</td><td>Agnostic</td><td>Partial</td><td>Certifiable learned-function complexity</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="field-direction"><b>Why the field moved this way.</b> Capacity could not distinguish two zero-loss networks. The question shifted from counting parameters, to asking which solution optimization selects, to measuring the complexity of the learned function itself.</p>
+        <details class="compact-deep-dive">
+        <summary>Open the evidence ledger claim by claim</summary>
         <table class="sys-table">
           <thead>
             <tr><th>Claim</th><th>Status</th></tr>
@@ -700,6 +716,7 @@
             <tr><td>Any of this constitutes a theory of why foundation models work</td><td>No.</td></tr>
           </tbody>
         </table>
+        </details>
         <p>The pattern is consistent. Every result that is <em>rigorous</em> holds in a setting simple enough to analyze &mdash; linear models, kernels, fixed features, homogeneous networks, algorithmic datasets. Every result that is <em>about real models</em> is empirical, and describes a phenomenon rather than explaining it. The bridge between the two has not been built.</p>
         <p>What survives, and what is worth carrying into the rest of this series, is smaller than a theory but not nothing:</p>
         <ul>

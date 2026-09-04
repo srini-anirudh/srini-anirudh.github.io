@@ -371,6 +371,18 @@
 
       <section id="imitation">
         <h2>Imitation teaches paths, RL teaches policies</h2>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Training signal</th><th>On-policy?</th><th>Needs expert steps?</th><th>Learns recovery?</th><th>Credit resolution</th><th>Main risk</th></tr></thead>
+            <tbody>
+              <tr><td><b>Behavior cloning</b></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Only if demonstrated</td><td>Per token</td><td>Compounding distribution shift</td></tr>
+              <tr><td><b>Filtered teacher traces</b></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Teacher-generated</td><td>Rarely</td><td>Per token</td><td>Success-only data hides repair</td></tr>
+              <tr><td><b>Outcome RL</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Whole trajectory</td><td>Sparse, ambiguous credit</td></tr>
+              <tr><td><b>Process rewards</b></td><td>Usually</td><td>Step labels or critic</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Per action</td><td>Reward hacking and costly labels</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="field-direction"><b>Why training moved toward environments.</b> Demonstrations cover successful paths; deployed agents create new states, including failures. On-policy interaction is valuable because it trains on those states, not because reinforcement learning is intrinsically more intelligent.</p>
         <p>Suppose your training set contains one successful trajectory for a research task:</p>
         <div class="math-block">$$\texttt{search} \rightarrow \texttt{open}(\text{result }2) \rightarrow \texttt{extract} \rightarrow \texttt{answer}$$</div>
         <p>Supervised fine-tuning on this teaches the model to reproduce that path. Which is fine, until you notice that there were fifty valid paths, that the second result will not always be the right one, and that the model has been given no way to distinguish "this worked" from "this is what one does."</p>

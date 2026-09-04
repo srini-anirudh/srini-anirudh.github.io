@@ -233,6 +233,24 @@ html.distill-side-toc-active .blog-article .tocbar {
   font-family: var(--blog-display);
 }
 
+.blog-article .compact-deep-dive {
+  margin: 1.4rem 0;
+  border: 1px solid color-mix(in srgb, var(--blog-orange) 28%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--blog-orange) 5%, transparent);
+  padding: 0.85rem 1rem;
+}
+
+.blog-article .compact-deep-dive > summary {
+  cursor: pointer;
+  font-weight: 750;
+  color: var(--blog-ink);
+}
+
+.blog-article .compact-deep-dive[open] > summary {
+  margin-bottom: 1rem;
+}
+
 .ml-series-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
