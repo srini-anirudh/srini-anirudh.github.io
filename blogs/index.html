@@ -84,9 +84,10 @@
           <button type="button" class="blog-filter" data-blog-filter="training" aria-pressed="false">Training</button>
           <button type="button" class="blog-filter" data-blog-filter="posttraining" aria-pressed="false">Post-training</button>
           <button type="button" class="blog-filter" data-blog-filter="reasoning" aria-pressed="false">Reasoning</button>
+          <button type="button" class="blog-filter" data-blog-filter="agents" aria-pressed="false">Tools &amp; Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 25 articles</p>
+        <p class="blog-filter-status" aria-live="polite">Showing all 31 articles</p>
 
         <div class="blog-list">
           <a class="blog-card blog-card-featured" href="vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
@@ -99,6 +100,78 @@
               <p>Seventy-one architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-11-21">November 21, 2025</time></span><span>Updated <time datetime="2025-11-26">November 26, 2025</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
+            </div>
+          </a>
+          <a class="blog-card" id="attention-from-first-principles" href="attention-from-first-principles/" target="_self" data-blog-categories="foundations architecture" data-blog-series="foundations">
+            <picture class="blog-card-media">
+              <img src="attention-from-first-principles/preview.png" data-still-src="attention-from-first-principles/preview.png" data-animated-src="attention-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated attention map showing a token construct its representation by weighting information from other positions." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Deep Learning Foundations &middot; Attention</span>
+              <h3>Attention, From First Principles</h3>
+              <p>Why attention exists, how Q, K, and V arise, and how the same operation becomes MHA, GQA, sliding windows, linear attention, MLA, and multimodal attention.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>Attention</span><span>QKV</span><span>GQA &amp; MLA</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="overparameterized/" target="_self" data-blog-categories="training foundations" data-blog-series="training-science">
+            <picture class="blog-card-media">
+              <img src="overparameterized/preview.png" data-still-src="overparameterized/preview.png" data-animated-src="overparameterized/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated double-descent curve crossing the interpolation threshold as parameter count increases." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Training Science &middot; Generalization</span>
+              <h3>Too Many Parameters</h3>
+              <p>Interpolation, double descent and its limits, benign overfitting, implicit bias, function space, grokking, and what any of them explain about LLMs.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>Generalization</span><span>Double Descent</span><span>Grokking</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="how-llms-are-pretrained/" target="_self" data-blog-categories="training foundations" data-blog-series="training-science">
+            <picture class="blog-card-media">
+              <img src="how-llms-are-pretrained/preview.png" data-still-src="how-llms-are-pretrained/preview.png" data-animated-src="how-llms-are-pretrained/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated curation funnel thinning a raw document collection through filtering, deduplication, and decontamination." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Training Science &middot; Pretraining Data</span>
+              <h3>From the Internet to a Foundation Model</h3>
+              <p>Where pretraining data comes from, what survives curation, how mixtures and sequences are constructed, and how teams decide whether the recipe worked.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>Pretraining</span><span>Data Curation</span><span>Tokenization</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="post-training-data-mixtures/" target="_self" data-blog-categories="posttraining training" data-blog-series="post-training">
+            <picture class="blog-card-media">
+              <img src="post-training-data-mixtures/preview.png" data-still-src="post-training-data-mixtures/preview.png" data-animated-src="post-training-data-mixtures/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated capability scoreboard showing one trained skill rise while other model skills regress." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Post-training &middot; Data Mixtures</span>
+              <h3>One Model, Many Skills</h3>
+              <p>Why tasks interfere, how sampling weights become loss weights, how to measure transfer, and what to do when a capability regresses.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>44 min read</span></div>
+              <div class="blog-tags"><span>Data Mixtures</span><span>Multi-task Learning</span><span>Forgetting</span></div>
+            </div>
+          </a>
+          <a class="blog-card" id="tool-agents" href="teaching-llms-to-use-tools/" target="_self" data-blog-categories="agents posttraining" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="teaching-llms-to-use-tools/preview.png" data-still-src="teaching-llms-to-use-tools/preview.png" data-animated-src="teaching-llms-to-use-tools/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated tool-augmented turn from injected schemas through structured decoding, execution, observation, and final response." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 01</span>
+              <h3>From Tokens to Actions</h3>
+              <p>How models discover available tools at runtime, decide whether to call one, produce valid arguments, retrieve schemas, and learn from executable feedback.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>42 min read</span></div>
+              <div class="blog-tags"><span>Function Calling</span><span>Tool Retrieval</span><span>Verification</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="tool-calls-to-agents/" target="_self" data-blog-categories="agents posttraining reasoning" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="tool-calls-to-agents/preview.png" data-still-src="tool-calls-to-agents/preview.png" data-animated-src="tool-calls-to-agents/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated agent harness cycling through context assembly, model action, validation, execution, observation, and persistent state." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 02</span>
+              <h3>From Tool Calls to Agents</h3>
+              <p>What changes when tool calls become a stateful loop: trajectory data, imitation versus RL, long-horizon credit assignment, memory, harnesses, and environments.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>34 min read</span></div>
+              <div class="blog-tags"><span>Agents</span><span>Trajectories</span><span>Environment RL</span></div>
             </div>
           </a>
           <a class="blog-card" id="understanding-llms" href="anatomy-of-a-modern-llm/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures">
@@ -125,7 +198,7 @@
               <div class="blog-tags"><span>Scaling Laws</span><span>Chinchilla</span><span>Compute</span></div>
             </div>
           </a>
-          <a class="blog-card" href="rl-from-first-principles/" target="_self" data-blog-categories="posttraining training foundations" data-blog-series="post-training">
+          <a class="blog-card" id="post-training" href="rl-from-first-principles/" target="_self" data-blog-categories="posttraining training foundations" data-blog-series="post-training">
             <picture class="blog-card-media">
               <img src="rl-from-first-principles/preview.png" data-still-src="rl-from-first-principles/preview.png" data-animated-src="rl-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated sampled answers receiving binary rewards and advantages around the group mean." />
             </picture>

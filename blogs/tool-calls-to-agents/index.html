@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/tool-calls-to-agents/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="From Tool Calls to Agents — Training Models to Act" />
+    <meta property="og:description" content="A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/tool-calls-to-agents/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/tool-calls-to-agents/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="From Tool Calls to Agents — Training Models to Act" />
+    <meta name="twitter:description" content="A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/tool-calls-to-agents/preview.png" />
+    <title>From Tool Calls to Agents — Training Models to Act | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/tool-calls-to-agents/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/tool-calls-to-agents/" },
+        "headline": "From Tool Calls to Agents — Training Models to Act",
+        "description": "A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem.",
+        "image": "https://srini-anirudh.github.io/blogs/tool-calls-to-agents/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["LLM agents", "tool use", "agentic reinforcement learning", "credit assignment", "post-training"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article-specific additions ---- */
+      .article-panel svg { display: block; width: 100%; height: auto; }
+      .animation-stage { min-height: 40px; }
+      .panel-caption { margin: 12px 0 0; color: #93a0a8; font: 13.5px/1.55 var(--body); font-style: italic; }
+      .panel-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 0; color: #93a0a8; font: 11px/1.5 var(--mono); }
+      .panel-legend span { display: inline-flex; align-items: center; gap: 6px; }
+      .panel-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; font-style: normal; }
+      @media (min-width: 1240px) {
+        .article-panel--wide { width: calc(100% + min(280px, 20vw)); }
+      }
+      .figure-controls-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #2b343c; color: #b6c2c9; font: 11.5px/1.5 var(--mono); }
+      .figure-controls-extra label { display: inline-flex; align-items: center; gap: 8px; }
+      .figure-controls-extra input[type="range"] { width: 150px; accent-color: #3fd1a0; }
+      .figure-controls-extra output { color: #3fd1a0; font-weight: 600; }
+      .keyline { margin: 30px 0; padding: 18px 20px; background: var(--paper-bright); border-left: 3px solid var(--ink); }
+      .keyline p:last-child { margin-bottom: 0; }
+      .keyline-label { display: block; margin-bottom: 8px; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .math-block { margin: 24px 0; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+      .article-content table { width: 100%; margin: 26px 0; border-collapse: collapse; font-size: 16px; }
+      .article-content th { padding: 9px 10px; text-align: left; vertical-align: top; color: var(--ink-soft); border-bottom: 1.5px solid var(--ink); font: 600 11px/1.4 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+      .article-content td { padding: 11px 10px; vertical-align: top; border-bottom: 1px solid var(--rule); line-height: 1.5; }
+      .article-content td code, .article-content p code, .article-content li code { padding: 1px 4px; background: rgba(20,23,26,0.06); font: 0.86em var(--mono); }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 9px; }
+      .sorter { display: grid; gap: 14px; }
+      .sorter-pool { display: flex; flex-wrap: wrap; gap: 8px; }
+      .sorter-chip { padding: 8px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 500 12px/1.3 var(--mono); text-align: left; }
+      .sorter-chip:hover { border-color: #3fd1a0; }
+      .sorter-chip:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .sorter-chip[data-placed="true"] { opacity: 0.32; cursor: default; }
+      .sorter-bins { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .sorter-bin { padding: 12px; background: #12181d; border: 1px dashed #39454e; min-height: 120px; }
+      .sorter-bin h4 { margin: 0 0 4px; color: #e4eaee; font: 700 13px/1.2 var(--display); }
+      .sorter-bin p { margin: 0 0 10px; color: #7f8c94; font: 10.5px/1.4 var(--mono); }
+      .sorter-bin ul { margin: 0; padding: 0; list-style: none; }
+      .sorter-bin li { margin: 0 0 6px; padding: 5px 7px; font: 11px/1.35 var(--mono); border-left: 2px solid; }
+      .sorter-bin li.ok { color: #b7f0da; background: rgba(63,209,160,0.09); border-color: #3fd1a0; }
+      .sorter-bin li.no { color: #f4c3cb; background: rgba(232,121,138,0.09); border-color: #e8798a; }
+      .sorter-feedback { color: #93a0a8; font: 11.5px/1.5 var(--mono); min-height: 2.6em; }
+      @media (max-width: 720px) { .sorter-bins { grid-template-columns: 1fr; } }
+      .budget-readout { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+      .budget-readout div { padding: 10px 12px; background: #12181d; border: 1px solid #253038; }
+      .budget-readout dt { margin: 0 0 5px; color: #7f8c94; font: 10.5px/1.3 var(--mono); }
+      .budget-readout dd { margin: 0; color: #3fd1a0; font: 600 19px/1.1 var(--display); }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .budget-readout { grid-template-columns: 1fr 1fr; }
+      }
+      html.dark-mode body { color: #e6e3dc; background-color: #101315; background-image: linear-gradient(rgba(230,227,220,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(230,227,220,0.03) 1px, transparent 1px); }
+      html.dark-mode { --ink: #e6e3dc; --ink-soft: #b3b8bb; --muted: #8b9296; --rule: #2c3236; --paper-bright: #171b1e; }
+      html.dark-mode .article-content td code, html.dark-mode .article-content p code, html.dark-mode .article-content li code { background: rgba(230,227,220,0.08); }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article tool-calls-to-agents-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Post-training</p>
+        <h1 class="article-title">From tool calls to agents</h1>
+        <p class="article-subtitle">A single function call is a lookup. A loop over a world that remembers what you did is something else entirely — and it turns post-training from a dataset problem into an environment problem.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Agents</span><span>Tool use</span><span>Reinforcement learning</span><span>Post-training</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>34 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Tool Use and Agentic Models">
+      <a class="ml-series-nav__identity" href="../index.html#tool-agents">Tool Use &amp; Agentic Models</a>
+      <span class="ml-series-nav__position">02 of 02 &middot; Acting in the world</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../teaching-llms-to-use-tools/"><span>Previous &middot; 01</span><strong>From Tokens to Actions</strong></a>
+        <a class="ml-series-nav__link" href="../index.html#tool-agents"><span>Series</span><strong>Back to the blog index</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-loop">The loop is the whole difference</a></li>
+          <li><a href="#policy">The model becomes a policy</a></li>
+          <li><a href="#trajectories">Trajectories are the training data</a></li>
+          <li><a href="#sources">Where trajectories come from</a></li>
+          <li><a href="#imitation">Imitation teaches paths, RL teaches policies</a></li>
+          <li><a href="#credit">Credit assignment over long horizons</a></li>
+          <li><a href="#state">Four kinds of state</a></li>
+          <li><a href="#harness">The harness: what lives where</a></li>
+          <li><a href="#weights">What is actually in the weights</a></li>
+          <li><a href="#retrieval">Tool retrieval is RAG over actions</a></li>
+          <li><a href="#planning">Planning versus execution</a></li>
+          <li><a href="#environments">Post-training becomes an environment problem</a></li>
+          <li><a href="#open">What is still open</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-loop">
+        <h2>The loop is the whole difference</h2>
+        <p>Ask a model for the weather in Chennai and it emits a function call, a runtime executes it, the result comes back, the model writes a sentence. That is tool use. It is a genuinely useful capability and it is also, structurally, a lookup: one hop out, one hop back, and the world is exactly as you left it.</p>
+        <p>Now ask the same model to reconcile last quarter's invoices against the ledger. It has to list files it has not seen, decide which of them matter, open some, discover the schema is not what it assumed, revise, query a database, notice a mismatch, chase the mismatch, and — this is the part that changes everything — <em>write</em>. The moment it writes, the world it is reasoning about is no longer the world it started in. It made that world.</p>
+        <p>That is the line. Not the number of tools, not the sophistication of the schemas. The line is whether the model's output feeds back into the input through something that has state.</p>
+        <div class="keyline">
+          <span class="keyline-label">Working definition</span>
+          <p>An <strong>agent</strong> is a policy, an environment, an action space, an observation channel, persistent state, and a loop that closes over all five. Remove the loop and you have function calling. Remove the state and you have a batch of independent calls. Remove the environment and you have chain-of-thought.</p>
+        </div>
+        <p>Everything hard about training agents follows from that closure. The data stops being pairs and becomes sequences. The reward stops being local and becomes terminal. The error stops being a wrong sentence and becomes a wrong world.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="loop">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated comparison of a single tool call against a closed agent loop"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 16</span>
+          </div>
+          <p class="panel-caption">Left: one call, one return, no accumulation. Right: each observation is appended to a context that the next decision is conditioned on, and each action mutates a world that the next observation is drawn from. The right-hand diagram is a Markov decision process wearing a chat transcript as a disguise.</p>
+        </div>
+
+        <p>An analogy I keep coming back to: single tool use is a vending machine. You put in a request, you get a thing, the machine is unchanged. An agent is cooking dinner. You taste, you adjust, you burn something, you cannot un-burn it, and every decision from that point on is made in a kitchen that your earlier decisions produced.</p>
+      </section>
+
+      <section id="policy">
+        <h2>The model becomes a policy</h2>
+        <p>If you have read the reinforcement learning posts in this series, the transition here is mostly a change of variable. In RLHF and in reasoning RL we already treated the model as a policy — but a policy over a strange, degenerate MDP.</p>
+
+        <h3>The token-level MDP is a fiction that works</h3>
+        <p>In ordinary language-model RL, we set the state to the prefix and the action to the next token:</p>
+        <div class="math-block">$$s_t = (x, y_{&lt;t}), \qquad a_t = y_t, \qquad s_{t+1} = s_t \oplus y_t.$$</div>
+        <p>This is an MDP, but a peculiar one. The transition function is deterministic, known in closed form, and entirely under the model's control: appending a token is the whole dynamics. There is no environment in any meaningful sense. All the difficulty lives in the reward, which arrives once, at the end.</p>
+
+        <h3>The agent MDP has a world in it</h3>
+        <p>Now lift the abstraction. An action is no longer a token; it is a complete, well-formed thing you can <em>do</em>:</p>
+        <div class="math-block">$$a_t \in \mathcal{A} = \{\texttt{search}, \texttt{read\_file}, \texttt{write\_file}, \texttt{run\_code}, \texttt{call\_api}, \texttt{ask\_user}, \texttt{answer}\}$$</div>
+        <p>with arguments drawn from each tool's schema. The transition is now genuinely external and genuinely unknown:</p>
+        <div class="math-block">$$s_{t+1} \sim T(\cdot \mid s_t, a_t), \qquad o_{t+1} \sim O(\cdot \mid s_{t+1}, a_t).$$</div>
+        <p>Two things just became true that were not true before. First, the model does not observe the state — it observes a projection of it. A shell command returns stdout, not the filesystem. A search returns ten snippets, not the web. This is a <strong>partially observed</strong> MDP, and the model is reasoning about a world it can only ever glimpse through a keyhole.</p>
+        <p>Second, and more subtly: the thing the policy is actually conditioned on is not the state and not even the observation history. It is the <em>context</em> — a rendered, truncated, reformatted transcript assembled by the runtime:</p>
+        <div class="math-block">$$c_t = \Phi\big(x,\; a_0, o_1,\; a_1, o_2,\; \ldots,\; a_{t-1}, o_t\big), \qquad \pi_\theta(a_t \mid c_t).$$</div>
+        <p>In POMDP language, \(c_t\) is the agent's belief state. And here is the part that I think is underappreciated: <strong>\(\Phi\) is not learned.</strong> Somebody wrote it. Someone decided how tool results are formatted, what gets summarised when the window fills, whether failed calls are retained or dropped. The belief-state constructor of your agent is a piece of application code. When people say "context engineering," this is the object they are engineering.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="mdp">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated camera move from the token-level MDP out to the action-level agent MDP"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 18</span>
+          </div>
+          <p class="panel-caption">The camera starts pressed against individual tokens, where transitions are deterministic appends, then pulls back until each burst of tokens collapses into a single macro-action and the environment's stochastic transitions become visible between them. Same trajectory, two zoom levels. The gradient flows at the token level; the reward is defined at the action level.</p>
+        </div>
+
+        <h3>The factorisation that matters</h3>
+        <p>An action is emitted as tokens, so the policy factorises twice — once over actions, once over the tokens inside each action:</p>
+        <div class="math-block">$$\pi_\theta(a_t \mid c_t) \;=\; \prod_{j=1}^{m_t} \pi_\theta\!\left(u_{t,j} \,\middle|\, c_t, u_{t,&lt;j}\right)$$</div>
+        <p>and the probability of a whole trajectory \(\tau = (c_0, a_0, o_1, a_1, \ldots, a_{H-1}, o_H)\) is</p>
+        <div class="math-block">$$P_\theta(\tau) \;=\; \prod_{t=0}^{H-1} \underbrace{\pi_\theta(a_t \mid c_t)}_{\text{policy}} \cdot \underbrace{P(o_{t+1} \mid s_t, a_t)}_{\text{environment, independent of }\theta}.$$</div>
+        <p>Stare at the second factor. It sits inside the sequence — those observation tokens are physically in the context, interleaved with everything the model wrote — but it does not depend on \(\theta\) at all. That single fact is responsible for a surprising amount of practical machinery, and it is where we go next.</p>
+        <div class="keyline">
+          <span class="keyline-label">Reward</span>
+          <p>The simplest agent reward is a verifier on the final world state: \(R(\tau) = \mathbf{1}[\,\text{task complete}\,]\). Richer variants add partial credit, cost penalties for wasted calls, or policy-compliance checks. But note what has changed even in the simple case: the verifier no longer reads a <em>string</em>, it reads a <em>database</em>. τ-bench, for instance, scores an episode by comparing the final database state against an annotated goal state rather than by matching the agent's text.</p>
+        </div>
+      </section>
+
+      <section id="trajectories">
+        <h2>Trajectories are the training data</h2>
+        <p>Instruction tuning trains on pairs. You have \((x, y)\), you maximise \(\log p_\theta(y \mid x)\), and the shape of the data matches the shape of the task exactly.</p>
+        <p>Agent training does not have that luxury. The unit of data is a trajectory: a task, then an alternating sequence of things the model said and things the world said back, ending in an outcome. Written out, one training example looks like this:</p>
+        <div class="math-block">$$\tau = \big(\,x,\; \underbrace{r_0, a_0}_{\text{model}},\; \underbrace{o_1}_{\text{world}},\; \underbrace{r_1, a_1}_{\text{model}},\; \underbrace{o_2}_{\text{world}},\; \ldots,\; \underbrace{a_{H-1}}_{\text{model}},\; \underbrace{o_H}_{\text{world}}\,\big)$$</div>
+        <p>where \(r_t\) is the free-form reasoning the model emits before committing to an action — the "thought" in ReAct's thought–action–observation triple.</p>
+
+        <h3>You must mask the world's tokens, and the reason is not a heuristic</h3>
+        <p>Here is the mistake that is easy to make and expensive to debug. A trajectory is a single flat token sequence. If you fine-tune on it with a standard next-token objective, you will be computing loss on the observation spans too — on search snippets, on stack traces, on JSON blobs the model never wrote.</p>
+        <p>Go back to the factorisation. The likelihood we want to maximise is the policy's contribution only:</p>
+        <div class="math-block">$$\mathcal{L}_{\text{SFT}}(\theta) \;=\; -\sum_{t=0}^{H-1} \sum_{j=1}^{m_t} \log \pi_\theta\!\left(u_{t,j} \mid c_t, u_{t,&lt;j}\right), \qquad u \in \text{model-emitted spans only.}$$</div>
+        <p>Including observation tokens does not merely add noise. It changes the objective. You would be asking the model to <em>predict what the environment will return</em> — fitting a world model — while calling it policy learning. And because tool outputs are long, repetitive, and high-entropy in ways that have nothing to do with good decision-making, they can dominate the gradient by sheer token count. A trajectory that is 5% decision tokens and 95% retrieved passages will train a retrieval-passage language model.</p>
+        <p>The same principle reappears in RL, where it has a name. Search-R1 interleaves generation with real retrieval calls and applies <em>retrieved token masking</em> so that the policy-gradient loss is only taken over tokens the model actually produced; the paper reports that models trained with the mask consistently outperform those trained without it.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="mask">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated walkthrough of a trajectory token strip showing which spans contribute to the loss"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 15</span>
+          </div>
+          <p class="panel-caption">A real trajectory is mostly not the agent. As the strip fills in, watch the token budget on the right: the spans that carry the learning signal are a minority of the sequence, and the masked spans are exactly the environment factor that dropped out of the gradient.</p>
+        </div>
+
+        <h3>The gradient, with the environment removed</h3>
+        <p>For policy-gradient training the same cancellation does the same work. Taking \(\nabla_\theta \log P_\theta(\tau)\), every environment term differentiates to zero and we are left with</p>
+        <div class="math-block">$$\nabla_\theta J(\theta) \;=\; \mathbb{E}_{\tau \sim \pi_\theta}\left[\; R(\tau) \sum_{t=0}^{H-1}\sum_{j=1}^{m_t} \nabla_\theta \log \pi_\theta\!\left(u_{t,j} \mid c_t, u_{t,&lt;j}\right)\right].$$</div>
+        <p>This is the standard REINFORCE estimator, and it is worth noticing that we never needed to know \(T\) or \(O\). We never model the environment. We only need to be able to <em>run</em> it. That is the whole reason the frontier moves toward building environments rather than modelling them — a point I will come back to at the end.</p>
+        <p>It is also worth noticing what this estimator is asking of us. A single scalar \(R(\tau)\) multiplies the gradient of every token in the trajectory. If \(H = 40\) and each action is 200 tokens, one bit of feedback is being spread across eight thousand log-probabilities. Hold that thought.</p>
+      </section>
+
+      <section id="sources">
+        <h2>Where trajectories come from</h2>
+        <p>There are four sources, and in practice every serious system uses at least three of them.</p>
+
+        <h3>1. Human demonstrations</h3>
+        <p>Someone does the task with the tools and the session is recorded. Highest fidelity, and the only source that captures genuinely human judgement about when to stop, when to ask, when a result smells wrong. Also the only source whose cost scales linearly with the number of trajectories and does not fall over time. Used sparingly, usually to seed and to calibrate.</p>
+
+        <h3>2. Distillation from a strong teacher, filtered by outcome</h3>
+        <p>Point a capable model at an environment, let it run, keep what worked. This is the workhorse. FireAct showed how much headroom this alone has: fine-tuning Llama2-7B on 500 GPT-4-generated agent trajectories produced a 77% improvement on HotpotQA, and the paper's central positive result is that mixing trajectories from <em>multiple tasks and multiple prompting methods</em> beats any single-source set. Diversity of trajectory shape, not just quantity, is the lever.</p>
+        <p>AgentTuning made the companion point about catastrophic narrowing. Their AgentInstruct set is deliberately small — 1,866 filtered interaction trajectories across six task families — and it is mixed with ordinary general-domain instruction data. Trained that way, AgentLM-70B reached roughly GPT-3.5-turbo-level performance on <em>held-out</em> agent tasks while keeping its general abilities intact. Train on agent trajectories alone and you get an agent that has forgotten how to be a language model.</p>
+        <div class="keyline">
+          <span class="keyline-label">Two datasets, one name</span>
+          <p>Careful in the literature: "AgentInstruct" refers to two unrelated things. THUDM's AgentInstruct (2023) is the 1,866-trajectory agent-tuning set described above. Microsoft's AgentInstruct (2024) is a synthetic-data <em>framework</em> — agentic flows that turn raw documents and code into prompts and responses — used to build a 25M-pair post-training corpus spanning tool use, coding, writing and comprehension, which produced Orca-3.</p>
+        </div>
+
+        <h3>3. Synthetic environments and synthetic tools</h3>
+        <p>If you cannot find enough real environments, manufacture them. Kimi K2's pipeline is the clearest published description of this at scale: build a tool repository from thousands of real MCP tools scraped from GitHub plus evolved synthetic tool specs, sample tool bundles to define thousands of distinct agents, generate tasks paired with explicit rubrics, then run multi-turn rollouts against a <em>simulated</em> tool executor that maintains persistent state and injects controlled failures. An LLM judge scores each trajectory against its rubric and only passing trajectories survive.</p>
+        <p>The interesting detail is the sanity check they report: an embedding visualisation showing synthetic tools spanning the same region of tool-space as the real MCP tools. That is the thing you have to verify, because the failure mode of synthetic environments is not that they are fake — it is that they are <em>narrow</em> in a way you do not notice until your agent meets a real API.</p>
+
+        <h3>4. The model's own exploration, scored by outcome</h3>
+        <p>Let the current policy run, reward what succeeds, update. This is the only source whose data distribution matches the policy being trained, which is exactly why it fixes the failure mode in the next section. It is also the most infrastructure-hungry: you now need the environment live, in the training loop, at rollout throughput.</p>
+
+        <table>
+          <thead>
+            <tr><th>Source</th><th>Cost per trajectory</th><th>Coverage of failure modes</th><th>Distribution</th><th>Scales by</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Human demonstration</td><td>Very high</td><td>Narrow — humans rarely fail on camera</td><td>Expert</td><td>Headcount</td></tr>
+            <tr><td>Teacher distillation</td><td>Moderate</td><td>Narrow — you filter failures out</td><td>Teacher</td><td>Inference spend</td></tr>
+            <tr><td>Synthetic environments</td><td>Low</td><td>Wide, if you inject faults deliberately</td><td>Simulator</td><td>Environment generators</td></tr>
+            <tr><td>Self-exploration + RL</td><td>Low per sample, high infra</td><td>Wide — failures are the signal</td><td>On-policy</td><td>Rollout throughput</td></tr>
+          </tbody>
+        </table>
+
+        <p>All four feed the same mixture that this series has been assembling since the data post:</p>
+        <div class="math-block">$$\mathcal{D}_{\text{post}} \;=\; \lambda_g \mathcal{D}_{\text{general}} \;+\; \lambda_r \mathcal{D}_{\text{reasoning}} \;+\; \lambda_t \mathcal{D}_{\text{tools}} \;+\; \lambda_a \mathcal{D}_{\text{agents}}$$</div>
+        <p>and AgentTuning's result is best read as an empirical statement about \(\lambda_g\): it cannot be zero.</p>
+      </section>
+
+      <section id="imitation">
+        <h2>Imitation teaches paths, RL teaches policies</h2>
+        <p>Suppose your training set contains one successful trajectory for a research task:</p>
+        <div class="math-block">$$\texttt{search} \rightarrow \texttt{open}(\text{result }2) \rightarrow \texttt{extract} \rightarrow \texttt{answer}$$</div>
+        <p>Supervised fine-tuning on this teaches the model to reproduce that path. Which is fine, until you notice that there were fifty valid paths, that the second result will not always be the right one, and that the model has been given no way to distinguish "this worked" from "this is what one does."</p>
+
+        <h3>The compounding-error argument</h3>
+        <p>This is not a vague worry; it has a shape. The classic imitation-learning result is about what happens when a cloned policy makes its first mistake. Suppose your policy matches the expert with error rate at most \(\varepsilon\) on states drawn from the <em>expert's</em> distribution — the distribution your training data came from. Nothing has been promised about states off that distribution, because you have never seen any.</p>
+        <p>So consider the first divergence. The probability of surviving \(t\) steps without one is \((1-\varepsilon)^t\); the probability that the first mistake lands at step \(t\) is about \(\varepsilon(1-\varepsilon)^{t}\). After it lands you are somewhere your training set says nothing about, and the honest worst-case assumption is that you incur cost on every one of the \(H-t\) remaining steps. Summing:</p>
+        <div class="math-block">$$\mathbb{E}[\text{cost}] \;\lesssim\; \sum_{t=0}^{H-1} \varepsilon(1-\varepsilon)^{t}\,(H-t) \;\approx\; \varepsilon \sum_{t=0}^{H-1}(H - t) \;=\; \varepsilon\,\frac{H(H+1)}{2} \;=\; O(\varepsilon H^2)$$</div>
+        <p>for small \(\varepsilon\). That is the Ross–Bagnell result, and the shape of it is the point: behaviour cloning degrades <em>quadratically</em> in horizon, while a method that trains on its own induced state distribution degrades linearly. A 2% per-step error rate is invisible at \(H=3\) and catastrophic at \(H=50\).</p>
+
+        <div class="article-panel article-panel--wide" data-figure="compound">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated simulation of a cloned policy drifting off the expert distribution, with a live comparison of linear and quadratic error growth"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 20</span>
+          </div>
+          <div class="figure-controls-extra">
+            <label>Per-step error <input type="range" min="1" max="12" step="1" value="4" data-control="eps" aria-label="Per-step error rate in percent" /> <output data-output="eps">4%</output></label>
+            <span>Grey band: states the expert demonstrations covered. Once the run leaves it, no guarantee survives.</span>
+          </div>
+          <p class="panel-caption">Drag the error rate and step through the horizon. The corridor is the expert's state distribution; each step the cloned policy has a small chance of stepping outside it, and outside it the failure is absorbing — the world has moved and there is no demonstration for the world it moved to.</p>
+        </div>
+
+        <h3>Why agents have it worse than the textbook case</h3>
+        <p>The classical analysis assumes you could, in principle, recover — you are in a bad state, but a good policy could still act well from there. Agents violate this in a specific way. A wrong action does not just put you in an unfamiliar state; it can <em>change the world irreversibly</em>. Deleting the wrong row, sending the wrong email, committing a broken migration. The expert distribution is not merely unvisited, it is unreachable.</p>
+        <p>This is why the recovery behaviours matter so much and why they are so hard to get from clean data. If your trajectories are filtered to successes only — which is what teacher distillation does by construction — the model never sees a single example of noticing a mistake and backing out of it. FireAct's robustness experiment gets at this from another angle: with a search tool degraded to return nothing half the time, a prompted ReAct agent lost about a third of its exact-match score while the fine-tuned agent lost roughly half as much. Exposure to messy trajectories buys robustness that clean ones do not.</p>
+
+        <h3>What RL adds</h3>
+        <p>RL changes the object being optimised from a path to a distribution over paths:</p>
+        <div class="math-block">$$\pi^\star = \arg\max_\pi \; \mathbb{E}_{\tau \sim \pi}\big[R(\tau)\big]$$</div>
+        <p>with the expectation taken under the policy's <em>own</em> rollouts. That single change fixes the distribution mismatch by construction — you are always training on the states you actually visit — and it removes the requirement that someone label intermediate steps.</p>
+        <p>ARTIST is a clean demonstration of the latter. It trains models with GRPO and outcome-based rewards only, letting the policy decide when, which and how to invoke tools inside multi-turn reasoning chains with no step-level supervision at all, and reports up to 22% absolute improvement over base models, including gains on τ-bench and the harder BFCL v3 subsets. ToolRL comes at the same problem from the reward-design side and reports roughly 17% over base and 15% over SFT models — with the useful negative finding that coarse answer-matching rewards are not enough, because a trajectory can reach the right answer through the wrong tool calls.</p>
+        <div class="keyline">
+          <span class="keyline-label">A caveat worth stating plainly</span>
+          <p>It is tempting to compress this into "SFT memorises, RL generalises." Don't. The comparison is confounded almost everywhere it is measured: RL runs see more environment interaction, use different data, and are usually initialised from an SFT checkpoint that did necessary work. The defensible claim is narrower and still important — <em>behaviour cloning trains on a distribution it will not encounter at test time, and on-policy methods do not.</em> That is a statement about the data distribution, not about the moral character of the two loss functions.</p>
+        </div>
+      </section>
+
+      <section id="credit">
+        <h2>Credit assignment over long horizons</h2>
+        <p>Reasoning RL already had a credit-assignment problem: five hundred tokens produced one wrong answer, and which token was to blame? It turned out to be tolerable, largely because the tokens form one continuous argument and errors tend to be locally visible.</p>
+        <p>Agents make it substantially worse. Consider a failed run:</p>
+        <div class="math-block">$$\texttt{search} \rightarrow \texttt{open} \rightarrow \texttt{read} \rightarrow \texttt{search} \rightarrow \texttt{call\_api} \rightarrow \texttt{run\_code} \rightarrow \texttt{answer} \;\Rightarrow\; R = 0$$</div>
+        <p>Maybe the first query was too narrow. Maybe the query was fine and the wrong document was opened. Maybe everything was fine until the code had an off-by-one. All seven actions receive the same \(R = 0\), and REINFORCE will push down the log-probability of the four good ones exactly as hard as the bad one. It is a relay race where only the finish time is recorded.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="credit">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated comparison of episode-level and step-level credit assignment across a group of agent trajectories"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 22</span>
+          </div>
+          <p class="panel-caption">Four rollouts from the same task. First the episode-level advantage smears one scalar uniformly across every action in each trajectory. Then the anchor states light up — points where several trajectories genuinely stood in the same place — and the actions taken from them can finally be compared against each other rather than against the average of everything.</p>
+        </div>
+
+        <h3>The four levers</h3>
+        <p><strong>Discounting and return-to-go.</strong> Replace \(R(\tau)\) with \(\sum_{k \ge t} \gamma^{k-t} r_k\), so an action is credited with what came after it rather than with everything. Cheap, and it does something, but with terminal-only reward it mostly just reweights the same scalar.</p>
+        <p><strong>A learned critic.</strong> PPO's baseline \(V_\phi(s_t)\) gives a per-step advantage \(A_t = r_t + \gamma V_\phi(s_{t+1}) - V_\phi(s_t)\). Principled, and expensive here in a way it is not elsewhere: the critic has to read the same enormous, growing agent context, so you are carrying a second large model and paying to embed 50k-token states.</p>
+        <p><strong>Group-relative advantages.</strong> GRPO's trick — sample \(N\) rollouts from the same prompt and normalise within the group — is critic-free and works well in the single-turn case:</p>
+        <div class="math-block">$$A_E(\tau_i) \;=\; \frac{R(\tau_i) - \mu_{\mathcal{G}}}{\sigma_{\mathcal{G}}}, \qquad \mathcal{G} = \{\tau_1, \ldots, \tau_N\}.$$</div>
+        <p>But note the granularity. This is one number per <em>trajectory</em>. It tells you that run 3 was better than run 1; it says nothing about which of run 3's twelve actions did the work.</p>
+        <p><strong>Anchor states.</strong> GiGPO's contribution is to recover step-level resolution without a critic, by exploiting something specific to agent environments: trajectories from the same task frequently revisit the <em>same environment state</em>. Group the actions taken from each such repeated state — an anchor state \(\tilde{s}\) — and normalise their discounted returns within that group:</p>
+        <div class="math-block">$$A_S(a_t^{(i)}) \;=\; \frac{R_t^{(i)} - \mu_{G^S(\tilde{s})}}{\sigma_{G^S(\tilde{s})}}, \qquad R_t^{(i)} = \sum_{k=t}^{H}\gamma^{k-t} r_k^{(i)},$$</div>
+        <p>then combine the two scales:</p>
+        <div class="math-block">$$A\big(a_t^{(i)}\big) \;=\; A_E(\tau_i) \;+\; \omega\, A_S\big(a_t^{(i)}\big).$$</div>
+        <p>The elegance is that the step-level groups are built <em>retroactively</em> from rollouts you already had, so it costs no extra generation and no extra memory. The authors report gains over prompted agents and prior RL methods on ALFWorld and WebShop. The stated limitation is the honest one: it depends on being able to recognise that two states are the same, which gets hard fast in environments where the state is a rendered web page.</p>
+        <div class="keyline">
+          <span class="keyline-label">The pattern underneath</span>
+          <p>Every one of these levers is doing the same thing — finding a comparison group. A critic compares an action against a learned expectation. GRPO compares a trajectory against its siblings. GiGPO compares an action against other actions taken from the same place. Credit assignment is, in the end, the search for a fair control group.</p>
+        </div>
+      </section>
+
+      <section id="state">
+        <h2>Four kinds of state</h2>
+        <p>A chat model has one kind of state: the context window. An agent has at least four, they have different lifetimes, and confusing them is the source of an entire genre of bug.</p>
+        <ul>
+          <li><strong>Model context.</strong> What is in the prompt right now. Lifetime: one forward pass. Truncatable, and truncated constantly.</li>
+          <li><strong>Environment state.</strong> The filesystem, the database, the browser session, the calendar. Lifetime: until something changes it. Not in the model. Not recoverable by re-reading the transcript.</li>
+          <li><strong>Persistent memory.</strong> Notes, scratchpads, retrieved summaries the runtime carries between sessions. Lifetime: as long as the store lives.</li>
+          <li><strong>Tool state.</strong> Auth tokens, cursors, rate-limit budgets, open connections. Lifetime: idiosyncratic and usually invisible until it expires mid-run.</li>
+        </ul>
+        <p>The trap is that only the first is visible to the model, and the model has a strong prior that the transcript is the world. Create a calendar event and the world changed; summarise the context to save tokens and the <em>record</em> of that change is gone while the change itself is not. The agent will now happily create it again.</p>
+        <p>ToolSandbox was built specifically because single-turn, stateless tool benchmarks cannot see any of this. It includes stateful tool execution, implicit dependencies between tools where one tool's effect changes what another tool will accept, a user simulator for on-policy conversation, and milestone-based scoring over arbitrary trajectories. The categories it isolates are instructive precisely because they are the ones that were previously invisible: <em>state dependency</em>, <em>canonicalisation</em> (turning "this Friday" into a date, sometimes needing a tool to do it), and <em>insufficient information</em>, where the necessary tool is deliberately withheld and the correct behaviour is to say so rather than invent an answer. Those three remained hard for the strongest models tested.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="state">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated diagram showing an action propagating through context, environment state, persistent memory and tool state"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 18</span>
+          </div>
+          <p class="panel-caption">One write action, four state layers. Watch what survives the context compaction at frame 12 and what does not — and then watch the agent, reasoning from a transcript that no longer mentions the write, do it a second time.</p>
+        </div>
+      </section>
+
+      <section id="harness">
+        <h2>The harness: what lives where</h2>
+        <p>If you take one diagram from this article, take this one. The claim it makes is simple and consistently misunderstood: <strong>the language model is not the agent.</strong> The system is the agent. The model is the policy inside it.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="harness">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated architecture diagram tracing one full turn through an agent harness"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 24</span>
+          </div>
+          <div class="panel-legend" aria-hidden="true">
+            <span><i style="background:#3fd1a0"></i>policy — the weights</span>
+            <span><i style="background:#5ab2e8"></i>harness — your code</span>
+            <span><i style="background:#e8b45a"></i>environment — the world</span>
+            <span><i style="background:#e8798a"></i>failure path</span>
+          </div>
+          <p class="panel-caption">One turn, traced end to end. The harness assembles a context from tool schemas, memory and instructions; the model emits an action; the harness validates it against the schema, executes it under whatever credentials and sandboxing it owns, catches the error when it fails, and renders the result back into the context. The model participates in exactly two of the eleven stages.</p>
+        </div>
+
+        <p>Stated as a boundary: the model chooses, the harness does. And the practical consequence is that a large fraction of "the agent got better" is really "the harness got better" — better tool descriptions, better error surfaces, better context compaction, a smaller and more orthogonal action space. SWE-agent's original insight was exactly this, that purpose-built interfaces beat raw generic ones. WebArena is the negative image of the same point: GPT-4 with chain-of-thought solved 14.41% of its tasks against 78.24% for humans, and the dominant failure was not clumsy action sequences but the agent declaring achievable tasks impossible and giving up.</p>
+      </section>
+
+      <section id="weights">
+        <h2>What is actually in the weights</h2>
+        <p>Now the question I think is the most useful one to hold clearly, because almost every confused conversation about agents is a confusion between these three layers.</p>
+
+        <table>
+          <thead>
+            <tr><th>Layer</th><th>Where it lives</th><th>Changes when</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Parametric</strong> — reading a tool description and knowing what it affords; judging when a tool is worth calling at all; extracting arguments from vague instructions; planning; interpreting an observation; recognising failure and recovering; the general grammar of act-then-look</td><td>The weights</td><td>You train</td></tr>
+            <tr><td><strong>In-context</strong> — which tools exist right now; their exact names and current parameters; permissions; the user's situation; the state of the world this minute</td><td>The prompt</td><td>Every turn</td></tr>
+            <tr><td><strong>Harness</strong> — executing the call; credentials; authorisation; schema validation; retries; timeouts; sandboxing; persistence; deciding when to stop</td><td>Your code</td><td>You deploy</td></tr>
+          </tbody>
+        </table>
+
+        <p>Toolformer is the cleanest evidence that the first layer is real and separable. It learns, self-supervised, to insert API calls into ordinary text — keeping only the calls whose results reduce the model's perplexity on the following tokens — and the resulting 6.7B model outperforms a much larger tool-less GPT-3 on several tasks. Nothing about specific tools was memorised. What was learned was <em>when a tool would help</em>, which is a parametric skill that transfers.</p>
+        <p>The boundary is not always where people put it. "The model can't use our internal API" is usually an in-context problem (the schema is badly described) or a harness problem (auth fails and the error is swallowed), not a weights problem. Conversely, "the model gives up too easily" or "it never checks its work" are weights problems that no amount of prompt engineering fully fixes.</p>
+
+        <div class="article-panel" data-interactive="layers">
+          <div class="animation-stage">
+            <div class="sorter">
+              <p style="margin:0 0 4px;color:#e4eaee;font:600 13px/1.3 var(--display)">Where does each capability live?</p>
+              <div class="sorter-pool" role="group" aria-label="Capabilities to classify"></div>
+              <div class="sorter-bins">
+                <div class="sorter-bin" data-bin="weights"><h4>Weights</h4><p>learned, transfers</p><ul></ul></div>
+                <div class="sorter-bin" data-bin="context"><h4>Context</h4><p>supplied per turn</p><ul></ul></div>
+                <div class="sorter-bin" data-bin="harness"><h4>Harness</h4><p>your code, never the model</p><ul></ul></div>
+              </div>
+              <p class="sorter-feedback" aria-live="polite">Pick a capability, then choose the layer it belongs to.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="retrieval">
+        <h2>Tool retrieval is RAG over actions</h2>
+        <p>Suppose your ecosystem has ten thousand tools. ToolBench collected 16,464 real REST APIs from RapidAPI across 49 categories, so this is not hypothetical.</p>
+        <p>You cannot put them all in the prompt. If each schema costs \(s\) tokens, the whole catalogue costs \(s|\mathcal{T}|\), which at \(s \approx 150\) and \(|\mathcal{T}| = 10^4\) is 1.5 million tokens — over budget on every axis, and attention cost grows quadratically in sequence length besides. So you retrieve:</p>
+        <div class="math-block">$$q \;\longrightarrow\; R_k(q) = \operatorname*{top-}_{k}\; \operatorname{sim}\big(e(q),\, e(T_i)\big) \;\longrightarrow\; \{T_3, T_{91}, T_{205}\} \;\longrightarrow\; \text{context}$$</div>
+        <p>ToolLLM trains exactly this: a neural API retriever that recommends a relevant subset for each instruction, which is then handed to the model for multi-round decision-making. The structural parallel to retrieval-augmented generation is exact, and the difference is the payload:</p>
+        <div class="keyline">
+          <span class="keyline-label">The parallel</span>
+          <p>RAG retrieves <em>knowledge</em> to condition what the model says. Tool retrieval retrieves <em>affordances</em> to condition what the model can do. Same embedding index, same top-\(k\), same relevance problem — but a retrieval miss in RAG produces a vaguer answer, while a retrieval miss in tool selection produces an agent that is <em>structurally unable</em> to solve the task and does not know why.</p>
+        </div>
+        <p>That asymmetry deserves a formula, because it is the tightest constraint in the whole pipeline. If a task genuinely requires the tool set \(\mathcal{T}^\star\), then</p>
+        <div class="math-block">$$P(\text{success}) \;\le\; P\big(\mathcal{T}^\star \subseteq R_k(q)\big).$$</div>
+        <p>Retrieval recall is a hard ceiling on task success. No amount of policy improvement gets you above it — and because the agent cannot see what was not retrieved, this failure looks like reasoning failure in every log you will read.</p>
+
+        <div class="article-panel article-panel--wide" data-interactive="budget">
+          <div class="animation-stage">
+            <p style="margin:0 0 12px;color:#e4eaee;font:600 13px/1.3 var(--display)">Context budget versus catalogue size</p>
+            <div data-slot="budget-chart"></div>
+            <dl class="budget-readout">
+              <div><dt>All schemas in prompt</dt><dd data-out="all">—</dd></div>
+              <div><dt>Retrieved top-k</dt><dd data-out="topk">—</dd></div>
+              <div><dt>Success ceiling</dt><dd data-out="ceil">—</dd></div>
+            </dl>
+          </div>
+          <div class="figure-controls-extra">
+            <label>Catalogue size <input type="range" min="10" max="20000" step="10" value="10000" data-control="ntools" aria-label="Number of tools in the catalogue" /> <output data-output="ntools">10,000</output></label>
+            <label>Retrieved k <input type="range" min="1" max="60" step="1" value="8" data-control="k" aria-label="Number of tools retrieved" /> <output data-output="k">8</output></label>
+            <label>Per-tool recall <input type="range" min="80" max="100" step="1" value="94" data-control="recall" aria-label="Per-tool retrieval recall in percent" /> <output data-output="recall">94%</output></label>
+          </div>
+          <p class="panel-caption">The success ceiling assumes a task needs three specific tools and each is retrieved independently at the given recall — a generous assumption, and the ceiling still falls fast. Two nines of per-tool recall is not the same as two nines of task feasibility.</p>
+        </div>
+      </section>
+
+      <section id="planning">
+        <h2>Planning versus execution</h2>
+        <p>Two architectures, and the difference between them is a bet about how stable the world is.</p>
+        <p><strong>Plan-then-act</strong> produces a full plan up front, then executes it. It is legible, easy to review, cheap to run, and it assumes the world you planned against is the world you will execute in.</p>
+        <p><strong>Interleaved reasoning and acting</strong> — ReAct — alternates thought, action, observation, and lets each observation revise the plan. Yao and colleagues framed this as a two-way synergy: reasoning traces let the model induce, track and update plans and handle exceptions, while actions let it gather information the plan needs. On HotpotQA and Fever it reduced the hallucination that pure chain-of-thought suffers from by grounding against a Wikipedia API; on ALFWorld and WebShop it beat imitation and RL baselines by 34 and 10 absolute points with one or two in-context examples.</p>
+        <p>The reason plans break is not that planning is bad. It is that a plan is a policy computed against a belief state, and every observation is evidence that the belief state was wrong. In a static world you plan once. In a world with other writers in it, a plan has a half-life.</p>
+
+        <div class="article-panel article-panel--wide" data-figure="plan">
+          <div class="animation-stage" aria-live="polite" aria-label="Animated comparison of plan-then-act and interleaved reasoning when the environment changes mid-execution"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 18</span>
+          </div>
+          <p class="panel-caption">Both lanes get the same task and the same disruption at step 3 — a file has moved. The upper lane committed to a plan and executes it into the gap. The lower lane pays for an extra observation at every step and buys the ability to notice.</p>
+        </div>
+
+        <p>In practice the good systems are hybrid: plan at a coarse grain, act and re-observe at a fine one, and re-plan when the observation contradicts the belief that generated the plan. Which is, if you squint, just model-predictive control with a language model as the model.</p>
+      </section>
+
+      <section id="environments">
+        <h2>Post-training becomes an environment problem</h2>
+        <p>Here is the conclusion the rest of the article has been building toward.</p>
+        <p>For instruction tuning, the atom of data is a pair:</p>
+        <div class="math-block">$$(x, y).$$</div>
+        <p>You can write one down. You can buy one. You can have a contractor produce ten thousand of them. For agents, the atom is a transition:</p>
+        <div class="math-block">$$(s_t, a_t, r_t, s_{t+1})$$</div>
+        <p>and you cannot write one down, because \(s_{t+1}\) is not something you author — it is something that <em>happens</em>. To produce it you need something that executes. The dataset has become a program.</p>
+        <p>So the bottleneck moves. It is no longer "how do we label more data." It is:</p>
+        <ul>
+          <li>executable tools with realistic failure behaviour, not just realistic schemas;</li>
+          <li>simulators that maintain state across calls and survive being poked at for fifty steps;</li>
+          <li>task generators that produce difficulty at the right level and in volume;</li>
+          <li>verifiers — programmatic where possible, rubric-and-judge where not;</li>
+          <li>reward functions that resist being gamed by a policy optimising against them;</li>
+          <li>trajectory filters that keep informative failures instead of discarding everything that is not a success.</li>
+        </ul>
+        <p>The strongest recent evidence that this is <em>the</em> lever comes from the coding-agent side, where the verifier is free. SWE-smith takes any Python codebase, constructs an execution environment for it automatically, and synthesises hundreds to thousands of task instances by breaking existing tests — with execution-based validation, so every task has an objectively checkable solution. That produced 50,000 instances from 128 repositories, an order of magnitude beyond what hand-curation had managed; 5,016 expert trajectories were then collected in those environments and used to fine-tune a 32B model to 40.2% on SWE-bench Verified.</p>
+        <p>Read that pipeline backwards and the priority ordering is obvious. The model was ordinary. The trajectories were generated, not written. The environments were the artefact.</p>
+        <div class="keyline">
+          <span class="keyline-label">The shift, in one line</span>
+          <p>Reasoning RL already made this move: static answer keys gave way to verifiable environments the moment we could check a proof or run a test. Agents complete it. The scarce resource is no longer text that describes a task well — it is a world that will tell you, honestly and cheaply, whether you did it.</p>
+        </div>
+        <p>Which is also why evaluation and training have collapsed into the same engineering problem. τ-bench scores by diffing the final database against a goal state and measures reliability with \(\text{pass}^k\) — the probability that an agent succeeds on all \(k\) independent trials of the same task — and found frontier function-calling agents solving under half the tasks with \(\text{pass}^8\) below 25% in retail. An environment good enough to measure that is an environment good enough to train in. Increasingly, they are the same repository.</p>
+      </section>
+
+      <section id="open">
+        <h2>What is still open</h2>
+        <p>I want to be careful not to present any of this as settled. The honest state of things:</p>
+        <p><strong>Long-horizon credit assignment is unsolved.</strong> Anchor-state grouping is a real advance and it depends on state matching, which degrades exactly where you most want it — rich, high-entropy environments where no two states are literally identical. Process reward models help but must themselves be trained, and a process reward model that is wrong is worse than no process reward at all.</p>
+        <p><strong>We do not know the right mixture.</strong> The \(\lambda\) coefficients over general, reasoning, tool and agent data are set empirically per model, and there is no scaling law for them. AgentTuning shows general data cannot be dropped; it does not tell you how much you need.</p>
+        <p><strong>Synthetic environments have an unmeasured distribution gap.</strong> A simulated tool executor is a world model, and it is wrong in ways that are correlated with the way the generator that produced it was wrong. Kimi K2's embedding-coverage check is the right instinct, but coverage in embedding space is not the same as coverage in <em>failure</em> space, and failure behaviour is what robustness is made of.</p>
+        <p><strong>Reliability is not accuracy.</strong> The \(\text{pass}^k\) numbers are the ones that should worry us. An agent that solves a task 65% of the time is not 65% of a useful agent when the task is refunding a customer's money. We do not yet have training objectives that target consistency directly; we optimise expected reward and hope variance follows.</p>
+        <p><strong>The parametric/harness boundary is moving and nobody has mapped it.</strong> Every capability currently in the harness — retries, validation, stopping — is a candidate for absorption into the weights, and every one absorbed makes the system less inspectable. I do not think we have a principled account of which side of that line each capability belongs on. It is mostly being decided by what happens to work.</p>
+        <p>What I am confident about is the frame. Once a model's output loops back through a world that remembers, you are doing reinforcement learning whether or not you use the words, and the quality of your agent is bounded by the quality of the world you can afford to let it fail in.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Reasoning and acting</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener noreferrer">ReAct: Synergizing Reasoning and Acting in Language Models</a> · Yao, Zhao, Yu, Du, Shafran, Narasimhan, Cao, 2022 (ICLR 2023)</li>
+            <li><a href="https://arxiv.org/abs/2302.04761" target="_blank" rel="noopener noreferrer">Toolformer: Language Models Can Teach Themselves to Use Tools</a> · Schick et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2307.16789" target="_blank" rel="noopener noreferrer">ToolLLM: Facilitating Large Language Models to Master 16000+ Real-world APIs</a> · Qin et al., 2023 (ICLR 2024)</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Training on agent trajectories</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2310.05915" target="_blank" rel="noopener noreferrer">FireAct: Toward Language Agent Fine-tuning</a> · Chen, Shu, Shareghi, Collier, Narasimhan, Yao, 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.12823" target="_blank" rel="noopener noreferrer">AgentTuning: Enabling Generalized Agent Abilities for LLMs</a> · Zeng, Liu, Lu, Wang, Liu, Dong, Tang, 2023</li>
+            <li><a href="https://arxiv.org/abs/2407.03502" target="_blank" rel="noopener noreferrer">AgentInstruct: Toward Generative Teaching with Agentic Flows</a> · Mitra et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2507.20534" target="_blank" rel="noopener noreferrer">Kimi K2: Open Agentic Intelligence</a> · Kimi Team, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Agentic reinforcement learning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2505.01441" target="_blank" rel="noopener noreferrer">Agentic Reasoning and Tool Integration for LLMs via Reinforcement Learning (ARTIST)</a> · Singh, Magazine, Pandya, Nambi, 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.09516" target="_blank" rel="noopener noreferrer">Search-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning</a> · Jin et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.13958" target="_blank" rel="noopener noreferrer">ToolRL: Reward is All Tool Learning Needs</a> · Qian, Acikgoz, He, Wang, Chen, Hakkani-Tür, Tur, Ji, 2025</li>
+            <li><a href="https://arxiv.org/abs/2505.10978" target="_blank" rel="noopener noreferrer">Group-in-Group Policy Optimization for LLM Agent Training</a> · Feng et al., 2025 (NeurIPS 2025)</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Imitation learning and distribution shift</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1011.0686" target="_blank" rel="noopener noreferrer">A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning (DAgger)</a> · Ross, Gordon, Bagnell, 2010 (AISTATS 2011)</li>
+            <li><a href="https://proceedings.mlr.press/v9/ross10a.html" target="_blank" rel="noopener noreferrer">Efficient Reductions for Imitation Learning</a> · Ross, Bagnell, 2010</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Environments and evaluation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2406.12045" target="_blank" rel="noopener noreferrer">τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains</a> · Yao, Shinn, Razavi, Narasimhan, 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.04682" target="_blank" rel="noopener noreferrer">ToolSandbox: A Stateful, Conversational, Interactive Evaluation Benchmark for LLM Tool Use Capabilities</a> · Lu et al., 2024 (NAACL Findings 2025)</li>
+            <li><a href="https://arxiv.org/abs/2307.13854" target="_blank" rel="noopener noreferrer">WebArena: A Realistic Web Environment for Building Autonomous Agents</a> · Zhou et al., 2023 (ICLR 2024)</li>
+            <li><a href="https://arxiv.org/abs/2504.21798" target="_blank" rel="noopener noreferrer">SWE-smith: Scaling Data for Software Engineering Agents</a> · Yang et al., 2025 (NeurIPS 2025)</li>
+            <li><a href="https://arxiv.org/abs/2405.15793" target="_blank" rel="noopener noreferrer">SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering</a> · Yang, Jimenez, Wettig, Lieret, Yao, Narasimhan, Press, 2024</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>From Tool Calls to Agents — Training Models to Act</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/tool-calls-to-agents/">https://srini-anirudh.github.io/blogs/tool-calls-to-agents/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026toolcallstoagents,
+  author       = {Srinivasan, Anirudh},
+  title        = {From Tool Calls to Agents --- Training Models to Act},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/tool-calls-to-agents/},
+  note         = {Published September 5, 2026; updated September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; From Tool Calls to Agents — Training Models to Act</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script>
+    (function () {
+      "use strict";
+
+      /* ---------------------------------------------------------------
+         Shared animation engine.
+         Every figure supplies a frame count and a render(i) function.
+         The engine owns playback, speed, manual stepping, reduced motion,
+         focus, live status text and viewport-aware autoplay.
+      ----------------------------------------------------------------*/
+
+      var MONO = "'IBM Plex Mono', ui-monospace, monospace";
+      var DISP = "'Bricolage Grotesque', system-ui, sans-serif";
+      var C = {
+        ink: "#e4eaee", dim: "#93a0a8", faint: "#5d6a72", rule: "#2a333b",
+        deep: "#12181d", green: "#3fd1a0", blue: "#5ab2e8", amber: "#e8b45a",
+        rose: "#e8798a", violet: "#a98ce0", plate: "#161c22"
+      };
+
+      function pad(n) { return n < 10 ? "0" + n : "" + n; }
+      function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function ease(t) { t = clamp(t, 0, 1); return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+      function seg(i, from, to) { return clamp((i - from) / Math.max(1, to - from), 0, 1); }
+      function esc(s) {
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+      function rng(seed) {
+        var s = seed >>> 0;
+        return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      }
+
+      /* -- tiny SVG builders ---------------------------------------- */
+      function svgWrap(vb, inner, extra) {
+        return '<svg viewBox="' + vb + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"' +
+          (extra || "") + '><defs>' +
+          '<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+          '<path d="M0 0 L10 5 L0 10 z" fill="' + C.dim + '"/></marker>' +
+          '<marker id="ahg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+          '<path d="M0 0 L10 5 L0 10 z" fill="' + C.green + '"/></marker>' +
+          '<marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+          '<path d="M0 0 L10 5 L0 10 z" fill="' + C.amber + '"/></marker>' +
+          '<marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">' +
+          '<path d="M0 0 L10 5 L0 10 z" fill="' + C.rose + '"/></marker>' +
+          '<pattern id="hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">' +
+          '<line x1="0" y1="0" x2="0" y2="6" stroke="' + C.faint + '" stroke-width="2.4"/></pattern>' +
+          '</defs>' + inner + '</svg>';
+      }
+      function box(x, y, w, h, o) {
+        o = o || {};
+        return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h +
+          '" rx="' + (o.r == null ? 3 : o.r) + '" fill="' + (o.fill || C.plate) +
+          '" stroke="' + (o.stroke || C.rule) + '" stroke-width="' + (o.sw || 1) +
+          '" opacity="' + (o.op == null ? 1 : o.op) + '"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") + '/>';
+      }
+      function txt(x, y, s, o) {
+        o = o || {};
+        return '<text x="' + x + '" y="' + y + '" fill="' + (o.fill || C.ink) +
+          '" font-family="' + (o.font || MONO) + '" font-size="' + (o.size || 11) +
+          '" font-weight="' + (o.weight || 400) + '" text-anchor="' + (o.anchor || "start") +
+          '" opacity="' + (o.op == null ? 1 : o.op) + '"' +
+          (o.ls ? ' letter-spacing="' + o.ls + '"' : "") + '>' + esc(s) + '</text>';
+      }
+      function line(x1, y1, x2, y2, o) {
+        o = o || {};
+        return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 +
+          '" stroke="' + (o.stroke || C.rule) + '" stroke-width="' + (o.sw || 1.2) +
+          '" opacity="' + (o.op == null ? 1 : o.op) + '"' +
+          (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") +
+          (o.marker ? ' marker-end="url(#' + o.marker + ')"' : "") + ' stroke-linecap="round"/>';
+      }
+      function path(d, o) {
+        o = o || {};
+        return '<path d="' + d + '" fill="' + (o.fill || "none") + '" stroke="' + (o.stroke || C.rule) +
+          '" stroke-width="' + (o.sw || 1.2) + '" opacity="' + (o.op == null ? 1 : o.op) + '"' +
+          (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") +
+          (o.marker ? ' marker-end="url(#' + o.marker + ')"' : "") + ' stroke-linejoin="round" stroke-linecap="round"/>';
+      }
+      function dot(x, y, r, o) {
+        o = o || {};
+        return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + (o.fill || C.green) +
+          '" stroke="' + (o.stroke || "none") + '" stroke-width="' + (o.sw || 0) +
+          '" opacity="' + (o.op == null ? 1 : o.op) + '"/>';
+      }
+      /* wrap a label into <=n chars per line, returns array */
+      function wrap(s, n) {
+        var w = String(s).split(" "), out = [], cur = "";
+        for (var i = 0; i < w.length; i++) {
+          if ((cur + " " + w[i]).trim().length > n) { out.push(cur.trim()); cur = w[i]; }
+          else cur = (cur + " " + w[i]).trim();
+        }
+        if (cur) out.push(cur);
+        return out;
+      }
+      function labelBox(x, y, w, h, title, o) {
+        o = o || {};
+        var lines = wrap(title, o.chars || 18), s = box(x, y, w, h, o), n = lines.length;
+        var y0 = y + h / 2 - (n - 1) * 7 + 4;
+        for (var i = 0; i < n; i++) {
+          s += txt(x + w / 2, y0 + i * 14, lines[i], {
+            anchor: "middle", size: o.size || 11, fill: o.tf || C.ink,
+            weight: o.weight || 500, op: o.op, font: o.font
+          });
+        }
+        return s;
+      }
+
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function Fig(panel, spec) {
+        this.panel = panel;
+        this.spec = spec;
+        this.stage = panel.querySelector(".animation-stage");
+        this.status = panel.querySelector(".animation-status");
+        this.total = spec.total;
+        this.i = 0;
+        this.speed = 1;
+        this.playing = false;
+        this.timer = null;
+        this.manual = false;
+        this.state = {};
+        var self = this;
+
+        this.btnPlay = panel.querySelector('[data-action="play-pause"]');
+        var prev = panel.querySelector('[data-action="previous"]');
+        var next = panel.querySelector('[data-action="next"]');
+        if (prev) prev.addEventListener("click", function () { self.step(-1, true); });
+        if (next) next.addEventListener("click", function () { self.step(1, true); });
+        if (this.btnPlay) this.btnPlay.addEventListener("click", function () { self.playing ? self.pause(false) : self.play(); });
+        Array.prototype.forEach.call(panel.querySelectorAll("[data-speed]"), function (b) {
+          b.addEventListener("click", function () { self.setSpeed(parseFloat(b.dataset.speed)); });
+        });
+        Array.prototype.forEach.call(panel.querySelectorAll("[data-control]"), function (input) {
+          input.addEventListener("input", function () {
+            self.state[input.dataset.control] = parseFloat(input.value);
+            var out = panel.querySelector('[data-output="' + input.dataset.control + '"]');
+            if (out && spec.formatControl) out.textContent = spec.formatControl(input.dataset.control, parseFloat(input.value));
+            self.render();
+          });
+          self.state[input.dataset.control] = parseFloat(input.value);
+          var out = panel.querySelector('[data-output="' + input.dataset.control + '"]');
+          if (out && spec.formatControl) out.textContent = spec.formatControl(input.dataset.control, parseFloat(input.value));
+        });
+
+        if (REDUCED && this.btnPlay) {
+          this.btnPlay.textContent = "Play";
+          this.btnPlay.setAttribute("aria-pressed", "false");
+          this.btnPlay.setAttribute("aria-label", "Play animation");
+        }
+        this.render();
+
+        if ("IntersectionObserver" in window) {
+          this.io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) { if (!REDUCED && !self.manual) self.play(); }
+              else self.pause(true);
+            });
+          }, { threshold: 0.35 });
+          this.io.observe(panel);
+        } else if (!REDUCED) { this.play(); }
+      }
+
+      Fig.prototype.render = function () {
+        this.stage.innerHTML = this.spec.render(this.i, this);
+        var label = this.spec.label ? this.spec.label(this.i, this) : "";
+        var suffix = this.manual && !this.playing ? " · paused" : "";
+        this.status.textContent = "Frame " + pad(this.i + 1) + " / " + this.total + (label ? " · " + label : "") + suffix;
+      };
+      Fig.prototype.step = function (d, manual) {
+        if (manual) { this.manual = true; this.pause(false); }
+        this.i = (this.i + d + this.total) % this.total;
+        this.render();
+      };
+      Fig.prototype.play = function () {
+        if (this.playing || REDUCED) return;
+        this.playing = true;
+        this.manual = false;
+        if (this.btnPlay) {
+          this.btnPlay.textContent = "Pause";
+          this.btnPlay.setAttribute("aria-pressed", "true");
+          this.btnPlay.setAttribute("aria-label", "Pause animation");
+        }
+        this.tick();
+        this.render();
+      };
+      Fig.prototype.pause = function (silent) {
+        this.playing = false;
+        clearTimeout(this.timer);
+        if (this.btnPlay) {
+          this.btnPlay.textContent = "Play";
+          this.btnPlay.setAttribute("aria-pressed", "false");
+          this.btnPlay.setAttribute("aria-label", "Play animation");
+        }
+        if (!silent) this.render();
+      };
+      Fig.prototype.tick = function () {
+        var self = this;
+        clearTimeout(this.timer);
+        var base = this.spec.hold && this.spec.hold(this.i) ? 2000 : 950;
+        this.timer = setTimeout(function () {
+          if (!self.playing) return;
+          self.i = (self.i + 1) % self.total;
+          self.render();
+          self.tick();
+        }, base / this.speed);
+      };
+      Fig.prototype.setSpeed = function (s) {
+        this.speed = s;
+        Array.prototype.forEach.call(this.panel.querySelectorAll("[data-speed]"), function (b) {
+          b.setAttribute("aria-pressed", parseFloat(b.dataset.speed) === s ? "true" : "false");
+        });
+        if (this.playing) this.tick();
+      };
+
+      var FIGS = {};
+
+      /* =============================================================
+         FIGURE 1 — one call versus the loop
+      ==============================================================*/
+      FIGS.loop = {
+        total: 16,
+        label: function (i) {
+          if (i < 2) return "setup";
+          if (i < 6) return "one call, one return";
+          if (i < 9) return "loop: turn 1";
+          if (i < 12) return "loop: turn 2";
+          return "loop: turn 3, context grown";
+        },
+        render: function (i) {
+          var s = "";
+          s += line(440, 24, 440, 396, { stroke: C.rule, dash: "3 6" });
+          s += txt(30, 30, "FUNCTION CALL", { size: 10.5, weight: 600, fill: C.dim, ls: "0.14em" });
+          s += txt(470, 30, "AGENT LOOP", { size: 10.5, weight: 600, fill: C.green, ls: "0.14em" });
+
+          /* ---- left lane ---- */
+          var L = [
+            ["user: weather in Chennai?", C.violet],
+            ["model: get_weather(\"Chennai\")", C.green],
+            ["tool: 31 C, humid", C.amber],
+            ["model: \"It is 31 C and humid.\"", C.green]
+          ];
+          for (var a = 0; a < 4; a++) {
+            var on = i >= a + 1 ? 1 : 0.12;
+            var y = 66 + a * 62;
+            s += box(40, y, 340, 40, { stroke: on > 0.5 ? L[a][1] : C.rule, op: on, fill: C.plate });
+            s += txt(56, y + 24, L[a][0], { size: 11, op: on, fill: on > 0.5 ? C.ink : C.faint });
+            if (a < 3) s += line(210, y + 40, 210, y + 62, { op: i >= a + 2 ? 1 : 0.1, marker: "ah" });
+          }
+          s += txt(40, 330, "world state after:  unchanged", { size: 11, fill: i >= 5 ? C.dim : "#2a333b" });
+          s += txt(40, 350, "next input depends on: nothing", { size: 11, fill: i >= 5 ? C.dim : "#2a333b" });
+          s += txt(40, 378, "x -> tool -> answer", { size: 12, weight: 600, fill: i >= 5 ? C.blue : "#2a333b" });
+
+          /* ---- right lane: the cycle ---- */
+          var cx = 668, cy = 200, r = 108;
+          var nodes = [
+            { a: -90, t: "policy", sub: "pi(a|c)", c: C.green },
+            { a: -18, t: "action", sub: "a_t", c: C.green },
+            { a: 54, t: "environment", sub: "T(s'|s,a)", c: C.amber },
+            { a: 126, t: "observation", sub: "o_t+1", c: C.amber },
+            { a: 198, t: "context", sub: "c_t", c: C.blue }
+          ];
+          function pt(ang, rr) {
+            var t = ang * Math.PI / 180;
+            return [cx + (rr || r) * Math.cos(t), cy + (rr || r) * Math.sin(t)];
+          }
+          /* arcs */
+          for (var k = 0; k < 5; k++) {
+            var p0 = pt(nodes[k].a + 16, r), p1 = pt(nodes[(k + 1) % 5].a - 16, r);
+            s += path("M" + p0[0] + " " + p0[1] + " A " + r + " " + r + " 0 0 1 " + p1[0] + " " + p1[1],
+              { stroke: C.rule, op: i >= 6 ? 0.85 : 0.12, marker: "ah", sw: 1.3 });
+          }
+          for (var k2 = 0; k2 < 5; k2++) {
+            var p = pt(nodes[k2].a, r);
+            var live = i >= 6 && ((i - 6) % 5) === k2 && i < 15;
+            var vis = i >= 6 ? 1 : 0.14;
+            s += box(p[0] - 58, p[1] - 21, 116, 42, {
+              fill: live ? "#12241d" : C.plate,
+              stroke: live ? nodes[k2].c : C.rule, sw: live ? 2 : 1, op: vis
+            });
+            s += txt(p[0], p[1] - 2, nodes[k2].t, { anchor: "middle", size: 11.5, weight: 600, fill: live ? nodes[k2].c : C.ink, op: vis });
+            s += txt(p[0], p[1] + 13, nodes[k2].sub, { anchor: "middle", size: 9.5, fill: C.dim, op: vis });
+          }
+          /* travelling pulse */
+          if (i >= 6 && i < 15) {
+            var idx = (i - 6) % 5;
+            var pa = pt(nodes[idx].a + 40, r);
+            s += dot(pa[0], pa[1], 5.5, { fill: C.green });
+            s += dot(pa[0], pa[1], 11, { fill: "none", stroke: C.green, sw: 1.2, op: 0.4 });
+          }
+          /* context growth bars */
+          var turns = i < 6 ? 0 : Math.min(3, Math.floor((i - 6) / 3) + 1);
+          s += txt(486, 348, "context length", { size: 10, fill: C.dim });
+          for (var b = 0; b < 3; b++) {
+            var w = 52 + b * 34;
+            s += box(486, 358 + b * 15, w, 10, {
+              fill: b < turns ? C.blue : "transparent", stroke: b < turns ? C.blue : C.rule,
+              r: 1, op: b < turns ? 0.85 : 0.35
+            });
+            if (b < turns) s += txt(486 + w + 8, 367 + b * 15, "turn " + (b + 1), { size: 9, fill: C.dim });
+          }
+          s += txt(700, 348, "world state", { size: 10, fill: C.dim });
+          var mut = ["file opened", "row written", "index rebuilt"];
+          for (var m = 0; m < 3; m++) {
+            var mv = m < turns;
+            s += txt(700, 366 + m * 15, (mv ? "+ " : "  ") + mut[m], { size: 9.5, fill: mv ? C.amber : "#243039" });
+          }
+          if (i >= 15) {
+            s += box(30, 414, 840, 44, { fill: "#111c17", stroke: C.green, op: 0.95 });
+            s += txt(450, 432, "the output re-enters the input, through a world that remembers", { anchor: "middle", size: 11.5, fill: C.green, weight: 600, font: DISP });
+            s += txt(450, 449, "that is the entire difference", { anchor: "middle", size: 10.5, fill: C.dim });
+          }
+          return svgWrap("0 0 900 470", s);
+        }
+      };
+
+      /* =============================================================
+         FIGURE 2 — two MDPs, one camera
+      ==============================================================*/
+      FIGS.mdp = {
+        total: 18,
+        label: function (i) {
+          if (i < 5) return "token level: deterministic append";
+          if (i < 11) return "camera pulls back";
+          if (i < 15) return "actions become the atoms";
+          return "the environment appears between them";
+        },
+        render: function (i) {
+          /* world space 1800 x 840; camera interpolates */
+          var t = ease(seg(i, 3, 13));
+          var vw = lerp(430, 1800, t), vh = vw * (840 / 1800);
+          var cxT = lerp(268, 900, t), cyT = lerp(432, 420, t);
+          var vx = cxT - vw / 2, vy = cyT - vh / 2;
+          var k = vw / 900;                     /* world units per screen px */
+          var fs = function (px) { return px * k; };
+          var s = "";
+
+          var N = 24, x0 = 120, dx = 66, ybase = 432;
+          /* macro group frames */
+          var groups = [
+            { t: "search(\"olmo 3 vocab\")", c: C.green, kind: "action" },
+            { t: "read_file(config.json)", c: C.green, kind: "action" },
+            { t: "run_code(check_shapes)", c: C.green, kind: "action" },
+            { t: "answer(...)", c: C.green, kind: "action" }
+          ];
+          var gAlpha = ease(seg(i, 8, 13));
+          for (var g = 0; g < 4; g++) {
+            var gx = x0 + g * 6 * dx - 26, gw = 6 * dx - 14;
+            s += box(gx, ybase - 62, gw, 104, {
+              fill: "rgba(63,209,160,0.05)", stroke: C.green, op: gAlpha * 0.9, r: 4, dash: "6 5"
+            });
+            if (gAlpha > 0.35) {
+              s += txt(gx + gw / 2, ybase - 76, "a_" + g + "  " + groups[g].t, {
+                anchor: "middle", size: fs(11.5), weight: 600, fill: C.green, op: gAlpha
+              });
+            }
+          }
+          /* tokens */
+          for (var n = 0; n < N; n++) {
+            var x = x0 + n * dx;
+            var live = i < 8 ? n <= (i * 3 + 2) : true;
+            var op = live ? 1 : 0.12;
+            s += dot(x, ybase, 13, { fill: n % 6 === 0 ? "#1b2a25" : C.deep, stroke: C.green, sw: 1.4, op: op * (1 - 0.35 * gAlpha) });
+            if (k < 1.6) s += txt(x, ybase + 4, "u", { anchor: "middle", size: fs(9), fill: C.dim, op: op * (1 - gAlpha) });
+            if (n < N - 1) s += line(x + 15, ybase, x + dx - 17, ybase, { stroke: C.faint, op: op * 0.8 * (1 - 0.4 * gAlpha), marker: "ahg", sw: 1.1 });
+          }
+          /* zoomed-in annotation, fades as we pull out */
+          var zo = 1 - ease(seg(i, 3, 8));
+          if (zo > 0.02) {
+            s += txt(x0 - 12, ybase - 96, "s_t = (x, y_<t)", { size: fs(13), fill: C.ink, weight: 600, op: zo });
+            s += txt(x0 - 12, ybase - 74, "a_t = y_t   (one token)", { size: fs(12), fill: C.dim, op: zo });
+            s += txt(x0 - 12, ybase + 96, "s_t+1 = s_t (+) y_t   deterministic, known, free", { size: fs(12), fill: C.blue, op: zo });
+            s += txt(x0 - 12, ybase + 118, "no environment anywhere in this picture", { size: fs(12), fill: C.faint, op: zo });
+          }
+          /* environment transitions between groups */
+          var eo = ease(seg(i, 13, 17));
+          if (eo > 0.02) {
+            var obs = ["10 snippets", "schema: v2 (!)", "AssertionError", "verified"];
+            for (var e = 0; e < 3; e++) {
+              var ex = x0 + (e + 1) * 6 * dx - 26 - 40;
+              var d = "M" + (ex - 26) + " " + (ybase - 62) + " C " + (ex - 26) + " " + (ybase - 150) + ", " +
+                (ex + 66) + " " + (ybase - 150) + ", " + (ex + 66) + " " + (ybase - 62);
+              s += path(d, { stroke: C.amber, op: eo, sw: 2, marker: "aha" });
+              s += box(ex - 34, ybase - 196, 156, 40, { fill: "#20180b", stroke: C.amber, op: eo });
+              s += txt(ex + 44, ybase - 178, "o_" + (e + 1) + "  " + obs[e], { anchor: "middle", size: fs(11), fill: C.amber, op: eo, weight: 600 });
+              s += txt(ex + 44, ybase - 164, "sampled, not chosen", { anchor: "middle", size: fs(9.5), fill: C.dim, op: eo });
+            }
+            s += txt(x0 - 12, ybase + 150, "s_t+1 ~ T( . | s_t , a_t )      o_t+1 ~ O( . | s_t+1 , a_t )", { size: fs(14), fill: C.amber, weight: 600, op: eo });
+            s += txt(x0 - 12, ybase + 178, "unknown, stochastic, and it writes back to the world", { size: fs(12), fill: C.dim, op: eo });
+          }
+          /* persistent caption */
+          s += txt(vx + fs(16), vy + fs(26), i < 9 ? "TOKEN-LEVEL MDP" : "AGENT MDP", {
+            size: fs(11), weight: 600, fill: i < 9 ? C.blue : C.amber, ls: "0.14em"
+          });
+          s += txt(vx + fs(16), vy + fs(42), i < 9 ? "the transition is an append" : "the transition is the world", {
+            size: fs(10.5), fill: C.dim
+          });
+          if (i >= 16) {
+            s += txt(vx + vw - fs(16), vy + vh - fs(30), "gradient lives here (tokens)  |  reward lives here (actions)", {
+              anchor: "end", size: fs(11), fill: C.green, weight: 600
+            });
+          }
+          return svgWrap(vx + " " + vy + " " + vw + " " + vh, s);
+        }
+      };
+
+      /* =============================================================
+         FIGURE 3 — trajectory tokens and the loss mask
+      ==============================================================*/
+      FIGS.mask = {
+        total: 15,
+        label: function (i) {
+          if (i < 8) return "trajectory streams in";
+          if (i < 11) return "apply the mask";
+          return "what the gradient actually sees";
+        },
+        render: function (i) {
+          var spans = [
+            { k: "task", n: 6, c: C.violet, t: "task" },
+            { k: "think", n: 7, c: C.green, t: "thought r_0" },
+            { k: "act", n: 4, c: C.green, t: "action a_0" },
+            { k: "obs", n: 22, c: C.amber, t: "observation o_1  (search results)" },
+            { k: "think", n: 6, c: C.green, t: "thought r_1" },
+            { k: "act", n: 4, c: C.green, t: "action a_1" },
+            { k: "obs", n: 26, c: C.amber, t: "observation o_2  (file contents)" },
+            { k: "think", n: 5, c: C.green, t: "thought r_2" },
+            { k: "act", n: 5, c: C.green, t: "answer a_2" }
+          ];
+          var cells = [], idx = 0;
+          spans.forEach(function (sp, si) {
+            for (var j = 0; j < sp.n; j++) { cells.push({ c: sp.c, k: sp.k, si: si, first: j === 0, label: sp.t }); idx++; }
+          });
+          var total = cells.length;
+          var perRow = 21, cw = 26, ch = 20, gx = 34, gy = 74;
+          var shown = i < 8 ? Math.round(total * ease(seg(i, 0, 7))) : total;
+          var masked = ease(seg(i, 8, 10));
+          var s = "";
+          s += txt(34, 34, "ONE TRAJECTORY, FLATTENED INTO TOKENS", { size: 10.5, weight: 600, fill: C.dim, ls: "0.14em" });
+          s += txt(34, 54, total + " tokens · 9 spans · 3 turns", { size: 11, fill: C.faint });
+
+          for (var n = 0; n < total; n++) {
+            var row = Math.floor(n / perRow), col = n % perRow;
+            var x = gx + col * cw, y = gy + row * (ch + 7);
+            if (n >= shown) { s += box(x, y, cw - 5, ch, { fill: "transparent", stroke: "#1c242a", r: 2 }); continue; }
+            var cell = cells[n], isObs = cell.k === "obs";
+            var dim = isObs ? masked : 0;
+            s += box(x, y, cw - 5, ch, {
+              fill: isObs ? (dim > 0.5 ? "#191d21" : "rgba(232,180,90,0.22)") : (cell.k === "task" ? "rgba(169,140,224,0.22)" : "rgba(63,209,160,0.22)"),
+              stroke: isObs && dim > 0.5 ? C.faint : cell.c, r: 2, op: isObs ? 1 - 0.35 * dim : 1
+            });
+            if (isObs && dim > 0.3) {
+              s += '<rect x="' + x + '" y="' + y + '" width="' + (cw - 5) + '" height="' + ch +
+                '" fill="url(#hatch)" opacity="' + (0.55 * dim) + '"/>';
+            }
+          }
+          /* span labels down the side */
+          var labelled = {}, ly = 0;
+          for (var q = 0; q < Math.min(shown, total); q++) {
+            var c2 = cells[q];
+            if (labelled[c2.si]) continue;
+            labelled[c2.si] = true;
+            var rr = Math.floor(q / perRow), cc = q % perRow;
+            var lx = gx + cc * cw, lyy = gy + rr * (ch + 7);
+            s += line(lx + 1, lyy - 4, lx + 1, lyy, { stroke: c2.c, sw: 2 });
+          }
+          s += txt(34, gy + 6 * (ch + 7) + 16, "task", { size: 10, fill: C.violet, weight: 600 });
+          s += txt(90, gy + 6 * (ch + 7) + 16, "model-emitted: thought + action", { size: 10, fill: C.green, weight: 600 });
+          s += txt(340, gy + 6 * (ch + 7) + 16, "environment-emitted: observation", { size: 10, fill: C.amber, weight: 600 });
+
+          /* counters */
+          var trained = cells.filter(function (c) { return c.k !== "obs"; }).length;
+          var maskedN = total - trained;
+          var bx = 618, by = 74;
+          s += box(bx, by, 250, 210, { fill: C.deep, stroke: C.rule });
+          s += txt(bx + 16, by + 26, "TOKEN BUDGET", { size: 10, weight: 600, fill: C.dim, ls: "0.12em" });
+          var pct = Math.round(100 * trained / total);
+          var barW = 218;
+          s += box(bx + 16, by + 44, barW, 16, { fill: "transparent", stroke: C.rule, r: 2 });
+          s += box(bx + 16, by + 44, barW * (trained / total) * (i >= 11 ? 1 : ease(seg(i, 0, 7))), 16, { fill: C.green, stroke: "none", r: 2, op: 0.85 });
+          s += txt(bx + 16, by + 82, "carries gradient", { size: 10.5, fill: C.green });
+          s += txt(bx + 234, by + 82, trained + " tok · " + pct + "%", { size: 10.5, fill: C.green, anchor: "end", weight: 600 });
+          s += txt(bx + 16, by + 104, "masked, world spoke", { size: 10.5, fill: C.faint });
+          s += txt(bx + 234, by + 104, maskedN + " tok · " + (100 - pct) + "%", { size: 10.5, fill: C.faint, anchor: "end", weight: 600 });
+          s += line(bx + 16, by + 120, bx + 234, by + 120, { stroke: C.rule, dash: "2 4" });
+          if (i >= 11) {
+            s += txt(bx + 16, by + 144, "train on the amber blocks", { size: 10.5, fill: C.rose, weight: 600 });
+            s += txt(bx + 16, by + 160, "and you fit a world model", { size: 10.5, fill: C.rose });
+            s += txt(bx + 16, by + 176, "while calling it a policy.", { size: 10.5, fill: C.rose });
+            s += txt(bx + 16, by + 198, "Search-R1: retrieved-token masking", { size: 9.5, fill: C.dim });
+          } else {
+            s += txt(bx + 16, by + 146, "the environment factor does not", { size: 10.5, fill: C.dim });
+            s += txt(bx + 16, by + 162, "depend on theta, so it must not", { size: 10.5, fill: C.dim });
+            s += txt(bx + 16, by + 178, "appear in the loss.", { size: 10.5, fill: C.dim });
+          }
+          return svgWrap("0 0 900 320", s);
+        }
+      };
+
+      /* =============================================================
+         FIGURE 4 — compounding error under behaviour cloning
+      ==============================================================*/
+      FIGS.compound = {
+        total: 20,
+        formatControl: function (name, v) { return v + "%"; },
+        label: function (i, f) {
+          var eps = (f.state.eps || 4) / 100;
+          return "H = " + (i + 1) + " · eps = " + Math.round(eps * 100) + "%";
+        },
+        render: function (i, f) {
+          var eps = (f.state.eps == null ? 4 : f.state.eps) / 100;
+          var H = 20, step = i + 1;
+          var s = "";
+          var x0 = 46, x1 = 560, ytop = 62, corH = 96, ymid = ytop + corH / 2;
+          s += txt(46, 34, "EXPERT STATE DISTRIBUTION", { size: 10.5, weight: 600, fill: C.dim, ls: "0.13em" });
+          s += box(x0, ytop, x1 - x0, corH, { fill: "rgba(228,234,238,0.05)", stroke: C.faint, dash: "5 5", r: 2 });
+          s += txt(x0 + 8, ytop + corH + 18, "inside the corridor: your data says what to do", { size: 10, fill: C.faint });
+          s += txt(x0 + 8, ytop + corH + 34, "outside: nothing was ever demonstrated, and the world has moved", { size: 10, fill: C.rose });
+
+          /* deterministic walk seeded by eps so stepping is stable */
+          var r = rng(9781 + Math.round(eps * 1000));
+          var pts = [], drift = 0, broke = -1;
+          var yy = ymid;
+          for (var t = 0; t <= H; t++) {
+            var u = r();
+            if (broke < 0 && t > 0 && u < eps) { broke = t; }
+            if (broke >= 0 && t >= broke) { drift += 7.5 + 2.2 * (t - broke); }
+            var wob = (r() - 0.5) * 12;
+            pts.push([x0 + (x1 - x0) * (t / H), ymid + wob * (broke < 0 || t < broke ? 1 : 0.3) + drift]);
+          }
+          var d = "M" + pts[0][0] + " " + pts[0][1];
+          for (var q = 1; q <= step; q++) d += " L" + pts[q][0] + " " + pts[q][1];
+          s += path(d, { stroke: broke >= 0 && step >= broke ? C.rose : C.green, sw: 2.4 });
+          for (var q2 = 0; q2 <= step; q2++) {
+            var out = broke >= 0 && q2 >= broke;
+            s += dot(pts[q2][0], pts[q2][1], q2 === step ? 6 : 3.4, { fill: out ? C.rose : C.green, op: q2 === step ? 1 : 0.75 });
+          }
+          if (broke >= 0 && step >= broke) {
+            s += line(pts[broke][0], ytop - 12, pts[broke][0], Math.min(pts[step][1] + 18, 300), { stroke: C.rose, dash: "3 4", op: 0.6 });
+            s += txt(pts[broke][0] + 6, ytop - 18, "first divergence, step " + broke, { size: 10, fill: C.rose, weight: 600 });
+          } else {
+            s += txt(pts[step][0] + 8, pts[step][1] - 12, "still on-distribution", { size: 10, fill: C.green });
+          }
+
+          /* right panel: growth curves */
+          var px = 620, py = 62, pw = 246, ph = 168;
+          s += txt(px, 34, "EXPECTED COST", { size: 10.5, weight: 600, fill: C.dim, ls: "0.13em" });
+          s += box(px, py, pw, ph, { fill: C.deep, stroke: C.rule });
+          var maxC = eps * H * (H + 1) / 2;
+          var sc = ph - 26;
+          function cy(v) { return py + ph - 12 - sc * clamp(v / Math.max(maxC, 1e-6), 0, 1); }
+          function cxp(h) { return px + 12 + (pw - 26) * (h / H); }
+          var dl = "M" + cxp(0) + " " + cy(0), dq = "M" + cxp(0) + " " + cy(0);
+          for (var h = 1; h <= H; h++) {
+            dl += " L" + cxp(h) + " " + cy(eps * h);
+            dq += " L" + cxp(h) + " " + cy(eps * h * (h + 1) / 2);
+          }
+          s += path(dl, { stroke: C.blue, sw: 2 });
+          s += path(dq, { stroke: C.rose, sw: 2 });
+          s += line(cxp(step), py + 8, cxp(step), py + ph - 10, { stroke: C.ink, dash: "2 4", op: 0.45 });
+          s += dot(cxp(step), cy(eps * step), 4, { fill: C.blue });
+          s += dot(cxp(step), cy(eps * step * (step + 1) / 2), 4, { fill: C.rose });
+          s += txt(px + 12, py + 22, "O(eps H^2)  behaviour cloning", { size: 10, fill: C.rose, weight: 600 });
+          s += txt(px + 12, py + 38, "O(eps H)    on-policy", { size: 10, fill: C.blue, weight: 600 });
+          s += txt(px + 12, py + ph + 20, "at H = " + step + ":  " + (eps * step).toFixed(2) + "  vs  " + (eps * step * (step + 1) / 2).toFixed(2), { size: 11, fill: C.ink, weight: 600 });
+          s += txt(px + 12, py + ph + 38, "ratio " + ((step + 1) / 2).toFixed(1) + "x", { size: 11, fill: C.rose });
+          s += txt(46, 322, "The gap is not the error rate. The gap is the horizon.", { size: 12.5, fill: C.green, weight: 600, font: DISP });
+          return svgWrap("0 0 900 340", s);
+        }
+      };
+
+      /* =============================================================
+         FIGURE 5 — credit assignment: episode level vs anchor states
+      ==============================================================*/
+      FIGS.credit = (function () {
+        /* 4 rollouts, 7 steps; sid = environment state id (anchors repeat) */
+        var runs = [
+          { R: 1, sid: [0, 1, 3, 6, 9, 12, 15] },
+          { R: 0, sid: [0, 1, 4, 7, 10, 13, 16] },
+          { R: 0, sid: [0, 2, 4, 6, 11, 14, 17] },
+          { R: 1, sid: [0, 1, 3, 7, 9, 12, 18] }
+        ];
+        var acts = ["search", "open", "read", "search", "call_api", "run_code", "answer"];
+        var mu = 0.5, sd = 0.5;
+        return {
+          total: 22,
+          label: function (i) {
+            if (i < 6) return "four rollouts, one task";
+            if (i < 10) return "terminal reward only";
+            if (i < 15) return "episode-level advantage, smeared";
+            if (i < 19) return "anchor states: a fair control group";
+            return "combined advantage";
+          },
+          render: function (i) {
+            var s = "";
+            var x0 = 132, dx = 96, y0 = 76, dy = 62;
+            s += txt(34, 34, "GROUP OF ROLLOUTS FROM THE SAME TASK", { size: 10.5, weight: 600, fill: C.dim, ls: "0.13em" });
+            for (var c = 0; c < 7; c++) {
+              s += txt(x0 + c * dx, 56, acts[c], { anchor: "middle", size: 9.5, fill: C.faint });
+            }
+            var phaseE = ease(seg(i, 10, 13));
+            var phaseA = ease(seg(i, 15, 17));
+            var phaseC = ease(seg(i, 19, 21));
+
+            /* anchor detection: state ids appearing in >1 run at same step */
+            var anchors = {};
+            for (var t = 0; t < 7; t++) {
+              var m = {};
+              for (var rr = 0; rr < 4; rr++) { var k = runs[rr].sid[t]; m[k] = (m[k] || 0) + 1; }
+              anchors[t] = m;
+            }
+            for (var r2 = 0; r2 < 4; r2++) {
+              var run = runs[r2], y = y0 + r2 * dy;
+              var revealed = i < 6 ? Math.floor(ease(seg(i, 0, 5)) * 7 * (r2 < 2 ? 1 : 1)) : 7;
+              s += txt(34, y + 5, "rollout " + (r2 + 1), { size: 10.5, fill: C.dim });
+              var AE = (run.R - mu) / sd;
+              for (var t2 = 0; t2 < 7; t2++) {
+                if (t2 >= revealed) continue;
+                var x = x0 + t2 * dx;
+                if (t2 > 0) s += line(x - dx + 22, y, x - 22, y, { stroke: C.rule, marker: "ah", op: 0.7 });
+                var isAnchor = anchors[t2][run.sid[t2]] > 1 && t2 > 0 && t2 < 6;
+                var fill = C.plate, stroke = C.rule;
+                if (phaseE > 0.2 && phaseA < 0.5) {
+                  fill = run.R === 1 ? "rgba(63,209,160," + (0.28 * phaseE) + ")" : "rgba(232,121,138," + (0.28 * phaseE) + ")";
+                  stroke = run.R === 1 ? C.green : C.rose;
+                }
+                if (phaseA > 0.4 && isAnchor) {
+                  /* step-level: compare within the anchor group */
+                  var groupRuns = [];
+                  for (var g2 = 0; g2 < 4; g2++) if (runs[g2].sid[t2] === run.sid[t2]) groupRuns.push(runs[g2].R);
+                  var gm = groupRuns.reduce(function (a, b) { return a + b; }, 0) / groupRuns.length;
+                  var better = run.R > gm, worse = run.R < gm;
+                  stroke = better ? C.green : worse ? C.rose : C.blue;
+                  fill = better ? "rgba(63,209,160,0.3)" : worse ? "rgba(232,121,138,0.3)" : "rgba(90,178,232,0.18)";
+                }
+                s += box(x - 22, y - 15, 44, 30, { fill: fill, stroke: stroke, sw: (phaseA > 0.4 && isAnchor) ? 1.8 : 1, r: 3 });
+                s += txt(x, y + 4, "a" + t2, { anchor: "middle", size: 10.5, fill: C.ink });
+              }
+              if (i >= 6) {
+                var rc = run.R === 1 ? C.green : C.rose;
+                s += box(x0 + 6 * dx + 34, y - 15, 44, 30, { fill: "transparent", stroke: rc, r: 3, op: ease(seg(i, 6, 9)) });
+                s += txt(x0 + 6 * dx + 56, y + 5, "R=" + run.R, { anchor: "middle", size: 11, fill: rc, weight: 600, op: ease(seg(i, 6, 9)) });
+              }
+              if (phaseE > 0.3) {
+                s += txt(x0 + 6 * dx + 96, y + 5, "A_E = " + ((run.R - mu) / sd).toFixed(1), {
+                  size: 10.5, fill: run.R === 1 ? C.green : C.rose, op: phaseE, weight: 600
+                });
+              }
+            }
+            /* anchor brackets */
+            if (phaseA > 0.05) {
+              for (var t3 = 1; t3 < 6; t3++) {
+                var counts = anchors[t3], ids = Object.keys(counts);
+                for (var z = 0; z < ids.length; z++) {
+                  if (counts[ids[z]] < 2) continue;
+                  var rowsIn = [];
+                  for (var w = 0; w < 4; w++) if (String(runs[w].sid[t3]) === ids[z]) rowsIn.push(w);
+                  var ya = y0 + rowsIn[0] * dy - 22, yb = y0 + rowsIn[rowsIn.length - 1] * dy + 22;
+                  var xa = x0 + t3 * dx;
+                  s += path("M" + (xa - 30) + " " + ya + " L" + (xa - 36) + " " + ya + " L" + (xa - 36) + " " + yb + " L" + (xa - 30) + " " + yb,
+                    { stroke: C.blue, sw: 1.4, op: phaseA * 0.9 });
+                }
+              }
+              s += txt(34, 332, "anchor state — the same place, reached by more than one rollout", { size: 10.5, fill: C.blue, weight: 600, op: phaseA });
+            }
+            /* commentary */
+            if (phaseE > 0.5 && phaseA < 0.3) {
+              s += txt(34, 332, "one scalar per trajectory: rollout 3's good third move is punished for its bad fifth", { size: 10.5, fill: C.rose, weight: 600 });
+            }
+            if (i < 10) {
+              s += txt(34, 332, "reward arrives once, at the very end", { size: 10.5, fill: C.dim });
+            }
+            if (phaseC > 0.4) {
+              s += box(34, 350, 832, 40, { fill: "#101a16", stroke: C.green, op: phaseC });
+              s += txt(50, 375, "A(a_t) = A_E(tau)  +  w · A_S(a_t)      episode-level tells you which run; anchor-level tells you which move.", {
+                size: 11.5, fill: C.green, weight: 600, op: phaseC
+              });
+            }
+            return svgWrap("0 0 900 400", s);
+          }
+        };
+      })();
+
+      /* =============================================================
+         FIGURE 6 — four kinds of state
+      ==============================================================*/
+      FIGS.state = {
+        total: 18,
+        label: function (i) {
+          if (i < 4) return "the agent writes";
+          if (i < 8) return "the effects land in different places";
+          if (i < 12) return "different lifetimes";
+          if (i < 15) return "context compaction";
+          return "and so it writes again";
+        },
+        render: function (i) {
+          var lanes = [
+            { t: "model context", sub: "one forward pass", c: C.blue },
+            { t: "environment state", sub: "until something changes it", c: C.amber },
+            { t: "persistent memory", sub: "as long as the store lives", c: C.violet },
+            { t: "tool state", sub: "until the token expires", c: C.green }
+          ];
+          var s = "", x0 = 210, xw = 640, y0 = 74, dy = 66;
+          s += txt(34, 34, "ONE WRITE ACTION, FOUR STATE LAYERS", { size: 10.5, weight: 600, fill: C.dim, ls: "0.13em" });
+          for (var l = 0; l < 4; l++) {
+            var y = y0 + l * dy;
+            s += txt(34, y + 2, lanes[l].t, { size: 11, fill: lanes[l].c, weight: 600 });
+            s += txt(34, y + 17, lanes[l].sub, { size: 9, fill: C.faint });
+            s += box(x0, y - 20, xw, 44, { fill: C.deep, stroke: C.rule, r: 2 });
+          }
+          /* the action */
+          var actOn = ease(seg(i, 0, 3));
+          s += box(x0 + 16, y0 - 14, 150, 32, { fill: "rgba(63,209,160,0.2)", stroke: C.green, op: actOn });
+          s += txt(x0 + 91, y0 + 6, "create_event(...)", { anchor: "middle", size: 10.5, fill: C.green, weight: 600, op: actOn });
+
+          var land = ease(seg(i, 4, 7));
+          var entries = [
+            { lane: 1, x: 200, t: "event #4471 exists", c: C.amber },
+            { lane: 2, x: 200, t: "note: booked review", c: C.violet },
+            { lane: 3, x: 200, t: "cursor advanced", c: C.green }
+          ];
+          entries.forEach(function (e) {
+            var y = y0 + e.lane * dy;
+            s += box(x0 + e.x, y - 14, 178, 32, { fill: "rgba(228,234,238,0.05)", stroke: e.c, op: land });
+            s += txt(x0 + e.x + 89, y + 6, e.t, { anchor: "middle", size: 10.5, fill: e.c, op: land });
+            s += line(x0 + 100, y0 + 18, x0 + e.x + 89, y - 16, { stroke: e.c, op: land * 0.55, dash: "3 4", marker: "ah" });
+          });
+
+          /* lifetimes bar */
+          if (i >= 8 && i < 13) {
+            var lens = [90, 520, 520, 300];
+            for (var m = 0; m < 4; m++) {
+              var ym = y0 + m * dy + 30;
+              s += box(x0 + 16, ym, lens[m], 5, { fill: lanes[m].c, stroke: "none", r: 2, op: 0.55 * ease(seg(i, 8, 10)) });
+            }
+            s += txt(x0 + 16, y0 + 3 * dy + 58, "the model can only see the first bar", { size: 10.5, fill: C.dim, op: ease(seg(i, 9, 11)) });
+          }
+
+          /* compaction sweep */
+          if (i >= 12) {
+            var sw = ease(seg(i, 12, 14));
+            s += box(x0, y0 - 20, xw * sw, 44, { fill: "#0f1317", stroke: "none", op: 1 });
+            if (sw > 0.9) {
+              s += txt(x0 + 16, y0 + 6, "[ 12 turns summarised ]", { size: 10.5, fill: C.faint });
+              s += txt(x0 + 190, y0 + 6, "the record of the write is gone", { size: 10.5, fill: C.rose });
+            }
+            s += line(x0 + xw * sw, y0 - 26, x0 + xw * sw, y0 + 30, { stroke: C.rose, sw: 2, op: 1 - sw * 0.4 });
+          }
+          if (i >= 15) {
+            var rep = ease(seg(i, 15, 17));
+            s += box(x0 + 400, y0 - 14, 200, 32, { fill: "rgba(232,121,138,0.2)", stroke: C.rose, op: rep });
+            s += txt(x0 + 500, y0 + 6, "create_event(...)  again", { anchor: "middle", size: 10.5, fill: C.rose, weight: 600, op: rep });
+            s += box(x0 + 402, y0 + dy - 14, 232, 32, { fill: "rgba(232,121,138,0.14)", stroke: C.rose, op: rep });
+            s += txt(x0 + 518, y0 + dy + 6, "and now #4472", { anchor: "middle", size: 10.5, fill: C.rose, op: rep });
+          }
+          s += txt(34, 348, i >= 15
+            ? "The transcript is not the world. Truncating the transcript does not truncate the world."
+            : "Only one of these four layers is inside the model.", {
+            size: 12.5, fill: i >= 15 ? C.rose : C.dim, weight: 600, font: DISP
+          });
+          return svgWrap("0 0 900 370", s);
+        }
+      };
+
+      /* =============================================================
+         FIGURE 7 — the harness, one full turn
+      ==============================================================*/
+      FIGS.harness = (function () {
+        var N = {
+          user:    { x: 40,  y: 40,  w: 150, h: 40, t: "user task", own: "human", c: C.violet },
+          schemas: { x: 40,  y: 118, w: 150, h: 40, t: "tool schemas", own: "harness", c: C.blue },
+          memory:  { x: 40,  y: 170, w: 150, h: 40, t: "memory store", own: "harness", c: C.blue },
+          instr:   { x: 40,  y: 222, w: 150, h: 40, t: "instructions", own: "harness", c: C.blue },
+          assem:   { x: 246, y: 140, w: 168, h: 68, t: "context assembler", own: "harness", c: C.blue },
+          llm:     { x: 470, y: 140, w: 150, h: 68, t: "language model", own: "policy", c: C.green },
+          valid:   { x: 676, y: 40,  w: 178, h: 46, t: "schema validation", own: "harness", c: C.blue },
+          exec:    { x: 676, y: 110, w: 178, h: 46, t: "executor + credentials", own: "harness", c: C.blue },
+          world:   { x: 676, y: 180, w: 178, h: 46, t: "search / code / browser", own: "world", c: C.amber },
+          err:     { x: 676, y: 250, w: 178, h: 46, t: "error formatter", own: "harness", c: C.rose },
+          render:  { x: 400, y: 300, w: 200, h: 46, t: "observation renderer", own: "harness", c: C.blue }
+        };
+        var stages = [
+          { k: "user",    say: "a task arrives" },
+          { k: "schemas", say: "the harness picks which tools exist this turn" },
+          { k: "memory",  say: "and what to carry forward from before" },
+          { k: "instr",   say: "and the standing instructions" },
+          { k: "assem",   say: "context assembly: this is the belief state, and you wrote it" },
+          { k: "llm",     say: "the model reads and chooses. this is the only learned step" },
+          { k: "valid",   say: "the harness checks the call against the schema" },
+          { k: "exec",    say: "the harness executes it, under credentials the model never sees" },
+          { k: "world",   say: "the world changes. this part is not reversible" },
+          { k: "err",     say: "when it fails, the harness decides what the model gets told" },
+          { k: "render",  say: "the result is rendered back into context, and the loop closes" }
+        ];
+        function draw(key, live, dim) {
+          var n = N[key];
+          return labelBox(n.x, n.y, n.w, n.h, n.t, {
+            fill: live ? "rgba(255,255,255,0.06)" : C.plate,
+            stroke: live ? n.c : C.rule, sw: live ? 2.2 : 1,
+            tf: live ? n.c : C.ink, op: dim, chars: 20, size: 11, weight: 600
+          });
+        }
+        function edge(a, b, o) {
+          var A = N[a], B = N[b];
+          var x1 = A.x + A.w, y1 = A.y + A.h / 2, x2 = B.x, y2 = B.y + B.h / 2;
+          return path("M" + x1 + " " + y1 + " C " + (x1 + 34) + " " + y1 + ", " + (x2 - 34) + " " + y2 + ", " + x2 + " " + y2, o);
+        }
+        return {
+          total: 24,
+          label: function (i) {
+            var idx = Math.min(stages.length - 1, Math.max(0, Math.floor((i - 1) / 2)));
+            return i === 0 ? "the system, at rest" : stages[idx].k;
+          },
+          render: function (i) {
+            var s = "";
+            var active = i === 0 ? -1 : Math.min(stages.length - 1, Math.floor((i - 1) / 2));
+            var reached = function (k) {
+              for (var z = 0; z <= active; z++) if (stages[z].k === k) return true;
+              return false;
+            };
+            s += txt(40, 24, "AGENT HARNESS", { size: 10.5, weight: 600, fill: C.dim, ls: "0.14em" });
+            s += txt(854, 24, "the model participates in 1 of 11 stages", { size: 10, fill: C.faint, anchor: "end" });
+
+            var edges = [
+              ["user", "assem"], ["schemas", "assem"], ["memory", "assem"], ["instr", "assem"],
+              ["assem", "llm"], ["llm", "valid"], ["valid", "exec"], ["exec", "world"], ["exec", "err"]
+            ];
+            edges.forEach(function (e) {
+              var on = reached(e[0]) && (reached(e[1]) || stages[active] && stages[active].k === e[1]);
+              var isErr = e[1] === "err";
+              s += edge(e[0], e[1], {
+                stroke: on ? (isErr ? C.rose : C.dim) : C.rule,
+                op: on ? 0.9 : 0.22, marker: on ? (isErr ? "ahr" : "ah") : "ah", sw: on ? 1.6 : 1
+              });
+            });
+            /* vertical links on the right column */
+            var vOn = reached("valid");
+            s += line(765, 86, 765, 110, { stroke: vOn ? C.dim : C.rule, op: vOn ? 0.9 : 0.2, marker: "ah" });
+            s += line(765, 156, 765, 180, { stroke: reached("exec") ? C.dim : C.rule, op: reached("exec") ? 0.9 : 0.2, marker: "ah" });
+            s += line(765, 226, 765, 250, { stroke: reached("world") ? C.rose : C.rule, op: reached("world") ? 0.7 : 0.2, marker: "ahr", dash: "4 4" });
+            /* return path world/err -> renderer -> assembler */
+            var retOn = reached("render");
+            s += path("M676 203 C 620 203, 620 300, 600 323", { stroke: retOn ? C.amber : C.rule, op: retOn ? 0.9 : 0.2, marker: "aha", sw: retOn ? 1.8 : 1 });
+            s += path("M676 273 C 640 273, 630 330, 600 331", { stroke: retOn ? C.rose : C.rule, op: retOn ? 0.7 : 0.15, marker: "ahr", dash: "4 4" });
+            s += path("M400 323 C 320 323, 300 250, 300 208", { stroke: retOn ? C.blue : C.rule, op: retOn ? 0.95 : 0.2, marker: "ah", sw: retOn ? 1.8 : 1 });
+
+            Object.keys(N).forEach(function (k) {
+              var live = active >= 0 && stages[active].k === k;
+              var seen = reached(k);
+              s += draw(k, live, seen || live ? 1 : 0.4);
+            });
+            /* owner chips */
+            Object.keys(N).forEach(function (k) {
+              var n = N[k];
+              var seen = reached(k);
+              if (!seen) return;
+              var oc = n.own === "policy" ? C.green : n.own === "world" ? C.amber : n.own === "human" ? C.violet : C.blue;
+              s += txt(n.x + 2, n.y - 5, n.own, { size: 8.5, fill: oc, weight: 600, ls: "0.08em" });
+            });
+            /* pulse */
+            if (active >= 0) {
+              var n2 = N[stages[active].k];
+              var half = (i - 1) % 2;
+              var pxp = n2.x + n2.w / 2, pyp = n2.y + n2.h / 2;
+              s += dot(pxp, pyp, half ? 30 : 22, { fill: "none", stroke: n2.c, sw: 1.4, op: half ? 0.22 : 0.4 });
+            }
+            /* narration */
+            s += box(40, 372, 814, 44, { fill: C.deep, stroke: C.rule });
+            s += txt(56, 393, active < 0 ? "the language model is not the agent — the system is the agent" : stages[active].say, {
+              size: 12, fill: active < 0 ? C.dim : (stages[active].k === "llm" ? C.green : stages[active].k === "err" || stages[active].k === "world" ? C.amber : C.blue),
+              weight: 600, font: DISP
+            });
+            s += txt(56, 408, active < 0 ? "press play to trace one turn through it" : "stage " + (active + 1) + " of 11", { size: 10, fill: C.faint });
+            return svgWrap("0 0 900 430", s);
+          }
+        };
+      })();
+
+      /* =============================================================
+         FIGURE 8 — plan-then-act versus interleaved, under drift
+      ==============================================================*/
+      FIGS.plan = {
+        total: 18,
+        label: function (i) {
+          if (i < 3) return "same task, two architectures";
+          if (i < 6) return "the plan is committed";
+          if (i < 9) return "step 3: the world changed";
+          if (i < 13) return "the plan executes into the gap";
+          return "the interleaved lane notices";
+        },
+        render: function (i) {
+          var s = "";
+          var steps = ["locate spec", "open specs/v1.md", "extract table", "write summary", "verify"];
+          s += txt(34, 30, "PLAN THEN ACT", { size: 10.5, weight: 600, fill: C.blue, ls: "0.13em" });
+          s += txt(34, 200, "THINK, ACT, OBSERVE", { size: 10.5, weight: 600, fill: C.green, ls: "0.13em" });
+          var x0 = 34, dx = 168, y1 = 62, y2 = 232;
+
+          /* disruption banner */
+          if (i >= 6) {
+            var dop = ease(seg(i, 6, 8));
+            s += box(x0 + 2 * dx - 12, 8, 320, 26, { fill: "rgba(232,180,90,0.16)", stroke: C.amber, op: dop, r: 2 });
+            s += txt(x0 + 2 * dx + 148, 26, "world event: specs/v1.md moved to specs/archive/", { anchor: "middle", size: 10, fill: C.amber, op: dop, weight: 600 });
+          }
+
+          /* upper lane */
+          var planned = i >= 2;
+          for (var a = 0; a < 5; a++) {
+            var x = x0 + a * dx;
+            var done = i >= 4 + a * 2;
+            var broken = i >= 8 && a >= 1;
+            var st = !planned ? C.rule : broken && done ? C.rose : done ? C.blue : C.rule;
+            s += box(x, y1, dx - 24, 44, {
+              fill: planned ? (broken && done ? "rgba(232,121,138,0.16)" : done ? "rgba(90,178,232,0.14)" : C.plate) : "transparent",
+              stroke: st, op: planned ? 1 : 0.25
+            });
+            s += txt(x + (dx - 24) / 2, y1 + 20, steps[a], { anchor: "middle", size: 10.5, fill: planned ? (broken && done ? C.rose : C.ink) : C.faint });
+            s += txt(x + (dx - 24) / 2, y1 + 35, broken && done ? "no such file" : done ? "done" : "queued", {
+              anchor: "middle", size: 9, fill: broken && done ? C.rose : done ? C.blue : C.faint
+            });
+            if (a < 4) s += line(x + dx - 24, y1 + 22, x + dx - 4, y1 + 22, { stroke: C.rule, marker: "ah", op: planned ? 0.8 : 0.2 });
+          }
+          if (i >= 2 && i < 6) s += txt(34, y1 + 70, "full plan committed before any observation", { size: 10.5, fill: C.dim });
+          if (i >= 13) s += txt(34, y1 + 70, "four steps executed against a world that no longer exists", { size: 11, fill: C.rose, weight: 600 });
+
+          /* lower lane: think/act/observe triples */
+          var triples = [
+            { th: "find the spec", ac: "ls specs/", ob: "v1.md, v2.md", ok: true },
+            { th: "open v1", ac: "open specs/v1.md", ob: "ENOENT", ok: false },
+            { th: "it moved. search", ac: "find . -name v1.md", ob: "specs/archive/v1.md", ok: true },
+            { th: "open the real path", ac: "open archive/v1.md", ob: "contents", ok: true },
+            { th: "summarise", ac: "answer(...)", ob: "verified", ok: true }
+          ];
+          for (var b = 0; b < 5; b++) {
+            var xb = x0 + b * dx, shown = i >= 3 + b * 2;
+            if (!shown) {
+              s += box(xb, y2, dx - 24, 78, { fill: "transparent", stroke: "#1c242a", dash: "4 4" });
+              continue;
+            }
+            var tr = triples[b];
+            var col = tr.ok ? C.green : C.rose;
+            s += box(xb, y2, dx - 24, 78, { fill: C.plate, stroke: col, op: 1 });
+            s += txt(xb + 10, y2 + 18, "think", { size: 8.5, fill: C.faint, ls: "0.1em" });
+            s += txt(xb + 10, y2 + 31, tr.th, { size: 10, fill: C.ink });
+            s += txt(xb + 10, y2 + 48, "act", { size: 8.5, fill: C.faint, ls: "0.1em" });
+            s += txt(xb + 10, y2 + 61, tr.ac, { size: 9.5, fill: C.green });
+            s += txt(xb + 10, y2 + 74, "obs: " + tr.ob, { size: 9.5, fill: tr.ok ? C.amber : C.rose });
+            if (b < 4) s += line(xb + dx - 24, y2 + 39, xb + dx - 4, y2 + 39, { stroke: col, marker: tr.ok ? "ahg" : "ahr", op: 0.8 });
+          }
+          if (i >= 9) {
+            s += line(x0 + dx + 60, y2 - 10, x0 + dx + 60, y2 + 2, { stroke: C.amber, sw: 2 });
+            s += txt(x0 + dx + 70, y2 - 12, "the observation is the correction", { size: 10, fill: C.amber, weight: 600 });
+          }
+          s += txt(34, 344, i >= 14
+            ? "A plan is a policy computed against a belief. Every observation is evidence the belief was stale."
+            : "The cost of interleaving is one observation per step. The benefit is noticing.", {
+            size: 12.5, fill: i >= 14 ? C.green : C.dim, weight: 600, font: DISP
+          });
+          return svgWrap("0 0 900 360", s);
+        }
+      };
+
+      /* =============================================================
+         INTERACTIVE — which layer does this capability live in?
+      ==============================================================*/
+      function initLayerSorter(panel) {
+        var items = [
+          { t: "deciding a tool is worth calling", bin: "weights" },
+          { t: "the exact name of your billing API", bin: "context" },
+          { t: "refreshing an expired auth token", bin: "harness" },
+          { t: "extracting arguments from a vague ask", bin: "weights" },
+          { t: "which tools exist this turn", bin: "context" },
+          { t: "rejecting a malformed call", bin: "harness" },
+          { t: "noticing an observation contradicts the plan", bin: "weights" },
+          { t: "the user's current permissions", bin: "context" },
+          { t: "retry with backoff on a 503", bin: "harness" },
+          { t: "knowing when to stop and answer", bin: "weights" }
+        ];
+        var why = {
+          weights: "learned once, transfers to tools it has never seen",
+          context: "true only right now; nothing to train, everything to supply",
+          harness: "the model never does this and should never be trusted to"
+        };
+        var pool = panel.querySelector(".sorter-pool");
+        var fb = panel.querySelector(".sorter-feedback");
+        var bins = {};
+        Array.prototype.forEach.call(panel.querySelectorAll(".sorter-bin"), function (b) { bins[b.dataset.bin] = b.querySelector("ul"); });
+        var selected = null, score = 0, done = 0;
+
+        items.forEach(function (it, n) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "sorter-chip";
+          b.textContent = it.t;
+          b.setAttribute("aria-pressed", "false");
+          b.dataset.idx = String(n);
+          b.addEventListener("click", function () {
+            if (b.dataset.placed === "true") return;
+            Array.prototype.forEach.call(pool.children, function (c) { c.setAttribute("aria-pressed", "false"); });
+            b.setAttribute("aria-pressed", "true");
+            selected = { el: b, item: it };
+            fb.textContent = 'Selected "' + it.t + '". Now choose a layer below.';
+          });
+          pool.appendChild(b);
+        });
+
+        Array.prototype.forEach.call(panel.querySelectorAll(".sorter-bin"), function (binEl) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "sorter-chip";
+          btn.style.width = "100%";
+          btn.textContent = "Place here";
+          btn.setAttribute("aria-label", "Place the selected capability in " + binEl.dataset.bin);
+          btn.addEventListener("click", function () {
+            if (!selected) { fb.textContent = "Pick a capability first."; return; }
+            var correct = selected.item.bin === binEl.dataset.bin;
+            var li = document.createElement("li");
+            li.className = correct ? "ok" : "no";
+            li.textContent = selected.item.t + (correct ? "" : "  → " + selected.item.bin);
+            bins[binEl.dataset.bin].appendChild(li);
+            selected.el.dataset.placed = "true";
+            selected.el.setAttribute("aria-pressed", "false");
+            selected.el.setAttribute("aria-disabled", "true");
+            if (correct) score++;
+            done++;
+            fb.textContent = (correct ? "Yes — " : "Not quite — ") + why[selected.item.bin] +
+              ".  " + score + " of " + done + " placed correctly" +
+              (done === items.length ? ". That boundary is the one that moves as models get better." : ".");
+            selected = null;
+          });
+          binEl.appendChild(btn);
+        });
+      }
+
+      /* =============================================================
+         INTERACTIVE — tool retrieval budget and the success ceiling
+      ==============================================================*/
+      function initBudget(panel) {
+        var slot = panel.querySelector('[data-slot="budget-chart"]');
+        var outs = {
+          all: panel.querySelector('[data-out="all"]'),
+          topk: panel.querySelector('[data-out="topk"]'),
+          ceil: panel.querySelector('[data-out="ceil"]')
+        };
+        var S = 150;                       /* tokens per schema */
+        function fmt(n) {
+          if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+          if (n >= 1e3) return (n / 1e3).toFixed(1) + "k";
+          return String(Math.round(n));
+        }
+        function read(name, dflt) {
+          var el = panel.querySelector('[data-control="' + name + '"]');
+          return el ? parseFloat(el.value) : dflt;
+        }
+        function draw() {
+          var N = read("ntools", 10000), k = read("k", 8), rc = read("recall", 94) / 100;
+          var all = N * S, top = k * S, ceiling = Math.pow(rc, 3);
+          var W = 900, H = 190;
+          function lx(v) {
+            var a = Math.log10(Math.max(v, 100)), lo = 2, hi = 7;
+            return 60 + (W - 120) * clamp((a - lo) / (hi - lo), 0, 1);
+          }
+          var s = "";
+          for (var e = 2; e <= 7; e++) {
+            s += line(lx(Math.pow(10, e)), 34, lx(Math.pow(10, e)), 132, { stroke: C.rule, dash: "2 5", op: 0.55 });
+            s += txt(lx(Math.pow(10, e)), 150, "1e" + e, { anchor: "middle", size: 9.5, fill: C.faint });
+          }
+          /* practical window */
+          s += box(lx(1000), 34, lx(200000) - lx(1000), 98, { fill: "rgba(63,209,160,0.07)", stroke: "none" });
+          s += txt(lx(1000) + 8, 28, "practical prompt window", { size: 9.5, fill: C.green });
+          s += box(60, 46, lx(all) - 60, 30, { fill: "rgba(232,121,138,0.22)", stroke: C.rose, r: 2 });
+          s += txt(68, 66, "whole catalogue in the prompt · " + fmt(all) + " tokens", { size: 11, fill: C.rose, weight: 600 });
+          s += box(60, 92, Math.max(lx(top) - 60, 4), 30, { fill: "rgba(63,209,160,0.22)", stroke: C.green, r: 2 });
+          s += txt(68, 112, "retrieved top-" + k + " · " + fmt(top) + " tokens", { size: 11, fill: C.green, weight: 600 });
+          s += txt(60, 176, "tokens, log scale — every tool you do not retrieve is an action the agent cannot take", { size: 10, fill: C.dim });
+          slot.innerHTML = svgWrap("0 0 900 190", s);
+          outs.all.textContent = fmt(all);
+          outs.topk.textContent = fmt(top);
+          outs.ceil.textContent = (ceiling * 100).toFixed(1) + "%";
+          outs.ceil.style.color = ceiling > 0.9 ? C.green : ceiling > 0.75 ? C.amber : C.rose;
+        }
+        Array.prototype.forEach.call(panel.querySelectorAll("[data-control]"), function (inp) {
+          var out = panel.querySelector('[data-output="' + inp.dataset.control + '"]');
+          function sync() {
+            if (out) {
+              var v = parseFloat(inp.value);
+              out.textContent = inp.dataset.control === "recall" ? v + "%" : v.toLocaleString("en-US");
+            }
+            draw();
+          }
+          inp.addEventListener("input", sync);
+          sync();
+        });
+      }
+
+      /* -- boot ------------------------------------------------------ */
+      function boot() {
+        Array.prototype.forEach.call(document.querySelectorAll("[data-figure]"), function (panel) {
+          var spec = FIGS[panel.dataset.figure];
+          if (spec) new Fig(panel, spec);
+        });
+        var ls = document.querySelector('[data-interactive="layers"]');
+        if (ls) initLayerSorter(ls);
+        var bg = document.querySelector('[data-interactive="budget"]');
+        if (bg) initBudget(bg);
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+    })();
+    </script>
+  </body>
+</html>
