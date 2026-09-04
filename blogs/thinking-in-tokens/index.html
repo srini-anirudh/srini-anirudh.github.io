@@ -212,8 +212,8 @@
       <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
       <span class="ml-series-nav__position">08 of 09 &middot; What the computation is</span>
       <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../rl-for-reasoning/"><span>Previous &middot; 07</span><strong>RL for Reasoning</strong></a>
-        <a class="ml-series-nav__link" href="../test-time-scaling/"><span>Next &middot; 09</span><strong>Test-Time Scaling</strong></a>
+        <a class="ml-series-nav__link" href="../how-reinforcement-learning-teaches-models-to-reason/"><span>Previous &middot; 07</span><strong>RL for Reasoning</strong></a>
+        <a class="ml-series-nav__link" href="../how-models-improve-without-changing-their-weights/"><span>Next &middot; 09</span><strong>Test-Time Scaling</strong></a>
       </div>
     </nav>
 
@@ -248,7 +248,7 @@
 
         <p>So the interesting question is not "what did they add." It is: <strong>what does a model buy by writing a long intermediate trajectory, and what does it pay?</strong> That question has a surprisingly crisp answer, and the answer explains nearly every design decision downstream of it — why reasoning traces are long, why longer is not automatically better, why "thinking budget" is a coherent knob at all, and why some researchers now want to take the words out of the reasoning entirely.</p>
 
-        <p>This post is the companion to the previous one in this series. <a href="../rl-for-reasoning/">RL for Reasoning</a> covered the training algorithm: verifiable rewards, GRPO, what the gradient actually does. This one covers the resulting computation: what the model is doing when it runs.</p>
+        <p>This post is the companion to the previous one in this series. <a href="../how-reinforcement-learning-teaches-models-to-reason/">RL for Reasoning</a> covered the training algorithm: verifiable rewards, GRPO, what the gradient actually does. This one covers the resulting computation: what the model is doing when it runs.</p>
       </section>
 
       <section id="latent-variable">
@@ -464,7 +464,7 @@
 
         <p><strong>Underthinking.</strong> The mirror image, and less obvious. Wang and colleagues found o1-like models that abandon promising lines of reasoning too early and thrash between approaches — lots of tokens, little progress down any one of them. Long <em>and</em> shallow. This is a good reminder that "depth" is the quantity of interest, not "length": a trace that restarts twenty times has spent its budget on twenty shallow attempts.</p>
 
-        <p><strong>Length hacking.</strong> If the training objective rewards length even incidentally, the policy will find it. The normalisation term in GRPO is the standard example — dividing the objective by response length creates an asymmetry that can systematically favour long incorrect responses over short ones, which is why several follow-ups strip or replace it. The <a href="../rl-for-reasoning/">previous post</a> derives that bias in full. The general lesson is the ordinary one about reward design: the model optimises the number you wrote down, not the thing you meant.</p>
+        <p><strong>Length hacking.</strong> If the training objective rewards length even incidentally, the policy will find it. The normalisation term in GRPO is the standard example — dividing the objective by response length creates an asymmetry that can systematically favour long incorrect responses over short ones, which is why several follow-ups strip or replace it. The <a href="../how-reinforcement-learning-teaches-models-to-reason/">previous post</a> derives that bias in full. The general lesson is the ordinary one about reward design: the model optimises the number you wrote down, not the thing you meant.</p>
 
         <p><strong>Rationalisation.</strong> The subtlest. A model that has committed to a wrong answer early can spend the rest of its budget constructing support for it — which looks, token for token, exactly like verification. The failure of self-correction to reliably fix errors without external feedback is closely related, and section eight returns to it.</p>
 
@@ -742,7 +742,7 @@
 
         <p>Which leaves the obvious question hanging. If a fixed budget is wrong for easy queries and wrong for retrieval and wrong for whatever comes next, the budget should not be fixed — the model should decide. Quiet-STaR's authors saw this in 2024 and said so: predict the usefulness of a thought <em>before</em> generating it, and the prediction becomes a compute allocator. Qwen3's intermediate-case handling is the accidental version. A growing line of work trains the decision directly, either as a mode choice or as a length-controlled policy.</p>
 
-        <p>That is where the series goes next. Once effort is a dial, the interesting question stops being "does it think" and becomes "how should the budget be spent" — sequentially, in parallel, on search, on verification. <a href="../test-time-scaling/">Test-Time Scaling</a> is the whole post on that.</p>
+        <p>That is where the series goes next. Once effort is a dial, the interesting question stops being "does it think" and becomes "how should the budget be spent" — sequentially, in parallel, on search, on verification. <a href="../how-models-improve-without-changing-their-weights/">Test-Time Scaling</a> is the whole post on that.</p>
       </section>
 
       <section id="does-it-think">

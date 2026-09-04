@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT — implemented by the shared Reel engine below.
+    Every figure exposes: Previous / Play-Pause / Next / 0.5x / 1x / 2x / Stage NN / TOTAL,
+    autoplays only while on screen, pauses on manual interaction (gentle 14 s resume),
+    honours prefers-reduced-motion, and keeps all labels in screen space during camera moves.
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="An illustrated survey of neural network activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU, with animated derivations and a map of which LLMs and VLMs use which." />
+    <meta property="article:published_time" content="2025-01-17" />
+    <meta property="article:modified_time" content="2025-01-22" />
+    <title>Why Neural Networks Need Nonlinearity | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Why Neural Networks Need Nonlinearity" />
+    <meta property="og:description" content="An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Why Neural Networks Need Nonlinearity" />
+    <meta name="twitter:description" content="An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/"},"headline":"Why Neural Networks Need Nonlinearity","description":"An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU.","image":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png","datePublished":"2025-01-17","dateModified":"2025-01-22","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["activation functions","ReLU","GELU","SwiGLU","neural networks","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+    </script>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        --mint: #3fd1a0;
+        --sky: #5ab2e8;
+        --amber: #f2b544;
+        --rose: #ef6f6c;
+        --violet: #b28ce8;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article furniture ---- */
+      .lede { color: var(--ink-soft); font-size: 21px; }
+      .lede::first-letter { float: left; margin: 8px 10px 0 0; font: 800 68px/0.72 var(--display); color: var(--ink); }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 22px; }
+      .article-content li { margin-bottom: 8px; }
+      .article-content a { color: var(--ink); text-decoration-color: var(--muted); text-underline-offset: 3px; }
+      code { padding: 1px 5px; background: rgba(20, 23, 26, 0.07); font: 0.82em/1.4 var(--mono); }
+      .eq { margin: 18px 0; padding: 14px 16px; overflow-x: auto; white-space: pre-wrap; background: rgba(20, 23, 26, 0.045); border-left: 2px solid var(--ink); font: 14.5px/1.9 var(--mono); tab-size: 2; }
+      .eq b { color: var(--ink); font-weight: 600; }
+      .callout { margin: 26px 0; padding: 18px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); }
+      .callout p { margin: 0 0 10px; font-size: 17px; }
+      .callout p:last-child { margin-bottom: 0; }
+      .callout .tag { display: block; margin-bottom: 8px; color: var(--muted); font: 600 10.5px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .section-index { color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: 0.18em; }
+
+      /* ---- table of contents ---- */
+      .toc { margin: 8px 0 46px; padding: 22px 24px 18px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc-heading { margin: 0 0 14px !important; font: 600 10.5px/1 var(--mono) !important; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+      .toc-list { margin: 0; padding: 0; list-style: none; counter-reset: none; }
+      .toc-list li { margin: 0; border-top: 1px solid var(--rule); }
+      .toc-list li:first-child { border-top: 0; }
+      .toc-list a { display: flex; align-items: baseline; gap: 12px; padding: 9px 2px; color: var(--ink); text-decoration: none; }
+      .toc-list a:hover { background: rgba(20, 23, 26, 0.05); }
+      .toc-list a:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+      .toc-num { flex: none; width: 22px; color: var(--muted); font: 600 11px/1.6 var(--mono); }
+      .toc-name { font: 600 17px/1.3 var(--display); }
+      .toc-tag { margin-left: auto; padding-left: 12px; flex: none; color: var(--muted); font: 500 10px/1.6 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+      .article-content h2 { scroll-margin-top: 76px; }
+
+      @media (max-width: 560px) { .toc-tag { display: none; } .toc-name { font-size: 15.5px; } }
+
+      /* ---- figures ---- */
+      .fig { margin: 34px 0; padding: 20px; background: var(--panel); border: 1px solid #242c34; }
+      .fig-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+      .fig-num { color: var(--mint); font: 600 10.5px/1 var(--mono); letter-spacing: 0.16em; }
+      .fig-title { margin: 0; color: #eef3f6; font: 700 19px/1.2 var(--display); }
+      .animation-stage { position: relative; }
+      .animation-stage svg { display: block; width: 100%; height: auto; overflow: visible; }
+      .animation-stage canvas { display: block; width: 100%; height: auto; }
+      .fig-cap { margin: 14px 0 0; color: #93a0a8; font: 13.5px/1.6 var(--body); font-style: italic; }
+      .fig-cap b { color: #c6d0d6; font-style: normal; font-weight: 600; }
+      .fig-note { margin-top: 10px; color: #6f7c85; font: 10.5px/1.6 var(--mono); }
+
+      /* ---- adoption matrix ---- */
+      .matrix-bar { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+      .matrix-bar button { min-height: 36px; padding: 7px 12px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .matrix-bar button[aria-pressed="true"] { color: #06120e; background: var(--mint); border-color: var(--mint); }
+      .matrix-bar button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+      .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 8px; }
+      .matrix-card { padding: 11px 12px; background: #141a20; border: 1px solid #26313a; border-left-width: 3px; }
+      .matrix-card h4 { margin: 0 0 5px; color: #eef3f6; font: 600 13.5px/1.2 var(--display); }
+      .matrix-card .act { color: #dce4e9; font: 600 11px/1.4 var(--mono); }
+      .matrix-card .why { margin-top: 5px; color: #7e8b93; font: 10.5px/1.5 var(--mono); }
+      .matrix-count { margin-top: 12px; color: #6f7c85; font: 11px/1.5 var(--mono); }
+
+      /* ---- reference list ---- */
+      .ref-group { margin: 30px 0; padding-top: 18px; border-top: 1px solid var(--rule); }
+      .ref-topic { margin: 0 0 6px !important; font: 700 20px/1.2 var(--display) !important; }
+      .ref-blurb { margin: 0 0 14px !important; color: var(--muted); font-size: 15.5px; font-style: italic; }
+      .refs { margin: 0; padding-left: 0; list-style: none; }
+      .refs li { margin-bottom: 13px; padding-left: 52px; text-indent: -52px; font-size: 16px; line-height: 1.45; }
+      .refs .yr { display: inline-block; width: 46px; text-indent: 0; color: var(--muted); font: 600 11px/1 var(--mono); vertical-align: 1px; }
+      .refs a { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--rule); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+      .refs a:hover { text-decoration-color: var(--ink); background: rgba(20, 23, 26, 0.05); }
+      .refs a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+      .refs .ref-who { display: block; margin-left: 52px; text-indent: 0; color: var(--ink-soft); font-size: 14px; }
+      .refs .ref-act { display: inline-block; margin: 4px 0 0 52px; padding: 2px 7px; text-indent: 0; color: var(--muted); border: 1px solid var(--rule); font: 600 9.5px/1.5 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+      }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .fig, .article-panel { padding: 14px; }
+        .animation-status { width: 100%; margin-left: 0; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article activations-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Architecture</p>
+        <h1 class="article-title">Why Neural Networks Need Nonlinearity</h1>
+        <p class="article-subtitle">Thirty-five years of squashing, rectifying and gating — why the winner keeps changing, and which activation function is actually running inside the models you use every day.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Activation functions</span><span>Transformers</span><span>Vision-language models</span><span>Optimization</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-01-17">January 17, 2025</time></span><span>Last modified <time datetime="2025-01-22">January 22, 2025</time></span><span>34 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="article-content">
+      <p class="lede">Every neural network you have ever trained is a stack of linear maps with something small and strange wedged between them. That something is a handful of scalar operations per element — the cheapest part of the whole forward pass, a rounding error in the FLOP budget — and yet swapping it out has repeatedly changed what was trainable at all. ReLU made depth practical in 2011. GELU quietly became the transformer default. SwiGLU took over frontier language models around 2022 and never left. This is a field guide to that lineage: what each function does, why it was proposed, what breaks, and who ships what.</p>
+
+      <p>I'll assume you know backprop. Everything else — the saturation argument, the sparsity argument, the gating argument — gets built from scratch, with figures you can step through frame by frame. Nine of them are animated; all of them have Previous / Next controls if you would rather read them like a comic strip than watch them.</p>
+
+
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading" class="toc-heading">Contents</h2>
+        <ol class="toc-list">
+          <li><a href="#sec-01"><span class="toc-num">01</span><span class="toc-name">Why anything at all</span><span class="toc-tag">Fig 01</span></a></li>
+          <li><a href="#sec-02"><span class="toc-num">02</span><span class="toc-name">The saturating era, and the wall it hit</span><span class="toc-tag">Fig 02</span></a></li>
+          <li><a href="#sec-03"><span class="toc-num">03</span><span class="toc-name">The rectifier revolution</span><span class="toc-tag">Fig 03</span></a></li>
+          <li><a href="#sec-04"><span class="toc-num">04</span><span class="toc-name">Smooth gates: GELU, Swish, Mish</span><span class="toc-tag">Fig 04–05</span></a></li>
+          <li><a href="#sec-05"><span class="toc-num">05</span><span class="toc-name">Gated linear units, and why SwiGLU won</span><span class="toc-tag">Fig 06–07</span></a></li>
+          <li><a href="#sec-06"><span class="toc-num">06</span><span class="toc-name">ReLU strikes back: sparsity as a system property</span><span class="toc-tag">Fig 08</span></a></li>
+          <li><a href="#sec-07"><span class="toc-num">07</span><span class="toc-name">Who ships what</span><span class="toc-tag">Model matrix</span></a></li>
+          <li><a href="#sec-08"><span class="toc-num">08</span><span class="toc-name">Nuances that will cost you a day</span></a></li>
+          <li><a href="#sec-09"><span class="toc-num">09</span><span class="toc-name">Thirty-five years, one axis</span><span class="toc-tag">Fig 09</span></a></li>
+          <li><a href="#sec-10"><span class="toc-num">10</span><span class="toc-name">What to actually use</span></a></li>
+          <li><a href="#sec-11"><span class="toc-num">11</span><span class="toc-name">References</span><span class="toc-tag">58 papers</span></a></li>
+        </ol>
+      </nav>
+
+      <h2 id="sec-01"><span class="section-index">01</span><br />Why anything at all</h2>
+
+      <p>Compose two affine maps and you get an affine map. <b>W₂(W₁x + b₁) + b₂ = (W₂W₁)x + (W₂b₁ + b₂)</b>. Stack a hundred of them and you still have a single matrix, wasting ninety-nine layers of parameters on a function a one-layer model could express exactly. The nonlinearity is what makes depth mean anything.</p>
+
+      <p>That much is textbook, and it is also where most explanations stop — which is misleading, because it suggests the choice of nonlinearity barely matters. The universal approximation theorems are permissive: <a href="https://link.springer.com/article/10.1007/BF02551274" target="_blank" rel="noopener">Cybenko (1989)</a> and <a href="https://doi.org/10.1016/0893-6080(91)90009-T" target="_blank" rel="noopener">Hornik (1991)</a> require only that the function be non-polynomial (plus mild regularity), and <a href="https://doi.org/10.1016/S0893-6080(05)80131-5" target="_blank" rel="noopener">Leshno et al. (1993)</a> sharpened this to essentially <em>any</em> non-polynomial continuous function. By that standard sigmoid, ReLU and <code>x³ − x</code> are equally good.</p>
+
+      <p>They are not equally good. Approximation theory tells you what a network <em>can</em> represent given ideal weights; it says nothing about whether gradient descent will find those weights, how the signal scales as it propagates, how much activation memory you burn, or how the intermediate tensors quantize. Almost the entire history of activation function research is about those four things, not about expressivity. Keep that framing and the timeline stops looking like fashion.</p>
+
+      <p>Here is the cast. Step through it — the camera zooms into the origin on the piecewise-linear members, because that is where their whole personality lives.</p>
+
+      <figure class="fig" data-fig="atlas" role="group" aria-label="Animated atlas morphing between twelve activation function curves, showing each function and its derivative">
+        <div class="fig-head"><span class="fig-num">FIG 01</span><h3 class="fig-title">The atlas: twelve functions, one continuous morph</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">Solid line is <b>f(x)</b>, dashed line is <b>f′(x)</b>. Watch the derivative, not the function — the derivative is what the optimizer sees. Note how the saturating pair (sigmoid, tanh) have derivatives that die at both ends, while the rectifier family keeps a derivative of exactly 1 on the whole positive half-line.</figcaption>
+      </figure>
+
+      <p>Four properties do most of the explanatory work in what follows, so it's worth naming them:</p>
+
+      <ul>
+        <li><b>Saturation.</b> Does <code>f′</code> go to zero for large |x|? Two-sided saturation is what killed the sigmoid era.</li>
+        <li><b>Zero-centring.</b> Is the output mean near zero? If not, the gradient with respect to every weight in a row shares a sign, and updates zig-zag (LeCun et al., <em>Efficient BackProp</em>, 1998).</li>
+        <li><b>Smoothness.</b> Is <code>f</code> differentiable at 0, and is <code>f′</code> continuous? This matters far less than people assume for SGD, but a lot for second-order methods, for loss-landscape sharpness, and for whether small logit perturbations move smoothly.</li>
+        <li><b>Self-gating.</b> Does the function multiply its input by a data-dependent scalar in [0, 1]? This is the property that quietly links GELU, Swish, and the entire GLU family, and it is the through-line of the modern era.</li>
+      </ul>
+
+      <h2 id="sec-02"><span class="section-index">02</span><br />The saturating era, and the wall it hit</h2>
+
+      <p>The 1986 backprop paper used the logistic sigmoid, <b>σ(x) = 1/(1 + e⁻ˣ)</b>, and it was a reasonable choice: bounded, smooth, monotone, with the elegant derivative <b>σ′ = σ(1 − σ)</b> and a tidy probabilistic reading as a firing rate. LeCun's <a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf" target="_blank" rel="noopener"><em>Efficient BackProp</em></a> then made the case for tanh instead — same shape, but zero-centred, with a derivative of 1 at the origin rather than 0.25, which keeps the forward variance closer to unity.</p>
+
+      <p>Both saturate on both sides, and that is fatal at depth. The maximum of σ′ is 0.25. Even in the best case, every layer you pass through on the way back multiplies the gradient by at most a quarter, and typically much less once you account for the distribution of pre-activations. <a href="https://people.idsia.ch/~juergen/SeppHochreiter1991ThesisAdvisorSchmidhuber.pdf" target="_blank" rel="noopener">Hochreiter's 1991 thesis</a> and <a href="https://doi.org/10.1109/72.279181" target="_blank" rel="noopener">Bengio et al. (1994)</a> formalised this; the practical consequence is that the early layers of a deep sigmoid network receive a gradient many orders of magnitude smaller than the last layers, and effectively never train.</p>
+
+      <figure class="fig" data-fig="vanish" role="group" aria-label="Animated backward pass showing gradient magnitude decaying with depth for sigmoid, tanh and ReLU networks">
+        <div class="fig-head"><span class="fig-num">FIG 02</span><h3 class="fig-title">Watching a gradient die</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">A gradient pulse travels backward through 18 layers. Bars are <b>log₁₀</b> of the gradient norm relative to the loss — each row drops by roughly a constant factor per layer, so a straight diagonal on this plot is exponential decay. Sigmoid with Xavier initialisation loses about 0.65 decades per layer; ReLU with He initialisation holds its own.</figcaption>
+      </figure>
+
+      <p>Notice what the fix is <em>not</em>. Nothing about sigmoid limits what the network can represent. The problem is entirely about the conditioning of the optimisation, which is exactly the framing from section 01.</p>
+
+      <p>Two fixes arrived at once, and it is worth being honest that the activation function was only one of them. Better initialisation (Glorot &amp; Bengio 2010; He et al. 2015), then normalisation layers (Ioffe &amp; Szegedy 2015; Ba et al. 2016) and residual connections (He et al. 2015) attacked the same problem from other directions. Today, with pre-norm residual transformers, you could probably train a tanh network to convergence. The activation function stopped being the binding constraint years ago — which is precisely why the modern choices are made on subtler grounds like sparsity, memory and quantization behaviour.</p>
+
+      <h2 id="sec-03"><span class="section-index">03</span><br />The rectifier revolution</h2>
+
+      <p><b>ReLU(x) = max(0, x)</b>. Fukushima's cognitron used something like it in 1969, <a href="https://www.cs.toronto.edu/~hinton/absps/reluICML.pdf" target="_blank" rel="noopener">Nair &amp; Hinton (2010)</a> motivated it as an infinite stack of shifted binary units in an RBM, <a href="https://proceedings.mlr.press/v15/glorot11a.html" target="_blank" rel="noopener">Glorot, Bordes &amp; Bengio (2011)</a> made the deep-learning case in <em>Deep Sparse Rectifier Neural Networks</em>, and <a href="https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html" target="_blank" rel="noopener">AlexNet (2012)</a> made it non-negotiable by reporting a six-fold speedup to a given training error on CIFAR-10 versus tanh.</p>
+
+      <p>What ReLU actually buys you:</p>
+
+      <ul>
+        <li><b>An exactly-1 derivative on the positive half-line.</b> No attenuation, no amplification. The gradient path through active units is a pure identity, which is why very deep rectifier nets train.</li>
+        <li><b>Genuine sparsity.</b> Around half the units are exactly zero at initialisation, and the exact zero matters — it is not a small number, it is a structural absence. Glorot et al. argued this gives disentangled, information-efficient representations.</li>
+        <li><b>Near-free compute.</b> A comparison and a select. No exponentials, no divisions.</li>
+        <li><b>Piecewise linearity.</b> The whole network becomes a continuous piecewise-linear function, which is what makes exact analyses (ReLU network polytope counting, LRP-style attribution, some verification methods) tractable.</li>
+      </ul>
+
+      <p>The cost is the dying ReLU. If a unit's pre-activation is negative for every input in the data distribution, its gradient is exactly zero for every input, forever. There is no slow recovery — it is an absorbing state. A large learning rate that pushes a bias sharply negative, or a poorly scaled input, can kill a substantial fraction of a layer in a few hundred steps.</p>
+
+      <figure class="fig" data-fig="dying" role="group" aria-label="Animated simulation of ReLU units dying during training compared with leaky ReLU">
+        <div class="fig-head"><span class="fig-num">FIG 03</span><h3 class="fig-title">Dying units are an absorbing state</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">60 units per panel, tracked over 1,200 simulated steps under identical negative bias drift. Cell brightness is firing rate; <b>black cells are permanently dead</b>. The leaky panel never loses a unit, because a gradient of 0.1 on the negative side is still a gradient. The inset follows one unit's pre-activation distribution as it slides below zero.</figcaption>
+      </figure>
+
+      <h3>The patch kit</h3>
+
+      <p>Everything in this family keeps the positive half-line identity and argues about the negative half.</p>
+
+      <div class="eq">
+<b>Leaky ReLU</b>   f(x) = x if x &gt; 0 else αx,  α = 0.01        Maas, Hannun &amp; Ng 2013
+<b>PReLU</b>        same, but α is a learned per-channel parameter    He et al. 2015
+<b>RReLU</b>        α sampled uniformly per unit during training      Xu et al. 2015
+<b>ELU</b>          f(x) = x if x &gt; 0 else α(eˣ − 1)                 Clevert et al. 2015
+<b>SELU</b>         λ·ELU(x) with λ=1.0507, α=1.6733                  Klambauer et al. 2017
+<b>ReLU6</b>        min(max(0, x), 6)                                 Krizhevsky 2010 / MobileNet
+      </div>
+
+      <p>PReLU is the historically important one: the same paper introduced He initialisation and was the first to report super-human top-5 accuracy on ImageNet. Its learned α values are instructive — early conv layers learn α near 0.25 (keeping negative information, behaving almost linearly), while deeper layers drive α toward 0 (becoming more discriminative, more ReLU-like).</p>
+
+      <p>ELU pushes the negative saturation value to −α, which pulls the mean activation toward zero and gives a "natural gradient"-like effect without batch statistics. SELU goes further: with those two very specific constants, LeCun-normal initialisation and alpha-dropout, the map from layer input to layer output has a stable fixed point at zero mean and unit variance — self-normalising, with a 90-page appendix proving it. It is beautiful and almost nobody uses it, because layer norm is more robust and does not constrain the architecture.</p>
+
+      <p>ReLU6 exists for a purely engineering reason: capping activations at 6 keeps them in a range that survives 8-bit fixed-point quantization, which is why it appears throughout the MobileNet line.</p>
+
+      <h2 id="sec-04"><span class="section-index">04</span><br />Smooth gates: GELU, Swish, Mish</h2>
+
+      <p>The next move was to make the gate soft. Instead of ReLU's hard indicator <b>x · 1[x &gt; 0]</b>, multiply x by something that transitions smoothly from 0 to 1.</p>
+
+      <p><a href="https://arxiv.org/abs/1606.08415" target="_blank" rel="noopener">Hendrycks &amp; Gimpel's GELU (2016)</a> derived this from a stochastic-regularisation argument rather than by curve-fitting, and the derivation is genuinely worth understanding. Consider a gate that zeroes each unit with a probability that depends on how large the unit is: keep x with probability <b>Φ(x)</b>, the standard normal CDF. That is dropout where the drop rate is a function of the input rather than a fixed hyperparameter — inputs that are large relative to the layer's activation distribution are kept, small or negative ones are usually zeroed. Take the expectation of this stochastic gate and you get a deterministic function:</p>
+
+      <div class="eq">
+<b>GELU(x) = x · Φ(x) = x · ½[1 + erf(x/√2)]</b>
+
+tanh approximation:   0.5x(1 + tanh[√(2/π)(x + 0.044715x³)])
+sigmoid approximation: x · σ(1.702x)          ← "QuickGELU", used by OpenAI CLIP
+      </div>
+
+      <figure class="fig" data-fig="gelu" role="group" aria-label="Animated derivation of GELU as the expectation of a stochastic Bernoulli gate">
+        <div class="fig-head"><span class="fig-num">FIG 04</span><h3 class="fig-title">GELU as the expectation of a coin flip</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">Left: keep-probability Φ(x), with live Bernoulli draws at 41 sample points. Right: the Monte-Carlo estimate of <b>E[x · Bernoulli(Φ(x))]</b> as the number of draws grows from 1 to 512. The scatter collapses onto the exact GELU curve; ReLU's hard gate is dashed for reference. GELU is not a smoothed ReLU that someone drew — it is the mean of an adaptive dropout mask.</figcaption>
+      </figure>
+
+      <p>Swish arrived from the other direction. <a href="https://arxiv.org/abs/1710.05941" target="_blank" rel="noopener">Ramachandran, Zoph &amp; Le (2017)</a> ran a reinforcement-learning architecture search over compositions of unary and binary primitives and the search returned <b>x · σ(βx)</b>. With β = 1 this is exactly the SiLU that <a href="https://arxiv.org/abs/1702.03118" target="_blank" rel="noopener">Elfwing, Uchibe &amp; Doya</a> had proposed in 2017 as the derivative of a softplus-like unit in a reinforcement learning context, and it is also almost exactly GELU — the two curves differ by under 0.02 everywhere. β is sometimes learned; at β → ∞ Swish becomes ReLU, at β → 0 it becomes the identity scaled by a half, so β interpolates between linear and rectified.</p>
+
+      <p>Mish (<a href="https://arxiv.org/abs/1908.08681" target="_blank" rel="noopener">Misra, 2019</a>) is <b>x · tanh(softplus(x))</b>, slightly smoother and with a slightly deeper negative dip. It shows up in the YOLO detection line and not much else, mostly because it costs more and the gains are within noise on most benchmarks.</p>
+
+      <p>Hard-swish, from <a href="https://arxiv.org/abs/1905.02244" target="_blank" rel="noopener">MobileNetV3</a>, replaces the sigmoid with a piecewise-linear ramp: <b>x · ReLU6(x + 3)/6</b>. Same shape, no exponential, quantizes cleanly. This is the recurring mobile-vision pattern — take the good curve, approximate it with clamps.</p>
+
+      <p>All of these share a property that ReLU lacks and that turns out to matter: they are <b>non-monotone</b>. There is a small negative dip near x ≈ −1.28 for GELU (minimum value ≈ −0.17). A unit can be slightly negative and still contribute a small negative signal, and crucially the derivative there is negative rather than zero, so the unit can be pushed back toward the active region. There is no absorbing state.</p>
+
+      <figure class="fig" data-fig="tracker" role="group" aria-label="Animated tangent line sweeping along activation curves with a synchronised derivative plot">
+        <div class="fig-head"><span class="fig-num">FIG 05</span><h3 class="fig-title">The derivative is what the optimizer feels</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">A tangent sweeps from x = −5 to x = +5 while the lower panel tracks <b>f′(x)</b>. Look for three things: how wide the region with usable gradient is, whether f′ exceeds 1 (GELU and SiLU both overshoot to ≈1.1, mildly amplifying gradients near x ≈ 1.5), and whether f′ ever goes negative.</figcaption>
+      </figure>
+
+      <h2 id="sec-05"><span class="section-index">05</span><br />Gated linear units, and why SwiGLU won</h2>
+
+      <p>Everything so far is a scalar function applied elementwise. The GLU family breaks that rule: it splits the tensor in two, runs a nonlinearity on one half, and multiplies. The gate is computed from a <em>different learned projection</em> of the input than the value it modulates.</p>
+
+      <p><a href="https://arxiv.org/abs/1612.08083" target="_blank" rel="noopener">Dauphin et al. (2016)</a> introduced this for convolutional language models as <b>GLU(x) = (xW + b) ⊙ σ(xV + c)</b>, arguing that the linear path gives gradients an unattenuated route while the sigmoid path controls what passes. <a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noopener">Shazeer's 2020 note <em>GLU Variants Improve Transformer</em></a> then swept the choice of gate nonlinearity inside the transformer feed-forward block:</p>
+
+      <div class="eq">
+<b>Bilinear</b>  (xW) ⊙ (xV)              no nonlinearity at all
+<b>ReGLU</b>     ReLU(xW) ⊙ (xV)
+<b>GEGLU</b>     GELU(xW) ⊙ (xV)
+<b>SwiGLU</b>    SiLU(xW) ⊙ (xV)          also written Swish₁(xW) ⊙ (xV)
+
+FFN(x) = [ SiLU(xW_gate) ⊙ xW_up ] W_down
+      </div>
+
+      <p>Every gated variant beat the ungated baselines on T5's span-corruption pre-training loss and on downstream GLUE and SuperGLUE, by small but consistent margins. Shazeer offered no mechanistic explanation and attributed the result, memorably, to divine benevolence. Six years later there is still no fully satisfying theory, but there are two decent partial ones.</p>
+
+      <p>The first is <b>multiplicative interaction</b>. A gated unit computes a degree-2 polynomial in the input, so a single FFN layer can express products of features — feature conjunctions — that an elementwise nonlinearity would need depth to build. Even the bilinear variant, with no nonlinearity whatsoever, outperforms a ReLU FFN in Shazeer's sweep, which strongly suggests the multiplication is doing the work rather than the shape of the gate curve.</p>
+
+      <p>The second is <b>selectivity</b>. The gate is a learned, input-dependent mask over the hidden dimension, which is a soft form of conditional computation — a continuous relative of mixture-of-experts routing living inside every FFN.</p>
+
+      <figure class="fig" data-fig="glu" role="group" aria-label="Animated dataflow diagram building a SwiGLU feed-forward block from a vanilla FFN">
+        <div class="fig-head"><span class="fig-num">FIG 06</span><h3 class="fig-title">Building a SwiGLU block, one edge at a time</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">From a two-matmul vanilla FFN to a three-matmul gated FFN, with the parameter budget rebalanced at the end. Real dimensions from <b>Llama-2-7B</b> (d = 4096, h = 11008) are used throughout so the arithmetic is checkable.</figcaption>
+      </figure>
+
+      <h3>The 8d/3 rule, and why 11008</h3>
+
+      <p>A vanilla FFN with hidden width h has 2dh parameters. A gated FFN has 3dh, because of the extra gate projection. To keep the parameter and FLOP budget fixed when switching to a gated block, you shrink h by a factor of 2/3. With the conventional h = 4d, that gives:</p>
+
+      <div class="eq">
+h = (2/3) · 4d = <b>8d/3</b> ≈ 2.667d
+
+Llama-2-7B:   d = 4096  →  8d/3 = 10922.7  →  rounded to a multiple of 256  →  <b>11008</b>
+Llama-3-8B:   d = 4096  →  <b>14336</b>   (3.5d — they deliberately spent extra on the FFN)
+Mistral-7B:   d = 4096  →  <b>14336</b>
+Qwen2.5-7B:   d = 3584  →  <b>18944</b>   (5.3d — very wide, paired with GQA savings)
+Gemma-2-9B:   d = 3584  →  <b>14336</b>   (GeGLU, not SwiGLU)
+      </div>
+
+      <p>Those odd numbers in config files are not arbitrary — they are 8d/3 rounded up to a hardware-friendly multiple, or a deliberate departure from it. Note too that the trend since Llama-3 has been to spend <em>more</em> than 8d/3 on the FFN, because GQA freed up parameter budget from the attention block and wide FFNs are the most GPU-efficient place to put capacity.</p>
+
+      <figure class="fig" data-fig="surface" role="group" aria-label="Animated heatmap comparing elementwise activations with the two-dimensional gated surface">
+        <div class="fig-head"><span class="fig-num">FIG 07</span><h3 class="fig-title">What gating looks like in two dimensions</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">The output surface over the (value, gate) plane. An elementwise activation ignores one axis entirely — its contours are vertical stripes. A gated unit's contours bend, because the gate <b>rescales</b> the value path rather than replacing it. The final stage sweeps a horizontal slice to show the induced 1-D function changing shape as the gate moves.</figcaption>
+      </figure>
+
+      <h3>The engineering costs nobody mentions</h3>
+
+      <ul>
+        <li><b>Three matmuls, not two.</b> The gate and up projections can be fused into one <code>[d, 2h]</code> GEMM, which most efficient implementations do — but that fusion changes the weight layout, which is why converting checkpoints between frameworks so often gets the gate and up halves swapped. Symptom: the model runs, loss is finite, outputs are garbage.</li>
+        <li><b>More activation memory.</b> You must keep both <code>SiLU(xW_gate)</code> and <code>xW_up</code> for the backward pass, or recompute. Two tensors of shape [B, T, h] instead of one. Under selective activation checkpointing this is usually the single biggest FFN line item, and recomputing the whole gated block is cheap relative to attention, which is why "recompute MLP, keep attention" is a common recipe.</li>
+        <li><b>Outliers.</b> The elementwise product of two learned projections has a much heavier tail than a post-ReLU tensor. Emergent activation outliers concentrate in the input to <code>W_down</code>, which is exactly the tensor that per-tensor INT8 quantization handles worst. <a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener">SmoothQuant</a> and friends exist largely because of this.</li>
+      </ul>
+
+      <h2 id="sec-06"><span class="section-index">06</span><br />ReLU strikes back: sparsity as a system property</h2>
+
+      <p>The smooth-gate era had a hidden cost: GELU and SiLU produce almost no exact zeros. Under ReLU, roughly half of the FFN intermediate tensor is structurally zero, and the corresponding columns of <code>W_down</code> never need to be read from memory. In a memory-bandwidth-bound decoder — which is exactly what single-batch inference is — that is a free 2× on the FFN.</p>
+
+      <p><a href="https://arxiv.org/abs/2310.04564" target="_blank" rel="noopener">Mirzadeh et al. (2023), <em>ReLU Strikes Back</em></a>, made this case directly: substituting ReLU for GELU in pre-trained LLMs costs little in quality after a short fine-tune and yields large inference savings. <a href="https://arxiv.org/abs/2402.13516" target="_blank" rel="noopener">ProSparse</a> and the TurboSparse line push activation sparsity to 90%+ with explicit sparsity-inducing regularisation. And Nemotron-4 took the other route — never leave ReLU at all — using <b>squared ReLU</b> throughout:</p>
+
+      <div class="eq">
+<b>ReLU²(x) = max(0, x)²</b>            Primer (So et al. 2021), Nemotron-4, Persimmon / Fuyu, RWKV channel-mix
+
+Derivative: 2·max(0, x)   — unbounded, so it needs careful init and often qk-norm elsewhere
+      </div>
+
+      <p>Squared ReLU keeps hard sparsity while restoring some of the multiplicative flavour of a gate: it is literally <code>x ⊙ ReLU(x)</code> with the value and gate paths tied to the same projection. That framing makes it obvious what SwiGLU adds — untied projections — and why squared ReLU is nearly free in comparison.</p>
+
+      <figure class="fig" data-fig="sparsity" role="group" aria-label="Animated histograms of post-activation values showing exact and effective sparsity for five activation functions">
+        <div class="fig-head"><span class="fig-num">FIG 08</span><h3 class="fig-title">Where the zeros go</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">Post-activation histograms over 6,000 pre-activations drawn from a heavy-tailed layer distribution. <b>Exact-zero fraction</b> is the bar that matters for kernel-level skipping; the last stage sweeps a threshold ε to show that GELU and SiLU are <em>nearly</em> sparse — plenty of near-zero mass, but no structural zeros a kernel can exploit without a predictor.</figcaption>
+      </figure>
+
+      <h2 id="sec-07"><span class="section-index">07</span><br />Who ships what</h2>
+
+      <p>This is the part that is genuinely hard to look up, because it is buried in config files and rarely stated in papers. Filter by family:</p>
+
+      <div class="article-panel" role="group" aria-label="Filterable matrix of models and their activation functions">
+        <div class="matrix-bar" id="matrix-bar" role="group" aria-label="Filter models by category"></div>
+        <div class="matrix-grid" id="matrix-grid"></div>
+        <p class="matrix-count" id="matrix-count" aria-live="polite"></p>
+      </div>
+
+      <p>Four patterns fall out of that grid.</p>
+
+      <p><b>The 2020 dividing line.</b> Anything designed before roughly 2021 uses GELU; anything designed after uses a gated variant. BERT, GPT-2, GPT-3, ViT, BLOOM, OPT, Falcon, GPT-NeoX — all elementwise. PaLM, Llama, Mistral, Qwen, Gemma, DeepSeek, OLMo — all gated. PaLM is the paper that made SwiGLU the default.</p>
+
+      <p><b>SwiGLU versus GeGLU is a coin flip.</b> Google's line (T5 v1.1, Flan-T5, Gemma 1/2/3) uses GeGLU; nearly everyone else uses SwiGLU. Given that SiLU and GELU differ by less than 0.02 pointwise, this is almost certainly a lineage artefact rather than a measured decision.</p>
+
+      <p><b>Vision-language models are chimeras.</b> A typical VLM runs QuickGELU inside the vision tower, plain GELU in the connector MLP, and SwiGLU in the language model — three different activation functions in one forward pass. LLaVA-1.5 and the original Molmo release are exactly this. Qwen2.5-VL is notable for breaking the pattern by rebuilding its ViT with SwiGLU and RMSNorm to match its language model.</p>
+
+      <p><b>The squared-ReLU pocket is real but small.</b> Nemotron, Persimmon/Fuyu, Primer and RWKV's channel-mix all use it, mostly for inference-time sparsity and mostly at organisations that control their own serving stack.</p>
+
+      <h2 id="sec-08"><span class="section-index">08</span><br />Nuances that will cost you a day</h2>
+
+      <h3>QuickGELU is not GELU, and CLIP cares</h3>
+
+      <p>OpenAI's CLIP implementation defines its activation as <code>x * sigmoid(1.702 * x)</code>. The weights were trained with that function. OpenCLIP's default <code>ViT-L-14</code> uses true GELU, and you must ask for the <code>-quickgelu</code> variant to match the original checkpoints. The two curves differ by at most about 0.02 — which sounds harmless and is not. Load OpenAI CLIP weights into a plain-GELU tower and zero-shot ImageNet accuracy drops by roughly a point, image-text retrieval degrades, and nothing crashes. If you are building a VLM on CLIP ViT-L/14-336 — the backbone in LLaVA, Molmo and many others — check this before you check anything else. SigLIP and SigLIP 2 sidestep the whole issue by using the tanh-approximate GELU consistently.</p>
+
+      <div class="callout">
+        <span class="tag">Debugging heuristic</span>
+        <p>A VLM whose vision tower is "slightly worse than reported" but not broken is almost always one of three things: a GELU/QuickGELU mismatch, an image-normalisation constant mismatch (CLIP's mean/std versus ImageNet's versus SigLIP's simple −1..1), or an interpolation-mode mismatch in the resize. All three cost about a point and none of them raise an exception.</p>
+      </div>
+
+      <h3>The tanh approximation is a different function</h3>
+
+      <p>PyTorch's <code>nn.GELU()</code> defaults to the exact erf form; <code>nn.GELU(approximate='tanh')</code> gives the polynomial. JAX and the original TF BERT code used the tanh form. The maximum discrepancy is around 0.0003, which is irrelevant for training from scratch and occasionally relevant when you are chasing a bit-exact reproduction across frameworks or debugging a numerical divergence between a reference implementation and a fused kernel. Gemma explicitly specifies the tanh approximation in its config, which is a good habit.</p>
+
+      <h3>Clamped gates for stability</h3>
+
+      <p>SwiGLU's output is a product of two unbounded projections, so it can produce very large values, and squared ReLU is worse. At large scale several groups have started clamping the gated activation to a fixed range as a cheap stability measure — gpt-oss ships a SwiGLU variant with clamping and a sigmoid coefficient of 1.702, which makes its gate a QuickGELU in all but name. If you see loss spikes localised to the FFN, clamping the pre-multiply tensors is a much cheaper experiment than changing the optimizer.</p>
+
+      <h3>Initialisation must match the activation</h3>
+
+      <div class="eq">
+tanh / sigmoid  →  Xavier/Glorot, gain 1        Var(W) = 2/(fan_in + fan_out)
+ReLU family     →  He/Kaiming, gain √2          Var(W) = 2/fan_in
+SELU            →  LeCun normal + AlphaDropout  Var(W) = 1/fan_in   (required, not advisory)
+GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather than √2 ≈ 1.41
+      </div>
+
+      <p>The √2 in He initialisation exists precisely because ReLU discards half the variance. Use Xavier with ReLU and your forward activations shrink by √2 per layer; use He with tanh and they grow. In a pre-norm transformer the normalisation layers hide most of this, which is why people get away with mismatches, but it still shows up as a worse first thousand steps.</p>
+
+      <h3>Non-differentiability at zero is a non-issue</h3>
+
+      <p>ReLU is not differentiable at 0. Frameworks pick a subgradient (PyTorch returns 0) and nothing bad happens, because the probability of landing exactly on 0 in floating point is negligible and the loss surface is still Lipschitz. The smoothness argument for GELU is real, but it is about the shape of the loss landscape away from the kink, not about the measure-zero point itself.</p>
+
+      <h3>Learned activations exist and mostly don't pay</h3>
+
+      <p>PReLU learns one parameter per channel. Swish can learn β. <a href="https://arxiv.org/abs/1412.6830" target="_blank" rel="noopener">APL</a> and PAU learn piecewise-linear or rational functions. <a href="https://arxiv.org/abs/2404.19756" target="_blank" rel="noopener">KANs (2024)</a> go all the way and replace every weight with a learned spline. The recurring finding is that learned activations help small models on small data and wash out at scale, where the network can absorb any fixed nonlinearity's limitations into its weights. The exception worth watching is xIELU, an activation with two learned slope parameters that appeared in the Apertus models — a rare case of a learned activation shipping in a frontier-scale open model.</p>
+
+      <h2 id="sec-09"><span class="section-index">09</span><br />Thirty-five years, one axis</h2>
+
+      <figure class="fig" data-fig="timeline" role="group" aria-label="Animated panning timeline of activation function papers from 1986 to 2025">
+        <div class="fig-head"><span class="fig-num">FIG 09</span><h3 class="fig-title">The lineage</h3></div>
+        <div class="animation-stage"></div>
+        <figcaption class="fig-cap">The camera pans across eight eras. Colour encodes family: <b>saturating</b>, <b>rectifier</b>, <b>smooth gate</b>, <b>gated linear unit</b>, <b>sparsity revival</b>.</figcaption>
+      </figure>
+
+      <h2 id="sec-10"><span class="section-index">10</span><br />What to actually use</h2>
+
+      <ul>
+        <li><b>Transformer LLM, training from scratch.</b> SwiGLU with h = 8d/3 rounded to a multiple of 256. This is the default for a reason and the burden of proof is on any alternative.</li>
+        <li><b>You control the inference stack and are memory-bandwidth bound.</b> Consider squared ReLU, or ReLU with a sparsity predictor. You are trading a small quality delta for a large decode-time win.</li>
+        <li><b>Vision encoder, training from scratch.</b> GELU (tanh approximation, specified explicitly). If you are at ViT-g scale or above, SwiGLU FFNs are worth it — <a href="https://arxiv.org/abs/2304.07193" target="_blank" rel="noopener">DINOv2</a>'s giant model and <a href="https://arxiv.org/abs/2303.11331" target="_blank" rel="noopener">EVA-02</a> both went that way.</li>
+        <li><b>Vision encoder, loading pre-trained weights.</b> Use whatever the checkpoint was trained with. Check for QuickGELU. Check twice.</li>
+        <li><b>Connector / projector MLP in a VLM.</b> GELU. It is two layers and nobody has shown it matters; spend your experiments elsewhere.</li>
+        <li><b>Small conv nets, mobile, quantized.</b> Hard-swish or ReLU6. The clamps are the point.</li>
+        <li><b>An RNN or anything with recurrent state.</b> tanh and sigmoid remain correct — bounded outputs are what keeps the state from exploding across timesteps. Mamba's SiLU gate is the modern exception, and it works because the state update is structurally stable by construction.</li>
+        <li><b>Fine-tuning anything.</b> Do not change the activation function. Non-negotiable.</li>
+      </ul>
+
+      <p>The meta-lesson: activation functions stopped being about expressivity a long time ago, and stopped being about trainability once normalisation and residuals arrived. What remains is a systems question — sparsity, memory, quantization tails, kernel fusion — and that is why the answer keeps moving. It will move again when the hardware does.</p>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../the-geometry-of-normalization/">The Geometry of Normalization</a></li><li><a href="../what-an-optimizer-actually-does/">What an Optimizer Actually Does</a></li><li><a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a></li></ul></nav>
+      <h2 id="sec-11"><span class="section-index">11</span><br />References</h2>
+
+      <p>Grouped by what each paper is actually about rather than by date. Every entry links out to the paper, the proceedings page, or — where the choice only exists in code — the implementation. The tag on the right of each line is the activation the paper is a primary source for.</p>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Foundations and theory</h3>
+        <p class="ref-blurb">Why a nonlinearity is needed at all, and why that argument says nothing about which one to pick.</p>
+        <ul class="refs">
+          <li><span class="yr">1980</span><a href="https://doi.org/10.1007/BF00344251" target="_blank" rel="noopener">Neocognitron: a self-organizing neural network model for a mechanism of pattern recognition unaffected by shift in position</a> <span class="ref-who">Fukushima · Biological Cybernetics</span><span class="ref-act">rectifier, avant la lettre</span></li>
+          <li><span class="yr">1986</span><a href="https://www.nature.com/articles/323533a0" target="_blank" rel="noopener">Learning representations by back-propagating errors</a> <span class="ref-who">Rumelhart, Hinton &amp; Williams · Nature</span><span class="ref-act">sigmoid</span></li>
+          <li><span class="yr">1989</span><a href="https://link.springer.com/article/10.1007/BF02551274" target="_blank" rel="noopener">Approximation by superpositions of a sigmoidal function</a> <span class="ref-who">Cybenko · Mathematics of Control, Signals and Systems</span><span class="ref-act">universal approximation</span></li>
+          <li><span class="yr">1991</span><a href="https://doi.org/10.1016/0893-6080(91)90009-T" target="_blank" rel="noopener">Approximation capabilities of multilayer feedforward networks</a> <span class="ref-who">Hornik · Neural Networks</span><span class="ref-act">universal approximation</span></li>
+          <li><span class="yr">1991</span><a href="https://people.idsia.ch/~juergen/SeppHochreiter1991ThesisAdvisorSchmidhuber.pdf" target="_blank" rel="noopener">Untersuchungen zu dynamischen neuronalen Netzen</a> <span class="ref-who">Hochreiter · diploma thesis (the vanishing gradient)</span><span class="ref-act">why saturation kills depth</span></li>
+          <li><span class="yr">1993</span><a href="https://doi.org/10.1016/S0893-6080(05)80131-5" target="_blank" rel="noopener">Multilayer feedforward networks with a non-polynomial activation function can approximate any function</a> <span class="ref-who">Leshno, Lin, Pinkus &amp; Schocken · Neural Networks</span><span class="ref-act">non-polynomial suffices</span></li>
+          <li><span class="yr">1994</span><a href="https://doi.org/10.1109/72.279181" target="_blank" rel="noopener">Learning long-term dependencies with gradient descent is difficult</a> <span class="ref-who">Bengio, Simard &amp; Frasconi · IEEE Trans. Neural Networks</span><span class="ref-act">gradient decay</span></li>
+          <li><span class="yr">1998</span><a href="http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf" target="_blank" rel="noopener">Efficient BackProp</a> <span class="ref-who">LeCun, Bottou, Orr &amp; Müller · Neural Networks: Tricks of the Trade</span><span class="ref-act">tanh over sigmoid</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">The saturating era and the other fixes</h3>
+        <p class="ref-blurb">Initialisation, normalisation and residuals attacked the same problem from different directions — which is why the activation stopped being the binding constraint.</p>
+        <ul class="refs">
+          <li><span class="yr">2010</span><a href="https://proceedings.mlr.press/v9/glorot10a.html" target="_blank" rel="noopener">Understanding the difficulty of training deep feedforward neural networks</a> <span class="ref-who">Glorot &amp; Bengio · AISTATS</span><span class="ref-act">Xavier init</span></li>
+          <li><span class="yr">2015</span><a href="https://arxiv.org/abs/1502.03167" target="_blank" rel="noopener">Batch normalization: accelerating deep network training by reducing internal covariate shift</a> <span class="ref-who">Ioffe &amp; Szegedy · ICML</span><span class="ref-act">context</span></li>
+          <li><span class="yr">2015</span><a href="https://arxiv.org/abs/1512.03385" target="_blank" rel="noopener">Deep residual learning for image recognition</a> <span class="ref-who">He, Zhang, Ren &amp; Sun · CVPR</span><span class="ref-act">context</span></li>
+          <li><span class="yr">2016</span><a href="https://arxiv.org/abs/1607.06450" target="_blank" rel="noopener">Layer normalization</a> <span class="ref-who">Ba, Kiros &amp; Hinton</span><span class="ref-act">context</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">The rectifier family</h3>
+        <p class="ref-blurb">Hard gates: the positive half-line identity, and thirty years of arguing about the negative half.</p>
+        <ul class="refs">
+          <li><span class="yr">2010</span><a href="https://www.cs.toronto.edu/~hinton/absps/reluICML.pdf" target="_blank" rel="noopener">Rectified linear units improve restricted Boltzmann machines</a> <span class="ref-who">Nair &amp; Hinton · ICML</span><span class="ref-act">ReLU</span></li>
+          <li><span class="yr">2011</span><a href="https://proceedings.mlr.press/v15/glorot11a.html" target="_blank" rel="noopener">Deep sparse rectifier neural networks</a> <span class="ref-who">Glorot, Bordes &amp; Bengio · AISTATS</span><span class="ref-act">ReLU</span></li>
+          <li><span class="yr">2012</span><a href="https://papers.nips.cc/paper_files/paper/2012/hash/c399862d3b9d6b76c8436e924a68c45b-Abstract.html" target="_blank" rel="noopener">ImageNet classification with deep convolutional neural networks</a> <span class="ref-who">Krizhevsky, Sutskever &amp; Hinton · NeurIPS</span><span class="ref-act">ReLU, 6× speedup</span></li>
+          <li><span class="yr">2013</span><a href="https://ai.stanford.edu/~amaas/papers/relu_hybrid_icml2013_final.pdf" target="_blank" rel="noopener">Rectifier nonlinearities improve neural network acoustic models</a> <span class="ref-who">Maas, Hannun &amp; Ng · ICML workshop</span><span class="ref-act">Leaky ReLU</span></li>
+          <li><span class="yr">2015</span><a href="https://arxiv.org/abs/1502.01852" target="_blank" rel="noopener">Delving deep into rectifiers: surpassing human-level performance on ImageNet classification</a> <span class="ref-who">He, Zhang, Ren &amp; Sun · ICCV</span><span class="ref-act">PReLU + He init</span></li>
+          <li><span class="yr">2015</span><a href="https://arxiv.org/abs/1511.07289" target="_blank" rel="noopener">Fast and accurate deep network learning by exponential linear units (ELUs)</a> <span class="ref-who">Clevert, Unterthiner &amp; Hochreiter · ICLR</span><span class="ref-act">ELU</span></li>
+          <li><span class="yr">2015</span><a href="https://arxiv.org/abs/1505.00853" target="_blank" rel="noopener">Empirical evaluation of rectified activations in convolutional network</a> <span class="ref-who">Xu, Wang, Chen &amp; Li</span><span class="ref-act">RReLU</span></li>
+          <li><span class="yr">2017</span><a href="https://arxiv.org/abs/1706.02515" target="_blank" rel="noopener">Self-normalizing neural networks</a> <span class="ref-who">Klambauer, Unterthiner, Mayr &amp; Hochreiter · NeurIPS</span><span class="ref-act">SELU</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Smooth self-gating</h3>
+        <p class="ref-blurb">Replace the hard indicator with a soft, input-dependent multiplier in [0, 1].</p>
+        <ul class="refs">
+          <li><span class="yr">2001</span><a href="https://papers.nips.cc/paper_files/paper/2000/hash/44968aece94f667e4095002d140b5896-Abstract.html" target="_blank" rel="noopener">Incorporating second-order functional knowledge for better option pricing</a> <span class="ref-who">Dugas, Bengio, Bélisle, Nadeau &amp; Garcia · NeurIPS</span><span class="ref-act">softplus</span></li>
+          <li><span class="yr">2016</span><a href="https://arxiv.org/abs/1606.08415" target="_blank" rel="noopener">Gaussian error linear units (GELUs)</a> <span class="ref-who">Hendrycks &amp; Gimpel</span><span class="ref-act">GELU</span></li>
+          <li><span class="yr">2017</span><a href="https://arxiv.org/abs/1702.03118" target="_blank" rel="noopener">Sigmoid-weighted linear units for neural network function approximation in reinforcement learning</a> <span class="ref-who">Elfwing, Uchibe &amp; Doya</span><span class="ref-act">SiLU</span></li>
+          <li><span class="yr">2017</span><a href="https://arxiv.org/abs/1710.05941" target="_blank" rel="noopener">Searching for activation functions</a> <span class="ref-who">Ramachandran, Zoph &amp; Le</span><span class="ref-act">Swish</span></li>
+          <li><span class="yr">2019</span><a href="https://arxiv.org/abs/1908.08681" target="_blank" rel="noopener">Mish: a self regularized non-monotonic activation function</a> <span class="ref-who">Misra · BMVC</span><span class="ref-act">Mish</span></li>
+          <li><span class="yr">2019</span><a href="https://arxiv.org/abs/1905.02244" target="_blank" rel="noopener">Searching for MobileNetV3</a> <span class="ref-who">Howard et al. · ICCV</span><span class="ref-act">hard-swish</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Gated linear units</h3>
+        <p class="ref-blurb">Two projections, one multiplied into the other. The current frontier default, still without a satisfying theory.</p>
+        <ul class="refs">
+          <li><span class="yr">2016</span><a href="https://arxiv.org/abs/1612.08083" target="_blank" rel="noopener">Language modeling with gated convolutional networks</a> <span class="ref-who">Dauphin, Fan, Auli &amp; Grangier · ICML</span><span class="ref-act">GLU</span></li>
+          <li><span class="yr">2019</span><a href="https://arxiv.org/abs/1910.10683" target="_blank" rel="noopener">Exploring the limits of transfer learning with a unified text-to-text transformer</a> <span class="ref-who">Raffel et al. · JMLR (T5; v1.1 switched to GEGLU)</span><span class="ref-act">ReLU → GEGLU</span></li>
+          <li><span class="yr">2020</span><a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noopener">GLU variants improve transformer</a> <span class="ref-who">Shazeer</span><span class="ref-act">GEGLU, SwiGLU</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Sparsity and the squared rectifier</h3>
+        <p class="ref-blurb">The counter-move: give up smoothness, get exact zeros a kernel can skip.</p>
+        <ul class="refs">
+          <li><span class="yr">2021</span><a href="https://arxiv.org/abs/2109.08668" target="_blank" rel="noopener">Primer: searching for efficient transformers for language modeling</a> <span class="ref-who">So, Mańke, Liu, Dai, Shazeer &amp; Le</span><span class="ref-act">squared ReLU</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2310.04564" target="_blank" rel="noopener">ReLU strikes back: exploiting activation sparsity in large language models</a> <span class="ref-who">Mirzadeh et al. · Apple</span><span class="ref-act">ReLU</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2402.13516" target="_blank" rel="noopener">ProSparse: introducing and enhancing intrinsic activation sparsity within large language models</a> <span class="ref-who">Song et al.</span><span class="ref-act">ReLU</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">What ships: language models</h3>
+        <p class="ref-blurb">Papers whose configs pin down a choice. These are the primary sources behind the adoption matrix above.</p>
+        <ul class="refs">
+          <li><span class="yr">2018</span><a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener">BERT: pre-training of deep bidirectional transformers for language understanding</a> <span class="ref-who">Devlin, Chang, Lee &amp; Toutanova · NAACL</span><span class="ref-act">GELU</span></li>
+          <li><span class="yr">2020</span><a href="https://arxiv.org/abs/2005.14165" target="_blank" rel="noopener">Language models are few-shot learners</a> <span class="ref-who">Brown et al. · NeurIPS (GPT-3)</span><span class="ref-act">GELU</span></li>
+          <li><span class="yr">2022</span><a href="https://arxiv.org/abs/2205.01068" target="_blank" rel="noopener">OPT: open pre-trained transformer language models</a> <span class="ref-who">Zhang et al. · Meta</span><span class="ref-act">ReLU</span></li>
+          <li><span class="yr">2022</span><a href="https://arxiv.org/abs/2204.02311" target="_blank" rel="noopener">PaLM: scaling language modeling with Pathways</a> <span class="ref-who">Chowdhery et al. · Google</span><span class="ref-act">SwiGLU</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2302.13971" target="_blank" rel="noopener">LLaMA: open and efficient foundation language models</a> <span class="ref-who">Touvron et al. · Meta</span><span class="ref-act">SwiGLU</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener">Llama 2: open foundation and fine-tuned chat models</a> <span class="ref-who">Touvron et al. · Meta</span><span class="ref-act">SwiGLU, h = 11008</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2310.06825" target="_blank" rel="noopener">Mistral 7B</a> <span class="ref-who">Jiang et al. · Mistral AI</span><span class="ref-act">SwiGLU</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2312.00752" target="_blank" rel="noopener">Mamba: linear-time sequence modeling with selective state spaces</a> <span class="ref-who">Gu &amp; Dao</span><span class="ref-act">SiLU gate</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2408.00118" target="_blank" rel="noopener">Gemma 2: improving open language models at a practical size</a> <span class="ref-who">Gemma Team · Google DeepMind</span><span class="ref-act">GeGLU (tanh)</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2406.11704" target="_blank" rel="noopener">Nemotron-4 340B</a> <span class="ref-who">NVIDIA</span><span class="ref-act">squared ReLU</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener">DeepSeek-V3 technical report</a> <span class="ref-who">DeepSeek-AI</span><span class="ref-act">SwiGLU</span></li>
+          <li><span class="yr">2025</span><a href="https://arxiv.org/abs/2501.00656" target="_blank" rel="noopener">2 OLMo 2 Furious</a> <span class="ref-who">OLMo Team · Ai2</span><span class="ref-act">SwiGLU</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">What ships: vision and vision-language</h3>
+        <p class="ref-blurb">Where the mismatches hide. If you are debugging a VLM tower, start here.</p>
+        <ul class="refs">
+          <li><span class="yr">2020</span><a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener">An image is worth 16×16 words: transformers for image recognition at scale</a> <span class="ref-who">Dosovitskiy et al. · ICLR (ViT)</span><span class="ref-act">GELU</span></li>
+          <li><span class="yr">2021</span><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">Learning transferable visual models from natural language supervision</a> <span class="ref-who">Radford et al. · ICML (CLIP)</span><span class="ref-act">QuickGELU</span></li>
+          <li><span class="yr">—</span><a href="https://github.com/mlfoundations/open_clip" target="_blank" rel="noopener">open_clip — reference implementation and the -quickgelu model suffix</a> <span class="ref-who">Ilharco et al. · GitHub</span><span class="ref-act">the footgun, in code</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2303.15343" target="_blank" rel="noopener">Sigmoid loss for language image pre-training</a> <span class="ref-who">Zhai, Mustafa, Kolesnikov &amp; Beyer · ICCV (SigLIP)</span><span class="ref-act">GELU (tanh)</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2304.07193" target="_blank" rel="noopener">DINOv2: learning robust visual features without supervision</a> <span class="ref-who">Oquab et al. · Meta</span><span class="ref-act">GELU; SwiGLU at ViT-g</span></li>
+          <li><span class="yr">2023</span><a href="https://arxiv.org/abs/2303.11331" target="_blank" rel="noopener">EVA-02: a visual representation for neon genesis</a> <span class="ref-who">Fang et al.</span><span class="ref-act">SwiGLU in the ViT</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2409.17146" target="_blank" rel="noopener">Molmo and PixMo: open weights and open data for state-of-the-art vision-language models</a> <span class="ref-who">Deitke et al. · Ai2</span><span class="ref-act">QuickGELU + SwiGLU</span></li>
+          <li><span class="yr">2025</span><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener">Qwen2.5-VL technical report</a> <span class="ref-who">Qwen Team · Alibaba</span><span class="ref-act">SwiGLU in the ViT too</span></li>
+          <li><span class="yr">2025</span><a href="https://arxiv.org/abs/2502.14786" target="_blank" rel="noopener">SigLIP 2: multilingual vision-language encoders with improved semantic understanding, localization, and dense features</a> <span class="ref-who">Tschannen et al. · Google DeepMind</span><span class="ref-act">GELU (tanh)</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Learned and searched activations</h3>
+        <p class="ref-blurb">Let the network pick the shape. Helps small models; mostly washes out at scale.</p>
+        <ul class="refs">
+          <li><span class="yr">2014</span><a href="https://arxiv.org/abs/1412.6830" target="_blank" rel="noopener">Learning activation functions to improve deep neural networks</a> <span class="ref-who">Agostinelli, Hoffman, Sadowski &amp; Baldi (APL)</span><span class="ref-act">piecewise-linear, learned</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2404.19756" target="_blank" rel="noopener">KAN: Kolmogorov–Arnold networks</a> <span class="ref-who">Liu et al.</span><span class="ref-act">learned splines on edges</span></li>
+        </ul>
+      </div>
+
+      <div class="ref-group">
+        <h3 class="ref-topic">Systems consequences</h3>
+        <p class="ref-blurb">Why the gated product's fat tail is an inference problem, not just a curiosity.</p>
+        <ul class="refs">
+          <li><span class="yr">2022</span><a href="https://arxiv.org/abs/2208.07339" target="_blank" rel="noopener">LLM.int8(): 8-bit matrix multiplication for transformers at scale</a> <span class="ref-who">Dettmers, Lewis, Belkada &amp; Zettlemoyer · NeurIPS</span><span class="ref-act">activation outliers</span></li>
+          <li><span class="yr">2022</span><a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener">SmoothQuant: accurate and efficient post-training quantization for large language models</a> <span class="ref-who">Xiao, Lin, Seznec, Wu, Demouth &amp; Han · ICML</span><span class="ref-act">FFN down-proj inputs</span></li>
+          <li><span class="yr">2024</span><a href="https://arxiv.org/abs/2402.17762" target="_blank" rel="noopener">Massive activations in large language models</a> <span class="ref-who">Sun, Chen, Kolter &amp; Liu</span><span class="ref-act">where the outliers live</span></li>
+        </ul>
+      </div>
+
+      <p class="fig-note" style="color: var(--muted);">Model-to-activation mappings above were read from public configuration files and reference implementations where available. Closed models are marked undisclosed rather than guessed.</p>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2025). <cite>Why Neural Networks Need Nonlinearity</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/">https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2025activationatlas,
+  author       = {Srinivasan, Anirudh},
+  title        = {Why Neural Networks Need Nonlinearity},
+  year         = {2025},
+  month        = {jan},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/},
+  note         = {Published January 17, 2025; updated January 22, 2025}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Why Neural Networks Need Nonlinearity</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script>
+    (() => {
+      "use strict";
+      const NS = "http://www.w3.org/2000/svg";
+      const S = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+      const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const ease = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+      const easeIO = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * t * (t * (t * 6 - 15) + 10));
+      const seg = (u, a, b) => ease(clamp((u - a) / (b - a), 0, 1));
+      const mulberry32 = s => () => { s |= 0; s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const normal = r => { let a = 0, b = 0; while (a === 0) a = r(); b = r(); return Math.sqrt(-2 * Math.log(a)) * Math.cos(2 * Math.PI * b); };
+      const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const C = { mint: "#3fd1a0", sky: "#5ab2e8", amber: "#f2b544", rose: "#ef6f6c", violet: "#b28ce8",
+                  txt: "#e4eaee", dim: "#93a0a8", faint: "#5d6a73", grid: "#212b33", deep: "#0b0f13" };
+
+      /* ---------- activation library ---------- */
+      const ex = x => Math.exp(clamp(x, -40, 40));
+      const sig = x => 1 / (1 + ex(-x));
+      const erf = x => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
+        const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * ex(-x * x); return s * y; };
+      const Phi = x => 0.5 * (1 + erf(x / Math.SQRT2));
+      const phi = x => ex(-x * x / 2) / Math.sqrt(2 * Math.PI);
+      const softplus = x => (x > 30 ? x : Math.log(1 + ex(x)));
+      const silu = x => x * sig(x);
+      const gelu = x => x * Phi(x);
+
+      const ACT = {
+        sigmoid:  { n: "Sigmoid", yr: "1986", c: C.rose,   eq: "σ(x) = 1 / (1 + e⁻ˣ)",
+                    f: sig, d: x => sig(x) * (1 - sig(x)), cam: [0, 0.5, 1],
+                    tags: ["saturates both sides", "bounded (0, 1)", "not zero-centred", "f′ ≤ 0.25"] },
+        tanh:     { n: "Tanh", yr: "1991", c: C.rose,      eq: "tanh(x) = (e²ˣ − 1)/(e²ˣ + 1)",
+                    f: Math.tanh, d: x => 1 - Math.tanh(x) ** 2, cam: [0, 0, 1],
+                    tags: ["saturates both sides", "bounded (−1, 1)", "zero-centred", "f′(0) = 1"] },
+        relu:     { n: "ReLU", yr: "2010", c: C.mint,      eq: "max(0, x)",
+                    f: x => Math.max(0, x), d: x => (x > 0 ? 1 : 0), cam: [0, 0, 2.6],
+                    tags: ["piecewise linear", "exactly sparse", "unbounded above", "absorbing dead state"] },
+        leaky:    { n: "Leaky ReLU", yr: "2013", c: C.mint, eq: "x if x > 0 else 0.1x",
+                    f: x => (x > 0 ? x : 0.1 * x), d: x => (x > 0 ? 1 : 0.1), cam: [0, 0, 2.6],
+                    tags: ["piecewise linear", "no dead units", "α fixed at 0.01–0.1", "not sparse"] },
+        elu:      { n: "ELU", yr: "2015", c: C.amber,      eq: "x if x > 0 else eˣ − 1",
+                    f: x => (x > 0 ? x : ex(x) - 1), d: x => (x > 0 ? 1 : ex(x)), cam: [-1.5, -0.6, 1.7],
+                    tags: ["C¹ smooth", "saturates below at −α", "mean-shifting", "costs an exp"] },
+        selu:     { n: "SELU", yr: "2017", c: C.amber,     eq: "λ·(x if x > 0 else α(eˣ − 1)),  λ=1.0507",
+                    f: x => 1.0507 * (x > 0 ? x : 1.67326 * (ex(x) - 1)), d: x => 1.0507 * (x > 0 ? 1 : 1.67326 * ex(x)), cam: [0, 0, 1],
+                    tags: ["self-normalising fixed point", "needs LeCun-normal init", "needs AlphaDropout"] },
+        softplus: { n: "Softplus", yr: "2001", c: C.sky,   eq: "ln(1 + eˣ)",
+                    f: softplus, d: sig, cam: [0, 0.5, 1.8],
+                    tags: ["C^∞ smooth", "strictly positive", "no sparsity", "f′ = σ(x)"] },
+        gelu:     { n: "GELU", yr: "2016", c: C.violet,    eq: "x·Φ(x) = x·½[1 + erf(x/√2)]",
+                    f: gelu, d: x => Phi(x) + x * phi(x), cam: [-1.3, -0.15, 2.2],
+                    tags: ["self-gating", "non-monotone dip at x ≈ −1.28", "smooth", "transformer default 2018–21"] },
+        silu:     { n: "SiLU / Swish", yr: "2017", c: C.violet, eq: "x·σ(βx),  β = 1",
+                    f: silu, d: x => { const s = sig(x); return s * (1 + x * (1 - s)); }, cam: [-1.3, -0.2, 2.2],
+                    tags: ["self-gating", "β → ∞ recovers ReLU", "the gate inside SwiGLU"] },
+        mish:     { n: "Mish", yr: "2019", c: C.violet,    eq: "x·tanh(softplus(x))",
+                    f: x => x * Math.tanh(softplus(x)), d: x => { const sp = softplus(x), t = Math.tanh(sp); return t + x * (1 - t * t) * sig(x); }, cam: [-1.5, -0.25, 2.2],
+                    tags: ["self-gating", "deeper negative dip", "used in YOLOv4+", "expensive"] },
+        hardswish:{ n: "Hard-Swish", yr: "2019", c: C.sky, eq: "x·ReLU6(x + 3)/6",
+                    f: x => x * clamp(x + 3, 0, 6) / 6, d: x => (x <= -3 ? 0 : x >= 3 ? 1 : (2 * x + 3) / 6), cam: [-1.5, -0.2, 2.2],
+                    tags: ["no exponential", "quantization-friendly", "MobileNetV3"] },
+        relu2:    { n: "Squared ReLU", yr: "2021", c: C.mint, eq: "max(0, x)²",
+                    f: x => (x > 0 ? x * x : 0), d: x => (x > 0 ? 2 * x : 0), cam: [0.4, 0.4, 2.4],
+                    tags: ["exactly sparse", "unbounded derivative", "x ⊙ ReLU(x): a tied gate", "Primer, Nemotron"] }
+      };
+
+      /* ---------- shared reel engine ---------- */
+      const reels = [];
+      class Reel {
+        constructor(host, spec) {
+          this.host = host; this.spec = spec; this.n = spec.stages.length;
+          this.dwell = spec.dwell || 2600; this.phase = 0; this.speed = 1;
+          this.wantPlay = !REDUCE; this.onScreen = false; this.tween = null; this.resumeAt = 0; this.lastTxt = "";
+          this.stageEl = host.querySelector(".animation-stage");
+          spec.build(this.stageEl, this);
+          this.buildControls();
+          this.render();
+          io.observe(host);
+          reels.push(this);
+        }
+        buildControls() {
+          const bar = document.createElement("div");
+          bar.className = "animation-controls"; bar.setAttribute("role", "group");
+          bar.setAttribute("aria-label", "Animation controls");
+          const mk = (label, attrs) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; for (const k in attrs) b.setAttribute(k, attrs[k]); bar.appendChild(b); return b; };
+          this.prevBtn = mk("Previous", { "data-action": "previous", "aria-label": "Previous stage" });
+          this.playBtn = mk(this.wantPlay ? "Pause" : "Play", { "data-action": "play-pause", "aria-label": this.wantPlay ? "Pause animation" : "Play animation", "aria-pressed": String(this.wantPlay) });
+          this.nextBtn = mk("Next", { "data-action": "next", "aria-label": "Next stage" });
+          this.speedBtns = [0.5, 1, 2].map(s => mk(s + "x", { "data-speed": String(s), "aria-label": "Play at " + s + " times speed", "aria-pressed": String(s === 1) }));
+          this.status = document.createElement("span");
+          this.status.className = "animation-status"; this.status.setAttribute("aria-live", "polite");
+          bar.appendChild(this.status);
+          this.prevBtn.onclick = () => this.step(-1);
+          this.nextBtn.onclick = () => this.step(1);
+          this.playBtn.onclick = () => this.setPlay(!this.wantPlay);
+          this.speedBtns.forEach(b => b.onclick = () => {
+            this.speed = parseFloat(b.dataset.speed);
+            this.speedBtns.forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+          });
+          this.stageEl.insertAdjacentElement("afterend", bar);
+        }
+        setPlay(v) {
+          this.wantPlay = v; this.resumeAt = 0;
+          this.playBtn.textContent = v ? "Pause" : "Play";
+          this.playBtn.setAttribute("aria-pressed", String(v));
+          this.playBtn.setAttribute("aria-label", v ? "Pause animation" : "Play animation");
+        }
+        step(dir) {
+          const was = this.wantPlay;
+          this.setPlay(false);
+          if (was) this.resumeAt = performance.now() + 14000; // gentle resume after manual browsing
+          const cur = this.phase;
+          const target = dir > 0 ? Math.floor(cur + 1e-6) + 1 : Math.ceil(cur - 1e-6) - 1;
+          if (REDUCE) { this.phase = ((target % this.n) + this.n) % this.n; this.tween = null; this.render(); }
+          else this.tween = { from: cur, to: target, t: 0, dur: 520 };
+        }
+        advance(dt) {
+          if (this.tween) {
+            this.tween.t += dt;
+            const k = easeIO(clamp(this.tween.t / this.tween.dur, 0, 1));
+            this.phase = lerp(this.tween.from, this.tween.to, k);
+            if (k >= 1) { this.phase = ((this.tween.to % this.n) + this.n) % this.n; this.tween = null; }
+            this.render(); return;
+          }
+          if (!(this.wantPlay && this.onScreen)) {
+            if (this.resumeAt && performance.now() > this.resumeAt) this.setPlay(true);
+            return;
+          }
+          this.phase += (dt / this.dwell) * this.speed;
+          while (this.phase >= this.n) this.phase -= this.n;
+          this.render();
+        }
+        render() {
+          const p = ((this.phase % this.n) + this.n) % this.n;
+          const i = Math.floor(p), u = p - i;
+          const extra = this.spec.draw(i, u, this) || "";
+          const txt = "Stage " + String(i + 1).padStart(2, "0") + " / " + this.n + (extra ? " · " + extra : "");
+          if (txt !== this.lastTxt) { this.status.textContent = txt; this.lastTxt = txt; }
+        }
+      }
+      const io = new IntersectionObserver(es => es.forEach(e => {
+        const r = reels.find(x => x.host === e.target); if (r) r.onScreen = e.intersectionRatio > 0.25;
+      }), { threshold: [0, 0.25, 0.6] });
+      let prev = performance.now();
+      (function loop(now) { const dt = Math.min(60, now - prev); prev = now; for (const r of reels) r.advance(dt); requestAnimationFrame(loop); })(prev);
+
+      const SPECS = {};
+
+      /* ================= FIG 01 — the atlas ================= */
+      SPECS.atlas = (() => {
+        const keys = ["sigmoid", "tanh", "relu", "leaky", "elu", "selu", "softplus", "gelu", "silu", "mish", "hardswish", "relu2"];
+        const W = 880, H = 440, L = 56, R = 604, T = 26, B = 396;
+        const XR = [-6, 6], YR = [-2.6, 4.4];
+        const px = x => L + ((x - XR[0]) / (XR[1] - XR[0])) * (R - L);
+        const py = y => B - ((y - YR[0]) / (YR[1] - YR[0])) * (B - T);
+        const N = 361;
+        const xs = Array.from({ length: N }, (_, k) => XR[0] + (k / (N - 1)) * (XR[1] - XR[0]));
+        let el = {};
+        const path = (fn) => { let d = ""; for (let k = 0; k < N; k++) { const y = clamp(fn(k), YR[0] - 0.4, YR[1] + 0.4); d += (k ? "L" : "M") + px(xs[k]).toFixed(2) + " " + py(y).toFixed(2); } return d; };
+        return {
+          stages: keys, dwell: 3200,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Activation function curves with derivatives" });
+            const defs = S("defs"); const cp = S("clipPath", { id: "atlas-clip" });
+            cp.appendChild(S("rect", { x: L - 2, y: T - 2, width: R - L + 4, height: B - T + 4 })); defs.appendChild(cp); svg.appendChild(defs);
+            const cam = S("g", { "clip-path": "url(#atlas-clip)" }); const inner = S("g"); cam.appendChild(inner); svg.appendChild(cam);
+            el.cam = inner;
+            for (let x = -6; x <= 6; x++) inner.appendChild(S("line", { x1: px(x), y1: T, x2: px(x), y2: B, stroke: C.grid, "stroke-width": 1, "vector-effect": "non-scaling-stroke" }));
+            for (let y = -2; y <= 4; y++) inner.appendChild(S("line", { x1: L, y1: py(y), x2: R, y2: py(y), stroke: C.grid, "stroke-width": 1, "vector-effect": "non-scaling-stroke" }));
+            inner.appendChild(S("line", { x1: L, y1: py(0), x2: R, y2: py(0), stroke: C.faint, "stroke-width": 1.4, "vector-effect": "non-scaling-stroke" }));
+            inner.appendChild(S("line", { x1: px(0), y1: T, x2: px(0), y2: B, stroke: C.faint, "stroke-width": 1.4, "vector-effect": "non-scaling-stroke" }));
+            el.dPath = S("path", { fill: "none", stroke: C.sky, "stroke-width": 2, "stroke-dasharray": "5 4", opacity: 0.85, "vector-effect": "non-scaling-stroke" });
+            el.fPath = S("path", { fill: "none", stroke: C.mint, "stroke-width": 3, "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" });
+            inner.appendChild(el.dPath); inner.appendChild(el.fPath);
+            el.dot = S("circle", { r: 4.5, fill: C.txt }); inner.appendChild(el.dot);
+            const fixed = S("g"); svg.appendChild(fixed);
+            el.xTicks = []; el.yTicks = [];
+            for (let x = -6; x <= 6; x++) { const t = S("text", { x: px(x), y: B + 20, fill: C.faint, "font-size": 11, "font-family": "IBM Plex Mono, monospace", "text-anchor": "middle" }); t.textContent = x; fixed.appendChild(t); el.xTicks.push({ t, v: x }); }
+            for (let y = -2; y <= 4; y++) { const t = S("text", { x: L - 10, y: py(y) + 4, fill: C.faint, "font-size": 11, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); t.textContent = y; fixed.appendChild(t); el.yTicks.push({ t, v: y }); }
+            const mkText = (x, y, size, fill, weight, family) => { const t = S("text", { x, y, fill, "font-size": size, "font-weight": weight || 400, "font-family": family || "Bricolage Grotesque, sans-serif" }); fixed.appendChild(t); return t; };
+            el.name = mkText(636, 62, 30, C.txt, 700);
+            el.year = mkText(636, 84, 11, C.dim, 600, "IBM Plex Mono, monospace");
+            el.eq = mkText(636, 118, 12.5, C.mint, 500, "IBM Plex Mono, monospace");
+            el.tags = [0, 1, 2, 3].map(k => mkText(650, 158 + k * 26, 11.5, C.dim, 400, "IBM Plex Mono, monospace"));
+            el.bullets = [0, 1, 2, 3].map(k => { const c = S("circle", { cx: 640, cy: 154 + k * 26, r: 3, fill: C.faint }); fixed.appendChild(c); return c; });
+            el.legend = mkText(636, 300, 11, C.mint, 600, "IBM Plex Mono, monospace"); el.legend.textContent = "——  f(x)";
+            el.legend2 = mkText(636, 320, 11, C.sky, 600, "IBM Plex Mono, monospace"); el.legend2.textContent = "- - -  f′(x)";
+            el.zoom = mkText(636, 356, 11, C.faint, 400, "IBM Plex Mono, monospace");
+            el.slope = mkText(636, 376, 11, C.faint, 400, "IBM Plex Mono, monospace");
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const a = ACT[keys[i]], b = ACT[keys[(i + 1) % keys.length]];
+            const e = seg(u, 0.22, 0.94);
+            el.fPath.setAttribute("d", path(k => lerp(a.f(xs[k]), b.f(xs[k]), e)));
+            el.dPath.setAttribute("d", path(k => lerp(a.d(xs[k]), b.d(xs[k]), e)));
+            el.fPath.setAttribute("stroke", e < 0.5 ? a.c : b.c);
+            const cx = lerp(a.cam[0], b.cam[0], e), cy = lerp(a.cam[1], b.cam[1], e);
+            const k = REDUCE ? 1 : lerp(a.cam[2], b.cam[2], e);
+            const ccx = (L + R) / 2, ccy = (T + B) / 2;
+            el.cam.setAttribute("transform", "translate(" + (ccx - k * px(cx)) + " " + (ccy - k * py(cy)) + ") scale(" + k + ")");
+            // tick labels live in screen space so they stay legible through the zoom
+            el.xTicks.forEach(o => { const sx = ccx + k * (px(o.v) - px(cx));
+              const step = Math.max(1, Math.round(2 / k));
+              const show = sx > L && sx < R && ((o.v % step === 0) || k > 1.8);
+              o.t.setAttribute("x", sx); o.t.setAttribute("opacity", show ? 1 : 0); });
+            el.yTicks.forEach(o => { const sy = ccy + k * (py(o.v) - py(cy));
+              o.t.setAttribute("y", sy + 4); o.t.setAttribute("opacity", sy > T && sy < B ? 1 : 0); });
+            const cur = e < 0.5 ? a : b;
+            const fx = -1.0, fy = lerp(a.f(fx), b.f(fx), e);
+            el.dot.setAttribute("cx", px(fx)); el.dot.setAttribute("cy", py(fy)); el.dot.setAttribute("fill", cur.c);
+            const fade = Math.abs(e - 0.5) < 0.28 ? 0.25 : 1;
+            el.name.textContent = cur.n; el.year.textContent = cur.yr;
+            el.eq.textContent = cur.eq; el.eq.setAttribute("fill", cur.c);
+            el.tags.forEach((t, q) => { t.textContent = cur.tags[q] || ""; t.setAttribute("opacity", fade); });
+            el.bullets.forEach((c, q) => { c.setAttribute("opacity", cur.tags[q] ? fade * 0.8 : 0); c.setAttribute("fill", cur.c); });
+            [el.name, el.year, el.eq].forEach(t => t.setAttribute("opacity", fade));
+            el.zoom.textContent = "camera  ×" + k.toFixed(2);
+            el.slope.textContent = "f′(−1) = " + lerp(a.d(-1), b.d(-1), e).toFixed(3);
+            return cur.n;
+          }
+        };
+      })();
+
+      /* ================= FIG 02 — vanishing gradients ================= */
+      SPECS.vanish = (() => {
+        const LAYERS = 18, W = 880, H = 400;
+        const rows = [
+          { k: "Sigmoid + Xavier", c: C.rose, f: 0.223 },
+          { k: "Tanh + Xavier", c: C.amber, f: 0.618 },
+          { k: "ReLU + He", c: C.mint, f: 0.985 }
+        ];
+        const rnd = mulberry32(7);
+        rows.forEach(r => { r.g = [1]; for (let l = 1; l <= LAYERS; l++) r.g.push(r.g[l - 1] * r.f * (0.9 + 0.2 * rnd())); });
+        const X0 = 190, BW = 28, GAP = 3;
+        const cxOf = l => X0 + l * (BW + GAP) + BW / 2;
+        const rowY = [96, 208, 320];
+        const barH = g => clamp((Math.log10(g) + 14) / 14, 0, 1) * 74;
+        const sci = g => { const e = Math.floor(Math.log10(g)); const m = g / Math.pow(10, e); return (g > 0.01 ? g.toFixed(3) : m.toFixed(1) + "e" + e); };
+        let el = {};
+        return {
+          stages: Array.from({ length: LAYERS }, (_, i) => "depth " + (i + 1)), dwell: 1000,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Gradient magnitude by depth for three activation choices" });
+            const t0 = S("text", { x: 18, y: 26, fill: C.dim, "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+            t0.textContent = "‹‹  backward pass  ‹‹   gradient norm relative to the loss, log scale"; svg.appendChild(t0);
+            el.bars = []; el.vals = [];
+            rows.forEach((r, ri) => {
+              const base = rowY[ri] + 38;
+              svg.appendChild(S("line", { x1: X0 - 8, y1: base, x2: X0 + LAYERS * (BW + GAP), y2: base, stroke: C.grid, "stroke-width": 1 }));
+              const lab = S("text", { x: 18, y: base - 30, fill: r.c, "font-size": 14, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" });
+              lab.textContent = r.k; svg.appendChild(lab);
+              const sub = S("text", { x: 18, y: base - 12, fill: C.faint, "font-size": 10.5, "font-family": "IBM Plex Mono, monospace" });
+              sub.textContent = "×" + r.f.toFixed(3) + " per layer"; svg.appendChild(sub);
+              const top = S("text", { x: X0 - 14, y: base - 74, fill: C.faint, "font-size": 9.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); top.textContent = "1e0"; svg.appendChild(top);
+              const bot = S("text", { x: X0 - 14, y: base + 3, fill: C.faint, "font-size": 9.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); bot.textContent = "1e-14"; svg.appendChild(bot);
+              const arr = [];
+              for (let l = 0; l < LAYERS; l++) {
+                const b = S("rect", { x: X0 + l * (BW + GAP), width: BW, y: base, height: 0, fill: r.c, opacity: 0.25 });
+                svg.appendChild(b); arr.push(b);
+              }
+              el.bars.push(arr);
+              const v = S("text", { x: X0 + LAYERS * (BW + GAP) + 14, y: base - 26, fill: r.c, "font-size": 12.5, "font-family": "IBM Plex Mono, monospace" });
+              svg.appendChild(v); el.vals.push(v);
+            });
+            el.pulse = rows.map((r, ri) => { const c = S("circle", { r: 6, fill: r.c, cy: rowY[ri] + 38 }); svg.appendChild(c); return c; });
+            el.track = S("rect", { y: 44, width: BW + 8, height: 320, fill: "#ffffff", opacity: 0.045 }); svg.insertBefore(el.track, svg.firstChild);
+            el.depth = S("text", { x: X0, y: H - 12, fill: C.dim, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }); svg.appendChild(el.depth);
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const e = seg(u, 0.05, 0.75);
+            const pos = i + e;
+            el.track.setAttribute("x", cxOf(Math.round(pos)) - (BW + 8) / 2);
+            rows.forEach((r, ri) => {
+              const base = rowY[ri] + 38;
+              el.bars[ri].forEach((b, l) => {
+                const on = l <= i ? 1 : 0;
+                const grow = l < i ? 1 : l === i ? e : 0;
+                const h = barH(r.g[l + 1]) * grow;
+                b.setAttribute("y", base - h); b.setAttribute("height", h);
+                b.setAttribute("opacity", on ? (l === i ? 0.95 : 0.42) : 0.12);
+              });
+              const cx = lerp(cxOf(i), cxOf(Math.min(i + 1, LAYERS - 1)), e);
+              el.pulse[ri].setAttribute("cx", cx);
+              el.pulse[ri].setAttribute("cy", base - barH(r.g[i + 1]) * e - 10);
+              el.vals[ri].textContent = sci(r.g[i + 1]);
+            });
+            el.depth.textContent = "layer " + (i + 1) + " of " + LAYERS + "  —  ratio ReLU : sigmoid  =  " + (rows[2].g[i + 1] / rows[0].g[i + 1]).toExponential(1);
+            return "depth " + (i + 1) + " · σ " + sci(rows[0].g[i + 1]) + " · ReLU " + sci(rows[2].g[i + 1]);
+          }
+        };
+      })();
+
+      /* ================= FIG 03 — dying ReLU ================= */
+      SPECS.dying = (() => {
+        const N = 60, COLS = 10, ROWS = 6, STAGES = 13, STEPS = 1200, TRACK = 34;
+        const rnd = mulberry32(41);
+        const units = Array.from({ length: N }, () => ({ m0: 0.55 + normal(rnd) * 0.75, s: 0.55 + rnd() * 0.35, drift: 0.0006 + rnd() * 0.0016 }));
+        const snapA = [], snapB = [];
+        {
+          const a = units.map(u => ({ m: u.m0, dead: false })), b = units.map(u => ({ m: u.m0 }));
+          const grab = () => {
+            snapA.push(a.map((v, j) => ({ r: v.dead ? 0 : Phi(v.m / units[j].s), dead: v.dead, m: v.m })));
+            snapB.push(b.map((v, j) => ({ r: clamp(Phi(v.m / units[j].s), 0.04, 1), dead: false, m: v.m })));
+          };
+          grab();
+          for (let t = 1; t <= STEPS; t++) {
+            for (let j = 0; j < N; j++) {
+              if (!a[j].dead) { a[j].m -= units[j].drift; if (Phi(a[j].m / units[j].s) < 0.012) a[j].dead = true; }
+              b[j].m -= units[j].drift * 0.62; if (b[j].m < 0) b[j].m += units[j].drift * 0.9; // the leak keeps pushing back
+            }
+            if (t % 100 === 0) grab();
+          }
+        }
+        const W = 880, H = 476, CELL = 36, PAD = 4, PA = 16, PB = 452;
+        let el = {};
+        return {
+          stages: Array.from({ length: STAGES }, (_, i) => "step " + i * 100), dwell: 1500,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Grid of units dying under ReLU versus leaky ReLU" });
+            const title = (x, txt, c) => { const t = S("text", { x, y: 22, fill: c, "font-size": 15, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" }); t.textContent = txt; svg.appendChild(t); return t; };
+            title(PA, "ReLU", C.rose); title(PB, "Leaky ReLU  (α = 0.1)", C.mint);
+            el.headA = S("text", { x: PA + 400, y: 22, fill: C.dim, "font-size": 11.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); svg.appendChild(el.headA);
+            el.headB = S("text", { x: PB + 400, y: 22, fill: C.dim, "font-size": 11.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); svg.appendChild(el.headB);
+            const grid = (ox) => {
+              const g = [];
+              for (let j = 0; j < N; j++) {
+                const c = j % COLS, r = (j / COLS) | 0;
+                const x = ox + c * (CELL + PAD), y = 36 + r * (CELL + PAD);
+                const rect = S("rect", { x, y, width: CELL, height: CELL, fill: C.mint, opacity: 0.2, rx: 2 });
+                svg.appendChild(rect);
+                const cross = S("path", { d: "M" + (x + 11) + " " + (y + 11) + "l14 14M" + (x + 25) + " " + (y + 11) + "l-14 14", stroke: "#4a555d", "stroke-width": 1.6, opacity: 0, fill: "none" });
+                svg.appendChild(cross);
+                g.push({ rect, cross, x, y });
+              }
+              return g;
+            };
+            el.gA = grid(PA); el.gB = grid(PB);
+            el.ring = S("rect", { width: CELL + 6, height: CELL + 6, fill: "none", stroke: C.amber, "stroke-width": 2, rx: 3 }); svg.appendChild(el.ring);
+            // dead-fraction chart
+            const CX = PA, CY = 300, CW = 400, CH = 130;
+            svg.appendChild(S("line", { x1: CX, y1: CY + CH, x2: CX + CW, y2: CY + CH, stroke: C.grid }));
+            svg.appendChild(S("line", { x1: CX, y1: CY, x2: CX, y2: CY + CH, stroke: C.grid }));
+            const cl = S("text", { x: CX, y: CY - 10, fill: C.dim, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }); cl.textContent = "dead units (%)"; svg.appendChild(cl);
+            const t100 = S("text", { x: CX - 8, y: CY + 5, fill: C.faint, "font-size": 9.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); t100.textContent = "40"; svg.appendChild(t100);
+            const t0 = S("text", { x: CX - 8, y: CY + CH + 4, fill: C.faint, "font-size": 9.5, "font-family": "IBM Plex Mono, monospace", "text-anchor": "end" }); t0.textContent = "0"; svg.appendChild(t0);
+            el.chartX = k => CX + (k / (STAGES - 1)) * CW;
+            el.chartY = v => CY + CH - clamp(v / 0.4, 0, 1) * CH;
+            el.lineA = S("path", { fill: "none", stroke: C.rose, "stroke-width": 2.4 }); svg.appendChild(el.lineA);
+            el.lineB = S("path", { fill: "none", stroke: C.mint, "stroke-width": 2.4 }); svg.appendChild(el.lineB);
+            // inset: tracked unit's pre-activation distribution
+            const IX = PB, IY = CY, IW = 400, IH = 130;
+            svg.appendChild(S("rect", { x: IX, y: IY - 24, width: IW, height: IH + 32, fill: "#121820", stroke: "#242c34" }));
+            const il = S("text", { x: IX + 12, y: IY - 8, fill: C.amber, "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+            il.textContent = "tracked unit #" + TRACK + " — pre-activation distribution"; svg.appendChild(il);
+            el.ix = v => IX + 40 + ((v + 4) / 8) * (IW - 70);
+            el.zeroLine = S("line", { x1: el.ix(0), y1: IY + 4, x2: el.ix(0), y2: IY + IH - 6, stroke: C.faint, "stroke-dasharray": "4 4" }); svg.appendChild(el.zeroLine);
+            const zt = S("text", { x: el.ix(0) + 6, y: IY + 16, fill: C.faint, "font-size": 10, "font-family": "IBM Plex Mono, monospace" }); zt.textContent = "0"; svg.appendChild(zt);
+            el.distFill = S("path", { fill: C.amber, opacity: 0.18 }); svg.appendChild(el.distFill);
+            el.dist = S("path", { fill: "none", stroke: C.amber, "stroke-width": 2 }); svg.appendChild(el.dist);
+            el.distTxt = S("text", { x: IX + 12, y: IY + IH + 2, fill: C.dim, "font-size": 10.5, "font-family": "IBM Plex Mono, monospace" }); svg.appendChild(el.distTxt);
+            el.IY = IY; el.IH = IH;
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const e = seg(u, 0.1, 0.9), j2 = Math.min(i + 1, STAGES - 1);
+            const A0 = snapA[i], A1 = snapA[j2], B0 = snapB[i], B1 = snapB[j2];
+            let deadA = 0;
+            el.gA.forEach((g, j) => {
+              const r = lerp(A0[j].r, A1[j].r, e), dead = A1[j].dead && e > 0.5 || A0[j].dead;
+              if (dead) deadA++;
+              g.rect.setAttribute("fill", dead ? "#161c22" : C.mint);
+              g.rect.setAttribute("opacity", dead ? 1 : 0.14 + 0.86 * r);
+              g.cross.setAttribute("opacity", dead ? 0.9 : 0);
+            });
+            el.gB.forEach((g, j) => {
+              const r = lerp(B0[j].r, B1[j].r, e);
+              g.rect.setAttribute("opacity", 0.14 + 0.86 * r);
+            });
+            const trk = el.gA[TRACK];
+            el.ring.setAttribute("x", trk.x - 3); el.ring.setAttribute("y", trk.y - 3);
+            el.headA.textContent = "dead " + deadA + " / " + N + "   firing " + (100 * A1.reduce((s, v) => s + v.r, 0) / N).toFixed(0) + "%";
+            el.headB.textContent = "dead 0 / " + N + "   firing " + (100 * B1.reduce((s, v) => s + v.r, 0) / N).toFixed(0) + "%";
+            const upto = i + e;
+            const mkLine = (snaps, key) => { let d = ""; for (let k = 0; k < STAGES; k++) { if (k > upto) break; const v = snaps[k].filter(key).length / N; d += (k ? "L" : "M") + el.chartX(k) + " " + el.chartY(v); } return d || "M0 0"; };
+            el.lineA.setAttribute("d", mkLine(snapA, v => v.dead));
+            el.lineB.setAttribute("d", mkLine(snapB, () => false));
+            const m = lerp(A0[TRACK].m, A1[TRACK].m, e), s = units[TRACK].s;
+            let d = "", d2 = "";
+            for (let k = 0; k <= 80; k++) {
+              const v = -4 + (k / 80) * 8, y = el.IY + el.IH - 8 - Math.exp(-((v - m) ** 2) / (2 * s * s)) * (el.IH - 26);
+              d += (k ? "L" : "M") + el.ix(v).toFixed(1) + " " + y.toFixed(1);
+            }
+            d2 = d + "L" + el.ix(4) + " " + (el.IY + el.IH - 8) + "L" + el.ix(-4) + " " + (el.IY + el.IH - 8) + "Z";
+            el.dist.setAttribute("d", d); el.distFill.setAttribute("d", d2);
+            const alive = !(A1[TRACK].dead && e > 0.5 || A0[TRACK].dead);
+            el.dist.setAttribute("stroke", alive ? C.amber : C.rose);
+            el.distTxt.textContent = "mean = " + m.toFixed(2) + "   P(fire) = " + (100 * Phi(m / s)).toFixed(1) + "%   " + (alive ? "alive — still receives gradient" : "DEAD — gradient is exactly 0, mean frozen");
+            return "step " + Math.round(lerp(i, j2, e) * 100) + " · ReLU dead " + deadA + "/" + N + " · leaky 0/" + N;
+          }
+        };
+      })();
+
+      /* ================= FIG 04 — GELU as an expected gate ================= */
+      SPECS.gelu = (() => {
+        const XS = Array.from({ length: 41 }, (_, k) => -3.5 + (k / 40) * 7);
+        const MS = [1, 2, 4, 8, 16, 32, 64, 128, 512];
+        const rnd = mulberry32(1337);
+        const keep = XS.map(x => { const p = Phi(x), draws = []; let c = 0; for (let t = 0; t < 512; t++) { c += rnd() < p ? 1 : 0; draws.push(c / (t + 1)); } return { p, draws }; });
+        const fracAt = (k, m) => keep[k].draws[m - 1];
+        const W = 880, H = 430, LX = [48, 412], RX = [500, 864], PY = [40, 330];
+        const lx = x => LX[0] + ((x + 3.5) / 7) * (LX[1] - LX[0]);
+        const ly = p => PY[1] - p * (PY[1] - PY[0]);
+        const rx = x => RX[0] + ((x + 3.5) / 7) * (RX[1] - RX[0]);
+        const ry = y => PY[1] - 34 - ((y + 0.4) / 4.0) * (PY[1] - PY[0] - 40);
+        const TRK = 26;
+        let el = {};
+        return {
+          stages: MS.map(m => m + " draws"), dwell: 2000,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Monte Carlo derivation of GELU from a Bernoulli gate" });
+            const txt = (x, y, t, c, sz, w, fam) => { const e = S("text", { x, y, fill: c, "font-size": sz || 11, "font-weight": w || 400, "font-family": fam || "IBM Plex Mono, monospace" }); e.textContent = t; svg.appendChild(e); return e; };
+            txt(LX[0], 22, "keep probability   Φ(x)", C.sky, 13, 700, "Bricolage Grotesque, sans-serif");
+            txt(RX[0], 22, "E[ x · Bernoulli(Φ(x)) ]", C.mint, 13, 700, "Bricolage Grotesque, sans-serif");
+            [[lx, ly, LX, 1], [rx, ry, RX, 0]].forEach(() => {});
+            svg.appendChild(S("line", { x1: LX[0], y1: ly(0), x2: LX[1], y2: ly(0), stroke: C.grid }));
+            svg.appendChild(S("line", { x1: lx(0), y1: PY[0], x2: lx(0), y2: PY[1], stroke: C.grid }));
+            svg.appendChild(S("line", { x1: RX[0], y1: ry(0), x2: RX[1], y2: ry(0), stroke: C.grid }));
+            svg.appendChild(S("line", { x1: rx(0), y1: PY[0], x2: rx(0), y2: PY[1], stroke: C.grid }));
+            txt(LX[0] - 8, ly(1) + 4, "1", C.faint, 10, 400); txt(LX[0] - 8, ly(0) + 4, "0", C.faint, 10, 400);
+            let dp = "", dg = "", dr = "";
+            for (let k = 0; k <= 160; k++) { const x = -3.5 + (k / 160) * 7;
+              dp += (k ? "L" : "M") + lx(x).toFixed(1) + " " + ly(Phi(x)).toFixed(1);
+              dg += (k ? "L" : "M") + rx(x).toFixed(1) + " " + ry(gelu(x)).toFixed(1);
+              dr += (k ? "L" : "M") + rx(x).toFixed(1) + " " + ry(Math.max(0, x)).toFixed(1); }
+            svg.appendChild(S("path", { d: dp, fill: "none", stroke: C.sky, "stroke-width": 2.4 }));
+            svg.appendChild(S("path", { d: dr, fill: "none", stroke: C.faint, "stroke-width": 1.6, "stroke-dasharray": "5 4" }));
+            svg.appendChild(S("path", { d: dg, fill: "none", stroke: C.mint, "stroke-width": 2.6, opacity: 0.55 }));
+            el.pd = XS.map((x, k) => { const c = S("circle", { cx: lx(x), cy: ly(0), r: 3.4, fill: C.sky, opacity: 0.9 }); svg.appendChild(c); return c; });
+            el.gd = XS.map((x, k) => { const c = S("circle", { cx: rx(x), cy: ry(0), r: 3.6, fill: C.amber }); svg.appendChild(c); return c; });
+            el.trkLine = S("line", { y1: PY[0], y2: PY[1], stroke: C.amber, "stroke-width": 1, opacity: 0.35 }); svg.appendChild(el.trkLine);
+            el.coins = Array.from({ length: 16 }, (_, k) => { const c = S("rect", { x: LX[0] + 6 + k * 16, y: 356, width: 11, height: 11, fill: C.faint, rx: 2 }); svg.appendChild(c); return c; });
+            el.coinLab = txt(LX[0] + 6, 350, "", C.dim, 10.5);
+            el.mLab = txt(RX[0], 356, "", C.mint, 12.5, 600);
+            el.errLab = txt(RX[0], 376, "", C.dim, 11);
+            el.legend = txt(RX[0], 396, "dashed = ReLU's hard gate   ·   pale green = exact GELU", C.faint, 10.5);
+            el.note = txt(LX[0], 396, "each dot = running keep-fraction at that x", C.faint, 10.5);
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const e = seg(u, 0.15, 0.9), m0 = MS[i], m1 = MS[Math.min(i + 1, MS.length - 1)];
+            let err = 0;
+            XS.forEach((x, k) => {
+              const f = lerp(fracAt(k, m0), fracAt(k, m1), e);
+              el.pd[k].setAttribute("cy", ly(f));
+              el.gd[k].setAttribute("cy", ry(x * f));
+              err += Math.abs(x * f - gelu(x));
+            });
+            err /= XS.length;
+            const mNow = Math.round(lerp(m0, m1, e));
+            el.trkLine.setAttribute("x1", lx(XS[TRK])); el.trkLine.setAttribute("x2", lx(XS[TRK]));
+            const p = keep[TRK].p;
+            const seed = mulberry32(9000 + i * 17 + Math.floor(u * 6));
+            el.coins.forEach((c, k) => { const kept = seed() < p; c.setAttribute("fill", k < Math.min(mNow, 16) ? (kept ? C.mint : "#39454e") : "#1a2128"); });
+            el.coinLab.textContent = "draws at x = " + XS[TRK].toFixed(2) + "   Φ = " + p.toFixed(3) + "   (kept = green)";
+            el.mLab.textContent = "m = " + mNow + " draws per point";
+            el.errLab.textContent = "mean |estimate − GELU| = " + err.toFixed(4);
+            return m0 + " draws · err " + err.toFixed(3);
+          }
+        };
+      })();
+
+      /* ================= FIG 05 — derivative tracker ================= */
+      SPECS.tracker = (() => {
+        const keys = ["sigmoid", "tanh", "relu", "gelu", "silu", "mish"];
+        const W = 880, H = 452, PX = [64, 826];
+        const TY = [34, 236], DY = [268, 408];
+        const fx = x => PX[0] + ((x + 5) / 10) * (PX[1] - PX[0]);
+        const fy = y => TY[1] - ((y + 1.6) / 5.1) * (TY[1] - TY[0]);
+        const dy = y => DY[1] - ((y + 0.35) / 1.75) * (DY[1] - DY[0]);
+        let el = {};
+        const curve = (fn, my) => { let d = ""; for (let k = 0; k <= 300; k++) { const x = -5 + (k / 300) * 10; d += (k ? "L" : "M") + fx(x).toFixed(1) + " " + my(clamp(fn(x), -9, 9)).toFixed(1); } return d; };
+        return {
+          stages: keys, dwell: 4200,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Tangent line sweeping across an activation curve with its derivative" });
+            const t = (x, y, s, c, sz, w, fam) => { const e = S("text", { x, y, fill: c, "font-size": sz || 11, "font-weight": w || 400, "font-family": fam || "IBM Plex Mono, monospace" }); e.textContent = s; svg.appendChild(e); return e; };
+            el.band = S("rect", { y: TY[0] - 4, width: 54, height: DY[1] - TY[0] + 8, fill: "#ffffff", opacity: 0.05 }); svg.appendChild(el.band);
+            [[TY, fy, [-1, 0, 1, 2, 3]], [DY, dy, [0, 0.5, 1]]].forEach(([yr, my, ticks]) => {
+              ticks.forEach(v => { svg.appendChild(S("line", { x1: PX[0], y1: my(v), x2: PX[1], y2: my(v), stroke: v === 0 ? C.faint : C.grid, "stroke-width": v === 0 ? 1.3 : 1 }));
+                t(PX[0] - 10, my(v) + 4, String(v), C.faint, 10, 400).setAttribute("text-anchor", "end"); });
+              svg.appendChild(S("line", { x1: fx(0), y1: yr[0], x2: fx(0), y2: yr[1], stroke: C.faint, "stroke-width": 1.1 }));
+            });
+            for (let x = -4; x <= 4; x += 2) t(fx(x), DY[1] + 18, String(x), C.faint, 10, 400).setAttribute("text-anchor", "middle");
+            el.tanLine = S("line", { stroke: C.amber, "stroke-width": 2, "stroke-dasharray": "6 4" }); svg.appendChild(el.tanLine);
+            el.fCurve = S("path", { fill: "none", stroke: C.mint, "stroke-width": 3 }); svg.appendChild(el.fCurve);
+            el.dCurve = S("path", { fill: "none", stroke: C.sky, "stroke-width": 2.6 }); svg.appendChild(el.dCurve);
+            el.dFill = S("path", { fill: C.sky, opacity: 0.1 }); svg.appendChild(el.dFill);
+            el.guide = S("line", { y1: TY[0], y2: DY[1], stroke: C.amber, "stroke-width": 1.2, opacity: 0.6 }); svg.appendChild(el.guide);
+            el.p1 = S("circle", { r: 6, fill: C.mint, stroke: C.deep, "stroke-width": 2 }); svg.appendChild(el.p1);
+            el.p2 = S("circle", { r: 6, fill: C.sky, stroke: C.deep, "stroke-width": 2 }); svg.appendChild(el.p2);
+            el.title = t(PX[0], 22, "", C.txt, 17, 700, "Bricolage Grotesque, sans-serif");
+            el.eq = t(PX[0] + 200, 22, "", C.mint, 12, 500);
+            el.read = t(PX[1], 22, "", C.amber, 12.5, 600); el.read.setAttribute("text-anchor", "end");
+            t(PX[0], DY[0] - 10, "f′(x)", C.sky, 12, 600);
+            el.slopeTxt = t(PX[1], DY[0] - 10, "", C.dim, 11, 400); el.slopeTxt.setAttribute("text-anchor", "end");
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const a = ACT[keys[i]];
+            const x0 = -5 + u * 10;
+            el.fCurve.setAttribute("d", curve(a.f, fy)); el.fCurve.setAttribute("stroke", a.c);
+            el.dCurve.setAttribute("d", curve(a.d, dy));
+            el.dFill.setAttribute("d", curve(a.d, dy) + "L" + fx(5) + " " + dy(0) + "L" + fx(-5) + " " + dy(0) + "Z");
+            const y0 = a.f(x0), s0 = a.d(x0);
+            el.p1.setAttribute("cx", fx(x0)); el.p1.setAttribute("cy", fy(clamp(y0, -9, 9))); el.p1.setAttribute("fill", a.c);
+            el.p2.setAttribute("cx", fx(x0)); el.p2.setAttribute("cy", dy(clamp(s0, -9, 9)));
+            el.guide.setAttribute("x1", fx(x0)); el.guide.setAttribute("x2", fx(x0));
+            el.band.setAttribute("x", clamp(fx(x0) - 27, PX[0] - 2, PX[1] - 52));
+            const xa = clamp(x0 - 1.5, -5, 5), xb = clamp(x0 + 1.5, -5, 5);
+            el.tanLine.setAttribute("x1", fx(xa)); el.tanLine.setAttribute("y1", fy(clamp(y0 + s0 * (xa - x0), -9, 9)));
+            el.tanLine.setAttribute("x2", fx(xb)); el.tanLine.setAttribute("y2", fy(clamp(y0 + s0 * (xb - x0), -9, 9)));
+            el.title.textContent = a.n; el.title.setAttribute("fill", a.c); el.eq.textContent = a.eq;
+            el.read.textContent = "x = " + x0.toFixed(2) + "   f = " + y0.toFixed(3) + "   f′ = " + s0.toFixed(3);
+            el.slopeTxt.textContent = "max f′ ≈ " + Math.max(...Array.from({ length: 400 }, (_, k) => a.d(-5 + k / 40))).toFixed(3);
+            return a.n + " · x = " + x0.toFixed(2);
+          }
+        };
+      })();
+
+      /* ================= FIG 06 — building a SwiGLU block ================= */
+      SPECS.glu = (() => {
+        const W = 880, H = 452, D = 4096;
+        const STAGES = ["Vanilla FFN — two matmuls", "Add a second projection: the gate", "Squash the gate with SiLU",
+                        "Multiply elementwise", "Project back down", "Rebalance the budget: h = 8d/3", "The variant family"];
+        const VARIANTS = [["Bilinear", "(xW) ⊙ (xV)", "no nonlinearity — still beats ReLU FFN"],
+                          ["ReGLU", "ReLU(xW) ⊙ (xV)", "sparse gate, cheapest"],
+                          ["GEGLU", "GELU(xW) ⊙ (xV)", "T5 v1.1, Flan-T5, Gemma 1/2/3"],
+                          ["SwiGLU", "SiLU(xW) ⊙ (xV)", "PaLM, Llama, Mistral, Qwen, DeepSeek, OLMo"]];
+        let el = {};
+        const box = (svg, x, y, w, h, title, sub, c) => {
+          const g = S("g");
+          g.appendChild(S("rect", { x, y, width: w, height: h, fill: "#141b21", stroke: c, "stroke-width": 1.6, rx: 3 }));
+          const t = S("text", { x: x + w / 2, y: y + h / 2 - 3, fill: c, "font-size": 13, "font-weight": 700, "text-anchor": "middle", "font-family": "Bricolage Grotesque, sans-serif" });
+          t.textContent = title; g.appendChild(t);
+          const s = S("text", { x: x + w / 2, y: y + h / 2 + 13, fill: C.dim, "font-size": 9.5, "text-anchor": "middle", "font-family": "IBM Plex Mono, monospace" });
+          s.textContent = sub; g.appendChild(s); svg.appendChild(g);
+          return { g, t, s };
+        };
+        return {
+          stages: STAGES, dwell: 3000,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Dataflow of a gated feed-forward block" });
+            el.edges = {}; el.pack = {};
+            const edge = (name, d, c) => {
+              const p = S("path", { d, fill: "none", stroke: c, "stroke-width": 2, opacity: 0 }); svg.appendChild(p);
+              const dots = [0, 1, 2].map(() => { const q = S("circle", { r: 3.2, fill: c, opacity: 0 }); svg.appendChild(q); return q; });
+              el.edges[name] = p; el.pack[name] = dots;
+            };
+            edge("xu", "M118 214 C150 214 150 132 172 132", C.sky);
+            edge("xg", "M118 226 C150 226 150 314 172 314", C.amber);
+            edge("ua", "M300 132 L340 132", C.sky);
+            edge("ga", "M300 314 L340 314", C.amber);
+            edge("am", "M436 132 C480 132 486 190 492 206", C.sky);
+            edge("gm", "M436 314 C480 314 486 258 492 238", C.amber);
+            edge("md", "M528 222 L572 222", C.mint);
+            edge("do", "M700 222 L748 222", C.mint);
+            el.inBox = box(svg, 28, 194, 90, 52, "x", "[B, T, 4096]", C.txt);
+            el.upBox = box(svg, 172, 108, 128, 50, "W_up", "4096 → 16384", C.sky);
+            el.gateBox = box(svg, 172, 290, 128, 50, "W_gate", "4096 → 16384", C.amber);
+            el.upAct = box(svg, 340, 108, 96, 50, "ReLU", "elementwise", C.sky);
+            el.gateAct = box(svg, 340, 290, 96, 50, "SiLU", "x·σ(x)", C.amber);
+            el.downBox = box(svg, 572, 197, 128, 50, "W_down", "16384 → 4096", C.mint);
+            el.outBox = box(svg, 748, 196, 90, 52, "out", "[B, T, 4096]", C.txt);
+            el.mulG = S("g"); svg.appendChild(el.mulG);
+            el.mulG.appendChild(S("circle", { cx: 510, cy: 222, r: 25, fill: "#141b21", stroke: C.mint, "stroke-width": 1.8 }));
+            const mt = S("text", { x: 510, y: 229, fill: C.mint, "font-size": 20, "text-anchor": "middle", "font-family": "IBM Plex Mono, monospace" }); mt.textContent = "⊙"; el.mulG.appendChild(mt);
+            el.pulse = S("circle", { cx: 510, cy: 222, r: 25, fill: "none", stroke: C.mint, "stroke-width": 2, opacity: 0 }); svg.appendChild(el.pulse);
+            el.caption = S("text", { x: 28, y: 30, fill: C.txt, "font-size": 17, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" }); svg.appendChild(el.caption);
+            el.params = S("text", { x: 28, y: 400, fill: C.dim, "font-size": 12, "font-family": "IBM Plex Mono, monospace" }); svg.appendChild(el.params);
+            el.params2 = S("text", { x: 28, y: 422, fill: C.faint, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }); svg.appendChild(el.params2);
+            el.varG = S("g", { opacity: 0 }); svg.appendChild(el.varG);
+            el.varG.appendChild(S("rect", { x: 60, y: 60, width: 760, height: 300, fill: "#0d1216", stroke: "#2c363f", "stroke-width": 1 }));
+            VARIANTS.forEach((v, k) => {
+              const y = 116 + k * 62;
+              const a = S("text", { x: 92, y, fill: [C.faint, C.mint, C.violet, C.amber][k], "font-size": 17, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" }); a.textContent = v[0]; el.varG.appendChild(a);
+              const b = S("text", { x: 240, y, fill: C.txt, "font-size": 13.5, "font-family": "IBM Plex Mono, monospace" }); b.textContent = v[1]; el.varG.appendChild(b);
+              const c = S("text", { x: 240, y: y + 18, fill: C.dim, "font-size": 10.5, "font-family": "IBM Plex Mono, monospace" }); c.textContent = v[2]; el.varG.appendChild(c);
+            });
+            const vt = S("text", { x: 92, y: 90, fill: C.dim, "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+            vt.textContent = "all four beat the ungated FFN in Shazeer (2020) at matched parameter count"; el.varG.appendChild(vt);
+            host.appendChild(svg);
+          },
+          draw(i, u, reel) {
+            const at = k => clamp(i + seg(u, 0.15, 0.85) - k, 0, 1);
+            const showGate = at(1), showSilu = at(2), showMul = at(3), showDown = at(4), rebal = at(5), showVar = at(6);
+            const h = Math.round(lerp(16384, 11008, rebal));
+            const on = (name, v) => { el.edges[name].setAttribute("opacity", v * 0.9);
+              const p = el.edges[name], len = p.getTotalLength ? p.getTotalLength() : 0;
+              el.pack[name].forEach((q, k) => {
+                if (v < 0.2 || !len) { q.setAttribute("opacity", 0); return; }
+                const t = ((reel.phase * 0.9 + k / 3) % 1);
+                const pt = p.getPointAtLength(t * len);
+                q.setAttribute("cx", pt.x); q.setAttribute("cy", pt.y); q.setAttribute("opacity", v * (REDUCE ? 0.6 : 0.9));
+              });
+            };
+            on("xu", 1); on("ua", 1 - showMul * 0); on("xg", showGate); on("ga", showSilu);
+            on("am", showMul); on("gm", showMul); on("md", showDown); on("do", showDown);
+            el.gateBox.g.setAttribute("opacity", showGate);
+            el.gateAct.g.setAttribute("opacity", showSilu);
+            el.mulG.setAttribute("opacity", showMul);
+            el.downBox.g.setAttribute("opacity", showDown); el.outBox.g.setAttribute("opacity", showDown);
+            el.upAct.g.setAttribute("opacity", 1 - showGate * 0.82);
+            el.upAct.t.textContent = showGate > 0.5 ? "identity" : "ReLU";
+            el.upAct.s.textContent = showGate > 0.5 ? "the value path is linear" : "elementwise";
+            el.upBox.s.textContent = "4096 → " + h;
+            el.gateBox.s.textContent = "4096 → " + h;
+            el.downBox.s.textContent = h + " → 4096";
+            if (!REDUCE && showMul > 0.5) {
+              const t = (reel.phase * 1.6) % 1;
+              el.pulse.setAttribute("r", 25 + t * 22); el.pulse.setAttribute("opacity", (1 - t) * 0.5);
+            } else el.pulse.setAttribute("opacity", 0);
+            el.caption.textContent = STAGES[i];
+            const nMat = showGate > 0.5 ? 3 : 2;
+            const params = nMat * D * h;
+            el.params.textContent = nMat + " matmuls · h = " + h + " (" + (h / D).toFixed(3) + "d) · params = " + nMat + "·" + D + "·" + h + " = " + (params / 1e6).toFixed(1) + "M per block";
+            el.params2.textContent = rebal > 0.4
+              ? "8d/3 = 10922.7 → rounded up to a multiple of 256 → 11008.  Parameter count now matches the ungated block to within 1%."
+              : "A gated block needs a third matrix, so hold h fixed and you have spent 50% more parameters.";
+            el.varG.setAttribute("opacity", showVar);
+            return STAGES[i];
+          }
+        };
+      })();
+
+      /* ================= FIG 07 — the gated surface ================= */
+      SPECS.surface = (() => {
+        const FIELDS = [
+          { n: "ReLU(a)", f: (a, b) => Math.max(0, a), note: "the gate axis is ignored — vertical contours" },
+          { n: "SiLU(a)", f: (a, b) => silu(a), note: "smoother, still one-dimensional" },
+          { n: "a ⊙ b  (bilinear)", f: (a, b) => a * b, note: "pure multiplication — a saddle" },
+          { n: "a ⊙ SiLU(b)  (SwiGLU)", f: (a, b) => a * silu(b), note: "the gate rescales the value path" },
+          { n: "a ⊙ SiLU(b) — slicing", f: (a, b) => a * silu(b), note: "hold b fixed: the induced 1-D map is a line whose slope the gate sets" }
+        ];
+        const GW = 132, GH = 84, PW = 660, PH = 420, LEFT = 74, TOP = 22;
+        const W = 880, H = 470;
+        const ar = c => -3 + (c / (GW - 1)) * 6, br = r => 3 - (r / (GH - 1)) * 6;
+        let cv, ctx, el = {}, dpr = Math.min(2, window.devicePixelRatio || 1);
+        const mix = (c1, c2, t) => c1.map((v, k) => Math.round(lerp(v, c2[k], t)));
+        const DEEP = [11, 15, 19], POS = [63, 209, 160], NEG = [239, 111, 108];
+        return {
+          stages: FIELDS.map(f => f.n), dwell: 3200,
+          build(host) {
+            host.innerHTML = "";
+            const wrap = document.createElement("div"); wrap.style.position = "relative";
+            cv = document.createElement("canvas");
+            cv.width = W * dpr; cv.height = H * dpr; cv.style.width = "100%"; cv.style.aspectRatio = W + " / " + H;
+            cv.setAttribute("role", "img"); cv.setAttribute("aria-label", "Heatmap of the output surface over the value and gate axes");
+            ctx = cv.getContext("2d"); ctx.scale(dpr, dpr);
+            wrap.appendChild(cv); host.appendChild(wrap);
+            el.ok = true;
+          },
+          draw(i, u) {
+            const A = FIELDS[i], B = FIELDS[(i + 1) % FIELDS.length], e = seg(u, 0.2, 0.9);
+            ctx.clearRect(0, 0, W, H);
+            const cw = PW / GW, ch = (PH - 60) / GH;
+            for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+              const a = ar(c), b = br(r);
+              const v = lerp(A.f(a, b), B.f(a, b), e);
+              const t = clamp(v / 3, -1, 1);
+              const col = t >= 0 ? mix(DEEP, POS, t) : mix(DEEP, NEG, -t);
+              ctx.fillStyle = "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")";
+              ctx.fillRect(LEFT + c * cw - 0.5, TOP + 30 + r * ch - 0.5, cw + 1.5, ch + 1.5);
+            }
+            ctx.strokeStyle = "rgba(255,255,255,0.16)"; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(LEFT, TOP + 30 + (PH - 60) / 2); ctx.lineTo(LEFT + PW, TOP + 30 + (PH - 60) / 2);
+            ctx.moveTo(LEFT + PW / 2, TOP + 30); ctx.lineTo(LEFT + PW / 2, TOP + 30 + PH - 60); ctx.stroke();
+            ctx.font = "700 16px 'Bricolage Grotesque', sans-serif"; ctx.fillStyle = "#e4eaee";
+            ctx.fillText(e < 0.5 ? A.n : B.n, LEFT, TOP + 16);
+            ctx.font = "11px 'IBM Plex Mono', monospace"; ctx.fillStyle = "#93a0a8";
+            ctx.fillText(e < 0.5 ? A.note : B.note, LEFT + 250, TOP + 15);
+            ctx.fillStyle = "#5d6a73";
+            ctx.save(); ctx.translate(LEFT - 46, TOP + 30 + (PH - 60) / 2); ctx.rotate(-Math.PI / 2);
+            ctx.textAlign = "center"; ctx.fillText("gate input  b", 0, 0); ctx.restore();
+            ctx.textAlign = "center"; ctx.fillText("value input  a", LEFT + PW / 2, TOP + PH + 8);
+            ctx.textAlign = "right"; ctx.fillText("+3", LEFT - 8, TOP + 42); ctx.fillText("0", LEFT - 8, TOP + 30 + (PH - 60) / 2 + 4); ctx.fillText("−3", LEFT - 8, TOP + PH - 32);
+            ctx.textAlign = "left";
+            // colour bar
+            for (let k = 0; k <= 100; k++) {
+              const t = -1 + (k / 100) * 2, col = t >= 0 ? mix(DEEP, POS, t) : mix(DEEP, NEG, -t);
+              ctx.fillStyle = "rgb(" + col[0] + "," + col[1] + "," + col[2] + ")";
+              ctx.fillRect(LEFT + PW + 34, TOP + PH - 40 - k * 3, 22, 3.4);
+            }
+            ctx.fillStyle = "#5d6a73"; ctx.fillText("+3", LEFT + PW + 62, TOP + PH - 336); ctx.fillText("0", LEFT + PW + 62, TOP + PH - 186); ctx.fillText("−3", LEFT + PW + 62, TOP + PH - 34);
+            let status = (e < 0.5 ? A : B).n;
+            if (i === 4) {
+              const bSlice = 3 - (u * 6);
+              const yy = TOP + 30 + ((3 - bSlice) / 6) * (PH - 60);
+              ctx.strokeStyle = "#f2b544"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+              ctx.beginPath(); ctx.moveTo(LEFT, yy); ctx.lineTo(LEFT + PW, yy); ctx.stroke(); ctx.setLineDash([]);
+              ctx.beginPath();
+              for (let c = 0; c < GW; c++) {
+                const a = ar(c), v = a * silu(bSlice);
+                const y = TOP + 30 + (PH - 60) / 2 - clamp(v / 3, -1.05, 1.05) * ((PH - 60) / 2);
+                c ? ctx.lineTo(LEFT + c * cw, y) : ctx.moveTo(LEFT + c * cw, y);
+              }
+              ctx.strokeStyle = "#f2b544"; ctx.lineWidth = 2.6; ctx.stroke();
+              ctx.font = "600 12px 'IBM Plex Mono', monospace"; ctx.fillStyle = "#f2b544";
+              ctx.fillText("b = " + bSlice.toFixed(2) + "   →   gate SiLU(b) = " + silu(bSlice).toFixed(3) + "   →   output = " + silu(bSlice).toFixed(3) + "·a", LEFT, TOP + PH + 30);
+              status = "slice b = " + bSlice.toFixed(2);
+            }
+            return status;
+          }
+        };
+      })();
+
+      /* ================= FIG 08 — where the zeros go ================= */
+      SPECS.sparsity = (() => {
+        const NS_ = 6000, rnd = mulberry32(2024);
+        const pre = [], gate = [];
+        for (let k = 0; k < NS_; k++) {
+          const heavy = rnd() < 0.05 ? 3.2 : 1;
+          pre.push(normal(rnd) * 1.15 * heavy);
+          gate.push(normal(rnd) * 1.15 * (rnd() < 0.05 ? 3.2 : 1));
+        }
+        const FN = [
+          { n: "ReLU", c: C.mint, f: (k) => Math.max(0, pre[k]), note: "structural zeros a kernel can skip" },
+          { n: "GELU", c: C.violet, f: (k) => pre[k] * Math.max(Phi(pre[k]), 1e-9), note: "near-zero mass, but no exact zeros" },
+          { n: "SiLU", c: C.violet, f: (k) => silu(pre[k]), note: "same story as GELU" },
+          { n: "Squared ReLU", c: C.mint, f: (k) => (pre[k] > 0 ? pre[k] * pre[k] : 0), note: "sparse and heavy-tailed at once" },
+          { n: "SwiGLU  a ⊙ SiLU(b)", c: C.amber, f: (k) => pre[k] * silu(gate[k]), note: "a product of two projections — the fattest tail" },
+          { n: "threshold sweep", c: C.sky, f: (k) => pre[k] * silu(gate[k]), note: "how much mass sits within ε of zero?" }
+        ];
+        const BINS = 67, LO = -3.0, HI = 6.0;
+        const hists = FN.map(fn => {
+          const h = new Array(BINS).fill(0); let zero = 0;
+          for (let k = 0; k < NS_; k++) { const v = fn.f(k); if (Math.abs(v) < 1e-12) zero++;
+            const b = clamp(Math.floor(((v - LO) / (HI - LO)) * BINS), 0, BINS - 1); h[b]++; }
+          const mx = Math.max(...h);
+          return { h: h.map(v => v / mx), zero: zero / NS_, raw: FN.indexOf(fn) };
+        });
+        const nearZero = (fi, eps) => { let c = 0; for (let k = 0; k < NS_; k++) if (Math.abs(FN[fi].f(k)) < eps) c++; return c / NS_; };
+        const W = 880, H = 430, PX = [58, 600], PY = [66, 336];
+        let el = {};
+        return {
+          stages: FN.map(f => f.n), dwell: 2800,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Histogram of post-activation values with sparsity readouts" });
+            const t = (x, y, s, c, sz, w, fam) => { const e = S("text", { x, y, fill: c, "font-size": sz || 11, "font-weight": w || 400, "font-family": fam || "IBM Plex Mono, monospace" }); e.textContent = s; svg.appendChild(e); return e; };
+            svg.appendChild(S("line", { x1: PX[0], y1: PY[1], x2: PX[1], y2: PY[1], stroke: C.grid }));
+            const zx = PX[0] + ((0 - LO) / (HI - LO)) * (PX[1] - PX[0]);
+            svg.appendChild(S("line", { x1: zx, y1: PY[0], x2: zx, y2: PY[1], stroke: C.faint, "stroke-dasharray": "4 4" }));
+            t(zx - 4, PY[1] + 18, "0", C.faint, 10).setAttribute("text-anchor", "end");
+            for (const v of [-2, 2, 4, 6]) { const x = PX[0] + ((v - LO) / (HI - LO)) * (PX[1] - PX[0]); t(x, PY[1] + 18, String(v), C.faint, 10).setAttribute("text-anchor", "middle"); }
+            el.epsBand = S("rect", { y: PY[0], height: PY[1] - PY[0], fill: C.sky, opacity: 0 }); svg.appendChild(el.epsBand);
+            const bw = (PX[1] - PX[0]) / BINS;
+            el.bars = Array.from({ length: BINS }, (_, b) => { const r = S("rect", { x: PX[0] + b * bw + 0.6, width: bw - 1.2, y: PY[1], height: 0, fill: C.mint }); svg.appendChild(r); return r; });
+            el.title = t(PX[0], 30, "", C.txt, 18, 700, "Bricolage Grotesque, sans-serif");
+            el.note = t(PX[0], 50, "", C.dim, 11.5);
+            el.axis = t(PX[0], PY[1] + 40, "post-activation value   ·   bar heights on a compressed scale so the tail stays visible", C.faint, 10.5);
+            // stats panel
+            const SX = 636;
+            svg.appendChild(S("rect", { x: SX - 16, y: 60, width: 260, height: 300, fill: "#121820", stroke: "#242c34" }));
+            el.zeroBig = t(SX, 118, "", C.mint, 40, 700, "Bricolage Grotesque, sans-serif");
+            t(SX, 138, "exact zeros (bit-for-bit)", C.dim, 10.5);
+            el.gauge = S("rect", { x: SX, y: 152, width: 0, height: 10, fill: C.mint });
+            svg.appendChild(S("rect", { x: SX, y: 152, width: 220, height: 10, fill: "#1d252c" })); svg.appendChild(el.gauge);
+            el.rows = [0, 1, 2, 3, 4].map(k => ({
+              n: t(SX, 200 + k * 30, FN[k].n.split(" ")[0], C.dim, 11),
+              v: t(SX + 220, 200 + k * 30, "", C.txt, 11.5, 600)
+            }));
+            el.rows.forEach(r => r.v.setAttribute("text-anchor", "end"));
+            el.rowsHead = t(SX, 180, "fraction with |a| < ε", C.faint, 10.5);
+            el.eps = t(SX, 348, "", C.sky, 11.5, 600);
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const e = seg(u, 0.2, 0.9), j2 = (i + 1) % FN.length;
+            const A = hists[i], B = hists[j2];
+            const col = e < 0.5 ? FN[i].c : FN[j2].c;
+            el.bars.forEach((r, b) => {
+              const v = lerp(A.h[b], B.h[b], e), h = Math.pow(clamp(v, 0, 1), 0.4) * (PY[1] - PY[0]);
+              r.setAttribute("y", PY[1] - h); r.setAttribute("height", h); r.setAttribute("fill", col); r.setAttribute("opacity", 0.85);
+            });
+            const cur = e < 0.5 ? i : j2;
+            el.title.textContent = FN[cur].n; el.title.setAttribute("fill", FN[cur].c);
+            el.note.textContent = FN[cur].note;
+            const z = lerp(A.zero, B.zero, e);
+            el.zeroBig.textContent = (100 * z).toFixed(1) + "%";
+            el.zeroBig.setAttribute("fill", z > 0.05 ? C.mint : C.rose);
+            el.gauge.setAttribute("width", 220 * z); el.gauge.setAttribute("fill", z > 0.05 ? C.mint : C.rose);
+            const eps = i === 5 ? 0.02 + u * 0.48 : 0.05;
+            el.rows.forEach((r, k) => { const f = nearZero(k, eps); r.v.textContent = (100 * f).toFixed(1) + "%";
+              r.v.setAttribute("fill", k === cur ? FN[k].c : C.dim); r.n.setAttribute("fill", k === cur ? FN[k].c : C.faint); });
+            el.rowsHead.textContent = "fraction with |a| < ε = " + eps.toFixed(3);
+            el.eps.textContent = i === 5 ? "sweeping ε — near-zero is not zero unless a kernel can predict it" : "ε = 0.05";
+            const zx = PX[0] + ((0 - LO) / (HI - LO)) * (PX[1] - PX[0]);
+            const half = (eps / (HI - LO)) * (PX[1] - PX[0]);
+            el.epsBand.setAttribute("x", zx - half); el.epsBand.setAttribute("width", half * 2);
+            el.epsBand.setAttribute("opacity", i === 5 ? 0.22 : 0.06);
+            return FN[cur].n + (i === 5 ? " · ε = " + eps.toFixed(3) : " · " + (100 * z).toFixed(1) + "% exact zeros");
+          }
+        };
+      })();
+
+      /* ================= FIG 09 — the lineage ================= */
+      SPECS.timeline = (() => {
+        const FAM = { sat: C.rose, rect: C.mint, gate: C.violet, glu: C.sky, sparse: C.amber, ctx: C.faint };
+        const EV = [
+          [1986, "Backprop with sigmoid", "Rumelhart, Hinton & Williams", "sat"],
+          [1989, "Universal approximation", "Cybenko; Hornik 1991", "ctx"],
+          [1991, "Vanishing gradients named", "Hochreiter thesis", "ctx"],
+          [1998, "Tanh over sigmoid", "LeCun et al., Efficient BackProp", "sat"],
+          [2001, "Softplus", "Dugas et al.", "gate"],
+          [2010, "ReLU for RBMs", "Nair & Hinton", "rect"],
+          [2010, "Xavier initialisation", "Glorot & Bengio", "ctx"],
+          [2011, "Deep sparse rectifiers", "Glorot, Bordes & Bengio", "rect"],
+          [2012, "AlexNet: 6× faster with ReLU", "Krizhevsky et al.", "rect"],
+          [2013, "Leaky ReLU", "Maas, Hannun & Ng", "rect"],
+          [2015, "PReLU + He init", "He et al.", "rect"],
+          [2015, "ELU", "Clevert et al.", "rect"],
+          [2016, "GELU", "Hendrycks & Gimpel", "gate"],
+          [2016, "GLU in conv LMs", "Dauphin et al.", "glu"],
+          [2017, "SELU, self-normalising", "Klambauer et al.", "rect"],
+          [2017, "SiLU", "Elfwing, Uchibe & Doya", "gate"],
+          [2017, "Swish, found by search", "Ramachandran, Zoph & Le", "gate"],
+          [2018, "BERT ships GELU", "Devlin et al.", "gate"],
+          [2019, "Mish", "Misra", "gate"],
+          [2019, "Hard-swish", "MobileNetV3", "gate"],
+          [2020, "GLU variants improve transformer", "Shazeer", "glu"],
+          [2020, "ViT: GELU everywhere", "Dosovitskiy et al.", "gate"],
+          [2021, "Squared ReLU", "Primer, So et al.", "sparse"],
+          [2022, "PaLM adopts SwiGLU", "Chowdhery et al.", "glu"],
+          [2023, "Llama makes SwiGLU the default", "Touvron et al.", "glu"],
+          [2023, "ReLU strikes back", "Mirzadeh et al.", "sparse"],
+          [2024, "ProSparse / TurboSparse", "sparsity as a serving win", "sparse"],
+          [2024, "KAN: learned splines", "Liu et al.", "ctx"],
+          [2025, "Clamped gates at scale", "stability patches on SwiGLU", "glu"]
+        ];
+        const ERAS = [[1987.5, "The saturating era"], [1997, "Depth stalls"], [2010.8, "The rectifier revolution"],
+                      [2015, "Patching the rectifier"], [2016.8, "Smooth self-gating"], [2019.4, "Gates go mainstream"],
+                      [2021.8, "GLU takes the frontier"], [2024.4, "Sparsity comes back"]];
+        const W = 880, H = 400, PPY = 74, AXIS = 214, MID = W / 2;
+        let el = {};
+        return {
+          stages: ERAS.map(e => e[1]), dwell: 3400,
+          build(host) {
+            host.innerHTML = "";
+            const svg = S("svg", { viewBox: "0 0 " + W + " " + H, role: "img", "aria-label": "Panning timeline of activation function milestones" });
+            svg.appendChild(S("line", { x1: 0, y1: AXIS, x2: W, y2: AXIS, stroke: "#33404a", "stroke-width": 2 }));
+            el.era = S("text", { x: 28, y: 40, fill: C.txt, "font-size": 24, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" }); svg.appendChild(el.era);
+            el.range = S("text", { x: 28, y: 62, fill: C.dim, "font-size": 11, "font-family": "IBM Plex Mono, monospace" }); svg.appendChild(el.range);
+            el.ticks = []; el.items = [];
+            for (let k = 0; k < 46; k++) {
+              const g = S("g");
+              const ln = S("line", { y1: AXIS - 5, y2: AXIS + 5, stroke: "#33404a" });
+              const lb = S("text", { y: AXIS + 22, fill: C.faint, "font-size": 10, "text-anchor": "middle", "font-family": "IBM Plex Mono, monospace" });
+              g.appendChild(ln); g.appendChild(lb); svg.appendChild(g); el.ticks.push({ g, ln, lb });
+            }
+            EV.forEach((e, k) => {
+              const g = S("g");
+              const up = k % 2 === 0;
+              const stem = S("line", { stroke: FAM[e[3]], "stroke-width": 1.4, opacity: 0.7 });
+              const dot = S("circle", { r: 5, fill: FAM[e[3]] });
+              const yr = S("text", { fill: FAM[e[3]], "font-size": 11, "font-weight": 600, "font-family": "IBM Plex Mono, monospace" });
+              const ttl = S("text", { fill: C.txt, "font-size": 13, "font-weight": 700, "font-family": "Bricolage Grotesque, sans-serif" });
+              const sub = S("text", { fill: C.dim, "font-size": 10, "font-family": "IBM Plex Mono, monospace" });
+              yr.textContent = e[0]; ttl.textContent = e[1]; sub.textContent = e[2];
+              g.appendChild(stem); g.appendChild(dot); g.appendChild(yr); g.appendChild(ttl); g.appendChild(sub);
+              svg.appendChild(g); el.items.push({ g, stem, dot, yr, ttl, sub, up, e });
+            });
+            const leg = S("g"); svg.appendChild(leg);
+            Object.entries({ "saturating": FAM.sat, "rectifier": FAM.rect, "smooth gate": FAM.gate, "gated linear unit": FAM.glu, "sparsity revival": FAM.sparse })
+              .forEach(([k, c], q) => {
+                leg.appendChild(S("circle", { cx: 30 + q * 158, cy: H - 22, r: 4.5, fill: c }));
+                const t = S("text", { x: 42 + q * 158, y: H - 18, fill: C.dim, "font-size": 10.5, "font-family": "IBM Plex Mono, monospace" }); t.textContent = k; leg.appendChild(t);
+              });
+            host.appendChild(svg);
+          },
+          draw(i, u) {
+            const a = ERAS[i][0], b = ERAS[(i + 1) % ERAS.length][0];
+            const cam = REDUCE ? a : lerp(a, b < a ? b + 40 : b, seg(u, 0.1, 0.95));
+            const camY = cam > 2026.5 ? cam - 40 : cam;
+            const sx = y => MID + (y - camY) * PPY;
+            let base = Math.floor(camY - MID / PPY);
+            el.ticks.forEach((t, k) => {
+              const yr = base + k;
+              const x = sx(yr);
+              const vis = x > -30 && x < W + 30 && yr >= 1985 && yr <= 2026;
+              t.g.setAttribute("opacity", vis ? 0.9 : 0);
+              if (!vis) return;
+              t.ln.setAttribute("x1", x); t.ln.setAttribute("x2", x);
+              t.lb.setAttribute("x", x); t.lb.textContent = yr % 2 === 0 ? yr : "";
+            });
+            const lanes = { up: [], dn: [] };
+            el.items.forEach(it => {
+              const x = sx(it.e[0]);
+              const d = Math.abs(x - MID) / (W / 2);
+              if (x < -160 || x > W + 160) { it.g.setAttribute("opacity", 0); return; }
+              const op = clamp(1.25 - d * 0.85, 0.12, 1);
+              const lane = it.up ? lanes.up : lanes.dn;
+              let slot = 0;
+              while (lane[slot] !== undefined && x - lane[slot] < 176) slot++;
+              lane[slot] = x;
+              const y = it.up ? AXIS - 40 - slot * 52 : AXIS + 52 + slot * 52;
+              it.g.setAttribute("opacity", op);
+              it.stem.setAttribute("x1", x); it.stem.setAttribute("x2", x);
+              it.stem.setAttribute("y1", AXIS); it.stem.setAttribute("y2", it.up ? y + 12 : y - 22);
+              it.dot.setAttribute("cx", x); it.dot.setAttribute("cy", AXIS);
+              it.dot.setAttribute("r", 4 + (1 - d) * 2.5);
+              it.yr.setAttribute("x", x - 4); it.yr.setAttribute("y", it.up ? y + 4 : y - 12);
+              it.ttl.setAttribute("x", x - 4); it.ttl.setAttribute("y", it.up ? y - 12 : y + 4);
+              it.sub.setAttribute("x", x - 4); it.sub.setAttribute("y", it.up ? y - 28 : y + 20);
+            });
+            el.era.textContent = ERAS[i][1];
+            el.range.textContent = "camera at " + camY.toFixed(1) + "   ·   pan →";
+            return ERAS[i][1];
+          }
+        };
+      })();
+
+      /* ---------- adoption matrix ---------- */
+      const MODELS = [
+        ["GPT-2 / GPT-3", "llm", "GELU", "tanh approximation in the original TF code", C.violet],
+        ["BERT / RoBERTa", "llm", "GELU", "exact erf form", C.violet],
+        ["T5 v1.0", "llm", "ReLU", "the last major ReLU transformer", C.mint],
+        ["T5 v1.1 / Flan-T5", "llm", "GEGLU", "first big GLU deployment", C.sky],
+        ["OPT-175B", "llm", "ReLU", "chosen for simplicity", C.mint],
+        ["BLOOM", "llm", "GELU", "", C.violet],
+        ["GPT-J / GPT-NeoX", "llm", "GELU", "", C.violet],
+        ["Pythia / MPT", "llm", "GELU", "", C.violet],
+        ["Falcon / Falcon-180B", "llm", "GELU", "ungated even in 2023", C.violet],
+        ["PaLM / PaLM 2", "llm", "SwiGLU", "the paper that set the default", C.sky],
+        ["Llama 1 / 2 / 3 / 4", "llm", "SwiGLU", "h = 8d/3, then wider from L3", C.sky],
+        ["Mistral / Mixtral", "llm", "SwiGLU", "", C.sky],
+        ["Qwen 1 – 3", "llm", "SwiGLU", "very wide FFN (5.3d in 2.5-7B)", C.sky],
+        ["Gemma 1 / 2 / 3", "llm", "GeGLU", "tanh approximation, stated in config", C.sky],
+        ["DeepSeek V2 / V3 / R1", "llm", "SwiGLU", "in every MoE expert", C.sky],
+        ["OLMo 2 / OLMo 3", "llm", "SwiGLU", "fully open configs", C.sky],
+        ["Phi-3 / Phi-4", "llm", "SwiGLU", "Phi-2 was still GELU", C.sky],
+        ["Yi / InternLM / Baichuan", "llm", "SwiGLU", "", C.sky],
+        ["Command R / R+", "llm", "SwiGLU", "", C.sky],
+        ["ChatGLM / GLM-4", "llm", "SwiGLU", "", C.sky],
+        ["Nemotron-4 / Nemotron-H", "llm", "Squared ReLU", "sparsity for serving", C.amber],
+        ["Primer", "llm", "Squared ReLU", "found by architecture search", C.amber],
+        ["Persimmon-8B", "llm", "Squared ReLU", "the base model under Fuyu", C.amber],
+        ["RWKV 4 / 5 / 6", "llm", "Squared ReLU", "in the channel-mix block", C.amber],
+        ["Mamba / Mamba-2", "llm", "SiLU", "gates the state-space branch", C.violet],
+        ["Apertus", "llm", "xIELU", "learned slopes — rare at scale", C.rose],
+        ["gpt-oss 20B / 120B", "llm", "Clamped SwiGLU", "sigmoid coefficient 1.702", C.sky],
+        ["Gemini / GPT-4 / Claude", "llm", "Undisclosed", "no public config", C.faint],
+
+        ["AlexNet / VGG / ResNet", "vision", "ReLU", "the entire CNN era", C.mint],
+        ["MobileNet V1 / V2", "vision", "ReLU6", "clamped for INT8", C.mint],
+        ["MobileNetV3", "vision", "Hard-Swish", "plus hard-sigmoid in SE blocks", C.violet],
+        ["EfficientNet", "vision", "SiLU", "", C.violet],
+        ["ViT (original)", "vision", "GELU", "", C.violet],
+        ["Swin / ConvNeXt", "vision", "GELU", "", C.violet],
+        ["CLIP (OpenAI)", "vision", "QuickGELU", "x·σ(1.702x) — must be matched", C.rose],
+        ["OpenCLIP", "vision", "GELU", "use -quickgelu for OpenAI weights", C.violet],
+        ["SigLIP / SigLIP 2", "vision", "GELU (tanh)", "consistent across the family", C.violet],
+        ["DINOv2 S/B/L", "vision", "GELU", "", C.violet],
+        ["DINOv2 giant", "vision", "SwiGLU FFN", "gated at ViT-g scale", C.sky],
+        ["EVA-02 / EVA-CLIP", "vision", "SwiGLU", "with sub-LN", C.sky],
+        ["InternViT-6B", "vision", "GELU", "", C.violet],
+        ["Qwen2.5-VL ViT", "vision", "SwiGLU", "ViT rebuilt to match the LLM", C.sky],
+        ["AM-RADIO", "vision", "GELU", "ViT backbone, distilled teachers", C.violet],
+
+        ["Flamingo", "vlm", "GELU", "", C.violet],
+        ["BLIP-2", "vlm", "GELU + ReLU/GEGLU", "ViT GELU, then OPT or Flan-T5", C.violet],
+        ["LLaVA-1.5", "vlm", "QuickGELU → GELU → SwiGLU", "three activations, one forward pass", C.rose],
+        ["Molmo", "vlm", "QuickGELU + SwiGLU", "CLIP tower, OLMo/Qwen decoder", C.rose],
+        ["Qwen2-VL / 2.5-VL", "vlm", "SwiGLU throughout", "the tidiest stack in the list", C.sky],
+        ["InternVL 2 / 2.5 / 3", "vlm", "GELU + SwiGLU", "InternViT then an LLM", C.violet],
+        ["PaliGemma / PaliGemma 2", "vlm", "GELU + GeGLU", "SigLIP then Gemma", C.violet],
+        ["Idefics 2 / 3", "vlm", "GELU + SwiGLU", "SigLIP then Mistral", C.violet],
+        ["Phi-3.5-vision", "vlm", "QuickGELU + SwiGLU", "", C.rose],
+        ["SmolVLM", "vlm", "GELU + SwiGLU", "SigLIP then SmolLM2", C.violet],
+        ["Fuyu-8B", "vlm", "Squared ReLU", "no vision encoder at all", C.amber],
+        ["Chameleon", "vlm", "SwiGLU", "early-fusion tokens", C.sky],
+        ["Pixtral", "vlm", "SwiGLU", "gated MLP in the ViT too", C.sky]
+      ];
+      const FILTERS = [["all", "Everything"], ["llm", "Language models"], ["vision", "Vision encoders"], ["vlm", "Vision-language models"]];
+      (function matrix() {
+        const bar = document.getElementById("matrix-bar"), grid = document.getElementById("matrix-grid"), count = document.getElementById("matrix-count");
+        if (!bar) return;
+        let active = "all";
+        const render = () => {
+          grid.innerHTML = "";
+          const rows = MODELS.filter(m => active === "all" || m[1] === active);
+          rows.forEach(m => {
+            const d = document.createElement("div");
+            d.className = "matrix-card"; d.style.borderLeftColor = m[4];
+            d.innerHTML = "<h4></h4><div class='act'></div>" + (m[3] ? "<div class='why'></div>" : "");
+            d.querySelector("h4").textContent = m[0];
+            d.querySelector(".act").textContent = m[2];
+            d.querySelector(".act").style.color = m[4];
+            if (m[3]) d.querySelector(".why").textContent = m[3];
+            grid.appendChild(d);
+          });
+          count.textContent = rows.length + " of " + MODELS.length + " entries shown";
+        };
+        FILTERS.forEach(([k, label]) => {
+          const b = document.createElement("button");
+          b.type = "button"; b.textContent = label; b.setAttribute("aria-pressed", String(k === active));
+          b.onclick = () => { active = k; [...bar.children].forEach(c => c.setAttribute("aria-pressed", String(c === b))); render(); };
+          bar.appendChild(b);
+        });
+        render();
+      })();
+
+      /* ---------- boot ---------- */
+      document.querySelectorAll("[data-fig]").forEach(host => {
+        const spec = SPECS[host.dataset.fig];
+        if (spec) { try { new Reel(host, spec); } catch (err) { console.error(host.dataset.fig, err); } }
+      });
+
+      // Exposed so the blog-index preview GIF and poster can be re-exported
+      // deterministically: set reel.phase, call reel.render(), screenshot.
+      window.__activationReels = reels;
+
+    })();
+    </script>
+  </body>
+</html>

@@ -288,8 +288,8 @@
       <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
       <span class="ml-series-nav__position">04 of 09 · Data and the pretraining recipe</span>
       <span class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../parameters-tokens-compute/">&larr; Parameters, tokens, compute</a>
-        <a class="ml-series-nav__link" href="../rl-from-first-principles/">RL for LLMs &rarr;</a>
+        <a class="ml-series-nav__link" href="../scaling-laws-from-first-principles/">&larr; Parameters, tokens, compute</a>
+        <a class="ml-series-nav__link" href="../reinforcement-learning-from-first-principles/">RL for LLMs &rarr;</a>
       </span>
     </nav>
 
@@ -335,7 +335,7 @@
 
         <p><strong>The objective is simple. The distribution being optimised is not.</strong> Nobody hands you <em>D</em>. There is no natural distribution over &ldquo;text.&rdquo; Every pretraining team constructs one, out of crawls and repositories and books and synthetic generations, through a pipeline of a dozen irreversible decisions. That constructed distribution is the actual product of a pretraining effort. The weights are just its fixed point.</p>
 
-        <p>This article is about how <em>D</em> gets built. The <a href="../parameters-tokens-compute/">previous article</a> answered <em>how much</em> &mdash; how parameters, tokens and compute trade against each other. This one answers <em>which</em> and <em>how</em>: which text, filtered how, deduplicated how, mixed in what proportion, tokenized with what vocabulary, packed into what sequences, ordered in what curriculum &mdash; and how you find out, before you have burned ten million GPU-hours, whether any of it was a good idea.</p>
+        <p>This article is about how <em>D</em> gets built. The <a href="../scaling-laws-from-first-principles/">previous article</a> answered <em>how much</em> &mdash; how parameters, tokens and compute trade against each other. This one answers <em>which</em> and <em>how</em>: which text, filtered how, deduplicated how, mixed in what proportion, tokenized with what vocabulary, packed into what sequences, ordered in what curriculum &mdash; and how you find out, before you have burned ten million GPU-hours, whether any of it was a good idea.</p>
 
         <div class="nuance">
           <h4>Nuance 01 · &ldquo;Next-token prediction&rdquo; is not the recipe</h4>
@@ -709,7 +709,7 @@
 
         <p>Bigger vocabularies compress better (lower fertility, fewer tokens per document) and cost more in embedding parameters, output-projection FLOPs and logits memory. The trade-off is real and quantifiable, and the answer has drifted upward: GPT-2 used 50k, Llama 2 used 32k, Llama 3 moved to 128k, Olmo 3 uses ~100k, and recent large models have gone to 200k.</p>
 
-        <p>There is a systems consequence that gets discovered painfully. The logits tensor is <em>batch &times; sequence &times; vocabulary</em>, in fp32 for the cross-entropy. At 100k vocabulary, a batch of 8 sequences of 8192 tokens is 8 &times; 8192 &times; 100000 &times; 4 bytes &asymp; 26&nbsp;GB for one transient tensor. This is why fused and chunked cross-entropy implementations exist, and why vocabulary size is a memory decision as much as a modelling one. (The <a href="../anatomy-of-a-training-step/">training-step article</a> covers where that memory goes.)</p>
+        <p>There is a systems consequence that gets discovered painfully. The logits tensor is <em>batch &times; sequence &times; vocabulary</em>, in fp32 for the cross-entropy. At 100k vocabulary, a batch of 8 sequences of 8192 tokens is 8 &times; 8192 &times; 100000 &times; 4 bytes &asymp; 26&nbsp;GB for one transient tensor. This is why fused and chunked cross-entropy implementations exist, and why vocabulary size is a memory decision as much as a modelling one. (The <a href="../inside-a-training-step/">training-step article</a> covers where that memory goes.)</p>
 
         <p>Two recent directions are worth knowing. <strong>SuperBPE</strong> relaxes the whitespace pre-tokenization constraint partway through training, learning &ldquo;superword&rdquo; tokens that span spaces and cutting sequence length by around a third at 200k vocabularies. <strong>Byte Latent Transformer</strong> drops the fixed vocabulary entirely, grouping bytes into dynamically sized patches by local entropy &mdash; more bytes per patch where the text is predictable, fewer where it is not. And 2026 work on compute-optimal tokenization found something clarifying: when you measure the scaling relationship in <em>bytes per parameter</em> rather than tokens per parameter, an optimal compression rate appears, and it holds whether the compression comes from a BPE vocabulary or a learned latent grouping.</p>
 
@@ -750,7 +750,7 @@
 
         <p>The argument for allowing it: it is free, it acts as a mild regulariser, and separator tokens teach the model that an EOS means &ldquo;forget what came before.&rdquo; The argument against: it is training-time noise that never occurs at inference, and it corrupts long-range attention statistics precisely when you are trying to teach long context.</p>
 
-        <p>The empirical answer has firmed up. For general pretraining the effect is small. For long-context stages it is not &mdash; if you are training at 32k or 128k specifically to learn long-range dependency, filling those windows with a dozen unrelated documents and letting attention cross between them teaches the wrong thing. Modern stacks therefore use a block-diagonal <em>document mask</em>, built as a block mask so attention kernels can skip the zero blocks entirely rather than materialising them. And crucially, <strong>position IDs must reset at document boundaries</strong> too &mdash; otherwise the third document in a packed sequence sees rotary positions in the tens of thousands, and the model learns a spurious association between large position index and mid-document context. (The <a href="../position-embeddings/">positional-encoding article</a> has more on why that matters.)</p>
+        <p>The empirical answer has firmed up. For general pretraining the effect is small. For long-context stages it is not &mdash; if you are training at 32k or 128k specifically to learn long-range dependency, filling those windows with a dozen unrelated documents and letting attention cross between them teaches the wrong thing. Modern stacks therefore use a block-diagonal <em>document mask</em>, built as a block mask so attention kernels can skip the zero blocks entirely rather than materialising them. And crucially, <strong>position IDs must reset at document boundaries</strong> too &mdash; otherwise the third document in a packed sequence sees rotary positions in the tens of thousands, and the model learns a spurious association between large position index and mid-document context. (The <a href="../how-models-know-where-they-are/">positional-encoding article</a> has more on why that matters.)</p>
 
         <figure class="article-panel" id="fig8">
           <div class="panel-head">

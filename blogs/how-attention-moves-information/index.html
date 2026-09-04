@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/how-attention-moves-information/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="How Attention Moves Information" />
+    <meta property="og:description" content="A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-attention-moves-information/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-attention-moves-information/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How Attention Moves Information" />
+    <meta name="twitter:description" content="A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/how-attention-moves-information/preview.png" />
+    <title>How Attention Moves Information | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/how-attention-moves-information/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/how-attention-moves-information/" },
+        "headline": "How Attention Moves Information",
+        "description": "A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule.",
+        "image": "https://srini-anirudh.github.io/blogs/how-attention-moves-information/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["Attention", "Transformers", "Vision-Language Models"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      html.dark-mode {
+        --paper: #10141a;
+        --paper-bright: #171d24;
+        --ink: #e7ecef;
+        --ink-soft: #b3bdc4;
+        --muted: #8b959c;
+        --rule: #2a333b;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- figure system ---------------------------------------------- */
+      .figure-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+      .figure-kicker { color: #6f7c85; font: 600 10.5px/1.4 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; }
+      .figure-name { color: #cdd7dd; font: 600 13px/1.4 var(--mono); }
+      .animation-stage { position: relative; }
+      .fig-svg { display: block; width: 100%; height: auto; overflow: visible; }
+      .fig-svg text { font-family: var(--mono); }
+      .cam { transform-box: view-box; transform-origin: 0 0; transition: transform 620ms cubic-bezier(0.4, 0, 0.2, 1); }
+      .fig-svg .pos { transform-box: view-box; transform-origin: 0 0; }
+      .tw { transition: opacity 460ms ease, stroke-width 460ms ease, transform 520ms cubic-bezier(0.4, 0, 0.2, 1), fill 400ms ease, stroke 400ms ease, fill-opacity 400ms ease, stroke-opacity 460ms ease; }
+      .bar-scale { transform-box: fill-box; transform-origin: bottom; }
+      .row-scale { transform-box: fill-box; transform-origin: left; }
+      .figure-caption { margin: 16px 0 0; min-height: 3.1em; color: #b8c3ca; font: 16px/1.5 var(--body); }
+      .figure-caption b { color: #3fd1a0; font-weight: 600; }
+      .figure-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed #2b343d; }
+      .figure-extra .fx-label { color: #7f8b93; font: 600 10.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+      .figure-extra button { min-height: 32px; padding: 6px 10px; color: #cdd7dd; background: #161c22; border: 1px solid #333f48; cursor: pointer; font: 500 11px/1 var(--mono); }
+      .figure-extra button[aria-pressed="true"] { color: #06120e; background: #5ab2e8; border-color: #5ab2e8; }
+      .figure-extra button:focus-visible { outline: 2px solid #3fd1a0; outline-offset: 2px; }
+      .figure-extra input[type="range"] { width: 168px; accent-color: #3fd1a0; }
+      .figure-extra output { color: #3fd1a0; font: 600 12px/1 var(--mono); }
+      .readout { color: #93a0a8; font: 12px/1.7 var(--mono); }
+      .readout b { color: #f2a65a; font-weight: 600; }
+
+      .keypoint { margin: 26px 0; padding: 16px 20px; background: var(--paper-bright); border-left: 3px solid #2f9e79; font-size: 17.5px; }
+      .keypoint p { margin: 0; }
+      .article-content table { width: 100%; margin: 26px 0; border-collapse: collapse; font-size: 16px; }
+      .article-content th { padding: 9px 10px; color: var(--muted); border-bottom: 1px solid var(--rule); font: 600 10.5px/1.4 var(--mono); letter-spacing: 0.12em; text-align: left; text-transform: uppercase; }
+      .article-content td { padding: 10px; vertical-align: top; border-bottom: 1px solid var(--rule); }
+      .article-content td:first-child { font-weight: 600; }
+      .katex-display { margin: 22px 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        .cam, .tw { transition: none !important; }
+      }
+      @media (max-width: 720px) {
+        .animation-stage { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .fig-svg { min-width: 660px; }
+      }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+        .figure-extra input[type="range"] { width: 128px; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article attention-from-first-principles-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Deep learning foundations</p>
+        <h1 class="article-title">How Attention Moves Information</h1>
+        <p class="article-subtitle">Every attention variant ever published is an answer to one of eight questions. This is a derivation of the primitive, and a map of the design space it opens.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Attention</span><span>Transformers</span><span>LLMs</span><span>VLMs</span><span>Architecture</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Deep Learning Foundations">
+      <a class="ml-series-nav__identity" href="../index.html#attention-from-first-principles">Deep Learning Foundations</a>
+      <span class="ml-series-nav__position">Attention &middot; From first principles</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../how-models-know-where-they-are/"><span>Related foundation</span><strong>How Models Know Where They Are</strong></a>
+        <a class="ml-series-nav__link" href="../what-changed-inside-the-transformer/"><span>Architecture bridge</span><strong>What Changed Inside the Transformer?</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-question">The question attention answers</a></li>
+          <li><a href="#before-transformers">Attention before Transformers</a></li>
+          <li><a href="#qkv">Why three projections</a></li>
+          <li><a href="#scaled">Scaled dot-product attention</a></li>
+          <li><a href="#masks">Masks: who can I see?</a></li>
+          <li><a href="#cross">Self-attention and cross-attention</a></li>
+          <li><a href="#heads">Why more than one head</a></li>
+          <li><a href="#gqa">MHA, MQA, GQA</a></li>
+          <li><a href="#local">Local and sliding-window attention</a></li>
+          <li><a href="#sparse">Sparse attention</a></li>
+          <li><a href="#linear">Linear attention</a></li>
+          <li><a href="#mla">Multi-head latent attention</a></li>
+          <li><a href="#vision">Attention over images</a></li>
+          <li><a href="#flash">FlashAttention is not a new attention rule</a></li>
+          <li><a href="#taxonomy">A taxonomy</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-question">
+        <h2>The question attention answers</h2>
+        <p>Most explanations of attention open with the formula \(\operatorname{softmax}(QK^\top/\sqrt{d})V\) and then work backwards, assigning a story to each symbol. That order is exactly wrong. The formula is the answer to a question, and the question is older and simpler than Transformers.</p>
+        <p>Here it is. You have a set of representations</p>
+        $$x_1, x_2, \ldots, x_n \in \mathbb{R}^{d},$$
+        <p>and you are trying to produce a better representation of position \(i\). Better means <em>contextual</em>: the vector at position \(i\) should carry information that only exists elsewhere in the set. A convolution answers this by fixing a neighbourhood in advance. A recurrent net answers it by pushing everything through a bottleneck state. Both decide the routing before they see the data.</p>
+        <p>Attention makes a different bet. Let each position choose, at run time, which other positions to read from. Restrict the output to a weighted average of what the other positions offer:</p>
+        $$z_i \;=\; \sum_{j} \alpha_{ij}\, v_j, \qquad \alpha_{ij} \ge 0, \qquad \sum_j \alpha_{ij} = 1.$$
+        <p>That constraint is the whole design. It says the output lives in the convex hull of the values, so no single source can dominate by growing its norm, and the "how much" is separated cleanly from the "what". Everything else in this article, every variant with a three-letter acronym, is a different answer to one question:</p>
+        <div class="keypoint"><p>How should \(\alpha_{ij}\) be computed, which pairs \((i,j)\) are we allowed to compute it for, and how do we execute the whole thing without melting the memory system?</p></div>
+        <p>The figure below is the mechanism with nothing else attached. Watch what happens when the weights are uniform, and why that failure forces the rest of the design.</p>
+
+        <div class="article-panel" id="fig-mixing" role="group" aria-label="Animated figure: a token forms a contextual representation as a weighted average of other tokens" data-interval="1900">
+          <div class="figure-head"><span class="figure-kicker">Figure 1</span><span class="figure-name">A position decides who to listen to</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Two things are worth naming before moving on. First, \(\alpha\) depends on the input, which is what people mean when they call attention a form of dynamic routing or fast weights. Second, the operation is permutation-equivariant: shuffle the inputs and the outputs shuffle with them. Order has to be injected separately, through position encodings or through the mask. Attention itself does not know what "next to" means.</p>
+      </section>
+
+      <section id="before-transformers">
+        <h2>Attention before Transformers</h2>
+        <p>Attention was not invented to make Transformers work. It was invented to fix a bottleneck in sequence-to-sequence translation, and knowing the original shape of the problem makes cross-attention feel obvious later.</p>
+        <p>An encoder RNN once compressed a whole source sentence into one fixed vector, and a decoder generated the translation from it. The vector had to hold a forty-word sentence as well as a four-word one. The first attention mechanism removed that bottleneck: keep every encoder state \(h_1,\ldots,h_n\), and let the decoder build a fresh context vector at each output step,</p>
+        $$e_{ij} = w^\top \tanh\!\big(W s_{i-1} + U h_j\big), \qquad \alpha_{ij} = \frac{\exp e_{ij}}{\sum_k \exp e_{ik}}, \qquad c_i = \sum_j \alpha_{ij} h_j .$$
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>The two original scoring choices</caption>
+            <thead><tr><th>Score</th><th>Learned scorer?</th><th>Single matmul?</th><th>Main advantage</th><th>Main cost</th></tr></thead>
+            <tbody>
+              <tr><td>Additive</td><td class="matrix-mark">&#10003;</td><td class="matrix-mark">&times;</td><td>Flexible nonlinear compatibility</td><td>Runs a small network for every pair</td></tr>
+              <tr><td>Dot product</td><td class="matrix-mark">&times;</td><td class="matrix-mark">&#10003;</td><td>Maps directly to efficient matrix multiplication</td><td>Needs learned projections to shape the space</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="field-direction"><strong>Why the field chose dot products.</strong> Both scores solved the fixed-vector bottleneck. Dot products won because all pairwise scores can be computed as one matrix multiplication, which scales cleanly on accelerators. The representational flexibility did not disappear; Q and K projections moved it into learned vector spaces, which is the next step in the derivation.</p>
+
+        <div class="article-panel" id="fig-align" role="group" aria-label="Animated figure: a Bahdanau-style alignment matrix filling in one decoder step at a time" data-interval="1250">
+          <div class="figure-head"><span class="figure-kicker">Figure 2</span><span class="figure-name">Alignment, one decoder step at a time</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Notice the shape of this. The queries came from the decoder; the keys and values came from the encoder. Attention was <em>cross</em>-attention first. Self-attention, where all three come from the same sequence, arrived later as the special case that turned out to be more useful. Keep that ordering in mind — it makes vision-language models look like a return to the original form rather than an exotic addition.</p>
+      </section>
+
+      <section id="qkv">
+        <h2>Why three projections</h2>
+        <p>The standard gloss is that the query asks, the key advertises and the value carries. True, but it explains nothing about why we need three learned matrices. Let us derive the need.</p>
+        <p>Start with the cheapest possible scoring function: use the representations directly, \(s_{ij} = x_i^\top x_j\), so the whole layer is \(\operatorname{softmax}(XX^\top)X\). No parameters at all. Two failures follow immediately.</p>
+        <p><strong>The score matrix is symmetric.</strong> \(x_i^\top x_j = x_j^\top x_i\), so if <em>it</em> attends to <em>animal</em> then <em>animal</em> must attend to <em>it</em> with the same pre-softmax score. But the relations we care about are directional. A pronoun needs its antecedent; the antecedent does not need the pronoun. A verb needs its subject; an adjective needs its noun. Symmetric scores cannot express a directed graph.</p>
+        <p><strong>Self-similarity dominates.</strong> \(x_i^\top x_i = \lVert x_i \rVert^2\) is the largest entry in its row for any well-spread set of vectors, so every token mostly attends to itself and the layer approximates the identity.</p>
+        <p>Both problems disappear with two different linear maps:</p>
+        $$Q = XW_Q,\quad K = XW_K, \qquad s_{ij} = q_i^\top k_j = x_i^\top \big(W_Q W_K^\top\big) x_j .$$
+        <p>The scoring form is now a general bilinear form \(x_i^\top M x_j\) with \(M = W_QW_K^\top\), and a general \(M\) is not symmetric. The model can learn a low-rank asymmetric relation. It can also make \(x^\top M x\) small, so a token need not attend to itself.</p>
+        <p>The third projection answers a separate question. Having decided <em>who</em> to read using a match in one space, why should the model be forced to copy the raw thing it matched on? Splitting off \(V = XW_V\) lets the retrieval key and the retrieved payload live in different spaces: match on "I am a noun phrase in subject position", transmit "I refer to a large mammal". In circuits language, \(W_QW_K^\top\) forms the QK circuit that decides where information moves, and \(W_VW_O\) forms the OV circuit that decides what is written when it does.</p>
+
+        <div class="article-panel" id="fig-qkv" role="group" aria-label="Animated figure: comparing raw embedding scores against learned query and key projections" data-interval="2100">
+          <div class="figure-head"><span class="figure-kicker">Figure 3</span><span class="figure-name">Why the scores need two spaces, not one</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>One practical consequence: \(W_Q\) and \(W_K\) only ever appear as the product \(W_QW_K^\top\), so their individual factorisation is not identifiable, and the rank of that product — not \(d_{\text{model}}\) — is what limits how expressive the scores can be. This is also why fused implementations are free to absorb one into the other, a trick that reappears in a big way when we get to latent attention.</p>
+      </section>
+
+      <section id="scaled">
+        <h2>Scaled dot-product attention</h2>
+        <p>We have scores. Two questions remain: how do we turn scores into a distribution, and why is there a \(1/\sqrt{d_k}\) bolted onto the front?</p>
+        <p>The first is easy to motivate. We need weights that are non-negative and sum to one, from scores that are unbounded reals. Exponentiating and normalising is the canonical map with that signature, it is smooth everywhere, its gradient is cheap, and it has the useful property that only score <em>differences</em> matter: adding a constant to a row changes nothing. That last fact is not just aesthetic — it is what makes numerically-stable and streaming softmax possible, which is the hinge the entire FlashAttention section turns on.</p>
+        <p>The second question deserves an actual derivation. Take \(q\) and \(k\) with independent, zero-mean, unit-variance components. Then</p>
+        $$\operatorname{Var}\!\left[q^\top k\right] = \operatorname{Var}\!\left[\sum_{\ell=1}^{d_k} q_\ell k_\ell\right] = \sum_{\ell=1}^{d_k}\operatorname{Var}[q_\ell k_\ell] = d_k,$$
+        <p>so the logits have standard deviation \(\sqrt{d_k}\). At \(d_k = 128\) that is roughly \(\pm 11\) before the model has learned anything. Softmax of logits that far apart is nearly a one-hot vector, and the Jacobian of softmax at a one-hot output is nearly zero, so gradients through the attention weights vanish at initialisation. Dividing by \(\sqrt{d_k}\) puts the logit variance back at 1 regardless of head dimension, which is exactly what you want if \(d_k\) is a hyperparameter you intend to change.</p>
+        <p>Slide the head dimension in the figure below and watch the entropy collapse. The button toggles the scaling factor so you can see the difference at the same \(d_k\).</p>
+
+        <div class="article-panel" id="fig-scale" role="group" aria-label="Interactive figure: how head dimension and the 1 over root d scaling change softmax sharpness" data-interval="1700">
+          <div class="figure-head"><span class="figure-kicker">Figure 4</span><span class="figure-name">Where the square root comes from</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Two footnotes. The unit-variance assumption is about initialisation, not about a trained network — trained models happily learn large logits when they want a sharp lookup, and some run into the opposite problem, where a few enormous activations exist mainly to let heads produce a near-zero attention output. And the constant is a convention, not a law: some architectures fold a learned per-head temperature in, and \(\mu\)P-style parameterisations argue for \(1/d_k\) instead once you are scaling width seriously.</p>
+        <p>Assembling the pieces gives the operation in full:</p>
+        $$\operatorname{Attn}(Q,K,V) = \operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}} + M\right)V .$$
+        <p>That \(M\) is the additive mask, and it is the next design axis.</p>
+      </section>
+
+      <section id="masks">
+        <h2>Masks: who can I see?</h2>
+        <p>A mask is an additive matrix of zeros and \(-\infty\) applied before the softmax. It is the crudest possible mechanism and it does an enormous amount of work, because "which pairs are allowed to interact" is what distinguishes an encoder from a decoder, a packed batch from a padded one, and a linear-cost model from a quadratic one.</p>
+        $$M_{ij} = \begin{cases}0 & \text{if } i \text{ may attend to } j\\[2pt] -\infty & \text{otherwise}\end{cases}$$
+        <p>In practice nobody adds \(-\infty\) to a materialised matrix any more. Modern kernels take a predicate, evaluate it blockwise, and skip whole tiles whose predicate is false everywhere — which is why PyTorch's <code>BlockMask</code> and similar structures are the real interface. A mask that is expressible as a small number of rectangular blocks is nearly free; an arbitrary boolean mask of the same density is not.</p>
+
+        <div class="article-panel" id="fig-masks" role="group" aria-label="Interactive figure: an explorer for causal, sliding-window, prefix, padding and packed attention masks" data-interval="240">
+          <div class="figure-head"><span class="figure-kicker">Figure 5</span><span class="figure-name">Mask explorer</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p><strong>Bidirectional.</strong> No mask at all. Every position sees every other. This is what BERT-style encoders and every vision Transformer use, and it is the right default whenever the whole input is available at once and you are producing representations rather than continuations.</p>
+        <p><strong>Causal.</strong> \(j \le i\). This is the one structural thing that makes a Transformer a language model. It lets you compute the loss at all \(n\) positions from one forward pass while guaranteeing that position \(i\) never saw its own target — teacher forcing and parallel training in a single triangular matrix.</p>
+        <p><strong>Padding.</strong> Sequences in a batch have different lengths, the tensor is rectangular, so the slack is masked out. Note that padding masks are per-sequence and column-shaped, while causal masks are per-position and triangular; they compose by elementwise AND, which is why real kernels take a mask function rather than a single fixed pattern.</p>
+        <p><strong>Packed / block-diagonal.</strong> Padding wastes compute proportional to the length variance in your batch. Concatenating several documents into one sequence and masking across document boundaries wastes none. This is standard in serious pretraining pipelines, and it is also the mask most often gotten subtly wrong — forget it and documents silently attend to each other.</p>
+        <p><strong>Prefix (non-causal prefix, causal suffix).</strong> The prompt gets to be bidirectional while the generated part stays autoregressive. Useful for encoder-decoder-flavoured behaviour in a decoder-only stack, and structurally identical to how many VLMs treat image tokens: the picture is not a sequence, so there is no reason for its tokens to be causally ordered among themselves.</p>
+        <p><strong>Sliding window, with or without sinks.</strong> Now we are changing complexity rather than semantics, which is the topic of a later section — but note that it is the same mechanism. Nothing about the attention rule changed; we deleted entries from \(M\).</p>
+      </section>
+
+      <section id="cross">
+        <h2>Self-attention and cross-attention</h2>
+        <p>The next axis is the simplest of all: where do \(Q\), \(K\) and \(V\) come from?</p>
+        <p>Self-attention takes all three from the same sequence, \(Q,K,V \leftarrow X\), so the output has the same length as the input and the cost is \(O(n^2)\). Cross-attention takes \(Q \leftarrow X_{\text{tgt}}\) and \(K,V \leftarrow X_{\text{src}}\), so the output has the length of the <em>target</em> and the cost is \(O(n_{\text{tgt}} \cdot n_{\text{src}})\).</p>
+        <p>That asymmetry is more consequential than it looks. The output sequence length is set by the queries alone. If you can afford few queries and many keys, you get a cheap read over an enormous source, and several well-known architectures are exactly this observation applied hard.</p>
+
+        <div class="article-panel" id="fig-cross" role="group" aria-label="Animated figure: self-attention, cross-attention, Q-Former and Perceiver as different sources for Q, K and V" data-interval="2200">
+          <div class="figure-head"><span class="figure-kicker">Figure 6</span><span class="figure-name">Same operation, four wiring diagrams</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>A vision-language model has a choice here, and the choice is architectural rather than cosmetic. <em>Early fusion</em> projects image patches into the text embedding space and concatenates them, so every layer is self-attention over a mixed sequence — simple, no new modules, but the image tokens cost you full quadratic context. <em>Cross-attention fusion</em>, as in Flamingo, keeps the image tokens in a side buffer and inserts cross-attention layers that read from it, so the text stream stays short. <em>Bottleneck resampling</em>, as in BLIP-2's Q-Former or a Perceiver latent array, uses a small fixed set of learned query vectors to compress hundreds of patch tokens into a few dozen before the language model ever sees them.</p>
+        <p>The learned-query trick deserves a moment. In a Q-Former the queries are parameters, not functions of the input. They do not depend on the image at all; the image only enters through \(K\) and \(V\). Each query vector is effectively a learned question asked of every image, and the answers are the tokens the LLM receives. That is why the number of learned queries is such a load-bearing hyperparameter: it is the width of the channel between the two modalities.</p>
+      </section>
+
+      <section id="heads">
+        <h2>Why more than one head</h2>
+        <p>A single attention layer computes one distribution per position. One distribution means one notion of relevance, and one notion is not enough: at the same position a model may want to track the syntactic head, the coreferent, the position two tokens back, and the topic of the paragraph. Averaging four incompatible answers into one softmax gives you none of them.</p>
+        <p>So run \(h\) of them in parallel on slices of the representation:</p>
+        $$\mathrm{head}_i = \operatorname{Attn}\!\big(XW_Q^{(i)},\, XW_K^{(i)},\, XW_V^{(i)}\big), \qquad \operatorname{MHA}(X) = \big[\mathrm{head}_1;\ldots;\mathrm{head}_h\big]W_O .$$
+        <p>The usual convention is \(d_h = d_{\text{model}}/h\), which makes multi-head attention cost the same as single-head attention with the same \(d_{\text{model}}\). The projections do not add parameters, they partition them. You are trading the ability to compute one attention pattern over \(d\) dimensions for \(h\) patterns over \(d/h\) dimensions each, and empirically that trade is very favourable.</p>
+
+        <div class="article-panel" id="fig-heads" role="group" aria-label="Animated figure: splitting a representation into heads, computing distinct attention patterns, and recombining through the output projection" data-interval="1800">
+          <div class="figure-head"><span class="figure-kicker">Figure 7</span><span class="figure-name">Split, attend separately, mix back</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Two honest caveats, because this is where popular explanations overclaim. Heads do not divide neatly into human-nameable jobs. Some are legible — previous-token heads, delimiter heads, induction heads — and some are not, and the ones that look interpretable in a diagram are a biased sample of the ones that were easy to visualise. Also, most heads are not doing much: <a href="https://arxiv.org/abs/1905.10650" target="_blank" rel="noopener noreferrer">Michel, Levy and Neubig</a> found that large fractions of heads can be pruned after training at little cost, with a small number of heads carrying most of the work.</p>
+        <p>Which raises the question that drives the next section. If the heads are individually cheap in parameters and largely redundant in function, what exactly is expensive about them?</p>
+      </section>
+
+      <section id="gqa">
+        <h2>MHA, MQA, GQA</h2>
+        <p>Nothing about multi-head attention is expensive during training. The parameters are fixed, the FLOPs are the same as single-head, and the memory for activations is dominated by other things. The problem appears at inference, and it appears for one specific reason: autoregressive decoding caches keys and values.</p>
+        <p>When you generate token \(t+1\) you need its query against every previous key. Recomputing those keys each step is quadratic waste, so you store them. The cache is</p>
+        $$M_{\mathrm{KV}} \;=\; \underbrace{2}_{K \text{ and } V} \times L \times B \times S \times H_{\mathrm{KV}} \times d_h \times \text{bytes},$$
+        <p>and it grows linearly in both batch size and sequence length, without bound, while the weights stay fixed. For a 7B-class model at 8K context in fp16 that is 4 GiB of cache for a <em>single</em> sequence. Serve sixty-four of them and the cache alone dwarfs the model.</p>
+        <p>Worse, this is a bandwidth problem, not just a capacity problem. Decoding one token requires reading the entire cache from HBM to compute one column of attention scores. Arithmetic intensity is close to one FLOP per byte, so the GPU idles while memory streams. The cache size <em>is</em> the token latency.</p>
+        <p>The single term in that product you can touch without changing the model's shape is \(H_{\mathrm{KV}}\).</p>
+        <p><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener noreferrer">Multi-query attention</a> takes it to the floor: keep all \(H\) query heads, share one key head and one value head across all of them. The cache shrinks by a factor of \(H\). Every head still computes a different attention pattern, because the queries still differ, but they all match against the same key space and read from the same value space. Quality drops, and training gets less stable.</p>
+        <p><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">Grouped-query attention</a> interpolates. Choose \(1 < H_{\mathrm{KV}} < H_Q\), partition the query heads into \(H_{\mathrm{KV}}\) groups, and give each group its own KV head. MHA and MQA are the endpoints \(H_{\mathrm{KV}} = H_Q\) and \(H_{\mathrm{KV}} = 1\). The GQA paper also showed you can uptrain an existing MHA checkpoint into GQA by mean-pooling the KV heads within each group and continuing training for a small fraction of the original budget, which is a large part of why adoption was so fast.</p>
+
+        <div class="article-panel" id="fig-gqa" role="group" aria-label="Interactive figure: a KV cache calculator showing how grouped-query attention changes memory and bandwidth" data-interval="1900">
+          <div class="figure-head"><span class="figure-kicker">Figure 8</span><span class="figure-name">KV cache calculator</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>\(H_{\mathrm{KV}} = 8\) has become the default across open model families for a reason visible in the figure: the first factor-of-four is nearly free in quality and removes three quarters of the cache, while the last factor-of-eight down to MQA costs real accuracy for a much smaller absolute saving. There is also a systems argument. With eight KV heads and eight-way tensor parallelism, each rank owns exactly one KV head and no cache is replicated — go below eight and you either replicate the cache across ranks or complicate the sharding.</p>
+        <p>Note what this section did <em>not</em> change: the attention rule. Every query head still computes a softmax over scaled dot products. We only changed how many distinct key and value projections exist. That is a recurring pattern worth watching for.</p>
+      </section>
+
+      <section id="local">
+        <h2>Local and sliding-window attention</h2>
+        <p>Back to the mask, now used to attack complexity rather than semantics. Dense attention costs \(O(n^2 d)\) FLOPs. Restricting each position to a window of \(w\) neighbours gives \(O(n w d)\), linear in sequence length.</p>
+        <p>The objection writes itself: surely a token sometimes needs a token far away. Two answers.</p>
+        <p>The first is empirical. Attention distributions in trained models are heavily concentrated on nearby positions, plus a small number of special positions — often the very first tokens, which act as attention sinks where heads dump probability mass when they have nothing to retrieve. Discarding the long tail of near-zero weights costs less than the quadratic term suggests.</p>
+        <p>The second is structural and more important. Local attention is not myopic once you stack it. A token attends to \(w\) neighbours in layer one; each of those attended to \(w\) neighbours of their own, so after \(L\) layers the receptive field is roughly \(L \cdot w\) wide. Mistral 7B's window of 4096 across 32 layers gives a theoretical reach of 131K tokens. Information travels; it just takes layers to do it, exactly like stacked convolutions.</p>
+
+        <div class="article-panel" id="fig-sparse" role="group" aria-label="Interactive figure: attention patterns and how the receptive field of one token grows across layers" data-interval="1300">
+          <div class="figure-head"><span class="figure-kicker">Figure 9</span><span class="figure-name">Pattern gallery and receptive-field growth</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>The practical designs mix local with something global. Longformer pairs a sliding window with a handful of positions that attend everywhere and are attended by everyone. StreamingLLM keeps the first few tokens permanently in the window and gets stable generation far past the training length. Gemma 2 and several recent models alternate: local layers for most of the stack, full attention every few layers, so the cheap layers do the routine work and the expensive ones handle long-range routing. That alternation also has a pleasant consequence for serving, since only the global layers need a full-length KV cache.</p>
+      </section>
+
+      <section id="sparse">
+        <h2>Sparse attention</h2>
+        <p>A sliding window is one sparsity pattern. The general move is to pick any structured subset \(\mathcal{S} \subset \{1..n\}^2\) of pairs and compute only those. Rather than cataloguing the two dozen published patterns, it is more useful to hold the design axes, because every pattern is a point in this space:</p>
+        <p><strong>Fixed or content-dependent?</strong> A fixed pattern is decided before you see the data — windows, strides, blocks. It is kernel-friendly and predictable. A content-dependent pattern routes based on the input, as in clustering or routing attention, and recovers more of dense attention's flexibility at the cost of a data-dependent gather that hardware dislikes.</p>
+        <p><strong>What guarantees connectivity?</strong> If two positions are never in the same pattern at any layer, no information can flow between them. Fixed patterns need an explicit story for this: strided attention interleaves a local pattern with a strided one so any pair is reachable in two hops; Big Bird adds random edges and proves the result is a expander-like graph that remains a universal approximator.</p>
+        <p><strong>Is the sparsity block-structured?</strong> This is the axis that decides whether a paper's FLOP savings become wall-clock savings. GPUs multiply tiles, not elements. Skipping 90% of individual entries scattered at random buys nothing; skipping 90% of \(128\times128\) blocks buys almost the full 10×. Any sparse method that survives contact with a real kernel is block-sparse in practice.</p>
+        <div class="keypoint"><p>Sparsity is not a modelling idea that happens to be fast. It is a hardware idea that has to be laundered through a modelling story, and the ones that stuck are the ones whose patterns were rectangular.</p></div>
+      </section>
+
+      <section id="linear">
+        <h2>Linear attention</h2>
+        <p>Sparsity keeps the softmax and deletes pairs. Linear attention keeps every pair and deletes the softmax, which sounds worse and is actually a deeper change.</p>
+        <p>The quadratic cost has a specific cause: we compute \(QK^\top\) first. Matrix multiplication is associative, so with \(Q \in \mathbb{R}^{n\times d}\), \(K \in \mathbb{R}^{n \times d}\), \(V\in\mathbb{R}^{n\times d}\),</p>
+        $$\underbrace{(QK^\top)V}_{O(n^2 d),\ \ n\times n \text{ intermediate}} \;=\; \underbrace{Q(K^\top V)}_{O(n d^2),\ \ d\times d \text{ intermediate}} .$$
+        <p>Same result, different order, and for \(n \gg d\) the right-hand side is dramatically cheaper. The intermediate is a \(d\times d\) matrix whose size does not depend on sequence length at all.</p>
+        <p>The reason we cannot simply use it is the softmax sitting between the two multiplications. \(\operatorname{softmax}(QK^\top)V\) requires the full score matrix to exist before any normalisation happens. So <a href="https://arxiv.org/abs/2006.16236" target="_blank" rel="noopener noreferrer">Katharopoulos et al.</a> replace \(\exp(q^\top k)\) with a factorisable similarity \(\phi(q)^\top\phi(k)\) for some feature map \(\phi\) with non-negative outputs:</p>
+        $$z_i = \frac{\phi(q_i)^\top \sum_j \phi(k_j)v_j^\top}{\phi(q_i)^\top \sum_j \phi(k_j)} .$$
+        <p>Both sums are shared across all queries, so you compute them once. Performer goes further and chooses \(\phi\) as a random feature map that makes \(\phi(q)^\top\phi(k)\) an unbiased estimator of the softmax kernel, so the approximation is to the original operation rather than a redefinition of it.</p>
+
+        <div class="article-panel" id="fig-linear" role="group" aria-label="Interactive figure: comparing the two multiplication orders in attention and the resulting recurrent state" data-interval="1900">
+          <div class="figure-head"><span class="figure-kicker">Figure 10</span><span class="figure-name">Reassociation, and the state it creates</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Now the part that matters most. In the causal case those sums become running sums, and the layer becomes a recurrence:</p>
+        $$S_t = S_{t-1} + \phi(k_t)v_t^\top, \qquad z_t = \frac{\phi(q_t)^\top S_t}{\phi(q_t)^\top u_t}, \qquad u_t = u_{t-1} + \phi(k_t).$$
+        <p>Generation is now \(O(1)\) per token with \(O(d^2)\) state, and there is no KV cache at all. That is the real prize, and it is also the real cost: a fixed-size state cannot store an arbitrarily long history. Softmax attention keeps every token verbatim and pays \(O(n)\) memory for perfect recall; linear attention keeps a lossy summary and pays \(O(1)\). Tasks that need exact retrieval from far back — the ones induction heads solve — are exactly where pure linear attention degrades.</p>
+        <p>This is the same trade-off that RetNet, the gated linear attention family and the modern SSMs are all negotiating, mostly by making the state update forget selectively instead of summing uniformly. It is also why nearly every production model in this family is a hybrid: mostly linear or recurrent layers for the streaming work, a few full-attention layers kept for exact recall. That comparison deserves its own article.</p>
+      </section>
+
+      <section id="mla">
+        <h2>Multi-head latent attention</h2>
+        <p>GQA shrinks the cache by reducing the <em>number</em> of key-value heads. There is another direction: keep the heads and reduce the <em>rank</em>.</p>
+        <p>The observation behind <a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noopener noreferrer">DeepSeek-V2</a>'s multi-head latent attention is that the concatenation of all per-head keys and values for a token is a very wide vector produced by a linear map of one hidden state. Wide, but not high-rank. So compress it, cache the compressed version, and reconstruct on the fly:</p>
+        $$c_t^{KV} = W^{DKV}h_t \in \mathbb{R}^{d_c}, \qquad k_t^{C} = W^{UK}c_t^{KV}, \qquad v_t^{C} = W^{UV}c_t^{KV},$$
+        <p>with \(d_c \ll H \cdot d_h\). Only \(c_t^{KV}\) is stored. The up-projections are weights, not cache, so they cost nothing per token.</p>
+        <p>Stated that way it sounds like it just moves work from memory to compute — you would decompress every cached token at every step. The trick that makes it genuinely cheap is <em>absorption</em>. The score is</p>
+        $$q_i^\top k_j = \big(W^{UQ}c_i^{Q}\big)^\top \big(W^{UK}c_j^{KV}\big) = c_i^{Q\top}\big(W^{UQ\top}W^{UK}\big)c_j^{KV},$$
+        <p>and the bracketed product is a constant matrix that can be folded into the query projection at load time. The per-head keys are never materialised at all; attention scores are computed directly in latent space. The same trick absorbs \(W^{UV}\) into \(W_O\) on the output side.</p>
+        <p>RoPE breaks it. A rotary embedding applies a position-dependent rotation to \(k_j\), and a position-dependent matrix cannot be folded into a fixed weight, because it sits between the two things you wanted to multiply together. MLA's answer is surgical: split the key into a content part that lives in latent space and stays absorbable, and a small <em>decoupled</em> rotary part carried by its own narrow projection, shared across heads and cached separately. In DeepSeek-V2 that is 512 latent dimensions plus 64 rotary dimensions, 576 numbers per token per layer, against 32,768 for the equivalent full MHA.</p>
+
+        <div class="article-panel" id="fig-mla" role="group" aria-label="Animated figure: how multi-head latent attention compresses the key-value cache into a latent vector plus a decoupled rotary key" data-interval="2000">
+          <div class="figure-head"><span class="figure-kicker">Figure 11</span><span class="figure-name">Compress the rank, not the head count</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>The reported headline is a 93.3% KV cache reduction relative to their own dense-MHA 67B model, with quality that DeepSeek reports as better than MHA rather than merely close. Two caveats worth keeping: the comparison is first-party and against MHA rather than a tuned GQA baseline, and MLA is considerably more intricate to implement well — the absorption has to be done deliberately, and a naive implementation gives up most of the benefit.</p>
+      </section>
+
+      <section id="vision">
+        <h2>Attention over images</h2>
+        <p>Everything so far assumed a sequence. Images are grids, and the grid structure changes which patterns are natural.</p>
+        <p>A vision Transformer flattens patches into a sequence and runs ordinary bidirectional self-attention, which is the honest baseline: it makes no assumption about 2D locality and lets the model learn it. The cost is that patch count grows quadratically with resolution while attention grows quadratically with patch count, so resolution enters at the fourth power. At 224 pixels with 14-pixel patches you have 256 tokens; at 1024 pixels you have 5,329, and the score matrix has 28 million entries per head per layer.</p>
+        <p>Hence the structured alternatives, each of which is a mask expressed in grid coordinates rather than sequence coordinates.</p>
+
+        <div class="article-panel" id="fig-vision" role="group" aria-label="Animated figure: global, windowed, shifted-window, axial and bottleneck attention patterns over an image grid" data-interval="2000">
+          <div class="figure-head"><span class="figure-kicker">Figure 12</span><span class="figure-name">Five ways to attend over a grid</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p><strong>Windowed and shifted windows.</strong> Swin partitions the grid into non-overlapping windows and attends within each, then shifts the partition by half a window in the next layer so information crosses boundaries. Cost becomes linear in the number of patches, and the shift is doing exactly the job the receptive-field argument from the sliding-window section describes.</p>
+        <p><strong>Axial.</strong> Attend along rows, then along columns. Two layers give a full receptive field over the grid at \(O(N\sqrt{N})\) instead of \(O(N^2)\), and it decomposes the mask into two dense operations, which is friendlier to kernels than an irregular 2D neighbourhood.</p>
+        <p><strong>Bottleneck resampling.</strong> The Perceiver and Q-Former pattern from earlier, which for vision is often the most useful of all: the expensive quadratic term is over patches, so if a fixed latent array does the reading, the cost becomes linear in patch count and the downstream stack never sees the full grid.</p>
+        <p>For vision-language models the practical question is usually not which of these to use inside the encoder, but how many tokens survive the connector. A 7B language model does not care whether your patches were attended axially; it cares that it has been handed 729 image tokens per tile and that they occupy its context and its KV cache like any other token.</p>
+      </section>
+
+      <section id="flash">
+        <h2>FlashAttention is not a new attention rule</h2>
+        <p>This distinction causes more confusion than anything else in the area, so it gets its own section.</p>
+        <p>MHA, GQA, MLA, sliding windows and linear attention change <em>what function is computed</em>. Give them the same inputs and they return different numbers, because the model is different. FlashAttention changes <em>how the same function is executed</em>. Given the same inputs it returns the same numbers, to floating-point reassociation. It is not an approximation, and it is not an architecture choice.</p>
+        <p>The problem it solves is arithmetic intensity. The textbook implementation materialises \(S = QK^\top\) in HBM, reads it back to softmax it, writes \(P\), reads it again to multiply by \(V\). Those \(n \times n\) round trips dominate: at \(n = 8192\) each intermediate is 128 MB in fp16, and the kernel spends its life moving bytes while the tensor cores idle.</p>
+        <p><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">FlashAttention</a> tiles the computation so that a block of queries meets a block of keys and values inside SRAM, accumulating the output without ever writing the score matrix out. That requires normalising a softmax you have not finished seeing, which is possible because softmax only depends on score differences: carry a running maximum \(m\) and a running denominator \(\ell\), and rescale the accumulator by \(e^{m_{\text{old}} - m_{\text{new}}}\) whenever the maximum moves.</p>
+
+        <div class="article-panel" id="fig-flash" role="group" aria-label="Animated figure: comparing naive attention memory traffic with tiled FlashAttention and online softmax rescaling" data-interval="1600">
+          <div class="figure-head"><span class="figure-kicker">Figure 13</span><span class="figure-name">Where the bytes go</span></div>
+          <div class="animation-stage"></div>
+        </div>
+
+        <p>Memory traffic drops from \(O(n^2)\) to \(O(n^2 d / B)\) for on-chip block size \(B\), and activation memory for the backward pass drops from \(O(n^2)\) to \(O(n)\) because the scores are recomputed from the saved statistics instead of stored. FlashAttention-2 rebalanced the loops and parallelised over sequence length to fill more SMs; FlashAttention-3 overlapped the matmuls with the softmax and exploited Hopper's asynchrony and FP8 paths.</p>
+        <p>The same category error appears one level up the stack. Paged attention is a memory-<em>management</em> scheme: it stores the KV cache in fixed-size blocks with an indirection table, so a serving system can avoid fragmentation and share prefixes between requests. Continuous batching is a scheduling scheme. Neither changes the mathematics. When you read that a system got a large speedup, the first question to ask is which of the three layers it touched — the model, the kernel, or the scheduler — because they compose, and confusing them makes it impossible to reason about what to try next.</p>
+      </section>
+
+      <section id="taxonomy">
+        <h2>A taxonomy</h2>
+        <p>A chronological list of attention papers is nearly useless, because the papers are answers to different questions and only look comparable in a table sorted by date. Sorted by the question instead:</p>
+        <table>
+          <thead><tr><th>The question being changed</th><th>Family</th><th>What it costs you</th></tr></thead>
+          <tbody>
+            <tr><td>Who can I see?</td><td>bidirectional, causal, prefix, packed, sliding-window, sparse</td><td>expressiveness, or nothing at all if the deleted pairs were unused</td></tr>
+            <tr><td>Where do Q, K, V come from?</td><td>self-attention, cross-attention, learned-query resampling</td><td>output length is tied to the query source</td></tr>
+            <tr><td>How many distinct K/V projections?</td><td>MHA, MQA, GQA</td><td>quality, monotonically, as you approach one</td></tr>
+            <tr><td>What rank is the cached state?</td><td>MLA and other low-rank KV compressions</td><td>implementation complexity; RoPE needs special handling</td></tr>
+            <tr><td>Must every pair interact at all?</td><td>linear attention, kernel methods, recurrent forms</td><td>exact long-range recall, in exchange for O(1) decoding state</td></tr>
+            <tr><td>How do modalities meet?</td><td>early fusion, cross-attention fusion, Q-Former, Perceiver</td><td>context budget versus connector capacity</td></tr>
+            <tr><td>How does grid structure constrain it?</td><td>windowed, shifted-window, axial, 2D-local</td><td>a locality assumption the data may not share</td></tr>
+            <tr><td>How is it executed?</td><td>FlashAttention, fused kernels, paged attention</td><td>nothing — the function is unchanged</td></tr>
+          </tbody>
+        </table>
+        <p>The last row is the one to internalise. Seven of these eight rows are model changes that need to be trained and evaluated. One of them is free.</p>
+        <p>When a new attention paper appears, the fastest way to place it is to ask which row it belongs to, and then to ask what it gave up — because every row above the last one gives up something, and a paper that claims otherwise has usually chosen a baseline carefully.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Origins</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1409.0473" target="_blank" rel="noopener noreferrer">Neural Machine Translation by Jointly Learning to Align and Translate</a> · Bahdanau, Cho &amp; Bengio, 2014</li>
+            <li><a href="https://arxiv.org/abs/1508.04025" target="_blank" rel="noopener noreferrer">Effective Approaches to Attention-based Neural Machine Translation</a> · Luong, Pham &amp; Manning, 2015</li>
+            <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Attention Is All You Need</a> · Vaswani et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1810.04805" target="_blank" rel="noopener noreferrer">BERT: Pre-training of Deep Bidirectional Transformers</a> · Devlin et al., 2018</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>What heads do</h3>
+          <ul>
+            <li><a href="https://transformer-circuits.pub/2021/framework/index.html" target="_blank" rel="noopener noreferrer">A Mathematical Framework for Transformer Circuits</a> · Elhage et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/1905.10650" target="_blank" rel="noopener noreferrer">Are Sixteen Heads Really Better than One?</a> · Michel, Levy &amp; Neubig, 2019</li>
+            <li><a href="https://arxiv.org/abs/1906.04341" target="_blank" rel="noopener noreferrer">What Does BERT Look At? An Analysis of BERT's Attention</a> · Clark et al., 2019</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>KV cache and head sharing</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1911.02150" target="_blank" rel="noopener noreferrer">Fast Transformer Decoding: One Write-Head is All You Need</a> · Shazeer, 2019</li>
+            <li><a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints</a> · Ainslie et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2405.04434" target="_blank" rel="noopener noreferrer">DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model</a> · DeepSeek-AI, 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.19437" target="_blank" rel="noopener noreferrer">DeepSeek-V3 Technical Report</a> · DeepSeek-AI, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Sparse and local attention</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1904.10509" target="_blank" rel="noopener noreferrer">Generating Long Sequences with Sparse Transformers</a> · Child et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2004.05150" target="_blank" rel="noopener noreferrer">Longformer: The Long-Document Transformer</a> · Beltagy, Peters &amp; Cohan, 2020</li>
+            <li><a href="https://arxiv.org/abs/2007.14062" target="_blank" rel="noopener noreferrer">Big Bird: Transformers for Longer Sequences</a> · Zaheer et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2310.06825" target="_blank" rel="noopener noreferrer">Mistral 7B</a> · Jiang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener noreferrer">Efficient Streaming Language Models with Attention Sinks</a> · Xiao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2408.00118" target="_blank" rel="noopener noreferrer">Gemma 2: Improving Open Language Models at a Practical Size</a> · Gemma Team, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Linear and recurrent formulations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2006.16236" target="_blank" rel="noopener noreferrer">Transformers are RNNs: Fast Autoregressive Transformers with Linear Attention</a> · Katharopoulos et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2009.14794" target="_blank" rel="noopener noreferrer">Rethinking Attention with Performers</a> · Choromanski et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2307.08621" target="_blank" rel="noopener noreferrer">Retentive Network: A Successor to Transformer for Large Language Models</a> · Sun et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.00752" target="_blank" rel="noopener noreferrer">Mamba: Linear-Time Sequence Modeling with Selective State Spaces</a> · Gu &amp; Dao, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Position and normalisation of scores</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noopener noreferrer">RoFormer: Enhanced Transformer with Rotary Position Embedding</a> · Su et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2108.12409" target="_blank" rel="noopener noreferrer">Train Short, Test Long: Attention with Linear Biases (ALiBi)</a> · Press, Smith &amp; Lewis, 2021</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Vision and multimodal attention</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2010.11929" target="_blank" rel="noopener noreferrer">An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale</a> · Dosovitskiy et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2103.14030" target="_blank" rel="noopener noreferrer">Swin Transformer: Hierarchical Vision Transformer using Shifted Windows</a> · Liu et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/1912.12180" target="_blank" rel="noopener noreferrer">Axial Attention in Multidimensional Transformers</a> · Ho et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2103.03206" target="_blank" rel="noopener noreferrer">Perceiver: General Perception with Iterative Attention</a> · Jaegle et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2301.12597" target="_blank" rel="noopener noreferrer">BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener noreferrer">Flamingo: a Visual Language Model for Few-Shot Learning</a> · Alayrac et al., 2022</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Execution, not architecture</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1805.02867" target="_blank" rel="noopener noreferrer">Online normalizer calculation for softmax</a> · Milakov &amp; Gimelshein, 2018</li>
+            <li><a href="https://arxiv.org/abs/2112.05682" target="_blank" rel="noopener noreferrer">Self-attention Does Not Need O(n²) Memory</a> · Rabe &amp; Staats, 2021</li>
+            <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a> · Dao et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener noreferrer">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a> · Dao, 2023</li>
+            <li><a href="https://arxiv.org/abs/2407.08608" target="_blank" rel="noopener noreferrer">FlashAttention-3: Fast and Accurate Attention with Asynchrony and Low-precision</a> · Shah et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener noreferrer">Efficient Memory Management for Large Language Model Serving with PagedAttention</a> · Kwon et al., 2023</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>How Attention Moves Information</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/how-attention-moves-information/">https://srini-anirudh.github.io/blogs/how-attention-moves-information/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026attention,
+  author       = {Srinivasan, Anirudh},
+  title        = {How Attention Moves Information},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/how-attention-moves-information/},
+  note         = {Published September 5, 2026; updated September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; How Attention Moves Information</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+    (function () {
+      "use strict";
+      var NS = "http://www.w3.org/2000/svg";
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var C = {
+        q: "#3fd1a0", k: "#5ab2e8", v: "#f2a65a", hot: "#e8697d", pur: "#b58cf0",
+        ink: "#e4eaee", dim: "#93a0a8", faint: "#5f6b73", line: "#39454e", grid: "#1b232a", deep: "#141b21"
+      };
+
+      function S(tag, attrs, kids) {
+        var n = document.createElementNS(NS, tag);
+        if (attrs) for (var a in attrs) if (attrs[a] !== null && attrs[a] !== undefined) n.setAttribute(a, attrs[a]);
+        if (kids) (kids.length !== undefined ? kids : [kids]).forEach(function (c) { n.appendChild(c); });
+        return n;
+      }
+      function T(x, y, str, attrs) {
+        var o = { x: x, y: y, fill: C.dim, "font-size": 11.5 };
+        if (attrs) for (var a in attrs) o[a] = attrs[a];
+        var t = S("text", o);
+        t.textContent = str;
+        return t;
+      }
+      function svgRoot(w, h) {
+        return S("svg", { viewBox: "0 0 " + w + " " + h, class: "fig-svg", preserveAspectRatio: "xMidYMid meet", "aria-hidden": "true" });
+      }
+      function place(node, x, y, s) {
+        node.style.transform = "translate(" + x + "px," + y + "px)" + (s != null ? " scale(" + s + ")" : "");
+      }
+      function camera(node, cx, cy, px, py, s) {
+        node.style.transform = "translate(" + (cx - s * px) + "px," + (cy - s * py) + "px) scale(" + s + ")";
+      }
+      function gridCells(parent, rows, cols, cell, x0, y0, gap) {
+        var g = S("g"), cells = [], r, c, rect;
+        for (r = 0; r < rows; r++) {
+          cells[r] = [];
+          for (c = 0; c < cols; c++) {
+            rect = S("rect", { x: x0 + c * cell, y: y0 + r * cell, width: cell - (gap == null ? 1.4 : gap), height: cell - (gap == null ? 1.4 : gap), fill: C.grid, class: "tw" });
+            g.appendChild(rect); cells[r][c] = rect;
+          }
+        }
+        parent.appendChild(g);
+        return { g: g, cells: cells };
+      }
+      function pad2(n) { return n < 10 ? "0" + n : "" + n; }
+      function bytes(b) {
+        if (b >= 1073741824) return (b / 1073741824).toFixed(b / 1073741824 < 10 ? 2 : 1) + " GiB";
+        if (b >= 1048576) return (b / 1048576).toFixed(b / 1048576 < 10 ? 1 : 0) + " MiB";
+        if (b >= 1024) return (b / 1024).toFixed(1) + " KiB";
+        return b + " B";
+      }
+      function big(n) {
+        if (n >= 1e12) return (n / 1e12).toFixed(2) + "T";
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + "G";
+        if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+        return "" + Math.round(n);
+      }
+      function mulberry32(a) {
+        return function () {
+          a |= 0; a = a + 0x6D2B79F5 | 0;
+          var t = Math.imul(a ^ a >>> 15, 1 | a);
+          t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+      }
+      function gauss(rnd) {
+        var u = 0, v = 0;
+        while (u === 0) u = rnd();
+        while (v === 0) v = rnd();
+        return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+      }
+      function softmax(a) {
+        var m = Math.max.apply(null, a), s = 0, i, o = [];
+        for (i = 0; i < a.length; i++) { o[i] = Math.exp(a[i] - m); s += o[i]; }
+        for (i = 0; i < a.length; i++) o[i] /= s;
+        return o;
+      }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function mixArr(a, b, t) { return a.map(function (x, i) { return lerp(x, b[i], t); }); }
+      function heat(w, base) {
+        var t = Math.max(0, Math.min(1, w));
+        return "rgba(" + Math.round(lerp(30, 63, t)) + "," + Math.round(lerp(38, 209, t)) + "," + Math.round(lerp(46, 160, t)) + ",1)";
+      }
+      function heatBlue(w) {
+        var t = Math.max(0, Math.min(1, w));
+        return "rgba(" + Math.round(lerp(28, 90, t)) + "," + Math.round(lerp(36, 178, t)) + "," + Math.round(lerp(44, 232, t)) + ",1)";
+      }
+
+      /* ---------- shared control surface -------------------------------- */
+      function fxLabel(extras, text) {
+        var s = document.createElement("span");
+        s.className = "fx-label"; s.textContent = text;
+        extras.appendChild(s); return s;
+      }
+      function fxButtons(extras, label, items, initialId, onPick) {
+        if (label) fxLabel(extras, label);
+        var btns = items.map(function (it) {
+          var b = document.createElement("button");
+          b.type = "button"; b.textContent = it.label;
+          b.setAttribute("aria-pressed", it.id === initialId ? "true" : "false");
+          b.setAttribute("aria-label", it.aria || it.label);
+          b.addEventListener("click", function () {
+            btns.forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
+            b.setAttribute("aria-pressed", "true");
+            onPick(it.id);
+          });
+          extras.appendChild(b);
+          return b;
+        });
+        return btns;
+      }
+      function fxToggle(extras, labelOn, labelOff, initial, onPick) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-pressed", initial ? "true" : "false");
+        b.textContent = initial ? labelOn : labelOff;
+        b.addEventListener("click", function () {
+          var on = b.getAttribute("aria-pressed") !== "true";
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+          b.textContent = on ? labelOn : labelOff;
+          onPick(on);
+        });
+        extras.appendChild(b);
+        return b;
+      }
+      function fxSlider(extras, label, opts, onInput) {
+        if (label) fxLabel(extras, label);
+        var i = document.createElement("input");
+        i.type = "range"; i.min = opts.min; i.max = opts.max; i.step = opts.step || 1; i.value = opts.value;
+        i.setAttribute("aria-label", opts.aria || label);
+        var o = document.createElement("output");
+        function paint() { o.textContent = opts.format ? opts.format(+i.value) : i.value; }
+        paint();
+        i.addEventListener("input", function () { paint(); onInput(+i.value); });
+        extras.appendChild(i); extras.appendChild(o);
+        return { input: i, out: o, paint: paint };
+      }
+
+      /* ---------- figure controller ------------------------------------- */
+      function mount(id, build) {
+        var panel = document.getElementById(id);
+        if (!panel) return;
+        var stage = panel.querySelector(".animation-stage");
+        var caption = document.createElement("p");
+        caption.className = "figure-caption";
+        caption.setAttribute("aria-live", "polite");
+        var extras = document.createElement("div");
+        extras.className = "figure-extra";
+        extras.setAttribute("role", "group");
+        extras.setAttribute("aria-label", "Figure parameters");
+        var bar = document.createElement("div");
+        bar.className = "animation-controls";
+        bar.setAttribute("role", "group");
+        bar.setAttribute("aria-label", "Animation controls");
+        bar.innerHTML =
+          '<button type="button" data-action="previous" aria-label="Previous stage">Previous</button>' +
+          '<button type="button" data-action="play-pause" aria-pressed="false" aria-label="Play animation">Play</button>' +
+          '<button type="button" data-action="next" aria-label="Next stage">Next</button>' +
+          '<button type="button" data-speed="0.5" aria-pressed="false" aria-label="Play at half speed">0.5x</button>' +
+          '<button type="button" data-speed="1" aria-pressed="true" aria-label="Play at normal speed">1x</button>' +
+          '<button type="button" data-speed="2" aria-pressed="false" aria-label="Play at double speed">2x</button>' +
+          '<span class="animation-status" aria-live="polite"></span>';
+
+        var host = { pause: function () {}, refresh: function () {}, go: function () {} };
+        var api;
+        try { api = build(stage, host, extras); }
+        catch (err) { stage.textContent = "This figure failed to load."; return; }
+
+        var total = api.total, idx = 0, speed = 1, playing = false, timer = null, userPaused = false;
+        var base = parseInt(panel.getAttribute("data-interval") || "1800", 10);
+
+        panel.appendChild(caption);
+        if (extras.childNodes.length) panel.appendChild(extras);
+        panel.appendChild(bar);
+
+        var status = bar.querySelector(".animation-status");
+        var playBtn = bar.querySelector('[data-action="play-pause"]');
+
+        function show(n) {
+          idx = ((n % total) + total) % total;
+          try {
+            api.render(idx);
+            caption.innerHTML = api.caption(idx);
+          } catch (err) { stop(false); }
+          status.textContent = "Stage " + pad2(idx + 1) + " / " + pad2(total);
+        }
+        function start(force) {
+          if ((REDUCED && !force) || total < 2) return;
+          if (timer) clearInterval(timer);
+          timer = setInterval(function () { show(idx + 1); }, Math.max(160, base / speed));
+          playing = true;
+          playBtn.textContent = "Pause";
+          playBtn.setAttribute("aria-pressed", "true");
+          playBtn.setAttribute("aria-label", "Pause animation");
+        }
+        function stop(manual) {
+          if (timer) { clearInterval(timer); timer = null; }
+          playing = false;
+          if (manual) userPaused = true;
+          playBtn.textContent = "Play";
+          playBtn.setAttribute("aria-pressed", "false");
+          playBtn.setAttribute("aria-label", "Play animation");
+        }
+        host.pause = function () { stop(true); };
+        host.refresh = function () { show(idx); };
+        host.go = function (n) { stop(true); show(n); };
+
+        bar.addEventListener("click", function (ev) {
+          var b = ev.target.closest("button");
+          if (!b) return;
+          if (b.dataset.action === "previous") { stop(true); show(idx - 1); }
+          else if (b.dataset.action === "next") { stop(true); show(idx + 1); }
+          else if (b.dataset.action === "play-pause") {
+            if (playing) stop(true); else { userPaused = false; start(true); }
+          } else if (b.dataset.speed) {
+            speed = parseFloat(b.dataset.speed);
+            bar.querySelectorAll("[data-speed]").forEach(function (x) {
+              x.setAttribute("aria-pressed", x === b ? "true" : "false");
+            });
+            if (playing) start();
+          }
+        });
+        extras.addEventListener("click", function () { stop(true); });
+        extras.addEventListener("input", function () { stop(true); });
+
+        show(0);
+
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) { if (!userPaused && !playing) start(); }
+              else if (playing) stop(false);
+            });
+          }, { threshold: 0.35 }).observe(panel);
+        }
+      }
+
+      /* ================================================================== */
+      /* FIGURE 1 — attention as a dynamic weighted average                 */
+      /* ================================================================== */
+      mount("fig-mixing", function (stage) {
+        var W = 940, H = 430, toks = ["the", "animal", "crossed", "the", "street", "because", "it", "was", "tired"];
+        var n = toks.length, qi = 6, bw = 92, step = 100, x0 = 24, ty = 232, bh = 44;
+        var UNI = toks.map(function () { return 1 / n; });
+        var LRN = [0.02, 0.46, 0.07, 0.01, 0.16, 0.03, 0.10, 0.02, 0.13];
+        var ZERO = toks.map(function () { return 0; });
+
+        var root = svgRoot(W, H);
+        var cam = S("g", { class: "cam" });
+        root.appendChild(cam);
+        stage.appendChild(root);
+
+        cam.appendChild(T(24, 26, "input representations   x1 … x9", { fill: C.faint, "font-size": 12 }));
+
+        var arcs = [], boxes = [], labels = [], bars = [], segs = [], vchips = [];
+        var arcG = S("g"), boxG = S("g"), barG = S("g"), segG = S("g");
+        cam.appendChild(arcG); cam.appendChild(boxG); cam.appendChild(barG); cam.appendChild(segG);
+
+        var qx = x0 + qi * step + bw / 2;
+        for (var i = 0; i < n; i++) {
+          var x = x0 + i * step;
+          if (i !== qi) {
+            var d = "M " + (x + bw / 2) + " " + ty + " C " + (x + bw / 2) + " " + (ty - 120) + ", " + qx + " " + (ty - 120) + ", " + qx + " " + ty;
+            var p = S("path", { d: d, fill: "none", stroke: C.k, "stroke-width": 1, "stroke-opacity": 0, class: "tw", "stroke-linecap": "round" });
+            arcG.appendChild(p); arcs[i] = p;
+          } else arcs[i] = null;
+
+          var r = S("rect", { x: x, y: ty, width: bw, height: bh, rx: 2, fill: C.deep, stroke: C.line, "stroke-width": 1.2, class: "tw" });
+          boxG.appendChild(r); boxes[i] = r;
+          var t = T(x + bw / 2, ty + 28, toks[i], { fill: C.dim, "font-size": 13, "text-anchor": "middle", class: "tw" });
+          boxG.appendChild(t); labels[i] = t;
+
+          var vc = S("rect", { x: x + 26, y: ty + 52, width: 40, height: 9, rx: 1, fill: C.v, "fill-opacity": 0, class: "tw" });
+          boxG.appendChild(vc); vchips[i] = vc;
+
+          var bar = S("rect", { x: x + 26, y: 300, width: 40, height: 78, fill: C.q, "fill-opacity": 0.85, class: "tw bar-scale" });
+          bar.style.transform = "scaleY(0)";
+          barG.appendChild(bar); bars[i] = bar;
+
+          var sg = S("rect", { x: 0, y: 392, width: 1, height: 24, fill: C.q, "fill-opacity": 0.9, class: "tw pos" });
+          segG.appendChild(sg); segs[i] = sg;
+        }
+        var segCols = [C.faint, C.q, C.k, C.faint, C.v, C.faint, C.pur, C.faint, C.hot];
+        segs.forEach(function (s, i) { s.setAttribute("fill", segCols[i]); });
+
+        var zLabel = T(W - 24, 26, "z7 = \u03a3 \u03b17j vj", { fill: C.q, "font-size": 12, "text-anchor": "end", opacity: 0, class: "tw" });
+        cam.appendChild(zLabel);
+        var sumNote = T(W - 24, 300, "", { fill: C.q, "font-size": 12, "text-anchor": "end", class: "tw" });
+        cam.appendChild(sumNote);
+        var alphaAxis = S("line", { x1: 20, y1: 379, x2: W - 20, y2: 379, stroke: C.line, "stroke-width": 1, opacity: 0, class: "tw" });
+        cam.appendChild(alphaAxis);
+
+        var W_ = [ZERO, ZERO, ZERO, UNI, UNI, mixArr(UNI, LRN, 0.35), mixArr(UNI, LRN, 0.72), LRN, LRN, LRN, LRN, LRN];
+        var caps = [
+          "Nine positions, nine vectors. Nothing here is contextual yet — <b>x7</b> knows it is the word <em>it</em> and nothing more.",
+          "Pick one position to update. Everything that follows is about producing a better vector for this slot.",
+          "Every other position is a candidate source. The question is not <em>whether</em> to read from them but <em>how much</em> from each.",
+          "The cheapest answer: read from all of them equally, α = 1/9.",
+          "Which fails. A uniform average is the same vector for every position, so the layer has destroyed exactly the information it was meant to add.",
+          "So let the weights depend on the pair (i, j) and on the content of both.",
+          "Mass moves toward the positions that actually carry the answer.",
+          "Now α7 is a genuine distribution over sources, concentrated on <b>animal</b>.",
+          "Non-negative and summing to one. The output stays inside the convex hull of the values — no source can win by growing its norm.",
+          "Each source contributes its <b>value</b> vector, not its raw embedding. What you match on and what you transmit are allowed to differ.",
+          "z7 is the weighted sum: mostly <b>animal</b>, with some <b>street</b> and <b>tired</b> mixed in.",
+          "That is the entire primitive. Everything else in this article is a constraint on how α is computed or which pairs are allowed to have one."
+        ];
+
+        function render(s) {
+          var w = W_[s], i, acc = 24, showBars = s >= 3, showSeg = s >= 3;
+          if (s === 1) camera(cam, W / 2, 200, qx, ty + 22, 1.85);
+          else if (s === 9) camera(cam, W / 2, 210, W / 2, 300, 1.18);
+          else camera(cam, 0, 0, 0, 0, 1);
+
+          for (i = 0; i < n; i++) {
+            var focus = (i === qi);
+            boxes[i].setAttribute("stroke", focus && s >= 1 ? C.q : C.line);
+            boxes[i].setAttribute("stroke-width", focus && s >= 1 ? 2 : 1.2);
+            boxes[i].setAttribute("fill", focus && s >= 1 ? "#132a24" : C.deep);
+            labels[i].setAttribute("fill", focus && s >= 1 ? C.q : (w[i] > 0.12 ? C.ink : C.dim));
+            vchips[i].setAttribute("fill-opacity", s >= 9 && i !== qi ? 0.25 + 0.75 * Math.min(1, w[i] * 2.2) : 0);
+
+            if (arcs[i]) {
+              var on = s >= 2;
+              arcs[i].style.strokeWidth = on ? Math.max(0.6, w[i] * 46) : 1;
+              arcs[i].style.strokeOpacity = on ? (s === 2 ? 0.25 : 0.2 + 0.7 * Math.min(1, w[i] * 3)) : 0;
+              arcs[i].setAttribute("stroke", w[i] > 0.2 ? C.q : C.k);
+            }
+            bars[i].style.transform = "scaleY(" + (showBars ? w[i] / 0.5 : 0) + ")";
+            var segW = showSeg ? Math.max(0.6, w[i] * (W - 48)) : 0;
+            place(segs[i], acc, 0, null);
+            segs[i].style.transform = "translate(" + acc + "px,0px) scale(" + segW + ",1)";
+            segs[i].setAttribute("fill-opacity", showSeg ? 0.9 : 0);
+            acc += segW;
+          }
+          alphaAxis.setAttribute("opacity", showBars ? 1 : 0);
+          zLabel.setAttribute("opacity", s >= 10 ? 1 : 0);
+          sumNote.textContent = showBars ? "Σ α7j = 1.00" : "";
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 2 — Bahdanau alignment                                      */
+      /* ================================================================== */
+      mount("fig-align", function (stage) {
+        var src = ["l'", "accord", "sur", "la", "zone", "économique", "européenne", "a", "été", "signé"];
+        var tgt = ["the", "agreement", "on", "the", "European", "Economic", "Area", "was", "signed"];
+        var peaks = [[0], [1], [2], [3], [6], [5], [4], [7, 8], [9]];
+        var cell = 30, x0 = 200, y0 = 96, W = 940, H = 96 + tgt.length * cell + 74;
+
+        var rows = peaks.map(function (pk) {
+          var w = src.map(function (_, j) {
+            var best = 0;
+            pk.forEach(function (p) { best = Math.max(best, Math.exp(-Math.pow(j - p, 2) / 0.75)); });
+            return best + 0.012;
+          });
+          var s = w.reduce(function (a, b) { return a + b; }, 0);
+          return w.map(function (x) { return x / s; });
+        });
+
+        var root = svgRoot(W, H);
+        stage.appendChild(root);
+        var cam = S("g", { class: "cam" });
+        root.appendChild(cam);
+
+        cam.appendChild(T(x0, 30, "encoder states  h1 … h10  (source)", { fill: C.faint, "font-size": 11.5 }));
+        var g = gridCells(cam, tgt.length, src.length, cell, x0, y0, 2);
+
+        src.forEach(function (s, j) {
+          var t = T(0, 0, s, { fill: C.faint, "font-size": 11, "text-anchor": "start" });
+          t.setAttribute("transform", "translate(" + (x0 + j * cell + 19) + "," + (y0 - 8) + ") rotate(-52)");
+          cam.appendChild(t);
+        });
+        var rowLabels = tgt.map(function (t, i) {
+          var n = T(x0 - 12, y0 + i * cell + 19, t, { fill: C.faint, "font-size": 12.5, "text-anchor": "end", class: "tw" });
+          cam.appendChild(n); return n;
+        });
+        var cursor = S("rect", { x: x0 - 3, y: y0 - 3, width: src.length * cell, height: cell, fill: "none", stroke: C.q, "stroke-width": 1.6, opacity: 0, class: "tw" });
+        cam.appendChild(cursor);
+
+        var formula = T(24, 52, "eij = wᵀ tanh(W s(i-1) + U hj)", { fill: C.k, "font-size": 12.5, class: "tw" });
+        cam.appendChild(formula);
+        var ctxTitle = T(24, y0 + 2, "peak alignment weight", { fill: C.faint, "font-size": 11 });
+        cam.appendChild(ctxTitle);
+        var ctxBar = S("rect", { x: 24, y: y0 + 14, width: 1, height: 16, fill: C.v, "fill-opacity": 0.85, class: "tw pos" });
+        cam.appendChild(ctxBar);
+        var ctxNote = T(24, y0 + 52, "", { fill: C.dim, "font-size": 11.5 });
+        cam.appendChild(ctxNote);
+        var swap = S("rect", { x: x0 + 4 * cell - 3, y: y0 + 4 * cell - 3, width: 3 * cell, height: 3 * cell, fill: "none", stroke: C.hot, "stroke-width": 1.8, "stroke-dasharray": "4 3", opacity: 0, class: "tw" });
+        cam.appendChild(swap);
+
+        var caps = ["Keep every encoder state instead of squeezing the sentence into one vector. The decoder will score them fresh at every output step."];
+        tgt.forEach(function (t, i) {
+          var top = rows[i].map(function (w, j) { return [w, j]; }).sort(function (a, b) { return b[0] - a[0]; })[0];
+          caps.push("Step " + (i + 1) + ": emitting <b>" + t + "</b>. The decoder state scores all ten encoder states and normalises, putting most mass on <em>" + src[top[1]] + "</em>.");
+        });
+        caps.push("Read the whole matrix and an alignment falls out of a model never told what alignment is. Note the reversed block: French puts the adjectives after the noun, and attention crosses over without being asked to.");
+
+        function render(s) {
+          var active = s - 1;
+          for (var r = 0; r < tgt.length; r++) {
+            var shown = (s === caps.length - 1) || (r <= active && s > 0);
+            for (var c = 0; c < src.length; c++) {
+              var w = rows[r][c];
+              g.cells[r][c].setAttribute("fill", shown ? heat(Math.pow(w, 0.7)) : C.grid);
+              g.cells[r][c].setAttribute("fill-opacity", shown ? (r === active ? 1 : 0.62) : 1);
+            }
+            rowLabels[r].setAttribute("fill", r === active ? C.q : (shown ? C.dim : C.faint));
+          }
+          cursor.setAttribute("opacity", active >= 0 && active < tgt.length ? 1 : 0);
+          cursor.style.transform = "translate(0px," + (active < 0 ? 0 : active * cell) + "px)";
+          formula.setAttribute("fill", s === 0 ? C.q : C.faint);
+          swap.setAttribute("opacity", s === caps.length - 1 ? 1 : 0);
+          if (active >= 0 && active < tgt.length) {
+            var w2 = rows[active], acc = 24, i;
+            ctxBar.style.transform = "translate(24px,0px) scale(" + (Math.max.apply(null, w2) * 150).toFixed(1) + ",1)";
+            ctxBar.setAttribute("fill-opacity", 0.85);
+            var srt = w2.map(function (x, j) { return [x, j]; }).sort(function (a, b) { return b[0] - a[0]; }).slice(0, 3);
+            ctxNote.textContent = srt.map(function (p) { return src[p[1]] + " " + (p[0] * 100).toFixed(0) + "%"; }).join("  ·  ");
+          } else {
+            ctxBar.setAttribute("fill-opacity", 0);
+            ctxNote.textContent = "";
+          }
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 3 — why Q and K need separate spaces                        */
+      /* ================================================================== */
+      mount("fig-qkv", function (stage) {
+        var toks = ["the", "animal", "crossed", "street", "it"];
+        var X = [[0.9, 0.35], [0.15, 1.0], [-0.85, 0.5], [0.65, -0.9], [-0.55, -0.75]];
+        var WQ = [[0.85, -0.55], [0.45, 0.95]], WK = [[-0.25, 1.05], [0.9, 0.25]], WV = [[0.6, 0.7], [-0.8, 0.4]];
+        function apply(M, v) { return [M[0][0] * v[0] + M[0][1] * v[1], M[1][0] * v[0] + M[1][1] * v[1]]; }
+        var Qv = X.map(function (v) { return apply(WQ, v); });
+        var Kv = X.map(function (v) { return apply(WK, v); });
+        var Vv = X.map(function (v) { return apply(WV, v); });
+        function scores(A, B) {
+          return A.map(function (a) { return B.map(function (b) { return a[0] * b[0] + a[1] * b[1]; }); });
+        }
+        var Sxx = scores(X, X), Sqk = scores(Qv, Kv);
+        function rowsSoftmax(M, tau) { return M.map(function (r) { return softmax(r.map(function (x) { return x / tau; })); }); }
+        var Axx = rowsSoftmax(Sxx, 0.35), Aqk = rowsSoftmax(Sqk, 0.5);
+
+        var W = 940, H = 400, cx = 210, cy = 200, sc = 66, cell = 46, mx = 520, my = 118;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        cam.appendChild(S("line", { x1: cx - 150, y1: cy, x2: cx + 150, y2: cy, stroke: C.line, "stroke-width": 1 }));
+        cam.appendChild(S("line", { x1: cx, y1: cy - 150, x2: cx, y2: cy + 150, stroke: C.line, "stroke-width": 1 }));
+        var spaceLabel = T(cx - 150, cy - 158, "embedding space", { fill: C.faint, "font-size": 11.5, class: "tw" });
+        cam.appendChild(spaceLabel);
+
+        var dots = [], names = [];
+        for (var i = 0; i < 5; i++) {
+          var gp = S("g", { class: "tw pos" });
+          gp.appendChild(S("circle", { r: 5.5, fill: C.dim, class: "tw" }));
+          var nm = T(9, 4, toks[i], { fill: C.faint, "font-size": 11 });
+          gp.appendChild(nm);
+          cam.appendChild(gp); dots.push({ g: gp, c: gp.firstChild, t: nm });
+        }
+        var ghosts = [];
+        for (i = 0; i < 5; i++) {
+          var gg = S("circle", { r: 4, fill: "none", stroke: C.k, "stroke-width": 1.2, opacity: 0, class: "tw pos" });
+          cam.appendChild(gg); ghosts.push(gg);
+        }
+
+        var mat = gridCells(cam, 5, 5, cell, mx, my, 2.5);
+        cam.appendChild(T(mx, my - 34, "attention weights   αij", { fill: C.faint, "font-size": 11.5 }));
+        var matTitle = T(mx, my - 14, "", { fill: C.q, "font-size": 12.5, class: "tw" });
+        cam.appendChild(matTitle);
+        toks.forEach(function (t, j) {
+          cam.appendChild(T(mx + j * cell + 21, my + 5 * cell + 16, t.slice(0, 5), { fill: C.faint, "font-size": 10, "text-anchor": "middle" }));
+          cam.appendChild(T(mx - 8, my + j * cell + 27, t.slice(0, 7), { fill: C.faint, "font-size": 10, "text-anchor": "end" }));
+        });
+        var symNote = T(mx, my + 5 * cell + 42, "", { fill: C.hot, "font-size": 12, class: "tw" });
+        cam.appendChild(symNote);
+        var pair = S("g", { opacity: 0, class: "tw" });
+        pair.appendChild(S("rect", { x: mx + 1 * cell - 3, y: my + 4 * cell - 3, width: cell, height: cell, fill: "none", stroke: C.q, "stroke-width": 2 }));
+        pair.appendChild(S("rect", { x: mx + 4 * cell - 3, y: my + 1 * cell - 3, width: cell, height: cell, fill: "none", stroke: C.hot, "stroke-width": 2, "stroke-dasharray": "3 3" }));
+        cam.appendChild(pair);
+
+        var caps = [
+          "Five tokens as points. Nothing has been learned yet — these are just embeddings.",
+          "Score them directly with x·x. The dot product is a similarity, so this is the parameter-free version of attention.",
+          "Two failures. The matrix is <b>symmetric</b>, and the diagonal dominates: every token mostly attends to itself, so the layer is close to the identity.",
+          "Fix it with a learned map W_Q. Each point moves to where it sits as a <em>question</em>.",
+          "And a second, different map W_K: where the same point sits as an <em>answer</em>. Query space and key space are now separate.",
+          "The score is xᵢᵀ(W_Q W_Kᵀ)xⱼ — a general bilinear form, and general means <b>not symmetric</b>.",
+          "So <em>it</em> can point hard at <em>animal</em> while <em>animal</em> ignores <em>it</em>. That directed edge was impossible before.",
+          "A third map W_V decides what actually gets transmitted once a source is selected — matched on one thing, sent another."
+        ];
+
+        function drawMat(A, on) {
+          for (var r = 0; r < 5; r++) for (var c = 0; c < 5; c++) {
+            mat.cells[r][c].setAttribute("fill", on ? heat(Math.pow(A[r][c], 0.75)) : C.grid);
+          }
+        }
+        function render(s) {
+          var showQ = s >= 3, showK = s >= 4, useQK = s >= 5;
+          for (var i = 0; i < 5; i++) {
+            var p = showQ ? Qv[i] : X[i];
+            if (s === 7) p = Vv[i];
+            place(dots[i].g, cx + p[0] * sc, cy - p[1] * sc);
+            dots[i].c.setAttribute("fill", s === 7 ? C.v : (showQ ? C.q : C.dim));
+            dots[i].t.setAttribute("fill", C.faint);
+            place(ghosts[i], cx + Kv[i][0] * sc, cy - Kv[i][1] * sc);
+            ghosts[i].setAttribute("opacity", showK && s !== 7 ? 1 : 0);
+          }
+          spaceLabel.textContent = s === 7 ? "value space (W_V)" : (showK ? "query space (filled) · key space (outlined)" : showQ ? "query space (W_Q)" : "embedding space");
+          drawMat(useQK ? Aqk : Axx, s >= 1);
+          matTitle.textContent = s === 0 ? "" : (useQK ? "softmax(qᵢᵀkⱼ)" : "softmax(xᵢᵀxⱼ)");
+          symNote.textContent = s === 2 ? "S = Sᵀ  ·  argmax of every row is the diagonal" : (s >= 5 ? "S ≠ Sᵀ  ·  the diagonal is no longer special" : "");
+          symNote.setAttribute("fill", s === 2 ? C.hot : C.q);
+          pair.setAttribute("opacity", s === 6 ? 1 : 0);
+          if (s === 2) camera(cam, 470, 90, mx, my, 1.35);
+          else if (s === 6) camera(cam, 430, 90, mx + cell, my + cell, 1.45);
+          else camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      window.__ATTN_FIG__ = {
+        mount: mount, S: S, T: T, svgRoot: svgRoot, place: place, camera: camera, gridCells: gridCells,
+        C: C, heat: heat, heatBlue: heatBlue, softmax: softmax, lerp: lerp, mixArr: mixArr, bytes: bytes,
+        big: big, mulberry32: mulberry32, gauss: gauss, pad2: pad2,
+        fxButtons: fxButtons, fxSlider: fxSlider, fxToggle: fxToggle, fxLabel: fxLabel
+      };
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var F = window.__ATTN_FIG__;
+      if (!F) return;
+      var mount = F.mount, S = F.S, T = F.T, svgRoot = F.svgRoot, place = F.place, camera = F.camera,
+          gridCells = F.gridCells, C = F.C, heat = F.heat, heatBlue = F.heatBlue, softmax = F.softmax,
+          mulberry32 = F.mulberry32, gauss = F.gauss, fxButtons = F.fxButtons, fxToggle = F.fxToggle,
+          fxSlider = F.fxSlider, fxLabel = F.fxLabel;
+
+      /* ================================================================== */
+      /* FIGURE 4 — the square root                                         */
+      /* ================================================================== */
+      mount("fig-scale", function (stage, host, extras) {
+        var DIMS = [4, 8, 16, 32, 64, 128, 256, 512], NK = 8, DMAX = 512;
+        var rnd = mulberry32(20260904);
+        var qv = [], kv = [], i, j;
+        for (i = 0; i < DMAX; i++) qv.push(gauss(rnd));
+        for (j = 0; j < NK; j++) { var row = []; for (i = 0; i < DMAX; i++) row.push(gauss(rnd)); kv.push(row); }
+        var scaled = true;
+
+        function logits(d) {
+          var out = [];
+          for (var j2 = 0; j2 < NK; j2++) {
+            var s = 0;
+            for (var i2 = 0; i2 < d; i2++) s += qv[i2] * kv[j2][i2];
+            out.push(scaled ? s / Math.sqrt(d) : s);
+          }
+          return out;
+        }
+
+        var W = 940, H = 384, LX = 70, LW = W - 150, LY = 96, DOM = 30;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        cam.appendChild(T(LX, 40, "pre-softmax logits for one query against eight keys", { fill: C.faint, "font-size": 11.5 }));
+        cam.appendChild(S("line", { x1: LX, y1: LY, x2: LX + LW, y2: LY, stroke: C.line, "stroke-width": 1 }));
+        [-30, -20, -10, 0, 10, 20, 30].forEach(function (t) {
+          var x = LX + (t + DOM) / (2 * DOM) * LW;
+          cam.appendChild(S("line", { x1: x, y1: LY - 5, x2: x, y2: LY + 5, stroke: C.line, "stroke-width": 1 }));
+          cam.appendChild(T(x, LY + 20, "" + t, { fill: C.faint, "font-size": 10, "text-anchor": "middle" }));
+        });
+        var pts = [], bars = [], vals = [];
+        for (j = 0; j < NK; j++) {
+          var p = S("circle", { r: 6, cy: LY, fill: C.k, "fill-opacity": 0.85, class: "tw" });
+          cam.appendChild(p); pts.push(p);
+        }
+        var BX = 118, BW = 74, BY = 300, BH = 130;
+        cam.appendChild(T(BX, 176, "softmax over those logits", { fill: C.faint, "font-size": 11.5 }));
+        for (j = 0; j < NK; j++) {
+          var b = S("rect", { x: BX + j * (BW + 18), y: BY - BH, width: BW, height: BH, fill: C.q, "fill-opacity": 0.9, class: "tw bar-scale" });
+          b.style.transform = "scaleY(0.02)";
+          cam.appendChild(b); bars.push(b);
+          var t2 = T(BX + j * (BW + 18) + BW / 2, BY + 18, "", { fill: C.faint, "font-size": 10.5, "text-anchor": "middle" });
+          cam.appendChild(t2); vals.push(t2);
+          cam.appendChild(T(BX + j * (BW + 18) + BW / 2, BY + 34, "k" + (j + 1), { fill: C.faint, "font-size": 10, "text-anchor": "middle" }));
+        }
+        cam.appendChild(S("line", { x1: BX - 12, y1: BY, x2: W - 40, y2: BY, stroke: C.line, "stroke-width": 1 }));
+        var read1 = T(LX, 360, "", { fill: C.dim, "font-size": 12.5 });
+        var read2 = T(LX + 430, 360, "", { fill: C.dim, "font-size": 12.5 });
+        cam.appendChild(read1); cam.appendChild(read2);
+        var dTag = T(W - 40, 40, "", { fill: C.q, "font-size": 15, "text-anchor": "end", "font-weight": 600, class: "tw" });
+        cam.appendChild(dTag);
+
+        fxToggle(extras, "scaling ON  ·  qᵀk / √dk", "scaling OFF  ·  raw qᵀk", true, function (on) {
+          scaled = on; host.refresh();
+        });
+        fxLabel(extras, "toggle to see the same head dimension with and without the correction");
+
+        var capState = { d: 4, H: 0, mx: 0, sd: 0 };
+        function render(s) {
+          var d = DIMS[s], L = logits(d), A = softmax(L), j, mx = 0, ent = 0, m = 0, v = 0;
+          for (j = 0; j < NK; j++) { m += L[j]; }
+          m /= NK;
+          for (j = 0; j < NK; j++) { v += (L[j] - m) * (L[j] - m); }
+          var sd = Math.sqrt(v / NK);
+          for (j = 0; j < NK; j++) {
+            var x = Math.max(LX - 6, Math.min(LX + LW + 6, LX + (L[j] + DOM) / (2 * DOM) * LW));
+            pts[j].setAttribute("cx", x);
+            pts[j].setAttribute("fill", Math.abs(L[j]) > DOM ? C.hot : C.k);
+            bars[j].style.transform = "scaleY(" + Math.max(0.004, A[j]) + ")";
+            bars[j].setAttribute("fill", A[j] > 0.6 ? C.hot : C.q);
+            vals[j].textContent = (A[j] * 100).toFixed(A[j] > 0.1 ? 0 : 1) + "%";
+            if (A[j] > mx) mx = A[j];
+            if (A[j] > 1e-12) ent -= A[j] * Math.log(A[j]);
+          }
+          dTag.textContent = "dk = " + d;
+          read1.textContent = "logit std " + sd.toFixed(2) + "   (√dk = " + Math.sqrt(d).toFixed(1) + ")   ·   max weight " + (mx * 100).toFixed(1) + "%";
+          read2.textContent = "entropy " + ent.toFixed(2) + " nats   ·   effective sources " + Math.exp(ent).toFixed(2) + " / 8";
+          read2.setAttribute("fill", Math.exp(ent) < 1.5 ? C.hot : C.dim);
+          capState = { d: d, H: ent, mx: mx, sd: sd };
+        }
+        function caption() {
+          var d = capState.d;
+          if (scaled) {
+            return "With the √dk correction the logit spread stays near 1 as dk goes from 4 to 512 — at <b>dk = " + d +
+              "</b> the distribution still has " + Math.exp(capState.H).toFixed(1) + " effective sources, so gradients still flow through every one of them.";
+          }
+          if (capState.mx > 0.97) {
+            return "Unscaled, at <b>dk = " + d + "</b> the logits have spread " + capState.sd.toFixed(1) +
+              " and the softmax has collapsed onto a single key. Its Jacobian is nearly zero there, so almost no gradient reaches the scores.";
+          }
+          return "Unscaled, at <b>dk = " + d + "</b> the logit spread is already " + capState.sd.toFixed(1) +
+            " and growing like √dk. Watch the distribution sharpen as the head dimension doubles.";
+        }
+        return { total: DIMS.length, render: render, caption: caption };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 5 — mask explorer                                           */
+      /* ================================================================== */
+      mount("fig-masks", function (stage, host, extras) {
+        var N = 16, cell = 23, x0 = 78, y0 = 72, W = 940, H = 72 + N * cell + 96;
+        var mode = "causal";
+        var MODES = {
+          bidirectional: { label: "Bidirectional", cost: "O(n²)", use: "encoders, ViTs", fn: function () { return true; } },
+          causal: { label: "Causal", cost: "O(n²)", use: "autoregressive LMs", fn: function (i, j) { return j <= i; } },
+          padding: { label: "Padding", cost: "O(n²)", use: "ragged batches", fn: function (i, j) { return i < 12 && j < 12; } },
+          packed: { label: "Packed", cost: "O(n²) per document", use: "pretraining throughput", fn: function (i, j) { return doc(i) === doc(j) && j <= i; } },
+          prefix: { label: "Prefix-LM", cost: "O(n²)", use: "prompts, image tokens", fn: function (i, j) { return (i < 6 && j < 6) || j <= i; } },
+          sliding: { label: "Sliding w=4", cost: "O(nw)", use: "long context", fn: function (i, j) { return j <= i && i - j < 4; } },
+          sink: { label: "Sliding + sink", cost: "O(nw)", use: "streaming generation", fn: function (i, j) { return j <= i && (i - j < 4 || j < 2); } }
+        };
+        function doc(i) { return i < 6 ? 0 : i < 11 ? 1 : 2; }
+
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+        cam.appendChild(T(x0, 40, "key position  j  →", { fill: C.faint, "font-size": 11.5 }));
+        var yl = T(0, 0, "query position  i  ↓", { fill: C.faint, "font-size": 11.5 });
+        yl.setAttribute("transform", "translate(" + (x0 - 44) + "," + (y0 + N * cell / 2) + ") rotate(-90)");
+        cam.appendChild(yl);
+        var g = gridCells(cam, N, N, cell, x0, y0, 2);
+        var strip = [];
+        for (var i = 0; i < N; i++) {
+          var sr = S("rect", { x: x0 + i * cell, y: y0 + N * cell + 12, width: cell - 2, height: 12, fill: C.grid, class: "tw" });
+          cam.appendChild(sr); strip.push(sr);
+        }
+        var stripNote = T(x0, y0 + N * cell + 44, "", { fill: C.faint, "font-size": 11 });
+        cam.appendChild(stripNote);
+        var RX = x0 + N * cell + 60;
+        var title = T(RX, y0 + 6, "", { fill: C.q, "font-size": 17, "font-weight": 600 });
+        var l1 = T(RX, y0 + 40, "", { fill: C.dim, "font-size": 12.5 });
+        var l2 = T(RX, y0 + 62, "", { fill: C.dim, "font-size": 12.5 });
+        var l3 = T(RX, y0 + 84, "", { fill: C.dim, "font-size": 12.5 });
+        var l4 = T(RX, y0 + 118, "", { fill: C.v, "font-size": 12.5 });
+        [title, l1, l2, l3, l4].forEach(function (n) { cam.appendChild(n); });
+        var eq = T(RX, y0 + 168, "Mij = 0 if allowed, −∞ otherwise", { fill: C.faint, "font-size": 11.5 });
+        cam.appendChild(eq);
+        var eq2 = T(RX, y0 + 190, "added to the scores before the softmax", { fill: C.faint, "font-size": 11.5 });
+        cam.appendChild(eq2);
+
+        fxButtons(extras, "mask", Object.keys(MODES).map(function (k) { return { id: k, label: MODES[k].label }; }), "causal", function (id) {
+          mode = id; host.refresh();
+        });
+
+        var caps = [];
+        function render(s) {
+          var M = MODES[mode], rowsShown = s === 0 ? N : s, kept = 0, r, c;
+          for (r = 0; r < N; r++) {
+            for (c = 0; c < N; c++) {
+              var ok = M.fn(r, c);
+              if (ok) kept++;
+              var vis = r < rowsShown;
+              g.cells[r][c].setAttribute("fill", vis ? (ok ? (r === rowsShown - 1 && s !== 0 ? C.q : heatBlue(0.72)) : C.grid) : C.deep);
+              g.cells[r][c].setAttribute("fill-opacity", vis ? (ok ? 1 : 1) : 0.45);
+            }
+          }
+          for (r = 0; r < N; r++) {
+            var col = C.grid;
+            if (mode === "padding") col = r < 12 ? heatBlue(0.6) : C.hot;
+            else if (mode === "packed") col = [C.q, C.k, C.v][doc(r)];
+            else if (mode === "prefix") col = r < 6 ? C.pur : heatBlue(0.6);
+            else if (mode === "sink") col = r < 2 ? C.v : heatBlue(0.6);
+            strip[r].setAttribute("fill", col);
+          }
+          stripNote.textContent = mode === "padding" ? "tokens 13–16 are padding" :
+            mode === "packed" ? "three documents concatenated into one sequence" :
+            mode === "prefix" ? "tokens 1–6 are the bidirectional prefix" :
+            mode === "sink" ? "tokens 1–2 stay in every window" : "";
+          title.textContent = M.label;
+          l1.textContent = "allowed pairs  " + kept + " / " + (N * N) + "   (" + (100 * kept / (N * N)).toFixed(0) + "%)";
+          l2.textContent = "cost  " + M.cost;
+          l3.textContent = "typical use  " + M.use;
+          l4.textContent = s === 0 ? "" : "revealing query row " + s;
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        function caption(s) {
+          var M = MODES[mode];
+          if (s === 0) return "<b>" + M.label + "</b> — the full pattern. Every blue cell is a pair the softmax is allowed to see; every dark cell has been sent to −∞.";
+          return "<b>" + M.label + "</b> — query " + s + " may read from " + (function () {
+            var n = 0; for (var c = 0; c < N; c++) if (M.fn(s - 1, c)) n++; return n;
+          })() + " of the 16 positions. Step through the rows, or switch mask below.";
+        }
+        return { total: N + 1, render: render, caption: caption };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 6 — where Q, K and V come from                              */
+      /* ================================================================== */
+      mount("fig-cross", function (stage) {
+        var W = 940, H = 400;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        function stack(x, label, col) {
+          var g = S("g");
+          var box = S("rect", { x: x, y: 0, width: 128, height: 10, rx: 2, fill: "#101a20", stroke: col, "stroke-width": 1.6, class: "tw" });
+          var lab = T(x + 64, 0, label, { fill: col, "font-size": 12, "text-anchor": "middle", class: "tw" });
+          var cnt = T(x + 64, 0, "", { fill: C.faint, "font-size": 11, "text-anchor": "middle", class: "tw" });
+          g.appendChild(box); g.appendChild(lab); g.appendChild(cnt);
+          cam.appendChild(g);
+          return { box: box, lab: lab, cnt: cnt, x: x };
+        }
+        var CY = 200, MAXH = 250;
+        var src = stack(70, "source", C.k);
+        var qsrc = stack(300, "query source", C.q);
+        var out = stack(770, "output", C.v);
+        var attn = S("rect", { x: 540, y: CY - 46, width: 150, height: 92, rx: 3, fill: "#12191f", stroke: C.line, "stroke-width": 1.4 });
+        cam.appendChild(attn);
+        cam.appendChild(T(615, CY - 8, "attention", { fill: C.dim, "font-size": 13, "text-anchor": "middle" }));
+        var costTxt = T(615, CY + 16, "", { fill: C.v, "font-size": 11.5, "text-anchor": "middle", class: "tw" });
+        cam.appendChild(costTxt);
+
+        function arrow(x1, y1, x2, y2, col, label, dash) {
+          var g = S("g", { class: "tw" });
+          g.appendChild(S("path", { d: "M " + x1 + " " + y1 + " C " + ((x1 + x2) / 2) + " " + y1 + ", " + ((x1 + x2) / 2) + " " + y2 + ", " + x2 + " " + y2, fill: "none", stroke: col, "stroke-width": 1.8, "stroke-dasharray": dash || "none" }));
+          g.appendChild(S("circle", { cx: x2, cy: y2, r: 3.5, fill: col }));
+          var t = T((x1 + x2) / 2, (y1 + y2) / 2 - 8, label, { fill: col, "font-size": 12, "text-anchor": "middle", "font-weight": 600 });
+          g.appendChild(t);
+          cam.appendChild(g);
+          return g;
+        }
+        var aKV = arrow(198, CY + 40, 540, CY + 26, C.k, "K, V");
+        var aQ = arrow(428, CY - 40, 540, CY - 26, C.q, "Q");
+        var aOut = arrow(690, CY, 770, CY, C.v, "");
+        var aSelf = arrow(134, 70, 364, 70, C.pur, "same X", "4 3");
+        var learned = T(364, 60, "learned parameters, not from the input", { fill: C.pur, "font-size": 11.5, "text-anchor": "middle", class: "tw" });
+        cam.appendChild(learned);
+
+        var CONF = [
+          { s: 8, sl: "X  (8 tokens)", q: 8, ql: "X  (same 8)", o: 8, self: true, learn: false, cost: "8 × 8 = 64 pairs" },
+          { s: 8, sl: "X  (8 tokens)", q: 8, ql: "X  (same 8)", o: 8, self: true, learn: false, cost: "8 × 8 = 64 pairs" },
+          { s: 10, sl: "encoder  (10 source tokens)", q: 6, ql: "decoder  (6 target tokens)", o: 6, self: false, learn: false, cost: "6 × 10 = 60 pairs" },
+          { s: 24, sl: "image patches  (576)", q: 12, ql: "text tokens  (n)", o: 12, self: false, learn: false, cost: "n × 576 pairs" },
+          { s: 24, sl: "image patches  (576)", q: 4, ql: "learned queries  (32)", o: 4, self: false, learn: true, cost: "32 × 576 pairs" },
+          { s: 30, sl: "raw inputs  (50,176)", q: 6, ql: "latent array  (256)", o: 6, self: false, learn: true, cost: "256 × 50,176 pairs" }
+        ];
+        var caps = [
+          "Self-attention: all three of Q, K and V are projections of the same sequence. Output length equals input length.",
+          "Three arrows, one sequence. Q says what each position is looking for, K what each advertises, V what it sends.",
+          "Cross-attention: the queries come from the target, the keys and values from the source. This is the original 2014 form.",
+          "A vision-language model with cross-attention fusion. Text queries read from image keys and values, so the text stream never grows.",
+          "A Q-Former turns the query source into <b>learned parameters</b>. The image only enters through K and V, and 576 patches become 32 tokens.",
+          "The Perceiver takes it to the limit: a fixed latent array reads an enormous input. Cost is linear in input size, because output length is set by the queries alone."
+        ];
+
+        function setStack(o, count, label, h) {
+          o.box.setAttribute("height", h);
+          o.box.setAttribute("y", CY - h / 2);
+          o.lab.setAttribute("y", CY - h / 2 - 22);
+          o.lab.textContent = label.split("  (")[0];
+          o.cnt.setAttribute("y", CY - h / 2 - 7);
+          o.cnt.textContent = label.indexOf("(") > -1 ? label.slice(label.indexOf("(")) : "";
+        }
+        function render(s) {
+          var c = CONF[s];
+          setStack(src, c.s, c.sl, Math.min(MAXH, 24 + c.s * 7));
+          setStack(qsrc, c.q, c.ql, Math.min(MAXH, 24 + c.q * 7));
+          setStack(out, c.o, "output  (" + c.o + " vectors)", Math.min(MAXH, 24 + c.o * 7));
+          qsrc.box.setAttribute("stroke", c.learn ? C.pur : C.q);
+          qsrc.lab.setAttribute("fill", c.learn ? C.pur : C.q);
+          aSelf.setAttribute("opacity", c.self ? 1 : 0);
+          learned.setAttribute("opacity", c.learn ? 1 : 0);
+          aQ.setAttribute("opacity", s === 0 ? 0.35 : 1);
+          aKV.setAttribute("opacity", s === 0 ? 0.35 : 1);
+          costTxt.textContent = c.cost;
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 7 — multi-head attention                                    */
+      /* ================================================================== */
+      mount("fig-heads", function (stage) {
+        var W = 940, H = 430, NH = 8, M = 10, cs = 9;
+        var HCOL = [C.q, C.k, C.v, C.pur, C.hot, "#7fd8c4", "#8fb7e8", "#e8c46a"];
+        var NAMES = ["previous token", "local band", "attention sink", "content match", "self / identity", "long-range copy", "diffuse", "delimiter"];
+        function pattern(h) {
+          var m = [], r, c, w;
+          for (r = 0; r < M; r++) {
+            var row = [];
+            for (c = 0; c < M; c++) {
+              if (c > r) { row.push(0); continue; }
+              if (h === 0) w = c === r - 1 ? 6 : 0.1;
+              else if (h === 1) w = Math.exp(-Math.pow(r - c, 2) / 2.2);
+              else if (h === 2) w = c === 0 ? 7 : 0.2;
+              else if (h === 3) w = ((c % 3 === 0 && r % 3 === 0) || (c % 3 === 1 && r % 3 === 1)) ? 3 : 0.15;
+              else if (h === 4) w = c === r ? 6 : 0.1;
+              else if (h === 5) w = c === 2 ? 4 : (c === r ? 1 : 0.15);
+              else if (h === 6) w = 1;
+              else w = (c === 4 || c === 0) ? 3.4 : 0.2;
+              row.push(w);
+            }
+            var s = row.reduce(function (a, b) { return a + b; }, 0);
+            m.push(row.map(function (x) { return x / s; }));
+          }
+          return m;
+        }
+        var PATS = [], h;
+        for (h = 0; h < NH; h++) PATS.push(pattern(h));
+
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        var stripY = 60, sx = 60, sw = 820;
+        cam.appendChild(T(sx, stripY - 14, "one token vector, d_model = 512", { fill: C.faint, "font-size": 11.5 }));
+        var slices = [], gapNote;
+        for (h = 0; h < NH; h++) {
+          var r0 = S("rect", { x: sx + h * (sw / NH), y: stripY, width: sw / NH, height: 30, fill: "#1a222a", stroke: "#101820", "stroke-width": 1, class: "tw" });
+          cam.appendChild(r0); slices.push(r0);
+        }
+        var mapsY = 168, mw = M * cs, gapx = (sw - NH * mw) / (NH - 1);
+        var maps = [], mlabels = [];
+        for (h = 0; h < NH; h++) {
+          var gx = sx + h * (mw + gapx);
+          var gg = gridCells(cam, M, M, cs, gx, mapsY, 0.8);
+          gg.g.setAttribute("class", "tw");
+          maps.push(gg);
+          var lb = T(gx + mw / 2, mapsY - 10, "h" + (h + 1), { fill: C.faint, "font-size": 10.5, "text-anchor": "middle", class: "tw" });
+          cam.appendChild(lb); mlabels.push(lb);
+          var nm = T(gx + mw / 2, mapsY + mw + 16, "", { fill: C.faint, "font-size": 9.5, "text-anchor": "middle", class: "tw" });
+          cam.appendChild(nm); mlabels.push(nm);
+        }
+        var outY = 320;
+        var outSlices = [];
+        for (h = 0; h < NH; h++) {
+          var r1 = S("rect", { x: sx + h * (sw / NH), y: outY, width: sw / NH, height: 26, fill: "#1a222a", class: "tw" });
+          cam.appendChild(r1); outSlices.push(r1);
+        }
+        var wo = S("rect", { x: sx, y: outY + 48, width: sw, height: 26, fill: "#12191f", stroke: C.line, "stroke-width": 1.4, opacity: 0, class: "tw" });
+        cam.appendChild(wo);
+        var woLab = T(sx + sw / 2, outY + 66, "W_O   ·   mixes the heads back into one d_model vector", { fill: C.dim, "font-size": 12, "text-anchor": "middle", opacity: 0, class: "tw" });
+        cam.appendChild(woLab);
+        var headNote = T(sx, 116, "", { fill: C.dim, "font-size": 12.5, class: "tw" });
+        cam.appendChild(headNote);
+        var pruneMark = S("g", { opacity: 0, class: "tw" });
+        cam.appendChild(pruneMark);
+
+        var caps = [
+          "One head computes one attention distribution per position. One distribution means one notion of relevance.",
+          "That is a real limit. A position may need its syntactic head, its coreferent, and the token two back, and a single softmax can only pick one shape.",
+          "So split the vector into eight slices of 64 dimensions. No parameters were added — the same d_model was partitioned.",
+          "Each slice gets its own W_Q, W_K, W_V, so each head scores the sequence in its own 64-dimensional geometry.",
+          "Eight heads, eight genuinely different patterns from the same input.",
+          "Zooming in on the third head: it puts almost all of its mass on position 1, a sink where the head parks probability when it has nothing to retrieve.",
+          "Every head returns a 64-dimensional output for each position.",
+          "Concatenate the eight and project with W_O. That projection is what lets heads combine rather than merely coexist.",
+          "The honest footnote: heads are not this tidy in a real model, and a large fraction of them can be pruned after training with little loss."
+        ];
+
+        function render(s) {
+          var split = s >= 2, showMaps = s >= 3, showOut = s >= 6, showWO = s >= 7;
+          for (var h2 = 0; h2 < NH; h2++) {
+            slices[h2].setAttribute("fill", split ? HCOL[h2] : "#1a222a");
+            slices[h2].setAttribute("fill-opacity", split ? 0.75 : 1);
+            slices[h2].setAttribute("stroke", split ? "#0f1317" : "#101820");
+            slices[h2].setAttribute("stroke-width", split ? 3 : 1);
+            var vis = showMaps || (s >= 1 && h2 === 0);
+            maps[h2].g.setAttribute("opacity", vis ? (s === 5 ? (h2 === 2 ? 1 : 0.25) : 1) : 0);
+            mlabels[h2 * 2].setAttribute("opacity", vis ? 1 : 0);
+            mlabels[h2 * 2].setAttribute("fill", s === 5 && h2 === 2 ? C.q : C.faint);
+            mlabels[h2 * 2 + 1].textContent = s >= 4 ? NAMES[h2] : "";
+            mlabels[h2 * 2 + 1].setAttribute("opacity", vis ? 1 : 0);
+            outSlices[h2].setAttribute("fill", HCOL[h2]);
+            outSlices[h2].setAttribute("fill-opacity", showOut ? (s === 8 && (h2 === 6 || h2 === 3 || h2 === 7) ? 0.12 : 0.75) : 0);
+            var P = (s <= 1 && h2 === 0) ? PATS[6] : PATS[h2];
+            for (var r = 0; r < M; r++) for (var c = 0; c < M; c++) {
+              maps[h2].cells[r][c].setAttribute("fill", c > r ? "#0d1216" : heat(Math.pow(P[r][c] * 2.4, 0.6)));
+            }
+          }
+          if (s <= 1) {
+            maps[0].g.setAttribute("opacity", 1);
+            mlabels[0].setAttribute("opacity", 1);
+          }
+          wo.setAttribute("opacity", showWO ? 1 : 0);
+          woLab.setAttribute("opacity", showWO ? 1 : 0);
+          headNote.textContent = s === 2 ? "d_h = d_model / h = 64" : (s === 3 ? "head_i = Attn(X W_Q(i), X W_K(i), X W_V(i))" : (s === 8 ? "dimmed heads: prunable at little cost" : ""));
+          if (s === 5) camera(cam, 300, 60, sx + 2 * (mw + gapx), mapsY, 2.4);
+          else camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var F = window.__ATTN_FIG__;
+      if (!F) return;
+      var mount = F.mount, S = F.S, T = F.T, svgRoot = F.svgRoot, camera = F.camera, gridCells = F.gridCells,
+          C = F.C, heatBlue = F.heatBlue, bytes = F.bytes, big = F.big,
+          fxButtons = F.fxButtons, fxSlider = F.fxSlider, fxLabel = F.fxLabel, mulberry32 = F.mulberry32;
+
+      /* ================================================================== */
+      /* FIGURE 8 — KV cache calculator                                     */
+      /* ================================================================== */
+      mount("fig-gqa", function (stage, host, extras) {
+        var HQ = 32, DH = 128, L = 32, DT = 2, KVS = [32, 16, 8, 4, 2, 1];
+        var seqPow = 13, batch = 1, HBM = 3.35e12;
+        var W = 940, H = 430, x0 = 54, tickW = 26, topY = 96, kvY = 208;
+
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+        cam.appendChild(T(x0, 62, "32 query heads", { fill: C.q, "font-size": 12 }));
+        cam.appendChild(T(x0, 194, "key / value heads", { fill: C.k, "font-size": 12 }));
+
+        var qticks = [], links = [], i;
+        for (i = 0; i < HQ; i++) {
+          var r = S("rect", { x: x0 + i * tickW, y: topY, width: tickW - 5, height: 26, rx: 1.5, fill: C.q, "fill-opacity": 0.8, class: "tw" });
+          cam.appendChild(r); qticks.push(r);
+          var p = S("path", { d: "", fill: "none", stroke: C.line, "stroke-width": 1.1, class: "tw" });
+          cam.appendChild(p); links.push(p);
+        }
+        var kvBoxes = [];
+        for (i = 0; i < HQ; i++) {
+          var b = S("rect", { x: x0, y: kvY, width: 10, height: 26, rx: 1.5, fill: C.k, "fill-opacity": 0.85, class: "tw" });
+          cam.appendChild(b); kvBoxes.push(b);
+        }
+        var nameTag = T(x0, 40, "", { fill: C.ink, "font-size": 17, "font-weight": 600, class: "tw" });
+        cam.appendChild(nameTag);
+        var ratioTag = T(W - 40, 40, "", { fill: C.v, "font-size": 13, "text-anchor": "end", class: "tw" });
+        cam.appendChild(ratioTag);
+
+        var BY = 296, BW = W - 2 * x0;
+        cam.appendChild(T(x0, BY - 12, "KV cache for the whole model", { fill: C.faint, "font-size": 11.5 }));
+        cam.appendChild(S("rect", { x: x0, y: BY, width: BW, height: 30, fill: "#151d24" }));
+        var bar = S("rect", { x: x0, y: BY, width: BW, height: 30, fill: C.hot, "fill-opacity": 0.85, class: "tw" });
+        cam.appendChild(bar);
+        var barTxt = T(x0 + 12, BY + 21, "", { fill: "#06120e", "font-size": 14, "font-weight": 600, class: "tw" });
+        cam.appendChild(barTxt);
+        var r1 = T(x0, 368, "", { fill: C.dim, "font-size": 12.5 });
+        var r2 = T(x0, 392, "", { fill: C.dim, "font-size": 12.5 });
+        var r3 = T(x0 + 470, 368, "", { fill: C.dim, "font-size": 12.5 });
+        var r4 = T(x0 + 470, 392, "", { fill: C.dim, "font-size": 12.5 });
+        [r1, r2, r3, r4].forEach(function (n) { cam.appendChild(n); });
+
+        fxSlider(extras, "context", { min: 11, max: 17, value: 13, aria: "Context length in tokens", format: function (v) { return big(Math.pow(2, v)) + " tok"; } }, function (v) { seqPow = v; host.refresh(); });
+        fxSlider(extras, "batch", { min: 0, max: 6, value: 0, aria: "Batch size", format: function (v) { return Math.pow(2, v) + " seq"; } }, function (v) { batch = Math.pow(2, v); host.refresh(); });
+        fxLabel(extras, "model fixed at 32 layers, 32 query heads, d_h 128, fp16");
+
+        function cacheBytes(hkv) { return 2 * L * batch * Math.pow(2, seqPow) * hkv * DH * DT; }
+
+        var capState = 32;
+        function render(s) {
+          var hkv = KVS[s], group = HQ / hkv, i2, boxW = group * tickW - 5;
+          for (i2 = 0; i2 < HQ; i2++) {
+            var gi = Math.floor(i2 / group);
+            qticks[i2].setAttribute("fill-opacity", (gi % 2) ? 0.45 : 0.85);
+            var qx = x0 + i2 * tickW + (tickW - 5) / 2;
+            var bx = x0 + gi * group * tickW + boxW / 2;
+            links[i2].setAttribute("d", "M " + qx + " " + (topY + 26) + " L " + bx + " " + kvY);
+            links[i2].setAttribute("stroke", hkv === 32 ? C.line : ((gi % 2) ? "#2f6f5d" : "#3a5a6e"));
+          }
+          for (i2 = 0; i2 < HQ; i2++) {
+            kvBoxes[i2].setAttribute("x", x0 + i2 * group * tickW);
+            kvBoxes[i2].setAttribute("width", Math.max(4, boxW));
+            kvBoxes[i2].setAttribute("opacity", i2 < hkv ? 1 : 0);
+          }
+          var cur = cacheBytes(hkv), full = cacheBytes(32);
+          nameTag.textContent = hkv === 32 ? "MHA  ·  H_kv = 32" : (hkv === 1 ? "MQA  ·  H_kv = 1" : "GQA  ·  H_kv = " + hkv);
+          nameTag.setAttribute("fill", hkv === 8 ? C.q : C.ink);
+          ratioTag.textContent = hkv === 32 ? "baseline" : (full / cur).toFixed(0) + "x smaller than MHA";
+          bar.setAttribute("width", Math.max(3, BW * cur / full));
+          bar.setAttribute("fill", hkv >= 16 ? C.hot : (hkv >= 4 ? C.v : C.q));
+          barTxt.textContent = bytes(cur);
+          r1.textContent = "2 · L · B · S · H_kv · d_h · 2 B  =  " + bytes(cur);
+          r2.textContent = "per token, all layers:  " + bytes(2 * L * hkv * DH * DT);
+          r3.textContent = "the whole cache is read once per generated token";
+          r4.textContent = "at 3.35 TB/s that is " + (1000 * cur / HBM).toFixed(2) + " ms of pure memory traffic";
+          r4.setAttribute("fill", 1000 * cur / HBM > 5 ? C.hot : C.dim);
+          capState = hkv;
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        function caption() {
+          var hkv = capState, cur = cacheBytes(hkv), full = cacheBytes(32);
+          if (hkv === 32) return "<b>MHA.</b> Every query head carries its own key and value head, so the cache is " + bytes(cur) + " at " + big(Math.pow(2, seqPow)) + " tokens and batch " + batch + ". Sequence length and batch size both multiply it, and the weights do not move.";
+          if (hkv === 1) return "<b>MQA.</b> One key head and one value head for all 32 queries: " + bytes(cur) + ", a " + (full / cur).toFixed(0) + "x reduction. The heads still differ, because the queries differ, but they all match against one key space — and quality suffers.";
+          if (hkv === 8) return "<b>GQA-8</b>, the industry default. " + bytes(cur) + ", three quarters of the cache gone for very little quality. With 8-way tensor parallelism each rank also owns exactly one KV head, so nothing is replicated.";
+          return "<b>GQA-" + hkv + ".</b> " + bytes(cur) + ", " + (full / cur).toFixed(0) + "x below MHA. Every query head still computes its own attention pattern; only the number of distinct key and value projections changed.";
+        }
+        return { total: KVS.length, render: render, caption: caption };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 9 — sparse patterns and receptive field                     */
+      /* ================================================================== */
+      mount("fig-sparse", function (stage, host, extras) {
+        var N = 24, cell = 15, x0 = 66, y0 = 74, W = 940, H = 74 + N * cell + 156;
+        var rnd = mulberry32(7), RND = [];
+        for (var a = 0; a < N; a++) { RND[a] = []; for (var b = 0; b < N; b++) RND[a][b] = rnd(); }
+        var mode = "sliding";
+        var MODES = {
+          dense: { label: "Dense causal", cost: "O(n²)", fn: function (i, j) { return j <= i; } },
+          sliding: { label: "Sliding w=5", cost: "O(nw)", fn: function (i, j) { return j <= i && i - j < 5; } },
+          dilated: { label: "Dilated", cost: "O(nw)", fn: function (i, j) { return j <= i && i - j < 10 && (i - j) % 2 === 0; } },
+          sink: { label: "Sliding + sink", cost: "O(nw)", fn: function (i, j) { return j <= i && (i - j < 5 || j < 2); } },
+          longformer: { label: "Local + global", cost: "O(nw + ng)", fn: function (i, j) { return j <= i && (i - j < 4 || j % 8 === 0 || i % 8 === 0); } },
+          strided: { label: "Strided", cost: "O(n√n)", fn: function (i, j) { return j <= i && (i - j < 4 || (i - j) % 5 === 0); } },
+          bigbird: { label: "Local + global + random", cost: "O(n)", fn: function (i, j) { return j <= i && (i - j < 3 || j < 2 || RND[i][j] > 0.9); } }
+        };
+
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+        cam.appendChild(T(x0, 42, "which pairs one layer computes", { fill: C.faint, "font-size": 11.5 }));
+        var g = gridCells(cam, N, N, cell, x0, y0, 1.6);
+        var stripY = y0 + N * cell + 46;
+        cam.appendChild(T(x0, stripY - 10, "positions the last token can reach after k layers", { fill: C.faint, "font-size": 11.5 }));
+        var strip = [];
+        for (var i = 0; i < N; i++) {
+          var sr = S("rect", { x: x0 + i * cell, y: stripY, width: cell - 1.6, height: 20, fill: C.grid, class: "tw" });
+          cam.appendChild(sr); strip.push(sr);
+        }
+        var RX = x0 + N * cell + 56;
+        var title = T(RX, y0 + 6, "", { fill: C.q, "font-size": 17, "font-weight": 600 });
+        var d1 = T(RX, y0 + 40, "", { fill: C.dim, "font-size": 12.5 });
+        var d2 = T(RX, y0 + 62, "", { fill: C.dim, "font-size": 12.5 });
+        var d3 = T(RX, y0 + 98, "", { fill: C.v, "font-size": 14 });
+        var d4 = T(RX, y0 + 124, "", { fill: C.dim, "font-size": 12.5 });
+        [title, d1, d2, d3, d4].forEach(function (n) { cam.appendChild(n); });
+        var layerTag = T(x0, stripY + 48, "", { fill: C.dim, "font-size": 12.5 });
+        cam.appendChild(layerTag);
+
+        fxButtons(extras, "pattern", Object.keys(MODES).map(function (k) { return { id: k, label: MODES[k].label }; }), "sliding", function (id) { mode = id; host.refresh(); });
+
+        function reach(fn, layers) {
+          var cur = {}, k, i2, j2;
+          cur[N - 1] = true;
+          for (k = 0; k < layers; k++) {
+            var next = {};
+            for (i2 in cur) {
+              var ii = +i2;
+              next[ii] = true;
+              for (j2 = 0; j2 <= ii; j2++) if (fn(ii, j2)) next[j2] = true;
+            }
+            cur = next;
+          }
+          return cur;
+        }
+        var capState = { r: 1, kept: 0 };
+        function render(s) {
+          var M = MODES[mode], layers = s + 1, kept = 0, r, c;
+          for (r = 0; r < N; r++) for (c = 0; c < N; c++) {
+            var ok = M.fn(r, c);
+            if (ok) kept++;
+            g.cells[r][c].setAttribute("fill", ok ? (r === N - 1 ? C.q : heatBlue(0.7)) : (c <= r ? C.grid : C.deep));
+          }
+          var R = reach(M.fn, layers), cnt = 0;
+          for (var i3 = 0; i3 < N; i3++) {
+            var on = !!R[i3];
+            if (on) cnt++;
+            strip[i3].setAttribute("fill", on ? (i3 === N - 1 ? C.q : C.v) : C.grid);
+          }
+          title.textContent = M.label;
+          d1.textContent = "computed pairs  " + kept + " / " + (N * (N + 1) / 2) + " causal";
+          d2.textContent = "cost  " + M.cost;
+          d3.textContent = "reach after " + layers + " layer" + (layers > 1 ? "s" : "") + ":  " + cnt + " / " + N;
+          d4.textContent = cnt === N ? "full context reachable" : "information still travelling";
+          d4.setAttribute("fill", cnt === N ? C.q : C.dim);
+          layerTag.textContent = "layer " + layers;
+          capState = { r: cnt, kept: kept };
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        function caption(s) {
+          var M = MODES[mode], layers = s + 1;
+          if (mode === "dense") return "<b>Dense causal</b> reaches everything in one layer and pays " + capState.kept + " pairs for it. Every other pattern here is trying to buy most of that reach for a fraction of the cost.";
+          return "<b>" + M.label + "</b> after " + layers + " layer" + (layers > 1 ? "s" : "") + ": the last token now reaches " + capState.r + " of 24 positions. A window of w over L layers gives a receptive field near L·w, which is how Mistral's 4096-wide window covers 131K tokens across 32 layers.";
+        }
+        return { total: 6, render: render, caption: caption };
+      });
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var F = window.__ATTN_FIG__;
+      if (!F) return;
+      var mount = F.mount, S = F.S, T = F.T, svgRoot = F.svgRoot, camera = F.camera, gridCells = F.gridCells,
+          C = F.C, bytes = F.bytes, big = F.big, fxSlider = F.fxSlider, fxLabel = F.fxLabel, fxButtons = F.fxButtons;
+
+      function box(parent, x, y, w, h, label, col, sub) {
+        var g = S("g", { class: "tw" });
+        var r = S("rect", { x: x, y: y, width: w, height: h, rx: 2, fill: "#131b21", stroke: col, "stroke-width": 1.5, class: "tw" });
+        g.appendChild(r);
+        var t = T(x + w / 2, y + h / 2 + 4, label, { fill: col, "font-size": 12, "text-anchor": "middle" });
+        g.appendChild(t);
+        var s2 = null;
+        if (sub) { s2 = T(x + w / 2, y - 7, sub, { fill: C.faint, "font-size": 10, "text-anchor": "middle" }); g.appendChild(s2); }
+        parent.appendChild(g);
+        return { g: g, r: r, t: t, s: s2 };
+      }
+      function glow(o, on, col) {
+        o.r.setAttribute("stroke", on ? (col || C.q) : C.line);
+        o.r.setAttribute("stroke-width", on ? 2.6 : 1.5);
+        o.r.setAttribute("fill", on ? "#16262a" : "#131b21");
+        o.t.setAttribute("fill", on ? (col || C.q) : C.faint);
+      }
+
+      /* ================================================================== */
+      /* FIGURE 10 — reassociation                                          */
+      /* ================================================================== */
+      mount("fig-linear", function (stage, host, extras) {
+        var W = 940, H = 430, nPow = 13, d = 128;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+        var NS_ = 118, DS = 32;
+
+        cam.appendChild(T(40, 34, "order A   ·   (Q Kᵀ) V", { fill: C.dim, "font-size": 13, "font-weight": 600 }));
+        cam.appendChild(T(510, 34, "order B   ·   Q (Kᵀ V)", { fill: C.dim, "font-size": 13, "font-weight": 600 }));
+        cam.appendChild(S("line", { x1: 480, y1: 20, x2: 480, y2: 330, stroke: "#242c34", "stroke-width": 1 }));
+
+        var A1 = box(cam, 44, 60, DS, NS_, "Q", C.line, "n×d");
+        cam.appendChild(T(90, 124, "×", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var A2 = box(cam, 108, 103, NS_, DS, "Kᵀ", C.line, "d×n");
+        cam.appendChild(T(248, 124, "=", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var A3 = box(cam, 268, 60, NS_, NS_, "S", C.line, "n×n");
+        var A4 = box(cam, 44, 216, NS_, NS_, "S", C.line, "n×n");
+        cam.appendChild(T(180, 276, "×", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var A5 = box(cam, 198, 216, DS, NS_, "V", C.line, "n×d");
+        cam.appendChild(T(248, 276, "=", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var A6 = box(cam, 268, 216, DS, NS_, "O", C.line, "n×d");
+
+        var B1 = box(cam, 512, 103, NS_, DS, "Kᵀ", C.line, "d×n");
+        cam.appendChild(T(648, 124, "×", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var B2 = box(cam, 666, 60, DS, NS_, "V", C.line, "n×d");
+        cam.appendChild(T(716, 124, "=", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var B3 = box(cam, 736, 108, DS, DS, "C", C.line, "d×d");
+        var B4 = box(cam, 512, 216, DS, NS_, "Q", C.line, "n×d");
+        cam.appendChild(T(560, 276, "×", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var B5 = box(cam, 578, 260, DS, DS, "C", C.line, "d×d");
+        cam.appendChild(T(628, 276, "=", { fill: C.faint, "font-size": 14, "text-anchor": "middle" }));
+        var B6 = box(cam, 648, 216, DS, NS_, "O", C.line, "n×d");
+
+        var softNote = T(268, 52, "", { fill: C.hot, "font-size": 12, class: "tw" });
+        cam.appendChild(softNote);
+        var stateBox = S("g", { opacity: 0, class: "tw" });
+        stateBox.appendChild(S("rect", { x: 736, y: 200, width: 150, height: 108, rx: 2, fill: "#101a20", stroke: C.q, "stroke-width": 1.6, "stroke-dasharray": "4 3" }));
+        stateBox.appendChild(T(811, 224, "recurrent state", { fill: C.q, "font-size": 11, "text-anchor": "middle" }));
+        stateBox.appendChild(T(811, 250, "St = St-1 + φ(kt)vtᵀ", { fill: C.ink, "font-size": 12, "text-anchor": "middle" }));
+        stateBox.appendChild(T(811, 274, "d × d, fixed size", { fill: C.faint, "font-size": 11, "text-anchor": "middle" }));
+        stateBox.appendChild(T(811, 294, "no KV cache at all", { fill: C.v, "font-size": 11, "text-anchor": "middle" }));
+        cam.appendChild(stateBox);
+
+        var costA = T(44, 356, "", { fill: C.dim, "font-size": 12.5 });
+        var costB = T(512, 356, "", { fill: C.dim, "font-size": 12.5 });
+        var memA = T(44, 378, "", { fill: C.dim, "font-size": 12.5 });
+        var memB = T(512, 378, "", { fill: C.dim, "font-size": 12.5 });
+        var ratio = T(44, 410, "", { fill: C.v, "font-size": 13.5 });
+        [costA, costB, memA, memB, ratio].forEach(function (n) { cam.appendChild(n); });
+
+        fxSlider(extras, "sequence n", { min: 9, max: 17, value: 13, aria: "Sequence length", format: function (v) { return big(Math.pow(2, v)) + " tok"; } }, function (v) { nPow = v; host.refresh(); });
+        fxLabel(extras, "head width d fixed at 128 — the two orders cross over exactly at n = d");
+
+        var caps = [
+          "Three matrices, two multiplications. The only free choice is which multiplication happens first.",
+          "Order A forms S = QKᵀ first. That intermediate is <b>n × n</b>: at 8K tokens it is 67 million entries per head, per layer.",
+          "Then S V, at the same n²d cost. Two quadratic terms and one quadratic buffer.",
+          "Order B multiplies KᵀV first. The intermediate is <b>d × d</b> — and d does not grow with the sequence.",
+          "Then Q times that small matrix. Both steps are nd², linear in sequence length.",
+          "Same result, and for n ≫ d, dramatically cheaper. So why does nobody do this?",
+          "Because of the softmax. exp(qᵀk) does not factor into a product of a function of q and a function of k, so the normalisation needs the full matrix before anything else can happen.",
+          "Linear attention's move is to replace the similarity with one that <em>does</em> factor: φ(q)ᵀφ(k) for a feature map φ with non-negative outputs. Now the sums over j are shared by every query.",
+          "In the causal case those shared sums become running sums, and the layer is a recurrence with a fixed d×d state. Generation costs O(1) per token.",
+          "That is the whole trade. Softmax attention stores every token and pays O(n) memory for exact recall; this stores a lossy summary and pays O(1). Exact retrieval from far back is where it breaks, which is why the models that ship are hybrids."
+        ];
+
+        function render(s) {
+          var n = Math.pow(2, nPow);
+          [A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6].forEach(function (o) { glow(o, false); });
+          stateBox.setAttribute("opacity", s >= 8 ? 1 : 0);
+          softNote.textContent = s === 6 ? "softmax( · ) must see all n² entries" : "";
+          if (s === 1) { glow(A1, true); glow(A2, true); glow(A3, true, C.hot); }
+          if (s === 2) { glow(A4, true, C.hot); glow(A5, true); glow(A6, true); }
+          if (s === 3) { glow(B1, true); glow(B2, true); glow(B3, true, C.q); }
+          if (s === 4 || s === 5) { glow(B4, true); glow(B5, true, C.q); glow(B6, true); }
+          if (s === 6) { glow(A3, true, C.hot); }
+          if (s === 7) { glow(B1, true); glow(B3, true, C.q); }
+          if (s >= 8) { glow(B3, true, C.q); glow(B5, true, C.q); }
+          var macA = 2 * n * n * d, macB = 2 * n * d * d;
+          costA.textContent = "multiply-adds  " + big(macA);
+          costB.textContent = "multiply-adds  " + big(macB);
+          memA.textContent = "intermediate  " + big(n * n) + " entries  (" + bytes(n * n * 2) + " per head)";
+          memB.textContent = "intermediate  " + big(d * d) + " entries  (" + bytes(d * d * 2) + ", constant)";
+          ratio.textContent = "at n = " + big(n) + " and d = 128, order B is " + (macA / macB).toFixed(0) + "× cheaper in arithmetic and " + big(n * n / (d * d)) + "× smaller in intermediate memory";
+          if (s === 1 || s === 6) camera(cam, 250, 40, 268, 60, 1.5);
+          else if (s === 3 || s === 7) camera(cam, 420, 40, 700, 60, 1.5);
+          else camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 11 — multi-head latent attention                            */
+      /* ================================================================== */
+      mount("fig-mla", function (stage) {
+        var W = 940, H = 440;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        var LANES = [
+          { key: "mha", label: "MHA", v: 32768, note: "2 · 128 heads · 128 dims" },
+          { key: "gqa", label: "GQA-8", v: 2048, note: "2 · 8 kv heads · 128 dims" },
+          { key: "mqa", label: "MQA", v: 256, note: "2 · 1 kv head · 128 dims" },
+          { key: "mla", label: "MLA", v: 576, note: "512 latent + 64 rotary" }
+        ];
+        var BX = 150, BW = 640, y0 = 56, dy = 40;
+        cam.appendChild(T(BX, 36, "cached values per token, per layer   ·   log scale   ·   DeepSeek-V2 shapes", { fill: C.faint, "font-size": 11.5 }));
+        var lanes = LANES.map(function (L, i) {
+          var y = y0 + i * dy;
+          cam.appendChild(T(BX - 14, y + 15, L.label, { fill: C.dim, "font-size": 12.5, "text-anchor": "end" }));
+          var bg = S("rect", { x: BX, y: y, width: BW, height: 21, fill: "#151d24" });
+          cam.appendChild(bg);
+          var b = S("rect", { x: BX, y: y, width: 4, height: 21, fill: C.hot, "fill-opacity": 0.85, class: "tw" });
+          cam.appendChild(b);
+          var t = T(BX + 10, y + 15, "", { fill: C.ink, "font-size": 11.5, class: "tw" });
+          cam.appendChild(t);
+          return { bar: b, txt: t, L: L };
+        });
+
+        var PY = 250;
+        cam.appendChild(T(60, PY - 34, "what MLA actually stores", { fill: C.faint, "font-size": 11.5 }));
+        var h = box(cam, 60, PY, 76, 54, "h_t", C.line, "hidden");
+        var dproj = box(cam, 186, PY, 86, 54, "W^DKV", C.line, "down");
+        var latent = box(cam, 322, PY, 76, 54, "c_t", C.line, "512");
+        var uproj = box(cam, 448, PY, 86, 54, "W^UK / W^UV", C.line, "up");
+        var kvout = box(cam, 584, PY, 100, 54, "k_j , v_j", C.line, "per head");
+        var rope = box(cam, 322, PY + 84, 76, 46, "k^R", C.line, "64, RoPE");
+        var absorb = T(448, PY + 112, "", { fill: C.q, "font-size": 12, class: "tw" });
+        cam.appendChild(absorb);
+        var cacheBox = S("g", { opacity: 0, class: "tw" });
+        cacheBox.appendChild(S("rect", { x: 310, y: PY - 16, width: 100, height: 160, rx: 3, fill: "none", stroke: C.v, "stroke-width": 1.8, "stroke-dasharray": "5 4" }));
+        cacheBox.appendChild(T(360, PY - 24, "cached", { fill: C.v, "font-size": 11.5, "text-anchor": "middle" }));
+        cam.appendChild(cacheBox);
+        var arrows = [];
+        [[136, 186], [272, 322], [398, 448], [534, 584]].forEach(function (p) {
+          var a = S("path", { d: "M " + p[0] + " " + (PY + 27) + " L " + p[1] + " " + (PY + 27), stroke: C.line, "stroke-width": 1.4, fill: "none", class: "tw" });
+          cam.appendChild(a); arrows.push(a);
+        });
+        var ropeArrow = S("path", { d: "M 98 " + (PY + 54) + " L 98 " + (PY + 107) + " L 322 " + (PY + 107), stroke: C.line, "stroke-width": 1.4, fill: "none", class: "tw" });
+        cam.appendChild(ropeArrow);
+
+        var caps = [
+          "The baseline. In DeepSeek-V2's shape, full MHA would cache 32,768 numbers for every token in every layer.",
+          "GQA attacks the head count. Eight key-value heads instead of 128 is a 16× cut, and MQA takes it to 256 numbers.",
+          "MLA attacks something else. The concatenated keys and values are wide, but they are a linear map of one hidden state — so they are not high rank.",
+          "Down-project h_t into a 512-dimensional latent c_t, and cache only that.",
+          "Reconstruct the per-head keys and values from c_t when you need them. The up-projections are weights, so they cost nothing per token.",
+          "That would still mean decompressing the whole cache every step — except the up-projection can be <b>absorbed</b>: (W^UQ)ᵀW^UK is a constant matrix, foldable into the query projection. Per-head keys are never materialised.",
+          "RoPE breaks the absorption. A position-dependent rotation sits between the two weights you wanted to merge, and it cannot be folded into either.",
+          "So the key is split: a content half that stays absorbable, and a small decoupled rotary half of 64 dimensions, shared across heads and cached beside the latent.",
+          "512 + 64 = 576 numbers per token per layer against 32,768 — a 98% cut in V2's own shape. DeepSeek's headline 93.3% is a different comparison: against the differently-shaped dense-MHA 67B, first-party, and not against a tuned GQA baseline."
+        ];
+
+        function render(s) {
+          var reveal = [1, 3, 3, 4, 4, 4, 4, 4, 4][s];
+          lanes.forEach(function (ln, i) {
+            var show = i < reveal && !(i === 3 && s < 3);
+            var w = show ? Math.max(6, 640 * Math.log(ln.L.v) / Math.log(32768)) : 0;
+            ln.bar.setAttribute("width", w);
+            ln.bar.setAttribute("fill", ln.L.key === "mla" ? C.q : (ln.L.key === "mha" ? C.hot : C.v));
+            ln.txt.textContent = show ? ln.L.v.toLocaleString() + "   " + ln.L.note : "";
+            ln.txt.setAttribute("fill", show ? (w > 200 ? "#06120e" : C.dim) : "rgba(0,0,0,0)");
+            ln.txt.setAttribute("x", w > 200 ? BX + 10 : BX + w + 8);
+          });
+          [h, dproj, latent, uproj, kvout, rope].forEach(function (o) { glow(o, false); });
+          var showPipe = s >= 3;
+          [dproj, latent, uproj, kvout].forEach(function (o, i) { o.g.setAttribute("opacity", showPipe ? 1 : 0.12); });
+          h.g.setAttribute("opacity", showPipe ? 1 : 0.12);
+          rope.g.setAttribute("opacity", s >= 7 ? 1 : 0.12);
+          ropeArrow.setAttribute("opacity", s >= 7 ? 1 : 0.12);
+          arrows.forEach(function (a, i) { a.setAttribute("opacity", showPipe ? (i >= 2 && s === 3 ? 0.2 : 1) : 0.12); });
+          if (s === 3) { glow(h, true); glow(dproj, true); glow(latent, true, C.v); }
+          if (s === 4) { glow(latent, true, C.v); glow(uproj, true); glow(kvout, true); }
+          if (s === 5) { glow(uproj, true, C.q); glow(latent, true, C.v); }
+          if (s === 6) { glow(uproj, true, C.hot); }
+          if (s >= 7) { glow(rope, true, C.v); glow(latent, true, C.v); }
+          absorb.textContent = s === 5 ? "scores computed directly in latent space" : (s === 6 ? "RoPE(·) cannot be folded into a fixed weight" : "");
+          absorb.setAttribute("fill", s === 6 ? C.hot : C.q);
+          cacheBox.setAttribute("opacity", s >= 7 ? 1 : 0);
+          if (s === 5 || s === 6) camera(cam, 200, 60, 420, 230, 1.35);
+          else camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 12 — FlashAttention memory traffic                          */
+      /* ================================================================== */
+      mount("fig-flash", function (stage) {
+        var W = 940, H = 430, n = 8192, MB = n * n * 2 / 1048576;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+
+        cam.appendChild(T(60, 36, "HBM   ·   80 GB   ·   3.35 TB/s", { fill: C.faint, "font-size": 11.5 }));
+        cam.appendChild(S("rect", { x: 60, y: 52, width: 190, height: 300, rx: 3, fill: "#101a20", stroke: "#26313a", "stroke-width": 1.4 }));
+        var slabs = [];
+        ["Q", "K", "V", "O", "S  (n×n)", "P  (n×n)"].forEach(function (lbl, i) {
+          var y = 70 + i * 46;
+          var o = box(cam, 78, y, 154, 34, lbl, C.line, null);
+          slabs.push(o);
+        });
+        cam.appendChild(T(330, 36, "SRAM   ·   ~20 MB on chip   ·   ~19 TB/s", { fill: C.faint, "font-size": 11.5 }));
+        var sram = S("rect", { x: 330, y: 52, width: 236, height: 300, rx: 3, fill: "#101a20", stroke: "#26313a", "stroke-width": 1.4 });
+        cam.appendChild(sram);
+        var tileQ = box(cam, 348, 76, 90, 46, "Q block", C.line, null);
+        var tileK = box(cam, 452, 76, 96, 46, "K,V block", C.line, null);
+        var tileS = box(cam, 348, 148, 200, 52, "Sij  (block only)", C.line, null);
+        var acc = box(cam, 348, 226, 200, 46, "O accumulator", C.line, null);
+        var stats = T(448, 300, "", { fill: C.q, "font-size": 12.5, "text-anchor": "middle", class: "tw" });
+        cam.appendChild(stats);
+        var rescale = T(448, 324, "", { fill: C.v, "font-size": 11.5, "text-anchor": "middle", class: "tw" });
+        cam.appendChild(rescale);
+
+        cam.appendChild(T(646, 36, "the n × n score matrix, in tiles", { fill: C.faint, "font-size": 11.5 }));
+        var g = gridCells(cam, 4, 4, 58, 646, 52, 3);
+        var counter = T(646, 300, "", { fill: C.ink, "font-size": 15, "font-weight": 600, class: "tw" });
+        var counter2 = T(646, 324, "", { fill: C.dim, "font-size": 12 });
+        cam.appendChild(counter); cam.appendChild(counter2);
+        var mode = T(60, 392, "", { fill: C.ink, "font-size": 15, "font-weight": 600, class: "tw" });
+        var detail = T(60, 416, "", { fill: C.dim, "font-size": 12.5 });
+        cam.appendChild(mode); cam.appendChild(detail);
+
+        var caps = [
+          "The textbook implementation is three kernels with the score matrix living in HBM between them.",
+          "Kernel one writes S = QKᵀ. At n = 8192 in fp16 that is 128 MB, per head, per layer.",
+          "Kernel two reads S back, softmaxes it, writes P. Another 256 MB of traffic for an elementwise operation.",
+          "Kernel three reads P and multiplies by V. The tensor cores spent most of this waiting on memory.",
+          "512 MB moved for intermediates that nobody wanted, and S must be kept for the backward pass.",
+          "FlashAttention instead loads one block of queries into SRAM and keeps it there.",
+          "First key-value block arrives. Its scores are computed on chip, and the running max m and denominator ℓ are initialised.",
+          "Second block. Its scores may contain a larger maximum — so the accumulator is rescaled by exp(m_old − m_new) before the new contribution is added.",
+          "Third block. Same rescale-and-accumulate. This works because softmax depends only on score differences.",
+          "Fourth block. The full row of the score matrix has been used, and none of it was ever written out.",
+          "Divide by ℓ and write O once. Intermediate traffic for the n × n matrices: zero.",
+          "Same numbers out, to floating-point reassociation. Nothing about the model changed — only the order in which bytes moved."
+        ];
+
+        function render(s) {
+          var naive = s <= 4, blk = s >= 6 && s <= 9 ? s - 6 : -1;
+          slabs.forEach(function (o, i) {
+            var on = i < 4 || (naive && s >= 1);
+            o.g.setAttribute("opacity", i < 4 ? 1 : (naive && s >= (i === 4 ? 1 : 2) ? 1 : 0.1));
+            glow(o, false);
+          });
+          if (s === 1) glow(slabs[4], true, C.hot);
+          if (s === 2) { glow(slabs[4], true, C.hot); glow(slabs[5], true, C.hot); }
+          if (s === 3) { glow(slabs[5], true, C.hot); glow(slabs[3], true); }
+          if (s >= 5) { glow(slabs[0], true); }
+          if (s >= 5 && s <= 9) { glow(slabs[1], true, C.k); glow(slabs[2], true, C.k); }
+          if (s === 10) glow(slabs[3], true, C.q);
+
+          [tileQ, tileK, tileS, acc].forEach(function (o) {
+            o.g.setAttribute("opacity", s >= 5 ? 1 : 0.12);
+            glow(o, false);
+          });
+          if (s >= 5) glow(tileQ, true);
+          if (blk >= 0) { glow(tileK, true, C.k); glow(tileS, true, C.q); glow(acc, true, C.v); }
+          if (s === 10) glow(acc, true, C.q);
+
+          for (var r = 0; r < 4; r++) for (var c = 0; c < 4; c++) {
+            var lit;
+            if (naive) lit = s >= 1 ? 1 : 0;
+            else if (blk >= 0) lit = c === blk ? 1 : (c < blk ? 0.42 : 0);
+            else lit = s >= 10 ? 0.42 : 0;
+            g.cells[r][c].setAttribute("fill", lit === 1 ? C.q : (lit > 0 ? "#25423b" : C.grid));
+          }
+          var moved = naive ? [0, MB, MB * 3, MB * 4, MB * 4][s] : 0;
+          counter.textContent = "n×n traffic  " + (moved ? moved.toFixed(0) + " MB" : "0 MB");
+          counter.setAttribute("fill", moved ? C.hot : C.q);
+          counter2.textContent = naive ? "plus 128 MB kept for the backward pass" : "backward recomputes S from m and ℓ";
+          stats.textContent = blk >= 0 ? "m = running max   ℓ = running sum" : (s === 10 ? "O ← O / ℓ" : "");
+          rescale.textContent = blk >= 1 ? "O ← O · exp(m_old − m_new)" : "";
+          mode.textContent = naive ? "naive: three kernels through HBM" : "FlashAttention: one fused kernel, tiled";
+          mode.setAttribute("fill", naive ? C.hot : C.q);
+          detail.textContent = naive ? "arithmetic intensity is low, so the kernel is memory bound" : "block " + (blk >= 0 ? (blk + 1) + " of 4" : "loop complete") + "  ·  exact, not approximate";
+          if (blk >= 0) camera(cam, 250, 20, 330, 40, 1.25);
+          else camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: caps.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+
+      /* ================================================================== */
+      /* FIGURE 13 — attention over a grid                                  */
+      /* ================================================================== */
+      mount("fig-vision", function (stage) {
+        var G = 8, cell = 34, x0 = 80, y0 = 76, W = 940, H = 420, qr = 3, qc = 3;
+        var root = svgRoot(W, H); stage.appendChild(root);
+        var cam = S("g", { class: "cam" }); root.appendChild(cam);
+        cam.appendChild(T(x0, 44, "an 8 × 8 grid of patches   ·   what one patch can see", { fill: C.faint, "font-size": 11.5 }));
+        var g = gridCells(cam, G, G, cell, x0, y0, 3);
+        var latents = [];
+        for (var i = 0; i < 4; i++) {
+          var lb = S("rect", { x: 470, y: y0 + 40 + i * 44, width: 60, height: 32, rx: 2, fill: "#101a20", stroke: C.pur, "stroke-width": 1.5, opacity: 0, class: "tw" });
+          cam.appendChild(lb); latents.push(lb);
+        }
+        var latentLab = T(500, y0 + 24, "32 learned queries", { fill: C.pur, "font-size": 11, "text-anchor": "middle", opacity: 0, class: "tw" });
+        cam.appendChild(latentLab);
+        var textBox = S("rect", { x: 470, y: y0 + 100, width: 92, height: 40, rx: 2, fill: "#101a20", stroke: C.q, "stroke-width": 1.5, opacity: 0, class: "tw" });
+        cam.appendChild(textBox);
+        var textLab = T(516, y0 + 125, "text tokens", { fill: C.q, "font-size": 11, "text-anchor": "middle", opacity: 0, class: "tw" });
+        cam.appendChild(textLab);
+
+        var RX = 620;
+        var title = T(RX, y0 + 6, "", { fill: C.q, "font-size": 17, "font-weight": 600 });
+        var l1 = T(RX, y0 + 40, "", { fill: C.dim, "font-size": 12.5 });
+        var l2 = T(RX, y0 + 64, "", { fill: C.dim, "font-size": 12.5 });
+        var l3 = T(RX, y0 + 96, "", { fill: C.v, "font-size": 12.5 });
+        var l4 = T(RX, y0 + 132, "", { fill: C.faint, "font-size": 11.5 });
+        [title, l1, l2, l3, l4].forEach(function (n) { cam.appendChild(n); });
+        var res = T(x0, y0 + G * cell + 40, "", { fill: C.faint, "font-size": 11.5 });
+        cam.appendChild(res);
+
+        var MODES = [
+          { n: "Global 2D", cost: "O(N²)", seen: function (r, c) { return true; }, note: "no locality assumption at all", who: "ViT, SigLIP" },
+          { n: "Windowed", cost: "O(N·w²)", seen: function (r, c) { return Math.floor(r / 4) === 0 && Math.floor(c / 4) === 0; }, note: "cheap, but boundaries are walls", who: "Swin, stage one" },
+          { n: "Shifted window", cost: "O(N·w²)", seen: function (r, c) { return Math.floor((r + 2) / 4) === 1 && Math.floor((c + 2) / 4) === 1; }, note: "next layer moves the walls, so information crosses", who: "Swin, stage two" },
+          { n: "Axial", cost: "O(N√N)", seen: function (r, c) { return r === qr || c === qc; }, note: "two layers cover the whole grid", who: "Axial Transformer" },
+          { n: "Bottleneck resampling", cost: "O(N·k)", seen: function (r, c) { return true; }, note: "a fixed query set reads every patch once", who: "Q-Former, Perceiver" },
+          { n: "Cross-modal", cost: "O(n·N)", seen: function (r, c) { return true; }, note: "text queries, image keys and values", who: "Flamingo-style fusion" }
+        ];
+        var caps = [
+          "Flatten the patches and run ordinary bidirectional self-attention. Honest, assumption-free, and quadratic in patch count — so quartic in resolution.",
+          "Partition into windows and attend inside each. Linear in patch count, but a patch cannot see across its own window boundary.",
+          "Shift the partition by half a window on the next layer. The same trick as stacked sliding windows: reach comes from depth, not from width.",
+          "Attend along the row, then along the column. Two layers give full coverage at O(N√N), and each step is a dense operation the kernels like.",
+          "Or take the queries out of the grid entirely. A fixed set of learned queries reads all 64 patches and emits a fixed number of tokens.",
+          "And the version that matters for a VLM: text tokens as queries, patches as keys and values. For the language model downstream, the only number that matters is how many image tokens survive the connector."
+        ];
+
+        function render(s) {
+          var M = MODES[s];
+          for (var r = 0; r < G; r++) for (var c = 0; c < G; c++) {
+            var isQ = (r === qr && c === qc) && s < 4;
+            var seen = M.seen(r, c);
+            g.cells[r][c].setAttribute("fill", isQ ? C.q : (seen ? (s >= 4 ? "#274a45" : "#22493f") : C.grid));
+            g.cells[r][c].setAttribute("fill-opacity", isQ ? 1 : (seen ? 0.95 : 1));
+            g.cells[r][c].setAttribute("stroke", isQ ? C.q : "none");
+            g.cells[r][c].setAttribute("stroke-width", isQ ? 2 : 0);
+          }
+          latents.forEach(function (l) { l.setAttribute("opacity", s === 4 ? 1 : 0); });
+          latentLab.setAttribute("opacity", s === 4 ? 1 : 0);
+          textBox.setAttribute("opacity", s === 5 ? 1 : 0);
+          textLab.setAttribute("opacity", s === 5 ? 1 : 0);
+          title.textContent = M.n;
+          l1.textContent = "cost  " + M.cost;
+          l2.textContent = "used by  " + M.who;
+          l3.textContent = M.note;
+          l4.textContent = s < 4 ? "green cells are visible to the highlighted patch" : "every patch is read, by queries from outside the grid";
+          res.textContent = "at 224 px / 14 px patches: 256 tokens · at 1024 px: 5,329 tokens · " + big(5329 * 5329) + " score entries per head per layer";
+          camera(cam, 0, 0, 0, 0, 1);
+        }
+        return { total: MODES.length, render: render, caption: function (s) { return caps[s]; } };
+      });
+    })();
+    </script>
+
+    <!-- Provides the shared theme, navigation, sharing, citations, and the
+         responsive Distill-inspired side TOC. Do not duplicate these per post. -->
+    <script src="../../assets/js/blogs.js"></script>
+  </body>
+</html>

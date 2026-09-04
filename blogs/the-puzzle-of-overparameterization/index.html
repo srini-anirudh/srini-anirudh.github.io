@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Why do models with more parameters than data points generalize? A first-principles tour of the classical bias-variance picture, the randomization experiments that broke it, interpolation, double descent and its limits, benign overfitting, implicit bias, NTK, grokking, and what any of it says about LLM pretraining." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="The Puzzle of Overparameterization" />
+    <meta property="og:description" content="A network with more parameters than data points can memorize its training set exactly. Modern ones mostly don't. Classical model-capacity intuition says that shouldn't happen, and the honest answer to why is that nobody has one." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Puzzle of Overparameterization" />
+    <meta name="twitter:description" content="Interpolation, double descent, benign overfitting, implicit bias, grokking - and an honest account of which of them explain anything about LLMs." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/preview.png" />
+    <title>The Puzzle of Overparameterization | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/" },
+        "headline": "The Puzzle of Overparameterization",
+        "description": "Why do models with more parameters than data points generalize? Interpolation, double descent and its limits, benign overfitting, implicit bias, NTK, grokking, and what any of it says about LLM pretraining.",
+        "image": "https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["generalization", "double descent", "benign overfitting", "implicit bias", "neural tangent kernel", "grokking", "memorization", "LLM pretraining"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content code { padding: 1px 5px; background: rgba(20, 23, 26, 0.06); font: 500 0.86em var(--mono); }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* Figures and labs. */
+      .animation-stage svg { display: block; width: 100%; height: auto; }
+      .figure-caption { margin: 13px 0 0; color: #9fb0ba; font: 400 13.5px/1.55 var(--mono); }
+      .figure-caption b { color: #3fd1a0; font-weight: 600; }
+      .figure-lede { margin: 0 0 14px; color: #8d9aa3; font: 600 11px/1.4 var(--mono); letter-spacing: 0.13em; text-transform: uppercase; }
+      .keymath { margin: 26px 0; padding: 18px 20px; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 15.5px/1.75 var(--mono); overflow-x: auto; }
+      .keymath b { font-weight: 600; }
+      .aside-note { margin: 24px 0; padding: 4px 0 4px 18px; border-left: 2px solid var(--rule); color: var(--ink-soft); font-size: 17px; }
+      .sys-table { width: 100%; margin: 26px 0; border-collapse: collapse; font-size: 15px; }
+      .sys-table th, .sys-table td { padding: 9px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+      .sys-table th { color: var(--ink-soft); font: 600 11px/1.4 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; }
+      .sys-table td { font-family: var(--body); line-height: 1.45; }
+      .lab-controls { display: flex; flex-wrap: wrap; gap: 18px 26px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #242c34; }
+      .lab-field { display: flex; flex-direction: column; gap: 6px; min-width: 168px; flex: 1 1 168px; }
+      .lab-field label { color: #8d9aa3; font: 600 10px/1.3 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+      .lab-field output { color: #3fd1a0; font: 600 12px/1 var(--mono); }
+      .lab-field input[type="range"] { width: 100%; height: 22px; margin: 0; accent-color: #3fd1a0; background: transparent; cursor: pointer; }
+      .lab-field input[type="range"]:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 3px; }
+      .lab-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+      .lab-toggles button { min-height: 34px; padding: 6px 10px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 10.5px/1 var(--mono); }
+      .lab-toggles button[aria-pressed="true"] { color: #06120e; background: #5ab2e8; border-color: #5ab2e8; }
+      .lab-toggles button:focus-visible { outline: 2px solid #3fd1a0; outline-offset: 2px; }
+      .lab-readout { margin: 14px 0 0; color: #9fb0ba; font: 400 13.5px/1.55 var(--mono); }
+      .lab-readout b { color: #f0b45a; font-weight: 600; }
+      .series-nav { margin: 44px 0 0; padding: 18px 20px; background: var(--paper-bright); border: 1px solid var(--rule); font-size: 16.5px; }
+      .series-nav p { margin: 0 0 8px; }
+      .series-nav p:last-child { margin: 0; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article overparameterized-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Understanding LLMs &middot; Part 2</p>
+        <h1 class="article-title">The Puzzle of Overparameterization</h1>
+        <p class="article-subtitle">A network with more parameters than training examples can memorize the training set exactly, and we can prove it by making it do so. Modern ones mostly don't. Every clean story about why turns out to be a special case.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Generalization</span><span>Learning theory</span><span>Interactive</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Understanding LLMs">
+      <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
+      <span class="ml-series-nav__position">02 of 09 &middot; Generalization</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../what-changed-inside-the-transformer/"><span>Previous &middot; 01</span><strong>What Changed Inside the Transformer?</strong></a>
+        <a class="ml-series-nav__link" href="../scaling-laws-from-first-principles/"><span>Next &middot; 03</span><strong>Scaling Laws from First Principles</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#classical">The classical picture</a></li>
+          <li><a href="#memorize">Networks memorize anything</a></li>
+          <li><a href="#interpolation">The interpolation threshold</a></li>
+          <li><a href="#double-descent">Double descent</a></li>
+          <li><a href="#caveats">What that does not explain</a></li>
+          <li><a href="#benign">Benign overfitting</a></li>
+          <li><a href="#implicit-bias">The algorithm picks</a></li>
+          <li><a href="#function-space">Parameters vs functions</a></li>
+          <li><a href="#lazy-rich">Lazy and rich</a></li>
+          <li><a href="#grokking">Grokking</a></li>
+          <li><a href="#llm-regime">The regime LLMs train in</a></li>
+          <li><a href="#bounds">What can be certified</a></li>
+          <li><a href="#known">What we actually know</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="classical">
+        <h2>The classical picture</h2>
+        <p>Start with the picture every statistics course draws, because the whole article is about the moment it stops being true.</p>
+        <p>You have a distribution <code>D</code> over pairs <code>(x, y)</code>, and a sample <code>S</code> of <em>n</em> pairs drawn from it. You pick a predictor <code>f</code> from some class by minimizing the average loss on the sample. Two numbers matter, and only one of them is observable.</p>
+        <div class="keymath">
+          <b>empirical risk</b> &nbsp;&nbsp;R&#770;(f) = (1/n) &Sigma;<sub>i=1..n</sub> &#8467;(f(x<sub>i</sub>), y<sub>i</sub>)<br /><br />
+          <b>population risk</b> &nbsp;R(f) = E<sub>(x,y)~D</sub> [ &#8467;(f(x), y) ]<br /><br />
+          <b>generalization gap</b> &nbsp;R(f) &minus; R&#770;(f)
+        </div>
+        <p>Training minimizes the first. You are judged on the second. Everything in learning theory is an attempt to bound the difference using quantities you can compute.</p>
+        <p>For squared loss there is an exact decomposition that makes the tension visible. Suppose the labels are a clean function plus noise, <code>y = g(x) + &epsilon;</code> with <code>E[&epsilon;] = 0</code> and <code>Var(&epsilon;) = &sigma;&sup2;</code>. Let <code>f<sub>S</sub></code> be the predictor your procedure returns when trained on sample <code>S</code>, and take expectations over the draw of <code>S</code>. At any fixed input <code>x</code>:</p>
+        <div class="keymath">
+          E<sub>S,&epsilon;</sub>[ (y &minus; f<sub>S</sub>(x))&sup2; ] =<br />
+          &nbsp;&nbsp;&sigma;&sup2; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; irreducible noise<br />
+          + (E<sub>S</sub>[f<sub>S</sub>(x)] &minus; g(x))&sup2; &nbsp;&nbsp;&nbsp; <b>bias&sup2;</b><br />
+          + E<sub>S</sub>[ (f<sub>S</sub>(x) &minus; E<sub>S</sub>[f<sub>S</sub>(x)])&sup2; ] &nbsp;&nbsp;&nbsp; <b>variance</b>
+        </div>
+        <p>The first term is a floor nothing can beat. The second asks whether your class can express the truth on average. The third asks how much your fitted function jitters when the sample is redrawn. Bias is an error you make consistently; variance is an error you make differently every time.</p>
+        <p>Now the classical claim. As you add capacity, bias falls, because a richer class can track the truth more closely. Variance rises, because a richer class can also track the noise. Their sum has a minimum somewhere in the middle, and that minimum is the sweet spot.</p>
+        <div class="article-panel" id="fig-bias-variance">
+          <p class="figure-lede">Figure 1 &middot; The decomposition, computed on twenty redrawn samples</p>
+          <div class="animation-stage" role="img" aria-label="Animated bias-variance decomposition: polynomial fits of increasing degree on twenty resampled datasets, with the mean fit, the variance band, and the resulting U-shaped risk curve"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 1">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 66</span>
+          </div>
+        </div>
+        <p>Those curves are real least-squares fits, not sketches. The pattern is exactly what the textbook promises: degree 1 misses the shape identically every time, degree 12 wraps itself around whichever eleven noise realizations it happened to see, and the sum bottoms out around degree 4.</p>
+        <p>The theory backing this up is <b>uniform convergence</b>. Bound the worst-case gap over the entire class at once, and you get statements shaped like</p>
+        <div class="keymath">
+          with probability 1 &minus; &delta;, for <b>every</b> f in the class:<br /><br />
+          R(f) &nbsp;&le;&nbsp; R&#770;(f) &nbsp;+&nbsp; O( sqrt( <b>complexity</b> / n ) ) &nbsp;+&nbsp; O( sqrt( log(1/&delta;) / n ) )
+        </div>
+        <p>where <em>complexity</em> is VC dimension, or Rademacher complexity, or a covering number. The shape is what matters: a class rich enough to fit anything has enormous complexity, so the bound is enormous, so it tells you nothing. That is a feature. It is supposed to be the mathematical statement of "a model flexible enough to fit anything has learned nothing".</p>
+        <p>Now put a number in it. The VC dimension of a ReLU network with <em>W</em> weights and <em>L</em> layers is <code>&Theta;(W L log W)</code>. Take a small ResNet with 11 million parameters and 20 layers, trained on CIFAR-10's 50,000 images. The numerator is around 5&times;10<sup>9</sup>, the ratio is 10<sup>5</sup>, and the bound comes out near 300. Test error is a probability, so it cannot exceed 1. The bound is not wrong &mdash; it is <em>vacuous</em>: true, and carrying no information.</p>
+        <p>Language models are worse, not better, because the classical machinery does not even apply cleanly: cross-entropy is unbounded, so the concentration arguments behind these bounds need replacing before you can start. We come back to what does work in section 12.</p>
+        <p>You could reasonably say that this only shows the bound is loose, and that real networks are effectively much simpler than their parameter count suggests. That was the standard defence for years. Then someone checked.</p>
+      </section>
+
+      <section id="memorize">
+        <h2>Networks can memorize almost anything</h2>
+        <p>The experiment is embarrassingly simple. Take CIFAR-10. Before training, replace every label with a uniformly random one. The images no longer carry any information about their targets: the best achievable test accuracy is 10%, chance. Now train a standard convolutional network on it, exactly as you otherwise would.</p>
+        <p><a href="https://arxiv.org/abs/1611.03530" target="_blank" rel="noopener noreferrer">Zhang, Bengio, Hardt, Recht and Vinyals</a> did this in 2016 and reported that ordinary image classifiers, trained by ordinary stochastic gradient methods, have no trouble at all fitting a randomly relabelled training set. Training error goes to zero. Not "low" &mdash; zero. Then they pushed further:</p>
+        <ul>
+          <li><b>Random pixels.</b> Replace the images with pure Gaussian noise, keep random labels. Still fits.</li>
+          <li><b>Explicit regularization.</b> Weight decay, dropout and data augmentation are all present in the standard recipe. Removing them changes nothing qualitative about the result. Turning regularizers off costs a few points of test accuracy on real labels &mdash; it does not move the model from "generalizes" to "memorizes".</li>
+          <li><b>Scale.</b> On ImageNet with 1.2 million random labels across 1,000 classes, an Inception network still reached 95.20% top-1 accuracy on its own scrambled training set, and the authors report doing no hyperparameter tuning at all when they switched over from true labels.</li>
+        </ul>
+        <p>And the cost of memorizing is mild. Fitting random labels takes a small constant factor more steps than fitting real ones, not an exponential blowup. The network is not straining.</p>
+        <div class="article-panel" id="fig-random-labels">
+          <p class="figure-lede">Figure 2 &middot; Turning the label-corruption dial from 0 to 1</p>
+          <div class="animation-stage" role="img" aria-label="Animated label corruption experiment: as the fraction of randomized labels rises, training error still reaches zero, time to fit grows by a constant factor, and test error climbs to chance"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 2">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>The conceptual payload is one line, and it deserves to be stated on its own:</p>
+        <div class="keymath">
+          <b>ability to memorize &ne; necessity to memorize</b>
+        </div>
+        <p>The same architecture, the same optimizer, the same number of parameters, the same sample size, the same regularizers. Change nothing but the labels and you move from 6% test error to 90% test error. Whatever explains good generalization on real data, it cannot be a property of the model class alone, because the model class is identical in both runs.</p>
+        <p>That kills a whole family of explanations at once. Any bound of the uniform-convergence shape &mdash; anything that holds for <em>every</em> function in the class &mdash; must be at least as large as the gap achieved by the worst function in the class. Random labels exhibit a function in the class with a gap near 0.9. So the bound is at least 0.9, whatever the real labels do. <a href="https://arxiv.org/abs/1902.04742" target="_blank" rel="noopener noreferrer">Nagarajan and Kolter</a> later sharpened this into a formal argument that uniform convergence, even restricted to the algorithm's own output set, may be unable to explain generalization in these settings.</p>
+        <div class="aside-note">A common objection: real training uses early stopping, so the network never actually reaches the memorizing solution. This is true and important, but it relocates the mystery rather than dissolving it. If the property that matters is a property of the trajectory rather than the class, then the explanation has to be about the optimizer. Hold that thought &mdash; it becomes section 7.</div>
+      </section>
+
+      <section id="interpolation">
+        <h2>The interpolation threshold</h2>
+        <p>Fix vocabulary. A model <b>interpolates</b> its training set when it drives training loss to (approximately) zero &mdash; when it reproduces every training label exactly. The <b>interpolation threshold</b> is the point, as you scale capacity up, where this first becomes possible.</p>
+        <p>For linear models the threshold is a counting fact. You have <em>n</em> constraints and <em>p</em> free parameters:</p>
+        <div class="keymath">
+          p &lt; n &nbsp;&rarr;&nbsp; overdetermined. Generically no exact solution.<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Least squares returns the unique best compromise.<br /><br />
+          p = n &nbsp;&rarr;&nbsp; exactly determined. One solution, forced through every point.<br /><br />
+          p &gt; n &nbsp;&rarr;&nbsp; underdetermined. A solution <b>set</b> of dimension &ge; p &minus; n,<br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;every member of which fits the data perfectly.
+        </div>
+        <p>That middle line is where classical statistics expects catastrophe, and its intuition is sound. At <code>p = n</code> the system is square: there is exactly one function that threads every point, and it has no freedom left to be sensible. If two training inputs are nearly identical with different noise, the fit must swing violently between them. The matrix you invert is near-singular, the coefficients blow up, and the function between the data points goes wherever the algebra sends it.</p>
+        <p>The third line is where the classical intuition simply stops applying, and it is worth being precise about why. Once <code>p &gt; n</code>, "fit the training data" no longer picks out a function. It picks out an infinite family of functions, all with identical training loss and wildly different test loss. The question <em>which function does my model learn?</em> is no longer answered by the loss at all.</p>
+        <div class="article-panel" id="fig-solution-set">
+          <p class="figure-lede">Figure 3 &middot; From one solution to a manifold of them</p>
+          <div class="animation-stage" role="img" aria-label="Animated geometry of the solution set as parameter count grows past sample size, showing a unique least-squares point becoming a line and then a plane of exact interpolants"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 3">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p>Two refinements before moving on, because both get misused later.</p>
+        <p><b>Parameter counting is the wrong axis.</b> A model that is not trained to convergence has not used all its parameters. <a href="https://arxiv.org/abs/1912.02292" target="_blank" rel="noopener noreferrer">Nakkiran and colleagues</a> defined <b>effective model complexity</b> as the largest sample size on which the training procedure &mdash; architecture, optimizer, schedule, all of it &mdash; still reaches approximately zero training error. That is a property of the procedure, not of the architecture, and it is the axis along which the phenomena in the next section actually organize themselves.</p>
+        <p><b>Interpolation is a choice, not a destination.</b> Large language models are typically trained for a single pass over a corpus far larger than the model. They do not interpolate their training set and they are not trying to. Almost everything in the next four sections is about a regime that LLM pretraining does not occupy. That does not make it useless &mdash; it is where our sharpest results live &mdash; but section 11 is where the two threads finally have to be reconciled.</p>
+      </section>
+
+      <section id="double-descent">
+        <h2>Double descent</h2>
+        <p>In 2019 <a href="https://www.pnas.org/doi/10.1073/pnas.1903070116" target="_blank" rel="noopener noreferrer">Belkin, Hsu, Ma and Mandal</a> pointed out that the textbook curve is not wrong, it is <em>truncated</em>. It stops drawing at the interpolation threshold. Keep going, and the test error comes back down &mdash; often below the classical sweet spot.</p>
+        <p>The shape has a name and a picture:</p>
+        <figure class="concept-figure">
+          <div class="concept-figure__header">The complete capacity curve</div>
+          <svg class="concept-chart" viewBox="0 0 900 430" role="img" aria-labelledby="dd-title dd-desc">
+            <title id="dd-title">The double-descent test-error curve</title>
+            <desc id="dd-desc">Test error first falls, rises sharply at the interpolation threshold where parameters equal samples, then falls again in the overparameterized regime.</desc>
+            <rect class="zone" x="100" y="55" width="330" height="295"></rect>
+            <rect class="zone" x="430" y="55" width="390" height="295" style="opacity:.1"></rect>
+            <path class="axis" d="M100 55V350H825"></path>
+            <path class="guide" d="M430 70V350"></path>
+            <path class="curve" d="M125 120 C185 155 230 275 300 265 C360 255 385 96 430 92 C500 92 540 220 790 275"></path>
+            <circle class="point" cx="300" cy="265" r="7"></circle>
+            <circle class="point" cx="430" cy="92" r="7"></circle>
+            <circle class="point" cx="790" cy="275" r="7"></circle>
+            <text x="35" y="72">test error</text>
+            <text x="680" y="395">model capacity &#8594;</text>
+            <text x="180" y="325">classical regime</text>
+            <text x="560" y="325">modern regime</text>
+            <text class="muted" x="430" y="375" text-anchor="middle">interpolation threshold: p = n</text>
+            <text class="muted" x="300" y="240" text-anchor="middle">classical sweet spot</text>
+            <text class="muted" x="450" y="78">conditioning spike</text>
+          </svg>
+          <figcaption>The textbook U-curve stops on the left. At the interpolation threshold the fit becomes ill-conditioned; beyond it, the minimum-norm solution has room to spread out.</figcaption>
+        </figure>
+        <p>Before explaining anything, it helps to know exactly where the spike comes from, because in the linear case it is not mysterious at all. Consider fitting <em>p</em> random features to <em>n</em> points and taking the minimum-norm solution. The fitted coefficients involve inverting the feature Gram matrix, and its smallest eigenvalue controls everything.</p>
+        <figure class="concept-figure">
+          <div class="concept-flow">
+            <div class="concept-flow__node"><strong><code>p &#8810; n</code></strong><span>Gram matrix is well-conditioned. Coefficients stay small.</span></div>
+            <div class="concept-flow__node"><strong><code>p &asymp; n</code></strong><span>Smallest eigenvalue approaches zero. Coefficients explode.</span></div>
+            <div class="concept-flow__node"><strong><code>p &#8811; n</code></strong><span>Many fitting directions exist. The minimum-norm solution spreads out.</span></div>
+          </div>
+          <figcaption>The peak is a conditioning failure: too few directions before the threshold, one brittle solution at it, and many low-norm solutions after it.</figcaption>
+        </figure>
+        <p>At the threshold the model is forced to use every one of its degrees of freedom to hit every point exactly, and it has none left over to be small with. Past the threshold it has room to choose &mdash; and "choose the smallest solution" turns out to be a good choice. The peak is a conditioning failure, not a philosophical statement.</p>
+        <p>The following three figures are computed live in your browser: forty noisy samples from a fixed smooth function, random ReLU features, ridge-regularized least squares solved exactly. No curve here is drawn by hand.</p>
+        <div class="article-panel" id="fig-model-wise">
+          <p class="figure-lede">Figure 4 &middot; Model-wise: growing the feature count through n</p>
+          <div class="animation-stage" role="img" aria-label="Animated model-wise double descent: as random feature count grows past the sample size, test error rises to a spike at the interpolation threshold and then descends again"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 4">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>Watch the fitted curve, not just the error plot. Just below the threshold the fit develops enormous excursions between data points &mdash; it is threading every sample with no slack. Just above, the excursions collapse.</p>
+        <p><a href="https://arxiv.org/abs/1912.02292" target="_blank" rel="noopener noreferrer">Nakkiran et al.</a> showed the same non-monotonicity appears along two more axes, which is what makes it interesting rather than a curiosity of counting features.</p>
+        <div class="article-panel" id="fig-epoch-wise">
+          <p class="figure-lede">Figure 5 &middot; Epoch-wise: one fixed model, more gradient steps</p>
+          <div class="animation-stage" role="img" aria-label="Animated epoch-wise double descent: gradient descent on a fixed overparameterized model, showing test error fall, rise as noise-carrying directions are learned, and fall again"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 5">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>Epoch-wise is the one that should genuinely unsettle you, because nothing about the model changed. The same parameters, the same data, more steps. Gradient descent on a least-squares objective learns along the eigendirections of the feature covariance at rates proportional to their eigenvalues: big, signal-carrying directions are fitted in the first few steps, and the tiny directions &mdash; the ones where the noise lives &mdash; are fitted last. So "more training" is a capacity dial, and effective model complexity grows with time. That is exactly Nakkiran's point, and it is why early stopping and model size are two views of one knob.</p>
+        <div class="article-panel" id="fig-sample-wise">
+          <p class="figure-lede">Figure 6 &middot; Sample-wise: when more data makes it worse</p>
+          <div class="animation-stage" role="img" aria-label="Animated sample-wise non-monotonicity: at fixed model size, adding training samples pushes the model toward its interpolation threshold and test error temporarily increases"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 6">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p>Sample-wise non-monotonicity is the most counterintuitive of the three and the easiest to explain once you see the axis correctly. Adding data does not move the model; it moves the <em>threshold</em>. A model that was comfortably overparameterized at <code>n = 30</code> is sitting right on the cliff at <code>n = 60</code>. More data is only unambiguously good if it does not drag you into the badly conditioned regime on the way.</p>
+      </section>
+
+      <section id="caveats">
+        <h2>What double descent does not explain</h2>
+        <p>Double descent is real, reproducible, and much less explanatory than its fame suggests. Four things are worth saying plainly.</p>
+        <h3>The peak is a fragility, not a feature</h3>
+        <p>Nothing about the second descent requires the first ascent. <a href="https://arxiv.org/abs/2003.01897" target="_blank" rel="noopener noreferrer">Nakkiran, Venkat, Kakade and Ma</a> proved that for linear regression with isotropic data, optimally tuned ridge regularization makes test error <em>monotonic</em> in both model size and sample size &mdash; the peak vanishes entirely &mdash; and demonstrated the same mitigation empirically on neural networks. The spike is what happens when a badly conditioned problem is solved without regularization. It is a symptom, and it has a cure.</p>
+        <p>Turn the ridge dial yourself:</p>
+        <div class="article-panel" id="lab-ridge">
+          <p class="figure-lede">Lab 1 &middot; Kill the peak</p>
+          <div class="animation-stage" role="img" aria-label="Interactive lab: a live double descent curve for random-feature ridge regression, with sliders for label noise, ridge strength and sample size"></div>
+          <p class="lab-readout"></p>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="ridge-lambda">Ridge &lambda; <output id="ridge-lambda-out">0</output></label>
+              <input type="range" id="ridge-lambda" min="-9" max="1" step="0.25" value="-9" aria-describedby="ridge-lambda-out" />
+            </div>
+            <div class="lab-field">
+              <label for="ridge-noise">Label noise &sigma; <output id="ridge-noise-out">0.30</output></label>
+              <input type="range" id="ridge-noise" min="0" max="0.8" step="0.02" value="0.3" aria-describedby="ridge-noise-out" />
+            </div>
+            <div class="lab-field">
+              <label for="ridge-n">Training samples n <output id="ridge-n-out">40</output></label>
+              <input type="range" id="ridge-n" min="12" max="80" step="1" value="40" aria-describedby="ridge-n-out" />
+            </div>
+          </div>
+        </div>
+        <p>Set noise to zero and the peak nearly disappears. Raise the ridge to its best value at each point and the curve becomes a clean, boring, monotone descent. Both facts should temper any story in which double descent is the reason large models work.</p>
+        <h3>Some reported cases are an artifact of the x-axis</h3>
+        <p><a href="https://arxiv.org/abs/2310.18988" target="_blank" rel="noopener noreferrer">Curth, Jeffares and van der Schaar</a> re-examined the classical (non-neural) examples &mdash; linear regression with increasing features, trees, boosting &mdash; and showed that in these cases the "second descent" appears because the horizontal axis silently switches from one notion of complexity to another at the interpolation threshold. Plot the same experiments against a smoothly varying effective complexity and you recover a single U-shape per axis, with two axes being traversed in sequence. Their conclusion is not that double descent is fake; it is that parameter counting was the problem, and that the classical theory survives if you stop counting raw parameters.</p>
+        <h3>It leans on label noise</h3>
+        <p>In the deep-learning experiments the peak is small or absent with clean labels and becomes dramatic at 10&ndash;20% label corruption. That is consistent with the conditioning story: the spike is the model straining to reproduce values that carry no signal. A dataset whose labels are mostly right does not put much stress on the threshold.</p>
+        <h3>It describes a curve, not a mechanism</h3>
+        <p>Even granting every experiment, double descent tells you that test error falls again past interpolation. It does not tell you <em>why the interpolating solution it lands on is a good one</em>. That is the actual question, and answering it requires knowing which interpolant the procedure selects &mdash; which is where the next two sections go.</p>
+        <div class="aside-note"><b>The claim to avoid.</b> "Large language models generalize because of double descent" is not supported by anything above. LLM pretraining does not sit near an interpolation threshold, is not usually run to zero training loss, and typically sees each token roughly once. Double descent belongs in this article as evidence that classical capacity intuition is incomplete &mdash; which is a real and important thing to have learned &mdash; not as the explanation.</div>
+      </section>
+
+      <section id="benign">
+        <h2>Benign overfitting</h2>
+        <p>Here is the sharpest version of the question. Forget curves. Can a predictor that fits noisy training data <em>exactly</em> have near-optimal risk, provably, in a setting we fully understand?</p>
+        <p>Yes. The setting is linear regression, and the analysis is worth walking through because the mechanism transfers as intuition even where the theorem does not.</p>
+        <p>Take <code>y = &#10216;&beta;*, x&#10217; + &epsilon;</code> with <code>x</code> drawn from a Gaussian with covariance <code>&Sigma;</code>, and let <em>p</em> be much larger than <em>n</em> so the system is underdetermined. Among the infinitely many <code>&beta;</code> that fit the sample exactly, take the one of smallest norm:</p>
+        <div class="keymath">
+          &beta;&#770; = argmin ||&beta;||&sub2; &nbsp;subject to&nbsp; X&beta; = y &nbsp;&nbsp;&nbsp;&rarr;&nbsp;&nbsp;&nbsp; &beta;&#770; = X<sup>&#8868;</sup>(XX<sup>&#8868;</sup>)<sup>&minus;1</sup>y<br /><br />
+          substitute y = X&beta;* + &epsilon; :<br /><br />
+          &beta;&#770; = <b>P&beta;*</b> &nbsp;+&nbsp; <b>X<sup>&#8868;</sup>(XX<sup>&#8868;</sup>)<sup>&minus;1</sup>&epsilon;</b><br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#8593;&nbsp;signal, projected&nbsp;&nbsp;&nbsp;&nbsp;&#8593;&nbsp;the noise it was forced to absorb
+        </div>
+        <p>The interpolation constraint means the noise <em>must</em> go somewhere. The predictor cannot average it away, because averaging it away would mean not fitting the training points. So the entire question of whether overfitting is harmful becomes: <b>where does the absorbed noise land, and does anyone look there?</b></p>
+        <p>If the covariance has a few large eigenvalues and a long tail of tiny ones, the answer is encouraging. Test predictions are dominated by the large-eigenvalue directions, since that is where test inputs actually have mass. The min-norm solution, having many directions to work with, distributes each noise term across a huge number of tail directions, putting a vanishing amount into any one of them. The training points are hit exactly. Test predictions barely notice.</p>
+        <div class="article-panel" id="fig-benign">
+          <p class="figure-lede">Figure 7 &middot; Where the absorbed noise goes</p>
+          <div class="animation-stage" role="img" aria-label="Animated benign overfitting: a covariance spectrum with a few large directions and a long tail, showing the minimum-norm interpolant spreading label noise across tail directions while signal directions stay clean"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 7">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p><a href="https://www.pnas.org/doi/10.1073/pnas.1907378117" target="_blank" rel="noopener noreferrer">Bartlett, Long, Lugosi and Tsigler</a> turned this into an exact characterization. They define two notions of <b>effective rank</b> of the covariance &mdash; roughly, how many directions carry meaningful variance, and how evenly the tail is spread &mdash; and prove that the minimum-norm interpolant is near-optimal precisely when the tail is large and flat enough. Their summary of the condition is the memorable part: overparameterization is not incidental but required, and the number of directions that are unimportant for prediction has to substantially exceed the sample size.</p>
+        <p>The spectrum has to be tuned surprisingly finely. A tail that decays too fast, like <code>&lambda;<sub>k</sub> &prop; k<sup>&minus;&alpha;</sup></code> with <code>&alpha; &gt; 1</code>, does not have enough directions to hide noise in and overfitting is harmful. A tail that decays slowly enough, like <code>&lambda;<sub>k</sub> &prop; k<sup>&minus;1</sup>log<sup>&minus;2</sup>(k+1)</code>, is benign. Benign overfitting is a property of the <em>data distribution</em> as much as the estimator.</p>
+        <div class="aside-note"><b>How far this carries.</b> This is a theorem about a linear map applied to Gaussian inputs with a known covariance, using the exact minimum-norm interpolant. A transformer is nonlinear, its features are learned rather than fixed, its inputs are discrete tokens with no covariance in the required sense, and it is trained with AdamW rather than by taking a pseudoinverse. Nothing here is a proof about language models. What transfers is the mechanism: <em>fitting noise is harmless when the noise is absorbed in directions that predictions do not depend on</em> &mdash; and the corollary that this requires excess capacity rather than being excused by it.</div>
+      </section>
+
+      <section id="implicit-bias">
+        <h2>The algorithm picks the solution</h2>
+        <p>Past the interpolation threshold the training objective stops being a selection rule. Every point on the solution manifold has the same loss. Something else decides which one you get, and the only remaining candidate is the optimizer.</p>
+        <p>There is a beautiful, fully rigorous instance of this. Take logistic regression on linearly separable data, with no regularization at all, and run plain gradient descent.</p>
+        <p>Notice first that the problem is pathological in the classical sense: the loss has no minimizer. Any separating direction can be scaled up to drive the loss lower, so <code>||w||</code> grows without bound and the objective decreases forever. Textbook advice would be to add a penalty or stop early. Instead, ask what happens if you just keep going.</p>
+        <p><a href="https://jmlr.org/papers/v19/18-188.html" target="_blank" rel="noopener noreferrer">Soudry, Hoffer, Nacson, Gunasekar and Srebro</a> proved that the <em>direction</em> converges, and converges to something specific:</p>
+        <div class="keymath">
+          w(t) / ||w(t)|| &nbsp;&rarr;&nbsp; the <b>maximum-margin separator</b><br />
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(the hard-margin SVM solution)<br /><br />
+          ||w(t)|| &nbsp;grows like&nbsp; log t<br />
+          loss &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;falls like&nbsp; O(1/t)<br />
+          distance to the max-margin direction &nbsp;falls like&nbsp; <b>O(1 / log t)</b>
+        </div>
+        <p>Nobody wrote a margin term in the objective. Nobody added a norm penalty. Gradient descent, run on an unregularized loss, selects the max-margin interpolant on its own. <b>The optimization algorithm is itself a form of regularization.</b></p>
+        <p>The rates make a practical prediction that is easy to check and frequently observed. Training loss reaches numerically-zero long before the direction has converged, because <code>1/log t</code> is agonizingly slow: to halve the distance to the max-margin solution you square the number of steps. So a model can keep getting better on test data for a very long time after the training loss has flatlined, and it can do so while the validation <em>loss</em> is rising, because the growing norm inflates confidence on the points it gets wrong.</p>
+        <div class="article-panel" id="fig-implicit-bias">
+          <p class="figure-lede">Figure 8 &middot; Gradient descent walking to the max-margin direction</p>
+          <div class="animation-stage" role="img" aria-label="Animated implicit bias: gradient descent on separable logistic regression, with the separating direction rotating toward the maximum-margin solution while the weight norm grows logarithmically"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 8">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 68</span>
+          </div>
+        </div>
+        <p>Now the part that makes this more than a cute fact about SVMs. The bias belongs to the specific algorithm, not to "optimization" in general. Run steepest descent with respect to a different norm and you converge to the max-margin solution <em>in that norm</em>: coordinate descent and sign-based updates head toward sparse, <code>&#8467;<sub>1</sub></code>-flavoured solutions rather than the <code>&#8467;<sub>2</sub></code> one. Soudry and colleagues point this out explicitly for adaptive methods like Adam.</p>
+        <p>Which should give you pause. Every large model in production is trained with an adaptive optimizer and decoupled weight decay. If the implicit bias is the thing doing the regularizing, then the choice of optimizer is not a convergence-speed decision &mdash; it is a decision about which function you end up with.</p>
+        <p>You can watch a smaller version of that decision being made. The lab below runs the same gradient descent on the same separable data at seven weight-decay settings. All seven reach zero training error within a few hundred steps and stay there. They do not agree on the answer.</p>
+        <div class="article-panel" id="lab-margin">
+          <p class="figure-lede">Lab 2 &middot; Same data, same zero training error, different answers</p>
+          <div class="animation-stage" role="img" aria-label="Interactive lab showing which separator gradient descent selects as training length and weight decay change, against the maximum-margin solution"></div>
+          <p class="lab-readout"></p>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="margin-steps">Training steps <output id="margin-steps-out">1,000</output></label>
+              <input type="range" id="margin-steps" min="0" max="53" step="1" value="30" aria-describedby="margin-steps-out" />
+            </div>
+            <div class="lab-field">
+              <label for="margin-wd">Weight decay <output id="margin-wd-out">0</output></label>
+              <input type="range" id="margin-wd" min="0" max="6" step="1" value="0" aria-describedby="margin-wd-out" />
+            </div>
+            <div class="lab-field">
+              <label for="margin-seed">Dataset <output id="margin-seed-out">1</output></label>
+              <input type="range" id="margin-seed" min="1" max="6" step="1" value="1" aria-describedby="margin-seed-out" />
+            </div>
+          </div>
+        </div>
+        <p>The results have been pushed beyond linear models &mdash; Lyu and Li showed that homogeneous deep networks trained on exponential-tailed losses converge in direction to a KKT point of a margin-maximization problem &mdash; but "homogeneous" excludes most of what a transformer contains, and nobody has an implicit-bias characterization for AdamW on a decoder-only network with layer norm. What we have is a proof of concept that the question <em>which interpolant?</em> has a real answer, in cases small enough to solve.</p>
+      </section>
+
+      <section id="function-space">
+        <h2>Parameter space is not function space</h2>
+        <p>A recurring source of confusion is that "number of parameters" is being used as a proxy for "number of distinguishable behaviours", and the two are separated by enormous redundancy.</p>
+        <p>Two symmetries make this concrete. Permute the hidden units of any layer, permuting the corresponding weight columns and rows to match, and the network computes <em>exactly</em> the same function: a layer of width <em>m</em> contributes <code>m!</code> identical copies of every solution. For a width-4096 layer, that factor alone is beyond astronomical. Separately, in a ReLU network you can multiply one layer's weights by <code>c &gt; 0</code> and divide the next layer's by <code>c</code>, again with no change to the function &mdash; a continuous, unbounded family of parameter vectors sitting on one function.</p>
+        <div class="article-panel" id="fig-function-space">
+          <p class="figure-lede">Figure 9 &middot; Many parameters, one function</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of parameter space and function space, showing permutation copies and rescaling curves in parameter space collapsing onto a single point in function space"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 9">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p>This has a sharp consequence for one of the most popular folk explanations. "Flat minima generalize, sharp minima do not" is intuitive: a flat basin means the function is insensitive to its parameters, which sounds like robustness. But <a href="https://arxiv.org/abs/1703.04933" target="_blank" rel="noopener noreferrer">Dinh, Pascanu, Bengio and Bengio</a> observed that the rescaling symmetry above lets you take any minimum and make it arbitrarily sharp or arbitrarily flat &mdash; while computing the identical function on every input. Sharpness measured in raw parameter coordinates is not a property of the learned function at all, so it cannot by itself explain a property of the learned function.</p>
+        <p>Flatness-based reasoning is not dead; it is repaired by measuring sharpness in a reparameterization-aware way, which is what modern versions do. The lesson is narrower and more useful: <b>any proposed explanation of generalization should be invariant to the symmetries of the parameterization</b>, and a surprising number of proposals are not.</p>
+      </section>
+
+      <section id="lazy-rich">
+        <h2>Lazy and rich: what the infinite-width limit buys</h2>
+        <p>If finite networks are hard, take a limit and hope it becomes tractable. Widen every layer toward infinity and something remarkable happens.</p>
+        <p>Write the first-order expansion of the network output around initialization:</p>
+        <div class="keymath">
+          f(x; &theta;) &nbsp;&asymp;&nbsp; f(x; &theta;<sub>0</sub>) &nbsp;+&nbsp; &#10216; &nabla;<sub>&theta;</sub>f(x; &theta;<sub>0</sub>), &nbsp;&theta; &minus; &theta;<sub>0</sub> &#10217;<br /><br />
+          define the <b>tangent kernel</b><br />
+          K(x, x&prime;) = &#10216; &nabla;<sub>&theta;</sub>f(x; &theta;<sub>0</sub>), &nabla;<sub>&theta;</sub>f(x&prime;; &theta;<sub>0</sub>) &#10217;
+        </div>
+        <p><a href="https://arxiv.org/abs/1806.07572" target="_blank" rel="noopener noreferrer">Jacot, Gabriel and Hongler</a> showed that under the standard parameterization, as width goes to infinity, <code>K</code> converges to a deterministic kernel that depends only on the architecture &mdash; and, crucially, <em>stays constant throughout training</em>. Each parameter moves an amount that shrinks with width, so the gradients never change, so the expansion above never stops being accurate.</p>
+        <p>The consequences are dramatic. Training becomes kernel gradient descent in a fixed feature space, the optimization problem becomes convex, the solution has a closed form, and the whole apparatus of kernel theory &mdash; including the benign-overfitting analysis from section 6 &mdash; becomes applicable. A genuinely nonlinear, non-convex object turned into a linear one.</p>
+        <p>It also throws away the thing everyone cares about. In the infinite-width limit, <code>&nabla;<sub>&theta;</sub>f(x; &theta;<sub>0</sub>)</code> is the feature map, and it is fixed at initialization. The network does not learn representations. It fits a linear model on top of random features that happen to be arranged in a clever architecture-dependent way. Whatever a language model is doing when it develops an internal notion of syntax, or entity tracking, or arithmetic, is exactly the part the NTK limit removes.</p>
+        <div class="article-panel" id="fig-lazy-rich">
+          <p class="figure-lede">Figure 10 &middot; Frozen features versus moving features</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of lazy and rich training regimes, showing tangent features held fixed while only output weights move, versus features rotating to align with the task"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 10">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>The two regimes have names. <b>Lazy</b> training is the NTK picture: parameters barely move, features stay put, the model is effectively linear. <b>Rich</b> (or feature-learning) training is what practitioners want: the internal representations reorganize around the task. Chizat and Bach showed that laziness is not a consequence of width as such but of the <em>scaling</em> of the parameterization, and that a model can be pushed into either regime by choosing that scaling. Yang and Hu's maximal-update parameterization is the constructive version: a width scaling under which features continue to move even in the infinite-width limit &mdash; and, as a side effect, under which hyperparameters transfer across widths, which is why it appears in real training recipes.</p>
+        <div class="aside-note">So the honest status of NTK is: a tractable regime that real training can be pushed into or out of, valuable because it is one of the few places where questions about deep networks have exact answers, and misleading if quoted as "the theory of why deep learning works". The empirical gap is not subtle &mdash; finite networks that learn features consistently outperform their own infinite-width kernel limits on the tasks we care about.</div>
+      </section>
+
+      <section id="grokking">
+        <h2>Grokking</h2>
+        <p>Everything so far has been about a static question: given a solution, is it good? Grokking is about a dynamic one, and it is strange enough to deserve its own section.</p>
+        <p>Train a small transformer on modular arithmetic &mdash; say <code>(a + b) mod 113</code>, with a fraction of the pairs held out. The training curve does the obvious thing: it memorizes the training pairs and hits 100% accuracy quickly. Validation accuracy sits at chance. Ordinarily you would stop here and report that the model overfit.</p>
+        <p><a href="https://arxiv.org/abs/2201.02177" target="_blank" rel="noopener noreferrer">Power, Burda, Edwards, Babuschkin and Misra</a> kept training. For orders of magnitude more steps, nothing happens. Then validation accuracy climbs from chance to nearly perfect, in a few hundred steps.</p>
+        <div class="keymath">
+          step 10<sup>3</sup>&nbsp;&nbsp;&nbsp; train 100% &nbsp;&nbsp;&nbsp;val ~1% &nbsp;&nbsp;&nbsp;&nbsp;memorized<br />
+          step 10<sup>4</sup>&nbsp;&nbsp;&nbsp; train 100% &nbsp;&nbsp;&nbsp;val ~1% &nbsp;&nbsp;&nbsp;&nbsp;still memorized<br />
+          step 10<sup>5</sup>&nbsp;&nbsp;&nbsp; train 100% &nbsp;&nbsp;&nbsp;val <b>~100%</b> &nbsp;&nbsp;suddenly, an algorithm
+        </div>
+        <div class="article-panel" id="fig-grokking">
+          <p class="figure-lede">Figure 11 &middot; Delayed generalization, and the competition underneath it</p>
+          <div class="animation-stage" role="img" aria-label="Animated grokking: training accuracy saturating immediately while validation stays at chance, then jumping, with an underlying competition between a memorizing circuit and a more efficient generalizing circuit"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 11">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+        <p>The jump is not as sudden as the accuracy curve suggests. <a href="https://arxiv.org/abs/2301.05217" target="_blank" rel="noopener noreferrer">Nanda, Chan, Lieberum, Smith and Steinhardt</a> reverse-engineered exactly what a one-layer transformer learns on this task: it embeds the inputs onto rotations, and computes the answer using discrete Fourier components and trigonometric identities &mdash; genuine modular arithmetic, not a lookup table. Tracking the strength of that specific circuit directly, rather than watching accuracy, reveals it growing <em>smoothly</em> through the plateau. They split training into three phases: memorization, circuit formation, and cleanup, where the memorizing solution is finally discarded. Accuracy is a lagging indicator of a continuous process.</p>
+        <p><a href="https://arxiv.org/abs/2309.02390" target="_blank" rel="noopener noreferrer">Varma, Shah, Kenton, Kram&aacute;r and Kumar</a> proposed the mechanism as a competition between two circuit families. Memorizing circuits are learned quickly but are <em>inefficient</em>: producing confident logits by memorization requires parameter norm that grows with the number of examples memorized. Generalizing circuits are slower to form but achieve the same logits at a fixed, dataset-size-independent norm. Weight decay applies constant downward pressure on norm, so once the dataset is large enough that memorization is the more expensive option, the generalizing circuit wins &mdash; and the visible transition is the cleanup that follows. The account makes two falsifiable predictions, both confirmed: <b>ungrokking</b>, where a grokked network sent back to a small dataset regresses to memorization, and <b>semi-grokking</b>, where a dataset near the critical size produces a transition to middling test accuracy.</p>
+        <p>It is not settled. <a href="https://arxiv.org/abs/2310.06110" target="_blank" rel="noopener noreferrer">Kumar, Bordelon, Gershman and Pehlevan</a> exhibit grokking with no weight decay at all, in a setting where the weight norm <em>increases</em> throughout training, and argue the phenomenon is better understood as a delayed transition from lazy to rich dynamics &mdash; connecting it directly to section 9. Later work has produced grokking driven by numerical effects near the floating-point floor. Multiple mechanisms appear able to produce the same curve.</p>
+        <div class="aside-note"><b>What grokking is not.</b> It is not what happens during LLM pretraining. The setting is a tiny model, a tiny algorithmic dataset with a single exact rule, strong weight decay, and training carried orders of magnitude past interpolation. Pretraining runs one pass over a corpus with no exact underlying rule and stops long before anything like this could occur. What does carry over is the framing: memorization and generalization are competing strategies for reducing the same loss, and which one wins depends on how much data there is relative to how cheap memorizing is. That framing is about to become load-bearing.</div>
+      </section>
+
+      <section id="llm-regime">
+        <h2>The regime language models actually train in</h2>
+        <p>Time to reconcile. Almost every result above concerns a model trained to convergence on a fixed, modest dataset, often with deliberately corrupted labels. Pretraining looks nothing like that, in three specific ways.</p>
+        <h3>Each example is seen roughly once</h3>
+        <p>A frontier pretraining run makes approximately one pass over its corpus. This has an underappreciated consequence: <b>under a single pass, the training loss is an unbiased estimate of the population loss.</b> Each gradient step is computed on data the model has never seen, so the loss reported on the current batch is a fresh-sample estimate of exactly the quantity you care about. The classical generalization gap &mdash; the thing all of learning theory exists to bound &mdash; is close to zero by construction, and this is visible in practice: pretraining loss and held-out loss on the same distribution track each other closely.</p>
+        <p>The caveats are real but bounded. Corpora contain near-duplicates, so some sequences effectively get many passes. Repeating data deliberately is common when tokens are scarce, and <a href="https://arxiv.org/abs/2305.16264" target="_blank" rel="noopener noreferrer">Muennighoff and colleagues</a> found that up to about four epochs the loss is nearly indistinguishable from training on fresh tokens, while past roughly sixteen epochs the returns go to essentially nothing. Somewhere between those two numbers, the classical overfitting story reappears.</p>
+        <h3>The binding constraint is bits, not parameters</h3>
+        <p>The interesting limit is not "parameters versus examples". It is "how much information can the weights hold, versus how much information is in the corpus".</p>
+        <p><a href="https://arxiv.org/abs/2505.24832" target="_blank" rel="noopener noreferrer">Morris and colleagues</a> measured this directly, by separating what a model stores about a specific dataset from what it stores about the data-generating process. Training hundreds of transformers from 500K to 1.5B parameters, they estimate the capacity of GPT-style models at approximately <b>3.6 bits per parameter</b>, remarkably stable across scales. Doubling the weight precision from 16 to 32 bits moves it only to about 3.8, so the capacity is a property of the architecture and training rather than of the storage format.</p>
+        <p>Put that number against a real corpus:</p>
+        <div class="keymath">
+          7B parameters &times; 3.6 bits &nbsp;=&nbsp; 25.2 Gbit &nbsp;&asymp;&nbsp; <b>3.2 GB of storage</b><br /><br />
+          a 10T-token corpus, at ~2 bits per token of residual entropy<br />
+          under a good model &nbsp;=&nbsp; 20 Tbit &nbsp;&asymp;&nbsp; <b>2.5 TB of information</b><br /><br />
+          ratio &nbsp;&asymp;&nbsp; <b>800&times; more corpus than capacity</b>
+        </div>
+        <p>The model is not choosing to generalize over memorizing. It is physically unable to memorize, by nearly three orders of magnitude, and the only way to reduce loss on data it cannot store is to find structure that predicts it. Generalization is not a happy accident here &mdash; it is the only strategy the budget permits.</p>
+        <p>Morris and colleagues also observe the transition directly: models memorize until their capacity fills, and past that point unintended memorization <em>decreases</em> as the model shifts to generalizing. They note that double descent shows up in their setting exactly when the dataset outgrows capacity &mdash; which places the interpolation peak of section 4 at the boundary between the two regimes, and firmly on the far side of it from any frontier model.</p>
+        <div class="article-panel" id="fig-capacity">
+          <p class="figure-lede">Figure 12 &middot; Memorize until full, then generalize</p>
+          <div class="animation-stage" role="img" aria-label="Animated capacity picture: as dataset size grows past model capacity in bits, per-example memorization falls and generalization takes over"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 12">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <div class="article-panel" id="lab-capacity">
+          <p class="figure-lede">Lab 3 &middot; Your own capacity budget</p>
+          <div class="animation-stage" role="img" aria-label="Interactive lab computing whether a model of a given parameter count could memorize a corpus of a given token count, given a bits-per-parameter capacity"></div>
+          <p class="lab-readout"></p>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="cap-params">Parameters <output id="cap-params-out">7B</output></label>
+              <input type="range" id="cap-params" min="6" max="12.3" step="0.1" value="9.845" aria-describedby="cap-params-out" />
+            </div>
+            <div class="lab-field">
+              <label for="cap-tokens">Training tokens <output id="cap-tokens-out">10T</output></label>
+              <input type="range" id="cap-tokens" min="8" max="14" step="0.1" value="13" aria-describedby="cap-tokens-out" />
+            </div>
+            <div class="lab-field">
+              <label for="cap-entropy">Bits per token <output id="cap-entropy-out">2.0</output></label>
+              <input type="range" id="cap-entropy" min="0.4" max="6" step="0.1" value="2" aria-describedby="cap-entropy-out" />
+            </div>
+          </div>
+        </div>
+        <p>Drag the parameter count up and the token count down and you can reach the memorization regime &mdash; which is exactly what happens when you fine-tune a large model on a small dataset for many epochs, and exactly why that setting leaks training data while pretraining largely does not.</p>
+        <h3>Memorization is real, but concentrated</h3>
+        <p>None of this says memorization is absent. <a href="https://arxiv.org/abs/2202.07646" target="_blank" rel="noopener noreferrer">Carlini and colleagues</a> showed that extractable memorization grows with model size, with how many times a sequence is duplicated in the corpus, and with how much context you use to prompt for it. The picture that fits both results: a small, high-entropy, heavily duplicated slice of the corpus gets stored more or less verbatim, while the overwhelming majority of it is compressed into structure. Deduplication is not a nicety; it is the lever that controls which slice.</p>
+        <h3>And the question quietly changed</h3>
+        <p>All of this concerns generalization <em>within</em> the pretraining distribution, which for a single-pass run is nearly a solved problem for uninteresting reasons. What people actually mean when they ask whether an LLM generalizes is something else: does it work on a distribution it was not trained on, does it compose skills it learned separately, does it follow a rule it has only seen instances of. Almost none of the theory in this article speaks to that. It is a genuinely different question, and it is where the later parts of this series live.</p>
+      </section>
+
+      <section id="bounds">
+        <h2>What can actually be certified</h2>
+        <p>Given all the negative results, it is worth asking what we <em>can</em> prove about a specific trained model. The answer is more than you would expect, and it arrives from an unexpected direction.</p>
+        <p>First, the negative result that should calibrate expectations. <a href="https://arxiv.org/abs/1912.02178" target="_blank" rel="noopener noreferrer">Jiang and colleagues</a> ran a large-scale controlled study, training thousands of models across systematically varied hyperparameters and evaluating more than forty proposed complexity measures against actual generalization. Many popular norm-based measures correlated poorly, and several correlated in the <em>wrong direction</em> once confounders were controlled for. Sharpness-flavoured and PAC-Bayes-flavoured measures did best, but nothing emerged as a reliable predictor.</p>
+        <p>What does work is compression. The argument is old and clean: if a model can be described in <em>b</em> bits and still fits the training data, then it was drawn from a set of at most <code>2<sup>b</sup></code> possible models, and a union bound over that finite set gives a real guarantee. The tighter you can compress the trained model without breaking it, the stronger the statement.</p>
+        <div class="keymath">
+          R(f) &nbsp;&le;&nbsp; R&#770;(f) &nbsp;+&nbsp; sqrt( ( <b>b</b> &middot; log 2 &nbsp;+&nbsp; log(1/&delta;) ) / (2n) )<br /><br />
+          b = compressed description length of the trained model, in bits
+        </div>
+        <p><a href="https://arxiv.org/abs/2312.17173" target="_blank" rel="noopener noreferrer">Lotfi and colleagues</a> pushed this all the way to language models, which required handling three problems at once: token predictions within a sequence are not independent, the bits-per-dimension objective is unbounded so standard PAC-Bayes does not apply, and the models are enormous. Their solution combines a bound valid for unbounded log-likelihood via prediction smoothing, a subsampling extension that made the computation roughly 900&times; faster on a nine-billion-token corpus, and a heavily compressed training parameterization. The result was the first <b>non-vacuous</b> generalization bounds for pretrained LLMs.</p>
+        <p>Two findings from that work are worth carrying forward. Larger models had <em>better</em> bounds than smaller ones, which is the opposite of what parameter counting predicts and consistent with larger models being more compressible. And bounds computed on models trained with shuffled tokens came out worse &mdash; the bound can tell the difference between a model that found structure and one that could not.</p>
+        <div class="article-panel" id="fig-bounds">
+          <p class="figure-lede">Figure 13 &middot; The ladder from vacuous to non-vacuous</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of generalization bound families on a log scale, from parameter counting through norm-based bounds to compression bounds that finally fall below the trivial ceiling"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 13">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 52</span>
+          </div>
+        </div>
+        <p>Read the fine print, though. These bounds are proved for compressed or quantized variants of the model rather than the deployed weights, they require restricting to a finite hypothesis set, and non-vacuous is a much weaker word than tight &mdash; a bound of 0.9 on a quantity whose true value is 0.3 has cleared the bar. What they establish is a proof of existence: it is possible to make a rigorous, non-trivial statement about a billion-parameter model. That was not obviously true a few years ago.</p>
+        <p>And the fact that the successful route is <em>compression</em> is itself the most substantive hint in this article. A language model that predicts its corpus well is a good compressor of that corpus, and description length is exactly the quantity that turns into a generalization guarantee. That is not a full theory. It is a direction.</p>
+      </section>
+
+      <section id="known">
+        <h2>What we actually know</h2>
+        <p>Assembling the pieces honestly:</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <thead><tr><th>Explanation</th><th>Fits noise?</th><th>Selects a solution?</th><th>Feature learning?</th><th>Directly covers LLMs?</th><th>What it explains</th></tr></thead>
+            <tbody>
+              <tr><td><b>Double descent</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Fragility near interpolation</td></tr>
+              <tr><td><b>Benign overfitting</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Partial</td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>When fitting noise need not hurt</td></tr>
+              <tr><td><b>Implicit bias</b></td><td>Possible</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td>Limited theory</td><td>Open</td><td>Why optimization prefers one interpolant</td></tr>
+              <tr><td><b>NTK / lazy limit</b></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>An analyzable kernel regime</td></tr>
+              <tr><td><b>Grokking</b></td><td>Not its focus</td><td>Mechanistically</td><td><span class="matrix-mark matrix-mark--yes">&#10003;</span></td><td><span class="matrix-mark matrix-mark--no">&#10005;</span></td><td>Memorizing versus general rules</td></tr>
+              <tr><td><b>Compression</b></td><td>Penalizes it</td><td>After training</td><td>Agnostic</td><td>Partial</td><td>Certifiable learned-function complexity</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="field-direction"><b>Why the field moved this way.</b> Capacity could not distinguish two zero-loss networks. The question shifted from counting parameters, to asking which solution optimization selects, to measuring the complexity of the learned function itself.</p>
+        <details class="compact-deep-dive">
+        <summary>Open the evidence ledger claim by claim</summary>
+        <table class="sys-table">
+          <thead>
+            <tr><th>Claim</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Networks can fit arbitrary labels, including pure noise</td><td>Established experimentally, at ImageNet scale, and reproduced many times.</td></tr>
+            <tr><td>Bounds depending only on the hypothesis class must be vacuous here</td><td>Follows directly from the above, and has been argued formally.</td></tr>
+            <tr><td>Test error can be non-monotonic in model size, training time and sample size</td><td>Well documented. Amplified by label noise, largely removable by tuned regularization, and partly an artifact of parameter counting in the classical cases.</td></tr>
+            <tr><td>Interpolation of noisy data can be harmless</td><td>Proved, for linear and kernel regression, under specific spectral conditions on the data covariance.</td></tr>
+            <tr><td>The optimizer, not the loss, selects among interpolants</td><td>Proved for linear models and homogeneous networks with exponential-tail losses. Open for AdamW on transformers.</td></tr>
+            <tr><td>Infinite-width training is kernel regression</td><td>Proved under a specific parameterization. Excludes feature learning, and finite networks beat their own kernel limits.</td></tr>
+            <tr><td>Delayed generalization is a competition between memorizing and generalizing solutions</td><td>Strong evidence in small algorithmic settings, with a mechanistic account of the circuits. Competing explanations exist; not a description of pretraining.</td></tr>
+            <tr><td>Weights hold on the order of a few bits per parameter</td><td>Measured, ~3.6 bits/param for GPT-style models, stable across three orders of magnitude of scale.</td></tr>
+            <tr><td>Non-trivial generalization guarantees for LLMs are computable</td><td>Demonstrated, via compression, for compressed variants of pretrained models.</td></tr>
+            <tr><td>Any of this constitutes a theory of why foundation models work</td><td>No.</td></tr>
+          </tbody>
+        </table>
+        </details>
+        <p>The pattern is consistent. Every result that is <em>rigorous</em> holds in a setting simple enough to analyze &mdash; linear models, kernels, fixed features, homogeneous networks, algorithmic datasets. Every result that is <em>about real models</em> is empirical, and describes a phenomenon rather than explaining it. The bridge between the two has not been built.</p>
+        <p>What survives, and what is worth carrying into the rest of this series, is smaller than a theory but not nothing:</p>
+        <ul>
+          <li>Counting parameters is the wrong measure of capacity. Counting bits is much better, and counting compressed description length is better still.</li>
+          <li>The training procedure is part of the model. Two networks with identical architectures trained differently are different hypotheses, and the optimizer is doing selection work that the loss function is not.</li>
+          <li>Memorizing and generalizing are competing ways to reduce the same loss. Which one wins is decided by how much data there is relative to how cheap memorizing is.</li>
+          <li>For pretraining specifically, the memorization budget loses by roughly three orders of magnitude. That is the closest thing to a first-principles reason to expect a language model to generalize, and it is an argument about arithmetic rather than about deep learning.</li>
+        </ul>
+        <p>That last point is what makes the next article possible. Once you accept that the model cannot store its corpus and must compress it instead, the natural question is how well it compresses as a function of size, data and compute &mdash; and that question, unlike this one, has a clean empirical answer.</p>
+        <div class="series-nav">
+          <p><b>Understanding LLMs, part 2 of 9.</b> Part 1 covers what the object actually is, component by component. Part 3 asks the question this article hands it: if the model must compress rather than store, how does the quality of that compression scale with parameters, tokens and compute?</p>
+          <p>The systems companion to this series &mdash; what a gradient step physically costs, and what the optimizers in section 7 actually do &mdash; starts with <a href="../what-an-optimizer-actually-does/">The Anatomy of a Step</a>. The full index is <a href="../index.html">here</a>.</p>
+        </div>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by the section that leans on them. Every entry links to a primary source.</p>
+        <div class="reference-group">
+          <h3>The experiments that started it</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1611.03530" target="_blank" rel="noopener noreferrer">Understanding Deep Learning Requires Rethinking Generalization</a> &middot; Zhang, Bengio, Hardt, Recht, Vinyals, ICLR 2017 &mdash; and the <a href="https://cacm.acm.org/research/understanding-deep-learning-still-requires-rethinking-generalization/" target="_blank" rel="noopener noreferrer">2021 CACM revisit</a></li>
+            <li><a href="https://arxiv.org/abs/1902.04742" target="_blank" rel="noopener noreferrer">Uniform Convergence May Be Unable to Explain Generalization in Deep Learning</a> &middot; Nagarajan, Kolter, NeurIPS 2019</li>
+            <li><a href="https://arxiv.org/abs/1703.04933" target="_blank" rel="noopener noreferrer">Sharp Minima Can Generalize For Deep Nets</a> &middot; Dinh, Pascanu, Bengio, Bengio, ICML 2017</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Double descent, and the arguments about it</h3>
+          <ul>
+            <li><a href="https://www.pnas.org/doi/10.1073/pnas.1903070116" target="_blank" rel="noopener noreferrer">Reconciling Modern Machine-Learning Practice and the Classical Bias-Variance Trade-Off</a> &middot; Belkin, Hsu, Ma, Mandal, PNAS 2019</li>
+            <li><a href="https://arxiv.org/abs/1912.02292" target="_blank" rel="noopener noreferrer">Deep Double Descent: Where Bigger Models and More Data Hurt</a> &middot; Nakkiran, Kaplun, Bansal, Yang, Barak, Sutskever, ICLR 2020</li>
+            <li><a href="https://arxiv.org/abs/2003.01897" target="_blank" rel="noopener noreferrer">Optimal Regularization Can Mitigate Double Descent</a> &middot; Nakkiran, Venkat, Kakade, Ma, ICLR 2021</li>
+            <li><a href="https://arxiv.org/abs/2310.18988" target="_blank" rel="noopener noreferrer">A U-turn on Double Descent: Rethinking Parameter Counting in Statistical Learning</a> &middot; Curth, Jeffares, van der Schaar, NeurIPS 2023</li>
+            <li><a href="https://arxiv.org/abs/1903.08560" target="_blank" rel="noopener noreferrer">Surprises in High-Dimensional Ridgeless Least Squares Interpolation</a> &middot; Hastie, Montanari, Rosset, Tibshirani, 2019</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Benign overfitting and interpolation theory</h3>
+          <ul>
+            <li><a href="https://www.pnas.org/doi/10.1073/pnas.1907378117" target="_blank" rel="noopener noreferrer">Benign Overfitting in Linear Regression</a> &middot; Bartlett, Long, Lugosi, Tsigler, PNAS 2020</li>
+            <li><a href="https://arxiv.org/abs/2009.14286" target="_blank" rel="noopener noreferrer">Benign Overfitting in Ridge Regression</a> &middot; Tsigler, Bartlett, JMLR 2023</li>
+            <li><a href="https://arxiv.org/abs/2103.09177" target="_blank" rel="noopener noreferrer">Deep Learning: A Statistical Viewpoint</a> &middot; Bartlett, Montanari, Rakhlin, Acta Numerica 2021</li>
+            <li><a href="https://arxiv.org/abs/1806.09471" target="_blank" rel="noopener noreferrer">Does Data Interpolation Contradict Statistical Optimality?</a> &middot; Belkin, Rakhlin, Tsybakov, 2018</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Implicit bias of optimization</h3>
+          <ul>
+            <li><a href="https://jmlr.org/papers/v19/18-188.html" target="_blank" rel="noopener noreferrer">The Implicit Bias of Gradient Descent on Separable Data</a> &middot; Soudry, Hoffer, Nacson, Gunasekar, Srebro, JMLR 2018</li>
+            <li><a href="https://arxiv.org/abs/1802.08246" target="_blank" rel="noopener noreferrer">Characterizing Implicit Bias in Terms of Optimization Geometry</a> &middot; Gunasekar, Lee, Soudry, Srebro, ICML 2018</li>
+            <li><a href="https://arxiv.org/abs/1906.05890" target="_blank" rel="noopener noreferrer">Gradient Descent Maximizes the Margin of Homogeneous Neural Networks</a> &middot; Lyu, Li, ICLR 2020</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Infinite width, lazy and rich training</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1806.07572" target="_blank" rel="noopener noreferrer">Neural Tangent Kernel: Convergence and Generalization in Neural Networks</a> &middot; Jacot, Gabriel, Hongler, NeurIPS 2018</li>
+            <li><a href="https://arxiv.org/abs/1812.07956" target="_blank" rel="noopener noreferrer">On Lazy Training in Differentiable Programming</a> &middot; Chizat, Oyallon, Bach, NeurIPS 2019</li>
+            <li><a href="https://arxiv.org/abs/2011.14522" target="_blank" rel="noopener noreferrer">Feature Learning in Infinite-Width Neural Networks (Tensor Programs IV)</a> &middot; Yang, Hu, ICML 2021</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Grokking</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2201.02177" target="_blank" rel="noopener noreferrer">Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets</a> &middot; Power, Burda, Edwards, Babuschkin, Misra, 2022</li>
+            <li><a href="https://arxiv.org/abs/2301.05217" target="_blank" rel="noopener noreferrer">Progress Measures for Grokking via Mechanistic Interpretability</a> &middot; Nanda, Chan, Lieberum, Smith, Steinhardt, ICLR 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.02390" target="_blank" rel="noopener noreferrer">Explaining Grokking Through Circuit Efficiency</a> &middot; Varma, Shah, Kenton, Kram&aacute;r, Kumar, 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.06110" target="_blank" rel="noopener noreferrer">Grokking as the Transition from Lazy to Rich Training Dynamics</a> &middot; Kumar, Bordelon, Gershman, Pehlevan, ICLR 2024</li>
+            <li><a href="https://arxiv.org/abs/2210.01117" target="_blank" rel="noopener noreferrer">Omnigrok: Grokking Beyond Algorithmic Data</a> &middot; Liu, Michaud, Tegmark, ICLR 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Memorization, capacity and the LLM regime</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2505.24832" target="_blank" rel="noopener noreferrer">How Much Do Language Models Memorize?</a> &middot; Morris, Sitawarin, Guo, Kokhlikyan, Suh, Rush, Chaudhuri, Mahloujifar, 2025</li>
+            <li><a href="https://arxiv.org/abs/2202.07646" target="_blank" rel="noopener noreferrer">Quantifying Memorization Across Neural Language Models</a> &middot; Carlini, Ippolito, Jagielski, Lee, Tramer, Zhang, ICLR 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.05405" target="_blank" rel="noopener noreferrer">Physics of Language Models 3.3: Knowledge Capacity Scaling Laws</a> &middot; Allen-Zhu, Li, 2024</li>
+            <li><a href="https://arxiv.org/abs/2305.16264" target="_blank" rel="noopener noreferrer">Scaling Data-Constrained Language Models</a> &middot; Muennighoff, Rush, Barak, Le Scao, Piktus, Tazi, Pyysalo, Wolf, Raffel, NeurIPS 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Bounds that are not vacuous</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2312.17173" target="_blank" rel="noopener noreferrer">Non-Vacuous Generalization Bounds for Large Language Models</a> &middot; Lotfi, Finzi, Kuang, Rudner, Goldblum, Wilson, ICML 2024</li>
+            <li><a href="https://arxiv.org/abs/1912.02178" target="_blank" rel="noopener noreferrer">Fantastic Generalization Measures and Where to Find Them</a> &middot; Jiang, Neyshabur, Mobahi, Krishnan, Bengio, ICLR 2020</li>
+            <li><a href="https://arxiv.org/abs/1804.05862" target="_blank" rel="noopener noreferrer">Non-Vacuous Generalization Bounds at the ImageNet Scale: A PAC-Bayesian Compression Approach</a> &middot; Zhou, Veitch, Austern, Adams, Orbanz, ICLR 2019</li>
+            <li><a href="https://arxiv.org/abs/2211.13609" target="_blank" rel="noopener noreferrer">PAC-Bayes Compression Bounds So Tight That They Can Explain Generalization</a> &middot; Lotfi, Finzi, Kapoor, Potapczynski, Goldblum, Wilson, NeurIPS 2022</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Puzzle of Overparameterization</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/">https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026overparameterized,
+  author       = {Srinivasan, Anirudh},
+  title        = {The Puzzle of Overparameterization},
+  year         = {2026},
+  month        = {sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/},
+  note         = {Understanding LLMs, Part 2. Published September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Understanding LLMs, Part 2 &middot; The Puzzle of Overparameterization</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script src="figures.js"></script>
+    <script src="figures2.js"></script>
+    <script src="figures3.js"></script>
+    <script src="figures4.js"></script>
+  </body>
+</html>

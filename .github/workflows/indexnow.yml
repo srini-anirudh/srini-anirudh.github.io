@@ -25,13 +25,13 @@ jobs:
             const key = "8e6d4c1f75a341d9b7a2c0e489f563ab";
             const paths = [
               "/", "/research.html", "/blogs/", "/projects.html", "/about.html",
-              "/blogs/talk-is-not-cheap/", "/blogs/bound-by-bytes/",
-              "/blogs/new-mask-same-task/",
-              "/blogs/vlm-architecture-gallery/", "/blogs/vision-encoders/",
-              "/blogs/transformers-vs-vision-transformers/", "/blogs/position-embeddings/",
-              "/blogs/normalization/", "/blogs/activation-functions/", "/blogs/optimizers/",
-              "/blogs/evolution-of-architectures/", "/blogs/vision-transformers/",
-              "/blogs/cnn-architectures/"
+              "/blogs/talk-is-not-cheap/", "/blogs/why-fast-gpus-still-wait-for-memory/",
+              "/blogs/why-gpus-are-built-for-deep-learning/",
+              "/blogs/the-vlm-architecture-gallery/", "/blogs/inside-a-modern-vision-encoder/",
+              "/blogs/one-transformer-two-modalities/", "/blogs/how-models-know-where-they-are/",
+              "/blogs/the-geometry-of-normalization/", "/blogs/why-neural-networks-need-nonlinearity/", "/blogs/what-an-optimizer-actually-does/",
+              "/blogs/evolution-of-ml-architectures/", "/blogs/an-image-is-a-sentence/",
+              "/blogs/across-the-cnnverse/"
             ];
             const response = await fetch("https://api.indexnow.org/indexnow", {
               method: "POST",

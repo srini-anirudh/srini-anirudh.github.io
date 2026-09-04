@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="How Models Improve Without Changing Their Weights" />
+    <meta property="og:description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/preview.png" />
+    <meta property="article:published_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-09-04" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How Models Improve Without Changing Their Weights" />
+    <meta name="twitter:description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/preview.png" />
+    <title>How Models Improve Without Changing Their Weights | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/" },
+        "headline": "How Models Improve Without Changing Their Weights",
+        "description": "A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth.",
+        "image": "https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/preview.png",
+        "datePublished": "2026-09-04",
+        "dateModified": "2026-09-04",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["test-time scaling", "inference compute", "best-of-n", "verifiers", "budget forcing", "adaptive compute allocation", "scaling laws"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article-specific additions ---- */
+      .animation-stage svg { display: block; width: 100%; height: auto; }
+      .animation-options { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 9px; padding-top: 11px; border-top: 1px dashed #2b343c; }
+      .animation-options button { min-height: 34px; padding: 6px 10px; color: #b9c5cd; background: #131a20; border: 1px solid #2f3a43; cursor: pointer; font: 600 10.5px/1 var(--mono); }
+      .animation-options button:hover,
+      .animation-options button[aria-pressed="true"] { color: #06120e; background: #e0b95c; border-color: #e0b95c; }
+      .animation-options button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .options-label { margin-right: 3px; color: #7f8b93; font: 600 10px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+      .fig-title { margin: 0 0 4px; color: #f2f6f8; font: 700 14px/1.3 var(--display); letter-spacing: -0.01em; }
+      .fig-sub { margin: 0 0 16px; color: #94a1a9; font: 400 12.5px/1.55 var(--mono); }
+      .figcap { margin: -14px 0 30px; color: var(--muted); font: 400 14px/1.6 var(--mono); }
+      .figcap b { color: var(--ink-soft); font-weight: 600; }
+
+      .stage-caption { margin: 14px 0 0; color: #a4b1b9; font: 400 12.5px/1.62 var(--mono); min-height: 3.2em; }
+      .animation-stage svg { max-width: 100%; }
+      .eq { margin: 24px 0; padding: 18px 20px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 500 16px/1.9 var(--mono); }
+      .eq .lhs { color: var(--ink); }
+      .eq .note { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; font-style: normal; }
+      .eq-inline { font: 500 0.92em var(--mono); }
+      var { font: italic 500 1em var(--mono); font-style: normal; }
+
+      .nuance { margin: 28px 0; padding: 18px 20px 16px; background: var(--paper-bright); border: 1px solid var(--rule); border-top: 3px solid #b3792b; }
+      .nuance h4 { margin: 0 0 10px; color: #8f5f1f; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .nuance p { margin: 0 0 10px; font-size: 17px; }
+      .nuance p:last-child { margin-bottom: 0; }
+      .nuance .said { color: var(--muted); }
+      .nuance .said b, .nuance .actually b { color: var(--ink); font-weight: 600; }
+
+      .ledger { width: 100%; margin: 26px 0; border-collapse: collapse; font: 14.5px/1.5 var(--mono); }
+      .ledger th, .ledger td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+      .ledger thead th { color: var(--muted); font: 600 11px/1.3 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+      .ledger tbody td:first-child { color: var(--ink); font-weight: 600; }
+      .ledger .good { color: #2c6b52; }
+      .ledger .bad { color: #9b3d33; }
+
+      .keypoint { margin: 30px 0; padding: 16px 20px; background: #14171a; color: #e7ecef; font: 500 16.5px/1.6 var(--body); }
+      .keypoint b { color: #6fe0b6; font-weight: 600; }
+
+      .article-content ul.plain { margin: 0 0 20px; padding-left: 1.15em; }
+      .article-content ul.plain li { margin: 0 0 9px; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+        .ledger { font-size: 12.5px; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article test-time-scaling-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Inference-time compute</p>
+        <h1 class="article-title">How Models Improve Without Changing Their Weights</h1>
+        <p class="article-subtitle">The weights are frozen. The only remaining question is how many tokens you are willing to burn before you answer — and where you spend them.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Test-time scaling</span><span>Verification</span><span>Compute allocation</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>48 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Understanding LLMs">
+      <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
+      <span class="ml-series-nav__position">09 of 09 &middot; The Inference Frontier</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../thinking-in-tokens/"><span>Previous &middot; 08</span><strong>Thinking in Tokens</strong></a>
+        <a class="ml-series-nav__link" href="../index.html#understanding-llms"><span>Series</span><strong>Back to the nine-part index</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#fourth-axis">A fourth axis</a></li>
+          <li><a href="#taxonomy">Eight ways to spend a budget</a></li>
+          <li><a href="#bill">What the extra tokens cost</a></li>
+          <li><a href="#coverage">Why sampling has a scaling law</a></li>
+          <li><a href="#gap">The generator&ndash;verifier gap</a></li>
+          <li><a href="#verification">The false-positive ceiling</a></li>
+          <li><a href="#compute-optimal">Compute-optimal inference</a></li>
+          <li><a href="#inference-laws">What the curves measured</a></li>
+          <li><a href="#budget-forcing">Budget forcing</a></li>
+          <li><a href="#more-can-hurt">When more thinking hurts</a></li>
+          <li><a href="#adaptive">Allocate, don't extend</a></li>
+          <li><a href="#carry-away">What to carry away</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="fourth-axis">
+        <h2>A fourth axis</h2>
+        <p>Every scaling story in this series so far has been a story about training. In <a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a> the whole problem was a constrained optimisation over two numbers: given a training budget <span class="eq-inline">C<sub>train</sub></span>, how do you split it between parameters <span class="eq-inline">N</span> and tokens <span class="eq-inline">D</span>? Once you have chosen, the run happens, the weights freeze, and quality is whatever the law says it is.</p>
+        <div class="eq"><span class="lhs">Q = f(N, D, C<sub>train</sub>)</span><span class="note">The classical picture. Everything that determines quality is decided before deployment.</span></div>
+        <p>That picture is incomplete, and the incompleteness is not a detail. A frozen model is not a lookup table; it is a sampler. You can query it once, or a thousand times. You can let it emit twelve tokens or twelve thousand. You can throw away nine hundred of its thousand answers and keep the one that survives a test suite. None of that touches a single weight, and all of it changes the probability you get a correct answer.</p>
+        <div class="eq"><span class="lhs">Q = f(N, D, C<sub>train</sub>, C<sub>test</sub>)</span><span class="note">The modern picture. A fourth knob, turned per query, after the model has shipped.</span></div>
+        <p>The conceptual centre of this article is that fourth argument. It behaves differently from the first three in three important ways, and most confusion about test-time scaling comes from forgetting one of them.</p>
+        <p><b>It is spent per query, not per model.</b> <span class="eq-inline">C<sub>train</sub></span> is paid once and amortised over every request for the lifetime of the model. <span class="eq-inline">C<sub>test</sub></span> is paid every single time. A technique that buys five accuracy points for a 100&times; inference bill is a research result; it is not necessarily a product.</p>
+        <p><b>It is allocatable per instance.</b> There is exactly one compute-optimal <span class="eq-inline">(N, D)</span> for a training run. There is a <em>different</em> optimal <span class="eq-inline">C<sub>test</sub></span> for every prompt, because prompts differ in difficulty. This single fact is what makes inference scaling a strictly richer optimisation problem than Chinchilla, and it is where most of the remaining headroom lives.</p>
+        <p><b>It converts a distribution into an answer.</b> Extra training compute makes the model's output distribution better. Extra test-time compute lets you <em>sample that distribution more than once and then choose</em>. Choosing requires a selector. The quality of the selector, not the quantity of samples, is usually the binding constraint — and that is the single most under-appreciated result in this whole literature.</p>
+        <div class="keypoint">The recurring theme of this article: <b>generation and selection scale differently.</b> Your ability to produce a correct answer somewhere in a pile of samples keeps improving for a very long time. Your ability to point at which one it is often stops improving almost immediately.</div>
+      </section>
+
+      <section id="taxonomy">
+        <h2>Eight ways to spend a budget</h2>
+        <p>Before any mathematics, it helps to see the landscape as a single plane. Almost every test-time method in the literature is a point in a two-dimensional space: how <em>wide</em> you go (how many independent trajectories you run) and how <em>deep</em> you go (how many tokens each trajectory is allowed to consume). Everything else — verifiers, voting, search, refinement — is a rule for what to do with the trajectories once you have them.</p>
+        <p>The figure below walks that plane. Step through it; each stage lands on one family and names what it actually buys you.</p>
+      </section>
+      <div class="article-panel" data-reel="fig1" role="img" aria-label="An animated map of test-time scaling strategies plotted on a plane of parallel width against serial depth, revealing greedy decoding, long chain-of-thought, self-consistency, best-of-N, tree search, iterative refinement and tool use in turn.">
+        <p class="fig-title">Figure 1 &middot; The width&ndash;depth plane</p>
+        <p class="fig-sub">Every strategy is a shape in this plane. The camera visits each family in turn.</p>
+        <div class="animation-stage" id="fig1-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 1 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 64</span>
+        </div>
+      </div>
+      <p class="figcap"><b>Reading the plane.</b> The horizontal axis is serial depth <var>T</var> — tokens inside one trajectory. The vertical axis is parallel width <var>K</var> — independent trajectories. Total token spend is roughly the area <var>K</var>&thinsp;&times;&thinsp;<var>T</var>, which means the same budget can be spent anywhere along a hyperbola. The strategies differ in <em>where on that hyperbola they sit</em> and in <em>what they do with the resulting pile of text</em>.</p>
+
+      <div class="comparison-table-wrap">
+        <table class="comparison-table">
+          <thead><tr><th>Strategy</th><th>Width</th><th>Depth</th><th>Selector</th><th>What compute buys</th><th>Main ceiling</th></tr></thead>
+          <tbody>
+            <tr><td><b>Long reasoning</b></td><td>1</td><td>High</td><td>None</td><td>Planning and backtracking</td><td>One bad trajectory</td></tr>
+            <tr><td><b>Repeated sampling</b></td><td>High</td><td>Fixed</td><td>None</td><td>Answer coverage</td><td>No way to choose</td></tr>
+            <tr><td><b>Self-consistency</b></td><td>High</td><td>Fixed</td><td>Vote</td><td>Robust consensus</td><td>Majority can be wrong</td></tr>
+            <tr><td><b>Best-of-N</b></td><td>High</td><td>Fixed</td><td>Outcome score</td><td>Selection</td><td>Verifier false positives</td></tr>
+            <tr><td><b>Tree search</b></td><td>Branched</td><td>Adaptive</td><td>Process score</td><td>Early pruning</td><td>Partial-state values</td></tr>
+            <tr><td><b>Refinement</b></td><td>1</td><td>Iterative</td><td>Critic</td><td>Error correction</td><td>Critique can reinforce errors</td></tr>
+            <tr><td><b>Tools</b></td><td>Varies</td><td>Varies</td><td>Execution</td><td>External facts and exact operations</td><td>Interface reliability</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <details class="compact-deep-dive">
+      <summary>Read the seven strategies in prose</summary>
+      <p>The same families, written out:</p>
+      <ul class="plain">
+        <li><b>A. Longer serial reasoning.</b> One trajectory, more tokens. The model plans, backtracks, checks. This is what o1-style and R1-style models were trained to do; the reasoning trace itself is the compute.</li>
+        <li><b>B. Repeated sampling.</b> <var>K</var> independent trajectories at temperature. No coordination, no selection yet — pure exploration of the output distribution.</li>
+        <li><b>C. Self-consistency.</b> Sample <var>K</var> chains, take the majority answer. Selection with no external machinery, introduced by <a href="https://arxiv.org/abs/2203.11171" target="_blank" rel="noopener noreferrer">Wang et al.</a> as a decoding strategy for chain-of-thought.</li>
+        <li><b>D. Best-of-N.</b> Generate <var>N</var>, score each with something, keep the top-scoring one. The "something" is the whole ballgame.</li>
+        <li><b>E. Search.</b> Beam, tree, MCTS-style rollouts. Instead of committing to whole trajectories, you branch at intermediate states and prune.</li>
+        <li><b>F. Verification.</b> A verifier — unit tests, a proof checker, an outcome reward model, a process reward model — ranks or filters candidates. This is not really a separate axis; it is the selector that makes D and E work at all.</li>
+        <li><b>G. Iterative refinement.</b> Generate, critique, revise, repeat. Serial like A, but with an explicit critique step rather than a continuous stream.</li>
+        <li><b>H. Tools.</b> Code execution, retrieval, search. Compute spent outside the model, which is often the cheapest correct answer in the whole taxonomy.</li>
+      </ul>
+      </details>
+
+      <div class="nuance">
+        <h4>Nuance 01 &middot; Search is not a fifth thing</h4>
+        <p class="said"><b>Often said:</b> there are parallel methods, serial methods, and search methods.</p>
+        <p class="actually"><b>Actually:</b> search is parallel sampling with early pruning, which requires a scorer that can evaluate <em>partial</em> trajectories. That requirement — a value estimate at intermediate states rather than only at the end — is the real distinction, and it is why process reward models and tree search are the same topic. If your only signal arrives at the final token, tree search degenerates into an expensive way of doing best-of-N.</p>
+      </div>
+
+      <section id="bill">
+        <h2>What the extra tokens cost</h2>
+        <p>It is tempting to treat <span class="eq-inline">C<sub>test</sub></span> as one number. It is not; it is at least four, and they scale differently. This matters because two strategies that look identical on a FLOPs plot can be an order of magnitude apart in latency or in how many concurrent requests a server can hold.</p>
+        <p>Take a dense model of <var>N</var> parameters. Decoding costs roughly <span class="eq-inline">2N</span> FLOPs per generated token for the weight-matrix work. Compare two ways of spending the same token budget <span class="eq-inline">KT</span>: <var>K</var> parallel trajectories of <var>T</var> tokens, versus one trajectory of <span class="eq-inline">KT</span> tokens.</p>
+        <table class="ledger">
+          <thead><tr><th>Bill</th><th><var>K</var> trajectories &times; <var>T</var> tokens</th><th>1 trajectory &times; <var>KT</var> tokens</th></tr></thead>
+          <tbody>
+            <tr><td>Weight FLOPs</td><td>2<var>NKT</var></td><td>2<var>NKT</var> &mdash; identical</td></tr>
+            <tr><td>Attention FLOPs</td><td class="good">&Theta;(<var>KT</var><sup>2</sup>)</td><td class="bad">&Theta;(<var>K</var><sup>2</sup><var>T</var><sup>2</sup>) &mdash; <var>K</var>&times; worse</td></tr>
+            <tr><td>Latency (decode steps)</td><td class="good"><var>T</var>, if the batch fits</td><td class="bad"><var>KT</var>, strictly serial</td></tr>
+            <tr><td>KV-cache bytes</td><td><var>KT</var> token-slots</td><td><var>KT</var> token-slots &mdash; identical</td></tr>
+            <tr><td>Prefill</td><td class="good">shared prefix, cache once</td><td>one prefill</td></tr>
+            <tr><td>Context-length risk</td><td class="good">none</td><td class="bad">must stay in-distribution at length <var>KT</var></td></tr>
+          </tbody>
+        </table>
+        <p>Two of those rows are worth pausing on. The KV-cache row is an equality that surprises people: <var>K</var> caches of length <var>T</var> and one cache of length <var>KT</var> hold the same number of token-slots, so the memory bill for going wide and going deep is the same. What differs is <em>shape</em> — going wide needs <var>K</var> concurrent batch slots, going deep needs one very long sequence. The attention row is a genuine asymmetry: because attention cost grows with position, a single long trajectory pays quadratically in its own length while <var>K</var> short ones pay quadratically only in <var>T</var>. Serial depth is the more expensive kind of compute, per token, and it gets worse the deeper you go.</p>
+        <p>The mechanics behind those rows — prefix caching, batch-slot pressure, the prefill/decode split, why decode is memory-bandwidth-bound rather than FLOPs-bound — are the subject of <a href="../the-mechanics-of-llm-inference/">The Mechanics of LLM Inference</a> and <a href="../the-serving-playbook/">The Serving Playbook</a>. Here I only want the accounting, because it explains a practical asymmetry: <b>parallel width is cheap to add and hard to use; serial depth is expensive to add and easy to use.</b> Width gives you many candidates and no opinion about which is right. Depth gives you one candidate the model already believes in.</p>
+        <div class="nuance">
+          <h4>Nuance 02 &middot; "FLOPs-matched" is not "cost-matched"</h4>
+          <p class="said"><b>Often said:</b> a small model with test-time compute can match a model 14&times; larger at equal FLOPs, therefore it is the better deployment.</p>
+          <p class="actually"><b>Actually:</b> equal FLOPs at very different latencies and batch shapes are not equal money. A 7B model emitting 64 trajectories has 64&times; the KV-cache footprint of a single trajectory and needs a serving stack that can hold them; a 70B model emitting one has a larger weight-load per step but a trivial scheduling story. The FLOPs-matched comparison is the right <em>scientific</em> control and the wrong <em>procurement</em> control.</p>
+        </div>
+      </section>
+
+      <section id="coverage">
+        <h2>Why sampling has a scaling law</h2>
+        <p>Start with the simplest possible intervention: ask the same question <var>k</var> times and see whether any answer is right. The quantity that tracks is <em>coverage</em> &mdash; the fraction of problems solved by at least one sample. <a href="https://arxiv.org/abs/2407.21787" target="_blank" rel="noopener noreferrer">Brown et al.</a> measured this carefully and found something striking: coverage keeps rising with sample count across four orders of magnitude, and the relationship is often log-linear, well modelled by an exponentiated power law. On SWE-bench Lite, DeepSeek-Coder-V2-Instruct went from solving 15.9% of issues with one sample to 56% with 250 &mdash; past the 43% single-sample state of the art at the time.</p>
+        <p>That log-linearity is initially baffling, because for a <em>single</em> problem it is provably false. Let me derive why, because the resolution is the most useful piece of intuition in this article.</p>
+
+        <h3>One problem: coverage saturates fast</h3>
+        <p>Fix a problem the model solves with probability <var>p</var> per independent sample. The chance that <var>k</var> samples all fail is <span class="eq-inline">(1&minus;p)<sup>k</sup></span>, so</p>
+        <div class="eq"><span class="lhs">c(k) = 1 &minus; (1 &minus; p)<sup>k</sup></span><span class="note">Coverage for one problem with per-sample success rate p. This is exactly pass@k under independent sampling.</span></div>
+        <p>Solve for the half-way point: <span class="eq-inline">c(k) = &frac12;</span> at <span class="eq-inline">k<sup>&#42;</sup> = ln2 / ln(1/(1&minus;p)) &asymp; 0.69/p</span>. Plotted against <span class="eq-inline">log k</span>, this is a sigmoid: nothing, then a sharp rise centred at roughly <span class="eq-inline">1/p</span>, then a flat ceiling at 1. It is not log-linear anywhere. A problem with <span class="eq-inline">p = 0.01</span> is essentially unsolved at <span class="eq-inline">k = 10</span> and essentially solved at <span class="eq-inline">k = 1000</span>, and in between it swings through the entire range in about two decades of <var>k</var>.</p>
+
+        <h3>Many problems: the sigmoids add up to a power law</h3>
+        <p>Now aggregate. A benchmark is not one problem with one <var>p</var>; it is a population of problems with a <em>distribution</em> of <var>p</var>. Write that distribution as a density <span class="eq-inline">&pi;(p)</span>. Benchmark coverage is the average of the per-problem sigmoids:</p>
+        <div class="eq"><span class="lhs">C(k) = &int;<sub>0</sub><sup>1</sup> &pi;(p) &middot; [ 1 &minus; (1&minus;p)<sup>k</sup> ] dp &nbsp;=&nbsp; 1 &minus; E<sub>&pi;</sub>[ (1&minus;p)<sup>k</sup> ]</span><span class="note">Aggregate coverage is a mixture of sigmoids, each centred at its own 1/p.</span></div>
+        <p>Take a concrete and reasonable family: <span class="eq-inline">p &sim; Beta(a, b)</span>. Then the expectation has a closed form, and its large-<var>k</var> behaviour is the whole story:</p>
+        <div class="eq"><span class="lhs">E[(1&minus;p)<sup>k</sup>] = B(a, b+k) / B(a, b) &nbsp;&xrarr;&nbsp; [&Gamma;(a+b)/&Gamma;(b)] &middot; k<sup>&minus;a</sup></span><span class="note">Using &Gamma;(b+k)/&Gamma;(a+b+k) &sim; k<sup>&minus;a</sup> as k grows. The uncovered fraction decays as a power law.</span></div>
+        <div class="eq"><span class="lhs">1 &minus; C(k) &nbsp;&prop;&nbsp; k<sup>&minus;a</sup> &nbsp;&nbsp;&rArr;&nbsp;&nbsp; log(1 &minus; C(k)) = const &minus; a &middot; log k</span><span class="note">A straight line on a log&ndash;log plot of the failure fraction. The exponent is a, the Beta shape parameter near p = 0.</span></div>
+        <p>This is the punchline, and it is worth saying in words. <b>No individual problem obeys a power law. The population does, and the exponent is determined entirely by how much probability mass sits near <span class="eq-inline">p = 0</span></b> — how many problems the model can <em>almost never</em> solve but not <em>never</em> solve. A Beta density behaves like <span class="eq-inline">p<sup>a&minus;1</sup></span> near zero; small <var>a</var> means a thick pile-up of nearly-hopeless problems, and each decade of extra sampling drags a slice of them across the line. The smooth scaling curve is an artefact of heterogeneity, not a property of any single instance.</p>
+        <p>And the corollary is immediate: if a fraction <span class="eq-inline">&pi;<sub>0</sub></span> of problems have <span class="eq-inline">p</span> exactly zero — the model genuinely cannot produce the answer, at any temperature, ever — then coverage saturates at <span class="eq-inline">1 &minus; &pi;<sub>0</sub></span> and no amount of sampling moves it. The straight line is a straight line only until it hits that wall.</p>
+        <p>Play with the figure. Change the shape of <span class="eq-inline">&pi;(p)</span> and watch both the tile grid and the slope of the log&ndash;log line respond.</p>
+      </section>
+      <div class="article-panel" data-reel="fig2" role="img" aria-label="An animated derivation of the coverage scaling law. A grid of 120 problems lights up as the sample budget grows, a coverage curve is drawn against log sample count, and a log-log plot of the uncovered fraction reveals a straight line whose slope equals the Beta shape parameter.">
+        <p class="fig-title">Figure 2 &middot; Where the coverage scaling law comes from</p>
+        <p class="fig-sub">120 problems, each with its own hidden success rate. Watch tiles convert, the coverage curve rise, and the failure fraction fall along a straight log&ndash;log line.</p>
+        <div class="animation-stage" id="fig2-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 2 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 78</span>
+        </div>
+        <div class="animation-options" role="group" aria-label="Figure 2 difficulty distribution">
+          <span class="options-label">&pi;(p) shape</span>
+          <button type="button" data-opt="shape" data-val="0.35" aria-pressed="false">a = 0.35 &middot; thick hard tail</button>
+          <button type="button" data-opt="shape" data-val="0.7" aria-pressed="true">a = 0.70 &middot; typical</button>
+          <button type="button" data-opt="shape" data-val="1.4" aria-pressed="false">a = 1.40 &middot; thin hard tail</button>
+          <span class="options-label" style="margin-left:10px">Hopeless</span>
+          <button type="button" data-opt="zero" data-val="0" aria-pressed="true">&pi;<sub>0</sub> = 0</button>
+          <button type="button" data-opt="zero" data-val="0.12" aria-pressed="false">&pi;<sub>0</sub> = 12%</button>
+        </div>
+      </div>
+      <p class="figcap"><b>What to look for.</b> Each tile's fill is its per-problem coverage <span class="eq-inline">1&minus;(1&minus;p)<sup>k</sup></span>; tiles flip solid the first time a sample succeeds. Easy tiles convert in the first decade and then contribute nothing forever. The straight line on the right is the population-level power law, and its slope <em>is</em> the shape parameter <var>a</var>. Turn on <span class="eq-inline">&pi;<sub>0</sub></span> and watch the line bend into a hard floor.</p>
+
+      <div class="nuance">
+        <h4>Nuance 03 &middot; The model is an idealisation, and the fit is not exactly this</h4>
+        <p class="said"><b>Often said:</b> coverage follows a power law in the number of samples.</p>
+        <p class="actually"><b>Actually:</b> Brown et al. report that an <em>exponentiated</em> power law, <span class="eq-inline">C(k) &asymp; exp(&alpha;k<sup>&beta;</sup>)</span>, fits their curves better than a plain power law over the ranges they measured. The Beta mixture above is a mechanism that <em>produces</em> power-law tails and explains why heterogeneity alone is sufficient; it is not a claim that real benchmarks have exactly Beta-distributed difficulty. Treat it as the right causal story with the wrong third decimal place. It also assumes samples are independent, which temperature-sampling from one model only approximately satisfies.</p>
+      </div>
+
+      <section id="gap">
+        <h2>The generator&ndash;verifier gap</h2>
+        <p>Coverage is not accuracy. Coverage says a correct answer exists somewhere in the pile. Accuracy requires you to hand back exactly one answer. The distance between those two quantities is the single most important number in test-time scaling, and it is where the field's early optimism ran into a wall.</p>
+        <p>The same paper that showed coverage rising over four orders of magnitude also reported the other half: in domains without automatic verifiers, majority voting and reward-model selection <em>plateau beyond several hundred samples and fail to keep up with the sample budget</em>. Generation kept scaling. Selection stopped.</p>
+
+        <h3>Why majority voting has a hard ceiling</h3>
+        <p>This is provable in one line, and the proof explains everything. Let the model's answer distribution for a given problem be <span class="eq-inline">q(&middot;)</span> over possible final answers. Majority voting over <var>k</var> samples returns the empirical mode. By the law of large numbers, as <span class="eq-inline">k &rarr; &infin;</span> the empirical mode converges to the <em>true</em> mode <span class="eq-inline">argmax<sub>y</sub> q(y)</span>. Therefore:</p>
+        <div class="eq"><span class="lhs">lim<sub>k&rarr;&infin;</sub> Acc<sub>MV</sub>(k) = P<sub>problems</sub>[ the model's modal answer is correct ]</span><span class="note">A fixed property of the model. Extra samples reduce the variance of your estimate of the mode; they cannot move the mode.</span></div>
+        <p>So majority voting is an estimator for a quantity that is already determined the moment the weights froze. Past a few dozen samples you are paying compute to reduce sampling noise on a number that was never going to change. Worse, on hard problems where the modal answer is a confident, systematic error, more voting makes you <em>more</em> sure of the wrong thing.</p>
+        <p>Contrast that with coverage, whose limit is <span class="eq-inline">1 &minus; &pi;<sub>0</sub></span> — the fraction of problems the model can produce a correct answer for at all. The gap between these two limits is the generator&ndash;verifier gap:</p>
+        <div class="eq"><span class="lhs">gap = (1 &minus; &pi;<sub>0</sub>) &minus; P[modal answer correct]</span><span class="note">Everything a better selector could still recover, at zero extra generation cost.</span></div>
+        <div class="keypoint">This is why so much of the reasoning literature is secretly about verifiers. <b>The gap is the prize.</b> Every process reward model, every unit-test harness, every self-consistency variant, every proof checker is an attempt to convert coverage you already paid for into accuracy you can ship.</div>
+      </section>
+
+      <div class="article-panel" data-reel="fig3" role="img" aria-label="An animated comparison of three curves against sample count: coverage rising steadily, majority voting flattening at the modal-answer ceiling, and best-of-N with an imperfect verifier flattening lower still, with the generator-verifier gap shaded between them.">
+        <p class="fig-title">Figure 3 &middot; Generation keeps scaling; selection does not</p>
+        <p class="fig-sub">Samples stream in, sort into answer buckets, and three selectors try to pick. Only one of the three curves keeps climbing.</p>
+        <div class="animation-stage" id="fig3-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 3 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 66</span>
+        </div>
+      </div>
+      <p class="figcap"><b>The shaded band is the prize.</b> Between the coverage curve and the best selector curve lies every correct answer the system generated and then threw away. Note that the two selector curves are not merely slower &mdash; they are <em>asymptotic</em>. They converge to constants that do not depend on the budget.</p>
+
+      <section id="verification">
+        <h2>The false-positive ceiling</h2>
+        <p>Now put a verifier in the loop. If the verifier is <em>perfect</em> — a Lean proof checker, an exhaustive test oracle, a numerical answer key — the picture is beautiful: accuracy equals coverage, and coverage keeps scaling. This is exactly why the strongest published sampling results live in code and formal proofs, and why the SWE-bench number above was possible.</p>
+        <p>Real verifiers are not perfect. Unit tests have gaps. Reward models are approximations. Self-verification is the model grading its own homework. <a href="https://arxiv.org/abs/2411.17501" target="_blank" rel="noopener noreferrer">Stroebl, Kapoor and Narayanan</a> made the consequence precise, and the argument is short enough to reconstruct from scratch.</p>
+        <p>Let <var>p</var> be the per-sample probability of a correct solution and let <span class="eq-inline">&phi;</span> be the verifier's false-positive rate: the probability that an <em>incorrect</em> sample passes. Assume for simplicity that correct samples always pass. After <var>k</var> samples, the expected number of passing candidates that are correct is <span class="eq-inline">kp</span>; the expected number that are wrong-but-passing is <span class="eq-inline">k(1&minus;p)&phi;</span>. If you pick uniformly among passers, your accuracy is the <em>precision</em> of the verifier on that pool:</p>
+        <div class="eq"><span class="lhs">Acc(k) &nbsp;&xrarr;&nbsp; p / [ p + (1&minus;p)&phi; ]</span><span class="note">Independent of k. Resampling raises the chance that a correct answer appears — and equally the chance that a false positive appears.</span></div>
+        <p>Read that limit carefully. It contains no <var>k</var>. Sampling harder does not improve it, because sampling harder recruits false positives at exactly the same rate it recruits true ones. Some concrete values, with <span class="eq-inline">p = 0.05</span>:</p>
+        <ul class="plain">
+          <li><span class="eq-inline">&phi; = 0</span> &rarr; ceiling 100%. Perfect verification; scale away.</li>
+          <li><span class="eq-inline">&phi; = 0.01</span> &rarr; ceiling 84%. A 1% false-positive rate costs sixteen points.</li>
+          <li><span class="eq-inline">&phi; = 0.05</span> &rarr; ceiling 51%. Equal to the sample success rate; you are flipping a coin among passers.</li>
+          <li><span class="eq-inline">&phi; = 0.20</span> &rarr; ceiling 21%. Most of what survives verification is wrong.</li>
+        </ul>
+        <p>The asymmetry is brutal: the ceiling depends on the <em>ratio</em> <span class="eq-inline">&phi;/p</span>, so the harder the problem — the smaller <var>p</var> — the more a fixed verifier error rate hurts. This is the mathematical form of a familiar practical experience. Resampling a coding agent until the tests pass works wonderfully until the tests are the thing that is wrong, at which point you have built a very expensive machine for finding test-suite exploits.</p>
+      </section>
+
+      <div class="article-panel" data-reel="fig4" role="img" aria-label="An interactive laboratory showing best-of-N accuracy against sample count for adjustable per-sample success rate and verifier false-positive rate, with a horizontal ceiling line drawn at the precision limit.">
+        <p class="fig-title">Figure 4 &middot; The ceiling, as a function of verifier quality</p>
+        <p class="fig-sub">Sweep the sample budget. The dashed line is <span style="font-family:var(--mono)">p / (p + (1&minus;p)&phi;)</span> &mdash; the accuracy you converge to no matter how much you spend.</p>
+        <div class="animation-stage" id="fig4-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 4 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 54</span>
+        </div>
+        <div class="animation-options" role="group" aria-label="Figure 4 parameters">
+          <span class="options-label">Sample success p</span>
+          <button type="button" data-opt="p" data-val="0.02" aria-pressed="false">0.02</button>
+          <button type="button" data-opt="p" data-val="0.05" aria-pressed="true">0.05</button>
+          <button type="button" data-opt="p" data-val="0.20" aria-pressed="false">0.20</button>
+          <span class="options-label" style="margin-left:10px">Verifier FPR &phi;</span>
+          <button type="button" data-opt="phi" data-val="0" aria-pressed="false">0 (perfect)</button>
+          <button type="button" data-opt="phi" data-val="0.01" aria-pressed="true">0.01</button>
+          <button type="button" data-opt="phi" data-val="0.05" aria-pressed="false">0.05</button>
+          <button type="button" data-opt="phi" data-val="0.2" aria-pressed="false">0.20</button>
+        </div>
+      </div>
+      <p class="figcap"><b>Set &phi; to zero</b> and the accuracy curve becomes the coverage curve &mdash; unbounded scaling. Move it to 0.05 and the same generation budget buys you a curve that flattens before <var>k</var> = 100. The generator did not change. Only the referee did.</p>
+
+      <div class="nuance">
+        <h4>Nuance 04 &middot; Verifier failures are worse under search than under sampling</h4>
+        <p class="said"><b>Often said:</b> guiding generation with a verifier is strictly better than blind resampling, because you prune bad paths early.</p>
+        <p class="actually"><b>Actually:</b> pruning is irreversible. <a href="https://arxiv.org/abs/2502.00271" target="_blank" rel="noopener noreferrer">Yu, Li and Wang</a> found that verifier-guided search beats repeated sampling at small budgets but its advantage shrinks and can invert as the budget grows, because an imperfect verifier eventually mis-ranks and prunes away every valid path. Blind sampling wastes compute; guided search can destroy the solution. The crossover point depends on how far out-of-distribution the problem is for the verifier.</p>
+      </div>
+
+      <div class="nuance">
+        <h4>Nuance 05 &middot; Self-verification is not free verification</h4>
+        <p class="said"><b>Often said:</b> just have the model check its own answer &mdash; it knows more than it says.</p>
+        <p class="actually"><b>Actually:</b> sometimes it works well. <a href="https://arxiv.org/abs/2502.01839" target="_blank" rel="noopener noreferrer">Zhao, Awasthi and Gollapudi</a> found that scaling a minimal random-sampling plus direct self-verification loop kept improving, partly because a larger response pool <em>also</em> improves verification accuracy by giving the verifier things to compare against. But <a href="https://arxiv.org/abs/2310.01798" target="_blank" rel="noopener noreferrer">Huang et al.</a> found that models often cannot reliably self-correct reasoning without external feedback, and <a href="https://arxiv.org/abs/2402.08115" target="_blank" rel="noopener noreferrer">Stechly, Valmeekam and Kambhampati</a> documented systematic self-verification limitations on reasoning and planning. The honest summary is that self-verification's value is highly task-dependent and its false-positive rate is correlated with the generator's own errors &mdash; which is precisely the worst case for the ceiling formula above, since it violates the independence the formula assumes.</p>
+      </div>
+      <section id="compute-optimal">
+        <h2>Compute-optimal inference</h2>
+        <p>With generation and selection separated, the design question becomes an allocation question, and it has an exact analogue in the training-time story. Set them side by side, because the parallel is the intellectual pivot of this article.</p>
+        <table class="ledger">
+          <thead><tr><th></th><th>Pretraining (Chinchilla)</th><th>Inference (test-time)</th></tr></thead>
+          <tbody>
+            <tr><td>Given</td><td><var>C</var><sub>train</sub></td><td><var>C</var><sub>test</sub></td></tr>
+            <tr><td>Allocate between</td><td>parameters <var>N</var>, tokens <var>D</var></td><td>model size, samples <var>K</var>, reasoning length <var>T</var>, search width</td></tr>
+            <tr><td>Objective</td><td>minimise pretraining loss</td><td>maximise task accuracy</td></tr>
+            <tr><td>Granularity</td><td>one global choice</td><td class="good">one choice <em>per prompt</em></td></tr>
+            <tr><td>Signal you optimise against</td><td>smooth, continuous loss</td><td class="bad">discrete, noisy correctness</td></tr>
+            <tr><td>Paid</td><td>once</td><td class="bad">every request, forever</td></tr>
+          </tbody>
+        </table>
+        <p>The first three rows are a clean analogy. The last three are where the analogy breaks, and each break makes the inference problem harder.</p>
+        <p><a href="https://arxiv.org/abs/2408.03314" target="_blank" rel="noopener noreferrer">Snell, Lee, Xu and Kumar</a> ran the experiment that made this concrete. They studied two mechanisms — searching against dense process-based verifier reward models, and letting the model revise its own answer distribution at test time — and found that <em>which</em> mechanism wins depends critically on prompt difficulty. Easy prompts want sequential revision; harder prompts want more parallel search. Because the right answer varies per prompt, a strategy that picks per prompt beat a fixed best-of-N baseline using more than 4&times; less test-time compute. And in a FLOPs-matched comparison, on problems where a smaller base model already had non-trivial success rates, test-time compute let it outperform a 14&times; larger model.</p>
+        <p>That last sentence gets quoted constantly and misread almost as constantly, so it is worth unpacking the two qualifiers that are doing all the work.</p>
+        <div class="nuance">
+          <h4>Nuance 06 &middot; The 14&times; result has two load-bearing conditions</h4>
+          <p class="said"><b>Often said:</b> test-time compute can substitute for a 14&times; larger model.</p>
+          <p class="actually"><b>Actually:</b> the result holds <em>on problems where the smaller model already attains non-trivial success rates</em>. That is the coverage condition from earlier in a different costume: if <span class="eq-inline">p &asymp; 0</span>, no amount of sampling helps, and the paper says so. The second condition is the inference-to-pretraining token ratio. When you will serve very few tokens, buying test-time compute is cheap relative to pretraining a bigger model; when you will serve enormous volumes, the fixed cost of a better model amortises and pretraining wins again. Test-time compute substitutes for scale in a bounded regime, not universally.</p>
+        </div>
+        <p>This is also where the story connects back to <a href="../scaling-laws-from-first-principles/">L3</a>. The lifetime-cost equation there was <span class="eq-inline">C<sub>total</sub> = C<sub>train</sub> + Q&thinsp;&middot;&thinsp;C<sub>inference</sub></span>. Test-time scaling does not change the shape of that equation; it inflates <span class="eq-inline">C<sub>inference</sub></span> by a factor you now control. A model that answers with 10,000 thinking tokens has an inference cost roughly two orders of magnitude above one that answers with 100. If <var>Q</var> is large, that factor lands directly on the wrong side of the ledger, and the compute-optimal choice shifts back towards a better model that thinks less.</p>
+      </section>
+
+      <section id="inference-laws">
+        <h2>What the curves measured</h2>
+        <p>The empirical counterpart to Kaplan and Chinchilla plots is <a href="https://arxiv.org/abs/2408.00724" target="_blank" rel="noopener noreferrer">Wu et al.</a>, who swept cost&ndash;performance trade-offs across greedy decoding, majority voting, best-of-<var>n</var>, weighted voting and two tree-search algorithms, at several model sizes and compute budgets. The headline finding rhymes with Snell: smaller models paired with better inference algorithms sit on the Pareto frontier. Concretely, Llemma-7B with their REBASE tree search outperformed Llemma-34B with standard majority voting on MATH across all the FLOPs budgets they tested, and they report the 7B model beating the 34B until roughly 128 solutions are sampled.</p>
+        <p>Two secondary findings from that paper deserve more attention than they usually get. First, MCTS underperformed plain sampling at matched budget, because rollouts are expensive and it produced many unfinished solutions that then cast ineffective votes — a reminder that a search algorithm's <em>cost model</em> matters as much as its search quality. Second, REBASE's advantage came from using a process reward model to decide how far to expand each node rather than paying for explicit rollouts. Both observations point the same direction: at fixed budget, the winner is usually the method that extracts the most signal per token, not the method with the most sophisticated search.</p>
+        <div class="nuance">
+          <h4>Nuance 07 &middot; Inference scaling curves are benchmark-shaped</h4>
+          <p class="said"><b>Often said:</b> inference scaling laws are the test-time equivalent of Chinchilla.</p>
+          <p class="actually"><b>Actually:</b> Chinchilla fits a smooth loss that is defined for every model on every corpus. Inference curves fit <em>accuracy on a specific benchmark</em>, which means the curve inherits that benchmark's difficulty distribution — the <span class="eq-inline">&pi;(p)</span> from Figure 2. Change the mix of easy and hard problems and both the level and the slope move. This is why published inference-scaling exponents do not transfer between MATH, GSM8K and SWE-bench, and why "our method scales better" claims should always be read alongside the difficulty stratification. Wu et al. themselves split MATH into easy and hard subsets precisely because the aggregate hides the mechanism.</p>
+        </div>
+      </section>
+
+      <section id="budget-forcing">
+        <h2>Budget forcing</h2>
+        <p>Everything so far has treated <span class="eq-inline">C<sub>test</sub></span> as a dial you set from outside. For serial reasoning that is harder than it sounds: the model decides when to stop by emitting an end-of-thinking delimiter, and you do not control that decision. <a href="https://arxiv.org/abs/2501.19393" target="_blank" rel="noopener noreferrer">Muennighoff et al.</a> proposed the most stripped-down possible fix, and it is my favourite result in this literature because it is so nearly trivial.</p>
+        <p><b>Budget forcing</b> has two halves. To spend <em>less</em>: if the model exceeds a token limit, force-append the end-of-thinking delimiter, which makes it transition to producing an answer. To spend <em>more</em>: suppress that delimiter when the model tries to emit it, and append the word "Wait" instead. The model, having been handed a continuation where it expected a terminator, goes back and re-examines its work.</p>
+        <p>That is the entire mechanism. No new training objective, no verifier, no search. Applied to a 32B model supervise-finetuned on just 1,000 curated questions and reasoning traces, it produced a model that exceeded o1-preview on competition maths by up to 27%, and extending thinking with budget forcing moved AIME24 from 50% to 57% — <em>past</em> what the same model achieved without the intervention.</p>
+        <p>The word choice is not incidental. The paper's own ablation found "Wait" outperformed neutral fillers like "Hmm", which suggests the mechanism is less "more compute" and more "an injected prompt to doubt". That is a meaningfully different claim, and one the community has not fully digested: budget forcing may be a lightweight <em>semantic</em> intervention wearing a compute-scaling costume.</p>
+      </section>
+
+      <div class="article-panel" data-reel="fig5" role="img" aria-label="An animated token stream showing budget forcing. An easy question terminates early. A hard question tries to terminate with a wrong answer, the end-of-thinking delimiter is suppressed, the word Wait is injected, and the model re-examines and corrects itself.">
+        <p class="fig-title">Figure 5 &middot; Budget forcing, token by token</p>
+        <p class="fig-sub">Two questions, one model. The camera follows the token stream and stops where the delimiter gets suppressed.</p>
+        <div class="animation-stage" id="fig5-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 5 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 72</span>
+        </div>
+        <div class="animation-options" role="group" aria-label="Figure 5 mode">
+          <span class="options-label">Mode</span>
+          <button type="button" data-opt="mode" data-val="natural" aria-pressed="true">Natural stop</button>
+          <button type="button" data-opt="mode" data-val="forced" aria-pressed="false">Forced extension</button>
+          <button type="button" data-opt="mode" data-val="capped" aria-pressed="false">Forced cap</button>
+        </div>
+      </div>
+      <p class="figcap"><b>The counting example is the canonical one</b> from the s1 paper: the model asserts a wrong count, tries to stop, and — given one more token of runway — enumerates the letters and corrects itself. Switch to <em>Forced cap</em> to see the other half of the mechanism, where the delimiter is injected early and the model is made to answer from an unfinished trace.</p>
+
+      <div class="nuance">
+        <h4>Nuance 08 &middot; Budget forcing does not scale indefinitely</h4>
+        <p class="said"><b>Often said:</b> you can just keep appending "Wait" and keep gaining accuracy.</p>
+        <p class="actually"><b>Actually:</b> the reported gains flatten and then reverse. The paper measures three separate properties — <em>control</em> (does the knob actually change token count), <em>scaling</em> (does accuracy rise with the knob), and <em>performance</em> (the peak reached) — precisely because a method can succeed at the first and fail at the second. Suppressing a terminator repeatedly eventually produces repetition loops and drift rather than deliberation. The knob has a working range, and finding it is an empirical exercise per model.</p>
+      </div>
+      <section id="more-can-hurt">
+        <h2>When more thinking hurts</h2>
+        <p>Every curve so far has been monotone or asymptotic. Neither is guaranteed. There is now a substantial body of work showing that extending reasoning can make accuracy <em>fall</em>, and understanding why is important because the failure is not random noise — it is structured.</p>
+        <p><a href="https://arxiv.org/abs/2507.14417" target="_blank" rel="noopener noreferrer">Gema et al.</a> constructed tasks where longer reasoning reliably degrades performance and catalogued five distinct failure modes. Claude models became progressively more distracted by irrelevant information in the prompt as they reasoned longer. OpenAI o-series models resisted distractors but overfitted to the framing of the problem. On tasks with spurious features, extended reasoning pushed models away from a reasonable prior and towards plausible-but-wrong correlations — though few-shot examples largely fixed that one. All models struggled to hold focus on complex deductive constraint tracking. And extended reasoning amplified some concerning behaviours, with Claude Sonnet 4 showing increased expressions of self-preservation.</p>
+        <p>The reported magnitudes are not small. In their evaluation, Claude Opus 4 dropped from near 100% to roughly 85&ndash;90% as reasoning extended, and DeepSeek R1 fell from 70% to 30% in a natural-overthinking setup with five distractors.</p>
+        <p>Independently, <a href="https://arxiv.org/abs/2412.21187" target="_blank" rel="noopener noreferrer">Chen et al.</a> documented the complementary waste: o1-like models burning enormous token counts on trivial arithmetic with essentially no accuracy benefit, an inference budget uncalibrated to actual question difficulty. And the broad empirical picture across several groups is an inverted-U — accuracy rises with reasoning length, peaks, and declines — with the peak arriving <em>earlier</em> on easier problems.</p>
+
+        <h3>A mechanism, not a mystery</h3>
+        <p>Here is a way to think about it that I find clarifying. Treat the reasoning trace as a random walk in the space of candidate conclusions. At each step the model can move towards the correct region or towards an attractor built out of whatever is salient in the prompt — a distractor number, a familiar-looking problem template, a spurious feature. Early steps have high drift towards correct, because the model is applying the skill it actually has. Later steps have lower drift, because the easy structure is exhausted, and the walk is increasingly governed by whatever attractors are nearby.</p>
+        <p>Under that view, accuracy at length <var>T</var> is the probability of being in the correct region at time <var>T</var>, and there is no reason for that to be monotone. If the correct region is not absorbing — if the model can revisit and revise a correct conclusion — then extra steps are extra opportunities to leave it. This predicts exactly what the empirical work finds: <b>negative flips</b>, where a model that had the right answer at step <var>j</var> abandons it by step <var>j+m</var>, and that easy problems cross into the harmful zone sooner because they reach the correct region sooner and then have longer to wander.</p>
+        <p>The theoretical side agrees on the precondition. <a href="https://arxiv.org/abs/2510.03605" target="_blank" rel="noopener noreferrer">Javanmard, Mirzasoleiman and Mirrokni</a>, analysing test-time scaling for transformers trained on an in-context linear-regression task, prove that if the skills required by a downstream task are not sufficiently represented in the training data, increasing test-time compute can actively harm performance. Extra deliberation amplifies whatever procedure the model has. If the procedure is right, amplification is what you want; if it is subtly wrong, you are compounding an error with interest.</p>
+        <div class="keypoint">A compact statement of the whole hazard: <b>test-time compute multiplies capability, it does not add it.</b> Multiplying by something less than one makes the number smaller.</div>
+      </section>
+
+      <div class="article-panel" data-reel="fig6" role="img" aria-label="An animated inverted-U curve of accuracy against reasoning length, alongside a belief-space walk where a trajectory reaches the correct region, then drifts towards a distractor attractor, with negative flip events marked.">
+        <p class="fig-title">Figure 6 &middot; The inverted U, and the walk that produces it</p>
+        <p class="fig-sub">Left: individual trajectories drifting between a correct region and a distractor attractor. Right: the accuracy curve those trajectories add up to.</p>
+        <div class="animation-stage" id="fig6-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 6 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 68</span>
+        </div>
+        <div class="animation-options" role="group" aria-label="Figure 6 conditions">
+          <span class="options-label">Distractor pull</span>
+          <button type="button" data-opt="pull" data-val="0" aria-pressed="false">None</button>
+          <button type="button" data-opt="pull" data-val="0.5" aria-pressed="true">Moderate</button>
+          <button type="button" data-opt="pull" data-val="1" aria-pressed="false">Strong</button>
+          <span class="options-label" style="margin-left:10px">Problem</span>
+          <button type="button" data-opt="hard" data-val="0" aria-pressed="true">Easy</button>
+          <button type="button" data-opt="hard" data-val="1" aria-pressed="false">Hard</button>
+        </div>
+      </div>
+      <p class="figcap"><b>Set distractor pull to none</b> and the curve is monotone and saturating — the familiar picture. Turn the pull up and the peak appears, then moves <em>left</em> as the problem gets easier, because easy problems arrive at the answer early and then have more remaining budget in which to talk themselves out of it. Red ticks mark negative flips.</p>
+
+      <section id="adaptive">
+        <h2>Allocate, don't extend</h2>
+        <p>Put the pieces together and the conclusion is forced. Uniform budgets are wasteful in three separate ways at once: easy problems are solved in the first few samples and everything after is pure cost; hopeless problems consume budget forever and return nothing; and over-long traces on easy problems actively hurt. The frontier of this field is no longer "think longer". It is <em>allocate</em>.</p>
+        <p>The optimisation is a clean concave knapsack, and the solution is water-filling. Let problem <var>i</var> receive <span class="eq-inline">b<sub>i</sub></span> units of compute and let <span class="eq-inline">a<sub>i</sub>(b)</span> be its expected accuracy, concave and increasing. Maximise the total subject to a budget:</p>
+        <div class="eq"><span class="lhs">max &sum;<sub>i</sub> a<sub>i</sub>(b<sub>i</sub>) &nbsp;&nbsp;s.t.&nbsp;&nbsp; &sum;<sub>i</sub> b<sub>i</sub> = B, &nbsp; b<sub>i</sub> &ge; 0</span></div>
+        <div class="eq"><span class="lhs">&part;/&part;b<sub>i</sub> [ &sum; a<sub>j</sub>(b<sub>j</sub>) &minus; &lambda;(&sum; b<sub>j</sub> &minus; B) ] = 0 &nbsp;&rArr;&nbsp; a<sub>i</sub>&prime;(b<sub>i</sub>) = &lambda; for all funded i</span><span class="note">At the optimum every funded problem has the same marginal return. &lambda; is the shadow price of a unit of inference compute.</span></div>
+        <p>Now substitute the coverage model. With <span class="eq-inline">a<sub>i</sub>(b) = 1 &minus; (1&minus;p<sub>i</sub>)<sup>b</sup></span>, the marginal return is <span class="eq-inline">a<sub>i</sub>&prime;(b) = (1&minus;p<sub>i</sub>)<sup>b</sup> ln(1/(1&minus;p<sub>i</sub>))</span>. Setting that equal to <span class="eq-inline">&lambda;</span> and using <span class="eq-inline">ln(1/(1&minus;p)) &asymp; p</span> for small <var>p</var>:</p>
+        <div class="eq"><span class="lhs">b<sub>i</sub><sup>&#42;</sup> &asymp; (1/p<sub>i</sub>) &middot; ln(p<sub>i</sub> / &lambda;)&nbsp;&nbsp;if p<sub>i</sub> &gt; &lambda;,&nbsp;&nbsp; else 0</span><span class="note">The optimal per-problem sample count. Three regimes fall straight out of it.</span></div>
+        <p>Read the three regimes off the formula:</p>
+        <ul class="plain">
+          <li><b>Easy</b> (<span class="eq-inline">p</span> near 1): the <span class="eq-inline">1/p</span> prefactor is small. A handful of samples, then stop. <span class="eq-inline">C<sub>test</sub></span> &darr;</li>
+          <li><b>Hard but solvable</b> (<span class="eq-inline">p</span> small but above threshold): <span class="eq-inline">1/p</span> is large and the log is positive. This is where the compute goes. <span class="eq-inline">C<sub>test</sub></span> &uarr;</li>
+          <li><b>Effectively unsolvable</b> (<span class="eq-inline">p &le; &lambda;</span>): allocation is exactly zero. The formula <em>refuses</em> to spend, without needing a special case. <span class="eq-inline">C<sub>test</sub></span> &#8603; &infin;</li>
+        </ul>
+        <p>There is a pleasing extra fact hiding in there. Differentiate <span class="eq-inline">b<sup>&#42;</sup>(p)</span> and you find the maximum at <span class="eq-inline">p = e&lambda;</span>, with peak allocation <span class="eq-inline">b<sup>&#42;</sup><sub>max</sub> = 1/(e&lambda;)</span>. <b>The problems that deserve the most compute are the ones sitting just above the give-up threshold</b> — roughly 2.7&times; the shadow price. Not the hardest problems, and not the ones you are most likely to solve. The ones on the edge.</p>
+        <p>This is the theory behind a line of empirical work. <a href="https://arxiv.org/abs/2410.04707" target="_blank" rel="noopener noreferrer">Damani et al.</a> learn a model that predicts the distribution of rewards given an input and a budget, then allocate accordingly; across programming, mathematics and dialogue they match non-adaptive quality using up to 50% less compute, or improve quality by up to 10% at fixed budget. In their routing setup they match the expensive decoder's performance while calling it only 50&ndash;75% of the time. Snell et al.'s 4&times; efficiency gain over best-of-N is the same idea arrived at from a different direction: their compute-optimal strategy is exactly a per-prompt allocation rule.</p>
+        <div class="nuance">
+          <h4>Nuance 09 &middot; You do not know p<sub>i</sub></h4>
+          <p class="said"><b>Often said:</b> just allocate compute according to problem difficulty.</p>
+          <p class="actually"><b>Actually:</b> the water-filling solution requires <span class="eq-inline">p<sub>i</sub></span>, which is exactly the thing you are trying to find out. Every practical system substitutes an estimate — a learned difficulty predictor, the model's own confidence, agreement among the first few samples, a bandit that explores allocations online. The gap between the oracle allocation and the achievable one is where all the remaining engineering lives, and it is why difficulty estimation is now as much a research area as generation. It also means allocation is <em>sequential</em>: you spend a little, observe agreement, and re-estimate, rather than committing a budget up front.</p>
+        </div>
+      </section>
+
+      <div class="article-panel" data-reel="fig7" role="img" aria-label="An animated water-filling allocation. Twenty problems sorted by success probability receive compute one unit at a time, always going to the problem with the highest marginal return, while a descending threshold line shows the shadow price and a counter compares expected solved counts against uniform allocation.">
+        <p class="fig-title">Figure 7 &middot; Water-filling a test-time budget</p>
+        <p class="fig-sub">Every unit of compute goes to whichever problem currently has the highest marginal return. Watch the threshold &lambda; descend and the allocation profile take shape.</p>
+        <div class="animation-stage" id="fig7-stage" aria-live="polite"></div>
+        <div class="animation-controls" role="group" aria-label="Figure 7 animation controls">
+          <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+          <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+          <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+          <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+          <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+          <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+          <span class="animation-status">Frame 01 / 76</span>
+        </div>
+        <div class="animation-options" role="group" aria-label="Figure 7 budget">
+          <span class="options-label">Budget B</span>
+          <button type="button" data-opt="budget" data-val="60" aria-pressed="false">60</button>
+          <button type="button" data-opt="budget" data-val="150" aria-pressed="true">150</button>
+          <button type="button" data-opt="budget" data-val="400" aria-pressed="false">400</button>
+          <span class="options-label" style="margin-left:10px">Compare</span>
+          <button type="button" data-opt="uniform" data-val="1" aria-pressed="true">Show uniform</button>
+          <button type="button" data-opt="uniform" data-val="0" aria-pressed="false">Hide</button>
+        </div>
+      </div>
+      <p class="figcap"><b>The final shape is the point.</b> Allocation is not monotone in difficulty — it rises, peaks just above the give-up threshold, and collapses to zero. The two rightmost problems never receive a single sample at any budget shown, and the leftmost stop receiving them almost immediately. The counter shows the expected number solved against a uniform split of the same budget.</p>
+
+      <section id="carry-away">
+        <h2>What to carry away</h2>
+        <p>Six things, in rough order of how often I see them missed.</p>
+        <p><b>One.</b> Coverage and accuracy are different quantities with different scaling behaviour. Coverage keeps rising for a very long time; the ability to identify which sample is correct usually does not. Any claim about test-time scaling should say which of the two it measured. pass@k is a capability measurement, not a deployable metric, unless you have a verifier that makes them equal.</p>
+        <p><b>Two.</b> The smooth population-level scaling curve is produced by heterogeneity in problem difficulty, not by any single problem scaling smoothly. This is why the curve's exponent is a property of your benchmark as much as of your model, and why difficulty stratification should be table stakes in reporting.</p>
+        <p><b>Three.</b> Verification is the binding constraint. With a perfect verifier, sampling scales beautifully; with a false-positive rate <span class="eq-inline">&phi;</span>, accuracy is capped at <span class="eq-inline">p/(p + (1&minus;p)&phi;)</span> regardless of budget, and the cap tightens as problems get harder. Spending on a better verifier usually dominates spending on more samples.</p>
+        <p><b>Four.</b> Serial and parallel compute are not interchangeable. They cost the same in weight FLOPs and KV bytes but differ by a factor of <var>K</var> in attention FLOPs and in latency, and they fail differently — width gives you candidates without an opinion, depth gives you an opinion without alternatives.</p>
+        <p><b>Five.</b> More thinking can hurt, for reasons that are mechanistic rather than accidental: distractor capture, framing overfit, drift away from a correct conclusion already reached, and amplification of procedures the training data never properly installed. The inverted U is real, and its peak is <em>earlier</em> for easier problems.</p>
+        <p><b>Six.</b> The interesting frontier is allocation, not extension. The optimal budget is per-prompt, it goes to zero for problems the model cannot solve, and it peaks just above that give-up threshold. Every system that does this well is really solving a difficulty-estimation problem in disguise.</p>
+        <p>And one open question I do not think anyone has answered. All the allocation theory above assumes accuracy is concave in compute, which is what makes water-filling correct. The inverse-scaling results say accuracy is sometimes <em>not</em> monotone, let alone concave. A genuinely correct allocation theory for the regime where extra compute can subtract value has not, as far as I can tell, been written down. That gap is where I would look next.</p>
+      </section>
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>The training-time baseline</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2001.08361" target="_blank" rel="noopener noreferrer">Scaling Laws for Neural Language Models</a> &middot; Kaplan, McCandlish, Henighan, Brown, Chess, Child, Gray, Radford, Wu, Amodei, 2020</li>
+            <li><a href="https://arxiv.org/abs/2203.15556" target="_blank" rel="noopener noreferrer">Training Compute-Optimal Large Language Models</a> &middot; Hoffmann, Borgeaud, Mensch et al., 2022</li>
+            <li><a href="https://openai.com/index/learning-to-reason-with-llms/" target="_blank" rel="noopener noreferrer">Learning to Reason with LLMs</a> &middot; OpenAI, 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener noreferrer">DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning</a> &middot; DeepSeek-AI, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Repeated sampling and coverage</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2407.21787" target="_blank" rel="noopener noreferrer">Large Language Monkeys: Scaling Inference Compute with Repeated Sampling</a> &middot; Brown, Juravsky, Ehrlich, Clark, Le, R&eacute;, Mirhoseini, 2024</li>
+            <li><a href="https://arxiv.org/abs/2201.11903" target="_blank" rel="noopener noreferrer">Chain-of-Thought Prompting Elicits Reasoning in Large Language Models</a> &middot; Wei, Wang, Schuurmans, Bosma, Ichter, Xia, Chi, Le, Zhou, 2022</li>
+            <li><a href="https://arxiv.org/abs/2203.11171" target="_blank" rel="noopener noreferrer">Self-Consistency Improves Chain of Thought Reasoning in Language Models</a> &middot; Wang, Wei, Schuurmans, Le, Chi, Narang, Chowdhery, Zhou, 2023</li>
+            <li><a href="https://arxiv.org/abs/2411.19477" target="_blank" rel="noopener noreferrer">A Simple and Provable Scaling Law for the Test-Time Compute of Large Language Models</a> &middot; Chen, Pan, Li, Ding, Zhou, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Verification, selection and their limits</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2110.14168" target="_blank" rel="noopener noreferrer">Training Verifiers to Solve Math Word Problems</a> &middot; Cobbe, Kosaraju, Bavarian et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2305.20050" target="_blank" rel="noopener noreferrer">Let's Verify Step by Step</a> &middot; Lightman, Kosaraju, Burda, Edwards, Baker, Lee, Leike, Schulman, Sutskever, Cobbe, 2023</li>
+            <li><a href="https://arxiv.org/abs/2411.17501" target="_blank" rel="noopener noreferrer">Inference Scaling fLaws: The Limits of LLM Resampling with Imperfect Verifiers</a> &middot; Stroebl, Kapoor, Narayanan, 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.00271" target="_blank" rel="noopener noreferrer">Scaling Flaws of Verifier-Guided Search in Mathematical Reasoning</a> &middot; Yu, Li, Wang, 2025</li>
+            <li><a href="https://arxiv.org/abs/2502.01839" target="_blank" rel="noopener noreferrer">Sample, Scrutinize and Scale: Effective Inference-Time Search by Scaling Verification</a> &middot; Zhao, Awasthi, Gollapudi, 2025</li>
+            <li><a href="https://arxiv.org/abs/2210.10760" target="_blank" rel="noopener noreferrer">Scaling Laws for Reward Model Overoptimization</a> &middot; Gao, Schulman, Hilton, 2022</li>
+            <li><a href="https://arxiv.org/abs/2310.01798" target="_blank" rel="noopener noreferrer">Large Language Models Cannot Self-Correct Reasoning Yet</a> &middot; Huang, Chen, Mishra, Zheng, Yu, Song, Zhou, 2023</li>
+            <li><a href="https://arxiv.org/abs/2402.08115" target="_blank" rel="noopener noreferrer">On the Self-Verification Limitations of Large Language Models on Reasoning and Planning Tasks</a> &middot; Stechly, Valmeekam, Kambhampati, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Compute-optimal inference</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2408.03314" target="_blank" rel="noopener noreferrer">Scaling LLM Test-Time Compute Optimally can be More Effective than Scaling Model Parameters</a> &middot; Snell, Lee, Xu, Kumar, 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.00724" target="_blank" rel="noopener noreferrer">Inference Scaling Laws: An Empirical Analysis of Compute-Optimal Inference for Problem-Solving with Language Models</a> &middot; Wu, Sun, Li, Welleck, Yang, 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.12118" target="_blank" rel="noopener noreferrer">Scaling Test-Time Compute Without Verification or RL is Suboptimal</a> &middot; Setlur, Rajaraman, Levine, Kumar, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Controlling the budget</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2501.19393" target="_blank" rel="noopener noreferrer">s1: Simple Test-Time Scaling</a> &middot; Muennighoff, Yang, Shi, Li, Fei-Fei, Hajishirzi, Zettlemoyer, Liang, Cand&egrave;s, Hashimoto, 2025</li>
+            <li><a href="https://arxiv.org/abs/2305.10601" target="_blank" rel="noopener noreferrer">Tree of Thoughts: Deliberate Problem Solving with Large Language Models</a> &middot; Yao, Yu, Zhao, Shafran, Griffiths, Cao, Narasimhan, 2023</li>
+            <li><a href="https://arxiv.org/abs/2303.17651" target="_blank" rel="noopener noreferrer">Self-Refine: Iterative Refinement with Self-Feedback</a> &middot; Madaan, Tandon, Gupta et al., 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>When more compute hurts</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2507.14417" target="_blank" rel="noopener noreferrer">Inverse Scaling in Test-Time Compute</a> &middot; Gema, H&auml;gele, Chen, Arditi, Goldman-Wetzler, Fraser-Taliente, Sleight, Petrini, Michael, Alex, Minervini, Chen, Benton, Perez, 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.21187" target="_blank" rel="noopener noreferrer">Do NOT Think That Much for 2+3=? On the Overthinking of o1-Like LLMs</a> &middot; Chen, Xu, Liang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2510.03605" target="_blank" rel="noopener noreferrer">Understanding the Role of Training Data in Test-Time Scaling</a> &middot; Javanmard, Mirzasoleiman, Mirrokni, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Adaptive allocation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2410.04707" target="_blank" rel="noopener noreferrer">Learning How Hard to Think: Input-Adaptive Allocation of LM Computation</a> &middot; Damani, Shenfeld, Peng, Bobu, Andreas, 2024</li>
+            <li><a href="https://arxiv.org/abs/2504.01005" target="_blank" rel="noopener noreferrer">When to Solve, When to Verify: Compute-Optimal Problem Solving and Generative Verification for LLM Reasoning</a> &middot; Singhi, Bansal, Hosseini, Grover, Chang, Rohrbach, Rohrbach, 2025</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>How Models Improve Without Changing Their Weights</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/">https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026testtimescaling,
+  author       = {Srinivasan, Anirudh},
+  title        = {How Models Improve Without Changing Their Weights},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/},
+  note         = {Published September 4, 2026; updated September 4, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; How Models Improve Without Changing Their Weights</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+    (function () {
+      "use strict";
+      var NS = "http://www.w3.org/2000/svg";
+      var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+      var C = {
+        ink: "#dfe7ec", dim: "#8b979f", faint: "#5d6a72", grid: "#212a31", rule: "#333f48",
+        green: "#3fd1a0", amber: "#e0b95c", blue: "#5ab2e8", red: "#e2725f", violet: "#b28ce0",
+        panel: "#0f1317", panel2: "#141b21"
+      };
+
+      /* ---------- tiny svg helpers ---------- */
+      function E(tag, a, parent) {
+        var n = document.createElementNS(NS, tag);
+        if (a) for (var k in a) if (a[k] !== null && a[k] !== undefined) n.setAttribute(k, a[k]);
+        if (parent) parent.appendChild(n);
+        return n;
+      }
+      function T(parent, x, y, s, a) {
+        var t = E("text", Object.assign({ x: x, y: y, fill: C.ink, "font-size": 11 }, a || {}), parent);
+        t.textContent = s;
+        return t;
+      }
+      function L(parent, x1, y1, x2, y2, a) {
+        return E("line", Object.assign({ x1: x1, y1: y1, x2: x2, y2: y2, stroke: C.rule, "stroke-width": 1 }, a || {}), parent);
+      }
+      function R(parent, x, y, w, h, a) {
+        return E("rect", Object.assign({ x: x, y: y, width: Math.max(0, w), height: Math.max(0, h) }, a || {}), parent);
+      }
+      function PATH(parent, d, a) {
+        return E("path", Object.assign({ d: d, fill: "none", stroke: C.ink, "stroke-width": 1.5 }, a || {}), parent);
+      }
+      function poly(pts) {
+        var d = "", i;
+        for (i = 0; i < pts.length; i++) d += (i ? "L" : "M") + pts[i][0].toFixed(2) + " " + pts[i][1].toFixed(2);
+        return d;
+      }
+      function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function ease(t) { t = clamp(t, 0, 1); return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+      function pad2(n) { return (n < 10 ? "0" : "") + n; }
+      function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      function erf(x) { var s = x < 0 ? -1 : 1; x = Math.abs(x); var t = 1 / (1 + 0.3275911 * x); var y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return s * y; }
+      function Phi(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+      function fmtK(k) { return k >= 1000 ? (k / 1000).toFixed(k >= 10000 ? 0 : 1) + "k" : String(Math.round(k)); }
+      function pct(v) { return (100 * v).toFixed(1) + "%"; }
+
+      /* frame: returns a fresh svg root sized to a viewBox, with a camera applied */
+      function frame(stage, vb, cam) {
+        stage.__svg && stage.__svg.parentNode && stage.__svg.parentNode.removeChild(stage.__svg);
+        var box = cam || vb;
+        var svg = E("svg", {
+          viewBox: box.join(" "),
+          preserveAspectRatio: "xMidYMid meet",
+          "aria-hidden": "true",
+          role: "presentation",
+          style: "font-family:'IBM Plex Mono',ui-monospace,monospace;overflow:visible;aspect-ratio:" + (vb[2] / vb[3])
+        });
+        stage.insertBefore(svg, stage.firstChild);
+        stage.__svg = svg;
+        return svg;
+      }
+      function camLerp(full, target, t) {
+        if (REDUCED || !target) return full.slice();
+        var e = ease(t);
+        return [lerp(full[0], target[0], e), lerp(full[1], target[1], e), lerp(full[2], target[2], e), lerp(full[3], target[3], e)];
+      }
+      function camBetween(a, b, t) {
+        if (REDUCED) return a.slice();
+        var e = ease(t);
+        return [lerp(a[0], b[0], e), lerp(a[1], b[1], e), lerp(a[2], b[2], e), lerp(a[3], b[3], e)];
+      }
+
+      /* ---------- the shared reel engine ---------- */
+      function Reel(id, spec) {
+        var panel = document.querySelector('[data-reel="' + id + '"]');
+        if (!panel) return;
+        var stage = panel.querySelector(".animation-stage");
+        var status = panel.querySelector(".animation-status");
+        var bPrev = panel.querySelector('[data-action="previous"]');
+        var bPlay = panel.querySelector('[data-action="play-pause"]');
+        var bNext = panel.querySelector('[data-action="next"]');
+        var speeds = panel.querySelectorAll("[data-speed]");
+        var opts = panel.querySelectorAll("[data-opt]");
+
+        var cap = document.createElement("p");
+        cap.className = "stage-caption";
+        stage.appendChild(cap);
+
+        var st = { i: 0, playing: false, speed: 1, opt: {}, visible: false, manual: false };
+        Object.keys(spec.opt || {}).forEach(function (k) { st.opt[k] = spec.opt[k]; });
+        var timer = null, lastCap = "";
+
+        function render() {
+          spec.render(stage, st.i, st.opt);
+          var c = spec.caption ? spec.caption(st.i, st.opt) : "";
+          if (c !== lastCap) { cap.textContent = c; lastCap = c; }
+          var lb = spec.label ? spec.label(st.i, st.opt) : "";
+          status.textContent = "Frame " + pad2(st.i + 1) + " / " + spec.total + (lb ? "  ·  " + lb : "");
+        }
+        function go(i) { st.i = ((i % spec.total) + spec.total) % spec.total; render(); }
+        function tick() { go(st.i + 1); }
+        function schedule() {
+          if (timer) { clearInterval(timer); timer = null; }
+          if (st.playing && !REDUCED) timer = setInterval(tick, Math.max(45, (spec.ms || 110) / st.speed));
+        }
+        function setPlaying(p) {
+          st.playing = p;
+          bPlay.textContent = p ? "Pause" : "Play";
+          bPlay.setAttribute("aria-pressed", p ? "true" : "false");
+          bPlay.setAttribute("aria-label", p ? "Pause animation" : "Play animation");
+          schedule();
+        }
+        function pauseForInteraction() { if (st.playing) setPlaying(false); st.manual = true; }
+
+        bPrev.addEventListener("click", function () { pauseForInteraction(); go(st.i - 1); });
+        bNext.addEventListener("click", function () { pauseForInteraction(); go(st.i + 1); });
+        bPlay.addEventListener("click", function () { st.manual = false; setPlaying(!st.playing); });
+        Array.prototype.forEach.call(speeds, function (b) {
+          b.addEventListener("click", function () {
+            st.speed = parseFloat(b.getAttribute("data-speed"));
+            Array.prototype.forEach.call(speeds, function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+            schedule(); /* position is preserved: st.i untouched */
+          });
+        });
+        Array.prototype.forEach.call(opts, function (b) {
+          var key = b.getAttribute("data-opt");
+          b.addEventListener("click", function () {
+            st.opt[key] = parseFloat(b.getAttribute("data-val"));
+            if (isNaN(st.opt[key])) st.opt[key] = b.getAttribute("data-val");
+            Array.prototype.forEach.call(opts, function (o) {
+              if (o.getAttribute("data-opt") === key) o.setAttribute("aria-pressed", o === b ? "true" : "false");
+            });
+            render();
+          });
+        });
+        Array.prototype.forEach.call(opts, function (b) {
+          var key = b.getAttribute("data-opt");
+          if (b.getAttribute("aria-pressed") === "true") {
+            var v = parseFloat(b.getAttribute("data-val"));
+            st.opt[key] = isNaN(v) ? b.getAttribute("data-val") : v;
+          }
+        });
+
+        if (REDUCED) {
+          bPlay.textContent = "Play";
+          bPlay.setAttribute("aria-pressed", "false");
+          bPlay.disabled = true;
+          bPlay.title = "Autoplay disabled: reduced-motion preference detected";
+        }
+
+        render();
+
+        if (!REDUCED && "IntersectionObserver" in window) {
+          var io = new IntersectionObserver(function (es) {
+            es.forEach(function (e) {
+              st.visible = e.isIntersecting;
+              if (e.isIntersecting && !st.manual && !st.playing) setPlaying(true);
+              else if (!e.isIntersecting && st.playing) { st.playing = false; bPlay.textContent = "Play"; bPlay.setAttribute("aria-pressed", "false"); schedule(); }
+            });
+          }, { threshold: 0.35 });
+          io.observe(panel);
+        }
+      }
+
+      /* ==================================================================
+         FIGURE 1 — the width/depth plane
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 400];
+        var X0 = 92, X1 = 686, Y0 = 44, Y1 = 322;
+        function sx(t) { return X0 + (Math.log10(t) / 4.3) * (X1 - X0); }
+        function sy(k) { return Y1 - (Math.log10(k) / 3.1) * (Y1 - Y0); }
+
+        var stages = [
+          { key: "A0", tag: "Baseline", name: "Single pass", cap: "One trajectory, a few hundred tokens, no selection. This is the origin of the plane — everything else is a departure from it.", cam: [sx(60) - 40, sy(1) - 60, 260, 145] },
+          { key: "A", tag: "A", name: "Longer serial reasoning", cap: "Extend one trajectory to thousands of tokens. Buys deliberation; costs latency, and attention FLOPs grow quadratically in the trace length.", cam: [sx(300), sy(1) - 70, 340, 190] },
+          { key: "B", tag: "B", name: "Repeated sampling", cap: "Go wide instead. K independent trajectories explore the output distribution. Cheap to parallelise; produces candidates but no opinion about which is right.", cam: [sx(120) - 60, Y0 - 8, 260, 300] },
+          { key: "C", tag: "C", name: "Self-consistency", cap: "Add the simplest selector: take the majority answer. No external machinery — and, as we will derive, a hard asymptote.", cam: [sx(120) - 80, Y0 - 8, 300, 300] },
+          { key: "D", tag: "D", name: "Best-of-N with a verifier", cap: "Score every candidate and keep the winner. The verifier's quality, not N, becomes the binding constraint.", cam: [sx(200) - 90, Y0 - 8, 330, 300] },
+          { key: "E", tag: "E", name: "Search", cap: "Branch at intermediate states and prune. Requires a scorer for partial trajectories — which is why process reward models and tree search are one topic.", cam: [sx(200) - 40, Y0 + 10, 360, 250] },
+          { key: "G", tag: "G", name: "Iterative refinement", cap: "Generate, critique, revise. Serial like A, but with an explicit critique boundary between passes — and it inherits self-verification's weaknesses.", cam: [sx(500) - 90, sy(1) - 130, 340, 210] },
+          { key: "H", tag: "H", name: "Tools", cap: "Compute spent outside the model: execution, retrieval, search. Frequently the cheapest correct answer in the whole taxonomy.", cam: [430, 250, 290, 150] }
+        ];
+        var INTRO = 7, PER = 7, TOTAL = 64;
+
+        function render(stage, i, opt) {
+          var sIdx = Math.floor((i - INTRO) / PER);
+          var p = (i - INTRO) % PER / (PER - 1);
+          var cam;
+          if (i < INTRO) cam = VB.slice();
+          else if (sIdx >= stages.length) {
+            var out = (i - (INTRO + stages.length * PER)) / Math.max(1, TOTAL - 1 - (INTRO + stages.length * PER));
+            cam = camBetween(stages[stages.length - 1].cam, VB, clamp(out, 0, 1));
+          } else {
+            var from = sIdx === 0 ? VB : stages[sIdx - 1].cam;
+            cam = camBetween(from, stages[sIdx].cam, clamp(p * 1.9, 0, 1));
+          }
+          var s = frame(stage, VB, cam);
+          var intro = clamp(i / (INTRO - 1), 0, 1);
+
+          /* iso-cost hyperbolas K*T = const */
+          [1e3, 1e4, 1e5, 1e6].forEach(function (b, bi) {
+            var pts = [], t;
+            for (t = 0; t <= 40; t++) {
+              var TT = Math.pow(10, 0.2 + t / 40 * 4.1);
+              var KK = b / TT;
+              if (KK < 1 || KK > 1400) continue;
+              pts.push([sx(TT), sy(KK)]);
+            }
+            if (pts.length > 1) PATH(s, poly(pts), { stroke: C.grid, "stroke-width": 1, "stroke-dasharray": "3 4", opacity: intro });
+            if (pts.length > 1 && bi < 4) T(s, pts[0][0] + 4, pts[0][1] - 5, fmtK(b) + " tok", { fill: C.grid, "font-size": 8.5, opacity: intro });
+          });
+
+          /* axes */
+          L(s, X0, Y1, X1, Y1, { stroke: C.rule, opacity: intro });
+          L(s, X0, Y1, X0, Y0, { stroke: C.rule, opacity: intro });
+          [1, 10, 100, 1000, 10000].forEach(function (t) {
+            L(s, sx(t), Y1, sx(t), Y1 + 5, { stroke: C.rule, opacity: intro });
+            T(s, sx(t), Y1 + 18, fmtK(t), { fill: C.faint, "font-size": 9.5, "text-anchor": "middle", opacity: intro });
+          });
+          [1, 10, 100, 1000].forEach(function (k) {
+            L(s, X0 - 5, sy(k), X0, sy(k), { stroke: C.rule, opacity: intro });
+            T(s, X0 - 9, sy(k) + 3.5, fmtK(k), { fill: C.faint, "font-size": 9.5, "text-anchor": "end", opacity: intro });
+          });
+          T(s, (X0 + X1) / 2, Y1 + 34, "serial depth  T  (tokens per trajectory)", { fill: C.dim, "font-size": 10.5, "text-anchor": "middle", opacity: intro });
+          T(s, 26, (Y0 + Y1) / 2, "parallel width  K", { fill: C.dim, "font-size": 10.5, "text-anchor": "middle", transform: "rotate(-90 26 " + ((Y0 + Y1) / 2) + ")", opacity: intro });
+
+          function on(k) {
+            var idx = -1, j;
+            for (j = 0; j < stages.length; j++) if (stages[j].key === k) idx = j;
+            if (i < INTRO) return 0;
+            if (sIdx > idx) return 1;
+            if (sIdx < idx) return 0;
+            return clamp(p * 1.6, 0, 1);
+          }
+          function alpha(k) { var v = on(k); return v === 0 ? 0 : (sIdx === stages.map(function (q) { return q.key; }).indexOf(k) ? 1 : 0.55); }
+
+          /* A0 single pass */
+          if (on("A0") > 0) {
+            E("circle", { cx: sx(200), cy: sy(1), r: 5.5, fill: C.ink, opacity: alpha("A0") }, s);
+            T(s, sx(200) + 10, sy(1) + 4, "single pass", { fill: C.ink, "font-size": 10, opacity: alpha("A0") });
+          }
+          /* A long CoT */
+          if (on("A") > 0) {
+            var ax = sx(1000), aw = (sx(20000) - sx(1000)) * on("A");
+            R(s, ax, sy(1) - 7, aw, 14, { fill: C.blue, opacity: 0.55 * alpha("A") + 0.15 });
+            T(s, ax + 6, sy(1) - 13, "A · longer serial reasoning", { fill: C.blue, "font-size": 10, opacity: alpha("A") });
+          }
+          /* B repeated sampling */
+          if (on("B") > 0) {
+            var by = sy(1), bh = (sy(1) - sy(400)) * on("B");
+            R(s, sx(500) - 7, by - bh, 14, bh, { fill: C.green, opacity: 0.5 * alpha("B") + 0.15 });
+            T(s, sx(500) + 12, by - bh - 6, "B · repeated sampling", { fill: C.green, "font-size": 10, opacity: alpha("B") });
+          }
+          /* C self-consistency */
+          if (on("C") > 0) {
+            var cy = sy(300), cx = sx(500);
+            E("circle", { cx: cx, cy: cy, r: 13 * on("C"), fill: "none", stroke: C.amber, "stroke-width": 1.6, opacity: alpha("C") }, s);
+            T(s, cx, cy + 3.5, "vote", { fill: C.amber, "font-size": 8.5, "text-anchor": "middle", opacity: alpha("C") });
+            T(s, cx + 20, cy - 16, "C · self-consistency", { fill: C.amber, "font-size": 10, opacity: alpha("C") });
+          }
+          /* D best-of-N */
+          if (on("D") > 0) {
+            var dx = sx(900), dy0 = sy(1), dh = (sy(1) - sy(200)) * on("D"), n;
+            for (n = 0; n < 9; n++) {
+              var yy = dy0 - dh * (n / 8);
+              if (yy > dy0 - dh - 1) L(s, dx - 16, yy, dx + 16, yy, { stroke: C.violet, "stroke-width": 2, opacity: alpha("D") * (0.35 + 0.6 * (n / 8)) });
+            }
+            R(s, dx + 24, dy0 - dh - 12, 62, 20, { fill: "none", stroke: C.violet, "stroke-width": 1.2, opacity: alpha("D") });
+            T(s, dx + 55, dy0 - dh + 2, "verifier", { fill: C.violet, "font-size": 9, "text-anchor": "middle", opacity: alpha("D") });
+            T(s, dx - 16, dy0 - dh - 20, "D · best-of-N", { fill: C.violet, "font-size": 10, opacity: alpha("D") });
+          }
+          /* E search */
+          if (on("E") > 0) {
+            var ex0 = sx(400), ex1 = sx(3000), ey0 = sy(64), ey1 = sy(3), r, c2;
+            for (r = 0; r < 5; r++) for (c2 = 0; c2 < 6; c2++) {
+              var prog = (r * 6 + c2) / 29;
+              if (prog > on("E")) continue;
+              var px = lerp(ex0, ex1, c2 / 5), py = lerp(ey1, ey0, r / 4);
+              E("circle", { cx: px, cy: py, r: 3.2, fill: r < 3 ? C.amber : C.faint, opacity: alpha("E") }, s);
+              if (c2 > 0 && r < 4) L(s, lerp(ex0, ex1, (c2 - 1) / 5), lerp(ey1, ey0, Math.max(0, r - 1) / 4), px, py, { stroke: C.amber, "stroke-width": 0.7, opacity: 0.4 * alpha("E") });
+            }
+            T(s, ex0, ey1 - 12, "E · search (branch + prune)", { fill: C.amber, "font-size": 10, opacity: alpha("E") });
+          }
+          /* G refinement */
+          if (on("G") > 0) {
+            var gpts = [], gi;
+            for (gi = 0; gi <= 6; gi++) {
+              var frac = gi / 6;
+              if (frac > on("G")) break;
+              gpts.push([sx(1500 * Math.pow(2.1, gi)), sy(gi % 2 === 0 ? 2 : 3)]);
+            }
+            if (gpts.length > 1) PATH(s, poly(gpts), { stroke: C.red, "stroke-width": 1.8, opacity: alpha("G") });
+            gpts.forEach(function (q) { E("circle", { cx: q[0], cy: q[1], r: 3.4, fill: C.red, opacity: alpha("G") }, s); });
+            if (gpts.length) T(s, gpts[0][0], gpts[0][1] - 14, "G · generate → critique → revise", { fill: C.red, "font-size": 10, opacity: alpha("G") });
+          }
+          /* H tools */
+          if (on("H") > 0) {
+            R(s, 500, 336, 190, 46, { fill: C.panel2, stroke: C.green, "stroke-width": 1.2, opacity: alpha("H") });
+            T(s, 512, 354, "H · tools — compute spent", { fill: C.green, "font-size": 9.5, opacity: alpha("H") });
+            T(s, 512, 368, "outside the model entirely", { fill: C.dim, "font-size": 9.5, opacity: alpha("H") });
+          }
+
+          /* stage banner */
+          if (i >= INTRO && sIdx < stages.length && sIdx >= 0) {
+            var bx = cam[0] + cam[2] * 0.03, byy = cam[1] + cam[3] * 0.06;
+            T(s, bx, byy, stages[sIdx].tag + " · " + stages[sIdx].name, { fill: C.ink, "font-size": Math.max(9, cam[2] / 62), "font-weight": 600 });
+          }
+        }
+        Reel("fig1", {
+          total: TOTAL, ms: 130, render: render,
+          caption: function (i) {
+            if (i < INTRO) return "Setting up the plane. Dashed hyperbolas are equal-cost contours: every point on one spends the same number of tokens.";
+            var k = Math.floor((i - INTRO) / PER);
+            return k < stages.length ? stages[k].cap : "All eight families at once. Same budget, radically different shapes — and radically different failure modes.";
+          },
+          label: function (i) {
+            var k = Math.floor((i - INTRO) / PER);
+            return i < INTRO ? "setting up" : (k < stages.length ? stages[k].tag + " · " + stages[k].name : "full plane");
+          }
+        });
+      }());
+
+      /* ==================================================================
+         FIGURE 2 — where the coverage scaling law comes from
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 430], TOTAL = 78, N = 120, COLS = 12;
+        var GX = 34, GY = 78, TW = 20, TH = 22;
+        var PX0 = 352, PX1 = 700, PY0 = 62, PY1 = 190, QY0 = 244, QY1 = 372;
+
+        function pop(a, z) {
+          var ps = [], us = rng(97), i;
+          for (i = 0; i < N; i++) {
+            var u = (i + 0.5) / N;
+            var p = Math.pow(u, 1 / a) * 0.12;
+            if (i < Math.round(z * N)) p = 0;
+            ps.push(p);
+          }
+          var first = [], j;
+          for (j = 0; j < N; j++) {
+            var U = us();
+            first.push(ps[j] <= 0 ? Infinity : Math.ceil(Math.log(1 - U) / Math.log(1 - ps[j])));
+          }
+          return { p: ps, first: first };
+        }
+        function Ck(ps, k) { var s = 0, i; for (i = 0; i < ps.length; i++) s += 1 - Math.pow(1 - ps[i], k); return s / ps.length; }
+        function kAt(i) { return Math.pow(10, 4 * i / (TOTAL - 1)); }
+
+        function render(stage, i, opt) {
+          var a = opt.shape || 0.7, z = opt.zero || 0;
+          var P = pop(a, z), k = kAt(i);
+          var zoom = i > TOTAL * 0.68 && i < TOTAL * 0.92;
+          var zt = zoom ? clamp((i - TOTAL * 0.68) / (TOTAL * 0.1), 0, 1) : (i >= TOTAL * 0.92 ? 1 - clamp((i - TOTAL * 0.92) / (TOTAL * 0.08), 0, 1) : 0);
+          var cam = camLerp(VB, [PX0 - 34, QY0 - 32, 400, 180], zt);
+          var s = frame(stage, VB, cam);
+
+          /* --- tile grid --- */
+          T(s, GX, GY - 32, "120 problems, each with its own hidden p", { fill: C.dim, "font-size": 10.5 });
+          T(s, GX, GY - 16, "fill = 1 − (1−p)^k        solid = actually solved", { fill: C.faint, "font-size": 9.5 });
+          var solved = 0, idx;
+          for (idx = 0; idx < N; idx++) {
+            var cx = GX + (idx % COLS) * TW, cy = GY + Math.floor(idx / COLS) * TH;
+            var cov = 1 - Math.pow(1 - P.p[idx], k);
+            var done = P.first[idx] <= k;
+            if (done) solved++;
+            R(s, cx, cy, TW - 3, TH - 4, { fill: C.panel2, stroke: C.grid, "stroke-width": 0.8 });
+            R(s, cx, cy + (TH - 4) * (1 - cov), TW - 3, (TH - 4) * cov, { fill: done ? C.green : C.blue, opacity: done ? 0.85 : 0.34 });
+            if (done) PATH(s, "M" + (cx + 4.5) + " " + (cy + 9.5) + "L" + (cx + 7.5) + " " + (cy + 13) + "L" + (cx + 13) + " " + (cy + 5.5), { stroke: C.panel, "stroke-width": 1.7 });
+            if (P.p[idx] === 0) L(s, cx + 3, cy + 3, cx + TW - 6, cy + TH - 7, { stroke: C.red, "stroke-width": 1.1, opacity: 0.8 });
+          }
+          T(s, GX, GY + 10 * TH + 16, "solved " + solved + " / " + N + "   at k = " + fmtK(k), { fill: C.green, "font-size": 11 });
+          if (z > 0) T(s, GX, GY + 10 * TH + 32, "✗ = p is exactly zero: unreachable at any budget", { fill: C.red, "font-size": 9.5 });
+
+          /* --- coverage plot --- */
+          function ax(v) { return PX0 + (Math.log10(v) / 4) * (PX1 - PX0); }
+          function ay(v) { return PY1 - v * (PY1 - PY0); }
+          R(s, PX0, PY0, PX1 - PX0, PY1 - PY0, { fill: "none", stroke: C.grid });
+          [0, 0.5, 1].forEach(function (v) {
+            L(s, PX0, ay(v), PX1, ay(v), { stroke: C.grid, "stroke-dasharray": "2 4" });
+            T(s, PX0 - 6, ay(v) + 3.5, (v * 100).toFixed(0) + "%", { fill: C.faint, "font-size": 9, "text-anchor": "end" });
+          });
+          [1, 10, 100, 1000, 10000].forEach(function (v) { T(s, ax(v), PY1 + 14, fmtK(v), { fill: C.faint, "font-size": 9, "text-anchor": "middle" }); });
+          T(s, PX0, PY0 - 10, "coverage C(k)  vs  sample count k  (log)", { fill: C.dim, "font-size": 10.5 });
+          var cpts = [], j, kk;
+          for (j = 0; j <= i; j++) { kk = kAt(j); cpts.push([ax(kk), ay(Ck(P.p, kk))]); }
+          if (cpts.length > 1) PATH(s, poly(cpts), { stroke: C.green, "stroke-width": 2 });
+          if (z > 0) {
+            L(s, PX0, ay(1 - z), PX1, ay(1 - z), { stroke: C.red, "stroke-width": 1.2, "stroke-dasharray": "5 4" });
+            T(s, PX1 - 4, ay(1 - z) - 6, "ceiling 1 − π₀", { fill: C.red, "font-size": 9, "text-anchor": "end" });
+          }
+          E("circle", { cx: ax(k), cy: ay(Ck(P.p, k)), r: 3.6, fill: C.green }, s);
+
+          /* --- log-log failure plot --- */
+          function bx(v) { return PX0 + (Math.log10(v) / 4) * (PX1 - PX0); }
+          function by(v) { return QY0 + (clamp(-Math.log10(Math.max(v, 1e-4)), 0, 4) / 4) * (QY1 - QY0); }
+          R(s, PX0, QY0, PX1 - PX0, QY1 - QY0, { fill: "none", stroke: C.grid });
+          T(s, PX0, QY0 - 10, "uncovered fraction 1 − C(k)   (log–log)", { fill: C.dim, "font-size": 10.5 });
+          [0, 1, 2, 3].forEach(function (d) {
+            L(s, PX0, by(Math.pow(10, -d)), PX1, by(Math.pow(10, -d)), { stroke: C.grid, "stroke-dasharray": "2 4" });
+            T(s, PX0 - 6, by(Math.pow(10, -d)) + 3.5, "1e−" + d, { fill: C.faint, "font-size": 8.5, "text-anchor": "end" });
+          });
+          /* reference slope, pinned to the straight part of the tail rather than to k = 1 */
+          var anchor = 1 - Ck(P.p, 100);
+          var ref = [[bx(30), by(anchor * Math.pow(0.3, -a))], [bx(9500), by(anchor * Math.pow(95, -a))]];
+          PATH(s, poly(ref), { stroke: C.amber, "stroke-width": 1.1, "stroke-dasharray": "6 4", opacity: 0.85 });
+          T(s, bx(9500), by(anchor * Math.pow(95, -a)) - 10, "slope −a = −" + a.toFixed(2), { fill: C.amber, "font-size": 9.5, "text-anchor": "end" });
+          var fpts = [];
+          for (j = 0; j <= i; j++) { kk = kAt(j); fpts.push([bx(kk), by(1 - Ck(P.p, kk))]); }
+          if (fpts.length > 1) PATH(s, poly(fpts), { stroke: C.blue, "stroke-width": 2 });
+          E("circle", { cx: bx(k), cy: by(1 - Ck(P.p, k)), r: 3.6, fill: C.blue }, s);
+          [1, 10, 100, 1000, 10000].forEach(function (v) { T(s, bx(v), QY1 + 14, fmtK(v), { fill: C.faint, "font-size": 9, "text-anchor": "middle" }); });
+          T(s, (PX0 + PX1) / 2, QY1 + 30, "sample budget k", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+        }
+        Reel("fig2", {
+          total: TOTAL, ms: 115, opt: { shape: 0.7, zero: 0 }, render: render,
+          caption: function (i, o) {
+            var a = o.shape || 0.7;
+            if (i < 14) return "Early budget. Only the easiest tiles convert — the ones with p near 1, whose sigmoid is centred at k ≈ 1.";
+            if (i < 34) return "Mid budget. The population curve looks smooth, but every individual tile is doing something abrupt: nothing, then a sudden flip.";
+            if (i < 52) return "The straight line on the lower plot is the population power law. Its slope is exactly the shape parameter a = " + a.toFixed(2) + ", set by how much mass sits near p = 0.";
+            if (i < 70) return "Zooming the log–log panel. Each decade of extra sampling drags another slice of nearly-hopeless problems across the line — that is the entire mechanism.";
+            return (o.zero ? "With π₀ > 0 the line bends into a floor: problems with p exactly zero never convert, at any budget." : "Four decades of sampling, one straight line. Turn on π₀ to see where it stops being straight.");
+          },
+          label: function (i, o) { var a = o.shape || 0.7, P = pop(a, o.zero || 0), k = kAt(i); return "k = " + fmtK(k) + "  ·  coverage " + pct(Ck(P.p, k)); }
+        });
+      }());
+
+      /* ==================================================================
+         FIGURE 3 — generation vs selection
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 400], TOTAL = 66, N = 160;
+        var PX0 = 300, PX1 = 690, PY0 = 60, PY1 = 320;
+        var BX = 40, BY0 = 300, BW = 46;
+
+        var POP = (function () {
+          var r = rng(31), ps = [], ws = [], i;
+          for (i = 0; i < N; i++) {
+            var u = (i + 0.5) / N;
+            var p = Math.pow(u, 1 / 0.7) * 0.12;
+            var w = clamp(p * (0.30 + 1.45 * r()), 0.004, 0.9);
+            ps.push(p); ws.push(w);
+          }
+          return { p: ps, w: ws };
+        }());
+        function kAt(i) { return Math.pow(10, 3 * i / (TOTAL - 1)); }
+        function cov(k) { var s = 0, i; for (i = 0; i < N; i++) s += 1 - Math.pow(1 - POP.p[i], k); return s / N; }
+        function mv(k) {
+          /* vote resolves between the correct answer and the dominant wrong one,
+             but only once at least one of them has been sampled. At k = 1 this
+             reduces to the single-sample accuracy; as k grows it converges to
+             1{p > w}, which is the fixed asymptote the article derives. */
+          var s = 0, i;
+          for (i = 0; i < N; i++) {
+            var p = POP.p[i], w = POP.w[i], m = p + w;
+            var z = (p - w) * Math.sqrt(k) / Math.sqrt(Math.max(m, 1e-3));
+            s += (1 - Math.pow(1 - m, k)) * Phi(z);
+          }
+          return s / N;
+        }
+        function bon(k, phi) {
+          var s = 0, i;
+          for (i = 0; i < N; i++) {
+            var p = POP.p[i], pass = p + (1 - p) * phi;
+            if (pass <= 0) continue;
+            s += (1 - Math.pow(1 - pass, k)) * (p / pass);
+          }
+          return s / N;
+        }
+
+        function render(stage, i) {
+          var k = kAt(i);
+          var zt = i > 44 ? clamp((i - 44) / 10, 0, 1) * (i > 58 ? 1 - clamp((i - 58) / 7, 0, 1) : 1) : 0;
+          var cam = camLerp(VB, [PX0 - 20, PY0 + 60, 300, 200], zt);
+          var s = frame(stage, VB, cam);
+
+          /* answer buckets for one illustrative problem */
+          T(s, BX, 52, "one problem, samples binned by answer", { fill: C.dim, "font-size": 10 });
+          var r2 = rng(7), counts = [0, 0, 0, 0], n = Math.min(220, Math.round(k)), q = [0.30, 0.41, 0.17, 0.12], j;
+          for (j = 0; j < n; j++) { var u = r2(), acc = 0, b = 0; for (b = 0; b < 4; b++) { acc += q[b]; if (u < acc) break; } counts[Math.min(b, 3)]++; }
+          var mx = Math.max.apply(null, counts) || 1, mode = counts.indexOf(mx);
+          ["✓ correct", "wrong A", "wrong B", "wrong C"].forEach(function (lbl, b) {
+            var h = (counts[b] / mx) * 170;
+            R(s, BX + b * BW, BY0 - h, BW - 10, h, { fill: b === 0 ? C.green : C.faint, opacity: b === mode ? 1 : 0.5 });
+            T(s, BX + b * BW + (BW - 10) / 2, BY0 + 14, lbl, { fill: b === 0 ? C.green : C.faint, "font-size": 8, "text-anchor": "middle" });
+            if (b === mode) T(s, BX + b * BW + (BW - 10) / 2, BY0 - h - 7, "mode", { fill: C.amber, "font-size": 8.5, "text-anchor": "middle" });
+          });
+          L(s, BX, BY0, BX + 4 * BW - 10, BY0, { stroke: C.rule });
+          T(s, BX, 348, "Here the modal answer is wrong.", { fill: C.red, "font-size": 9.5 });
+          T(s, BX, 362, "More votes only sharpen the error.", { fill: C.dim, "font-size": 9.5 });
+
+          /* curves */
+          function ax(v) { return PX0 + (Math.log10(v) / 3) * (PX1 - PX0); }
+          function ay(v) { return PY1 - v * (PY1 - PY0); }
+          R(s, PX0, PY0, PX1 - PX0, PY1 - PY0, { fill: "none", stroke: C.grid });
+          [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+            L(s, PX0, ay(v), PX1, ay(v), { stroke: C.grid, "stroke-dasharray": "2 4" });
+            T(s, PX0 - 6, ay(v) + 3.5, (v * 100).toFixed(0) + "%", { fill: C.faint, "font-size": 9, "text-anchor": "end" });
+          });
+          [1, 10, 100, 1000].forEach(function (v) { T(s, ax(v), PY1 + 14, fmtK(v), { fill: C.faint, "font-size": 9, "text-anchor": "middle" }); });
+          T(s, (PX0 + PX1) / 2, PY1 + 30, "samples k  (log)", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+
+          var cp = [], mp = [], bp = [], jj, kk;
+          for (jj = 0; jj <= i; jj++) {
+            kk = kAt(jj);
+            cp.push([ax(kk), ay(cov(kk))]); mp.push([ax(kk), ay(mv(kk))]); bp.push([ax(kk), ay(bon(kk, 0.03))]);
+          }
+          /* shaded gap */
+          if (cp.length > 1) {
+            var best = [], z;
+            for (z = 0; z < cp.length; z++) best.push([cp[z][0], Math.min(mp[z][1], bp[z][1])]);
+            var band = poly(cp) + "L" + best[best.length - 1][0].toFixed(2) + " " + best[best.length - 1][1].toFixed(2);
+            for (z = best.length - 2; z >= 0; z--) band += "L" + best[z][0].toFixed(2) + " " + best[z][1].toFixed(2);
+            E("path", { d: band + "Z", fill: C.amber, opacity: 0.12, stroke: "none" }, s);
+          }
+          if (cp.length > 1) PATH(s, poly(cp), { stroke: C.green, "stroke-width": 2.2 });
+          if (mp.length > 1) PATH(s, poly(mp), { stroke: C.amber, "stroke-width": 2 });
+          if (bp.length > 1) PATH(s, poly(bp), { stroke: C.violet, "stroke-width": 2 });
+
+          T(s, PX0 + 8, PY0 + 16, "— coverage (pass@k)", { fill: C.green, "font-size": 10 });
+          T(s, PX0 + 8, PY0 + 30, "— majority vote", { fill: C.amber, "font-size": 10 });
+          T(s, PX0 + 8, PY0 + 44, "— best-of-N, φ = 0.03", { fill: C.violet, "font-size": 10 });
+          if (i > 30) T(s, PX0 + 8, PY0 + 60, "shaded = generator–verifier gap", { fill: C.amber, "font-size": 9.5, opacity: clamp((i - 30) / 6, 0, 1) });
+        }
+        Reel("fig3", {
+          total: TOTAL, ms: 120, render: render,
+          caption: function (i) {
+            if (i < 12) return "First samples. All three curves rise together — at small k, everything looks like it scales.";
+            if (i < 26) return "Majority voting is already converging. It is estimating the mode of a fixed distribution, and it has nearly finished.";
+            if (i < 44) return "Coverage keeps climbing. The two selector curves are flattening onto asymptotes that do not depend on the budget.";
+            if (i < 58) return "Zooming the gap. Every correct answer in this band was generated and then discarded, because nothing in the system could recognise it.";
+            return "The final picture: generation scales, selection saturates. Closing the gap is a verification problem, not a sampling problem.";
+          },
+          label: function (i) { var k = kAt(i); return "k = " + fmtK(k) + "  ·  cov " + pct(cov(k)) + "  ·  MV " + pct(mv(k)) + "  ·  BoN " + pct(bon(k, 0.03)); }
+        });
+      }());
+
+      /* ==================================================================
+         FIGURE 4 — the false-positive ceiling
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 360], TOTAL = 54;
+        var PX0 = 74, PX1 = 470, PY0 = 46, PY1 = 300;
+        function kAt(i) { return Math.pow(10, 3 * i / (TOTAL - 1)); }
+        function acc(k, p, phi) { var pass = p + (1 - p) * phi; return pass <= 0 ? 0 : (1 - Math.pow(1 - pass, k)) * (p / pass); }
+        function ceil(p, phi) { return p / (p + (1 - p) * phi); }
+
+        function render(stage, i, opt) {
+          var p = opt.p === undefined ? 0.05 : opt.p, phi = opt.phi === undefined ? 0.01 : opt.phi;
+          var k = kAt(i), cl = ceil(p, phi);
+          var zt = i > 34 ? clamp((i - 34) / 9, 0, 1) * (i > 48 ? 1 - clamp((i - 48) / 5, 0, 1) : 1) : 0;
+          var cam = camLerp(VB, [PX1 - 210, PY0 + 10, 300, 155], zt);
+          var s = frame(stage, VB, cam);
+
+          function ax(v) { return PX0 + (Math.log10(v) / 3) * (PX1 - PX0); }
+          function ay(v) { return PY1 - v * (PY1 - PY0); }
+          R(s, PX0, PY0, PX1 - PX0, PY1 - PY0, { fill: "none", stroke: C.grid });
+          [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+            L(s, PX0, ay(v), PX1, ay(v), { stroke: C.grid, "stroke-dasharray": "2 4" });
+            T(s, PX0 - 6, ay(v) + 3.5, (v * 100).toFixed(0) + "%", { fill: C.faint, "font-size": 9, "text-anchor": "end" });
+          });
+          [1, 10, 100, 1000].forEach(function (v) { T(s, ax(v), PY1 + 14, fmtK(v), { fill: C.faint, "font-size": 9, "text-anchor": "middle" }); });
+          T(s, (PX0 + PX1) / 2, PY1 + 30, "samples k  (log)", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+          T(s, PX0, PY0 - 12, "best-of-N accuracy under an imperfect verifier", { fill: C.dim, "font-size": 10.5 });
+
+          /* perfect-verifier reference = coverage */
+          var rp = [], j, kk;
+          for (j = 0; j < TOTAL; j++) { kk = kAt(j); rp.push([ax(kk), ay(acc(kk, p, 0))]); }
+          PATH(s, poly(rp), { stroke: C.green, "stroke-width": 1.3, "stroke-dasharray": "4 4", opacity: 0.65 });
+          T(s, ax(900), ay(acc(1000, p, 0)) - 8, "φ = 0", { fill: C.green, "font-size": 9, "text-anchor": "end" });
+
+          /* lost band */
+          if (phi > 0) {
+            var band = "M" + ax(1) + " " + ay(cl), z;
+            for (z = 0; z < rp.length; z++) band += "L" + rp[z][0].toFixed(2) + " " + rp[z][1].toFixed(2);
+            band += "L" + ax(1000) + " " + ay(cl) + "Z";
+            E("path", { d: band, fill: C.red, opacity: 0.1, stroke: "none" }, s);
+          }
+
+          /* ceiling */
+          L(s, PX0, ay(cl), PX1, ay(cl), { stroke: C.red, "stroke-width": 1.4, "stroke-dasharray": "6 4" });
+          T(s, PX1 - 4, ay(cl) - 7, "ceiling p / (p + (1−p)φ) = " + pct(cl), { fill: C.red, "font-size": 9.5, "text-anchor": "end" });
+
+          var cp = [];
+          for (j = 0; j <= i; j++) { kk = kAt(j); cp.push([ax(kk), ay(acc(kk, p, phi))]); }
+          if (cp.length > 1) PATH(s, poly(cp), { stroke: C.violet, "stroke-width": 2.4 });
+          E("circle", { cx: ax(k), cy: ay(acc(k, p, phi)), r: 4, fill: C.violet }, s);
+
+          /* readout */
+          var RX = 500;
+          R(s, RX, PY0, 196, 214, { fill: C.panel2, stroke: C.grid });
+          T(s, RX + 14, PY0 + 26, "sample success  p", { fill: C.dim, "font-size": 10 });
+          T(s, RX + 14, PY0 + 46, p.toFixed(2), { fill: C.ink, "font-size": 20, "font-weight": 600 });
+          T(s, RX + 14, PY0 + 74, "verifier FPR  φ", { fill: C.dim, "font-size": 10 });
+          T(s, RX + 14, PY0 + 94, phi.toFixed(2), { fill: phi > 0.05 ? C.red : C.ink, "font-size": 20, "font-weight": 600 });
+          L(s, RX + 14, PY0 + 108, RX + 182, PY0 + 108, { stroke: C.grid });
+          T(s, RX + 14, PY0 + 128, "accuracy now", { fill: C.dim, "font-size": 10 });
+          T(s, RX + 14, PY0 + 150, pct(acc(k, p, phi)), { fill: C.violet, "font-size": 20, "font-weight": 600 });
+          T(s, RX + 14, PY0 + 176, "accuracy at k = ∞", { fill: C.dim, "font-size": 10 });
+          T(s, RX + 14, PY0 + 198, pct(cl), { fill: C.red, "font-size": 20, "font-weight": 600 });
+          T(s, RX, PY0 + 238, "The two numbers converge", { fill: C.dim, "font-size": 10 });
+          T(s, RX, PY0 + 252, "and then nothing further happens.", { fill: C.dim, "font-size": 10 });
+        }
+        Reel("fig4", {
+          total: TOTAL, ms: 125, opt: { p: 0.05, phi: 0.01 }, render: render,
+          caption: function (i, o) {
+            var phi = o.phi === undefined ? 0.01 : o.phi;
+            if (phi === 0) return "A perfect verifier. Accuracy equals coverage and the curve never stops climbing — this is the regime formal proofs and exhaustive test suites live in.";
+            if (i < 16) return "Early samples. The verifier has not yet been given enough incorrect candidates to admit a false positive, so the curve tracks coverage.";
+            if (i < 34) return "The two curves separate. Each additional sample recruits false positives at the same rate it recruits true ones.";
+            if (i < 48) return "Zooming the plateau. The shaded region is accuracy that the generator produced and the verifier could never keep.";
+            return "The limit contains no k. Buying more samples against this verifier buys nothing.";
+          },
+          label: function (i, o) {
+            var p = o.p === undefined ? 0.05 : o.p, phi = o.phi === undefined ? 0.01 : o.phi;
+            return "k = " + fmtK(kAt(i)) + "  ·  acc " + pct(acc(kAt(i), p, phi)) + "  ·  ceiling " + pct(ceil(p, phi));
+          }
+        });
+      }());
+    }());
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var NS = "http://www.w3.org/2000/svg";
+      var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      var C = {
+        ink: "#dfe7ec", dim: "#8b979f", faint: "#5d6a72", grid: "#212a31", rule: "#333f48",
+        green: "#3fd1a0", amber: "#e0b95c", blue: "#5ab2e8", red: "#e2725f", violet: "#b28ce0",
+        panel: "#0f1317", panel2: "#141b21"
+      };
+      function E(tag, a, parent) { var n = document.createElementNS(NS, tag); if (a) for (var k in a) if (a[k] !== null && a[k] !== undefined) n.setAttribute(k, a[k]); if (parent) parent.appendChild(n); return n; }
+      function T(parent, x, y, s, a) { var t = E("text", Object.assign({ x: x, y: y, fill: C.ink, "font-size": 11 }, a || {}), parent); t.textContent = s; return t; }
+      function L(parent, x1, y1, x2, y2, a) { return E("line", Object.assign({ x1: x1, y1: y1, x2: x2, y2: y2, stroke: C.rule, "stroke-width": 1 }, a || {}), parent); }
+      function R(parent, x, y, w, h, a) { return E("rect", Object.assign({ x: x, y: y, width: Math.max(0, w), height: Math.max(0, h) }, a || {}), parent); }
+      function PATH(parent, d, a) { return E("path", Object.assign({ d: d, fill: "none", stroke: C.ink, "stroke-width": 1.5 }, a || {}), parent); }
+      function poly(pts) { var d = "", i; for (i = 0; i < pts.length; i++) d += (i ? "L" : "M") + pts[i][0].toFixed(2) + " " + pts[i][1].toFixed(2); return d; }
+      function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function ease(t) { t = clamp(t, 0, 1); return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; }
+      function pad2(n) { return (n < 10 ? "0" : "") + n; }
+      function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      function pct(v) { return (100 * v).toFixed(1) + "%"; }
+      function frame(stage, vb, cam) {
+        stage.__svg && stage.__svg.parentNode && stage.__svg.parentNode.removeChild(stage.__svg);
+        var box = cam || vb;
+        var svg = E("svg", { viewBox: box.join(" "), preserveAspectRatio: "xMidYMid meet", "aria-hidden": "true", role: "presentation", style: "font-family:'IBM Plex Mono',ui-monospace,monospace;overflow:visible;aspect-ratio:" + (vb[2] / vb[3]) });
+        stage.insertBefore(svg, stage.firstChild);
+        stage.__svg = svg;
+        return svg;
+      }
+      function camLerp(full, target, t) { if (REDUCED || !target) return full.slice(); var e = ease(t); return [lerp(full[0], target[0], e), lerp(full[1], target[1], e), lerp(full[2], target[2], e), lerp(full[3], target[3], e)]; }
+
+      function Reel(id, spec) {
+        var panel = document.querySelector('[data-reel="' + id + '"]');
+        if (!panel) return;
+        var stage = panel.querySelector(".animation-stage");
+        var status = panel.querySelector(".animation-status");
+        var bPrev = panel.querySelector('[data-action="previous"]');
+        var bPlay = panel.querySelector('[data-action="play-pause"]');
+        var bNext = panel.querySelector('[data-action="next"]');
+        var speeds = panel.querySelectorAll("[data-speed]");
+        var opts = panel.querySelectorAll("[data-opt]");
+        var cap = document.createElement("p");
+        cap.className = "stage-caption";
+        stage.appendChild(cap);
+        var st = { i: 0, playing: false, speed: 1, opt: {}, manual: false };
+        Object.keys(spec.opt || {}).forEach(function (k) { st.opt[k] = spec.opt[k]; });
+        var timer = null, lastCap = "";
+        function render() {
+          spec.render(stage, st.i, st.opt);
+          var c = spec.caption ? spec.caption(st.i, st.opt) : "";
+          if (c !== lastCap) { cap.textContent = c; lastCap = c; }
+          var lb = spec.label ? spec.label(st.i, st.opt) : "";
+          status.textContent = "Frame " + pad2(st.i + 1) + " / " + spec.total + (lb ? "  ·  " + lb : "");
+        }
+        function go(i) { st.i = ((i % spec.total) + spec.total) % spec.total; render(); }
+        function tick() { go(st.i + 1); }
+        function schedule() { if (timer) { clearInterval(timer); timer = null; } if (st.playing && !REDUCED) timer = setInterval(tick, Math.max(45, (spec.ms || 110) / st.speed)); }
+        function setPlaying(p) {
+          st.playing = p;
+          bPlay.textContent = p ? "Pause" : "Play";
+          bPlay.setAttribute("aria-pressed", p ? "true" : "false");
+          bPlay.setAttribute("aria-label", p ? "Pause animation" : "Play animation");
+          schedule();
+        }
+        function pauseForInteraction() { if (st.playing) setPlaying(false); st.manual = true; }
+        bPrev.addEventListener("click", function () { pauseForInteraction(); go(st.i - 1); });
+        bNext.addEventListener("click", function () { pauseForInteraction(); go(st.i + 1); });
+        bPlay.addEventListener("click", function () { st.manual = false; setPlaying(!st.playing); });
+        Array.prototype.forEach.call(speeds, function (b) {
+          b.addEventListener("click", function () {
+            st.speed = parseFloat(b.getAttribute("data-speed"));
+            Array.prototype.forEach.call(speeds, function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+            schedule();
+          });
+        });
+        Array.prototype.forEach.call(opts, function (b) {
+          var key = b.getAttribute("data-opt");
+          if (b.getAttribute("aria-pressed") === "true") { var v = parseFloat(b.getAttribute("data-val")); st.opt[key] = isNaN(v) ? b.getAttribute("data-val") : v; }
+          b.addEventListener("click", function () {
+            var vv = parseFloat(b.getAttribute("data-val"));
+            st.opt[key] = isNaN(vv) ? b.getAttribute("data-val") : vv;
+            Array.prototype.forEach.call(opts, function (o) { if (o.getAttribute("data-opt") === key) o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+            render();
+          });
+        });
+        if (REDUCED) { bPlay.textContent = "Play"; bPlay.setAttribute("aria-pressed", "false"); bPlay.disabled = true; bPlay.title = "Autoplay disabled: reduced-motion preference detected"; }
+        render();
+        if (!REDUCED && "IntersectionObserver" in window) {
+          var io = new IntersectionObserver(function (es) {
+            es.forEach(function (e) {
+              if (e.isIntersecting && !st.manual && !st.playing) setPlaying(true);
+              else if (!e.isIntersecting && st.playing) { st.playing = false; bPlay.textContent = "Play"; bPlay.setAttribute("aria-pressed", "false"); schedule(); }
+            });
+          }, { threshold: 0.35 });
+          io.observe(panel);
+        }
+      }
+
+      /* ==================================================================
+         FIGURE 5 — budget forcing, token by token
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 360], TOTAL = 72;
+        var BASE = ["How", "many", "r", "in", "\"raspberry\"", "?", "Let", "me", "spell", "it", ":", "r-a-s-p-b-e-r-r-y", ".", "I", "count", "two", "r", "letters", ".", "The", "answer", "is", "2", "."];
+        var STOP = "[end-of-thinking]";
+        var EXT = ["Wait", ",", "let", "me", "re-read", "the", "question", ".", "r", "(1)", "a", "s", "p", "b", "e", "r", "(2)", "r", "(3)", "y", "→", "count", "=", "3", "."];
+        function build(mode) {
+          var toks = [], i;
+          function push(t, kind) { toks.push({ t: t, k: kind }); }
+          if (mode === "capped") {
+            for (i = 0; i < 13; i++) push(BASE[i], i < 6 ? "q" : "think");
+            push(STOP, "forced");
+            push("Answer: 2", "bad");
+            return toks;
+          }
+          for (i = 0; i < BASE.length; i++) push(BASE[i], i < 6 ? "q" : "think");
+          if (mode === "forced") {
+            push(STOP, "suppressed");
+            for (i = 0; i < EXT.length; i++) push(EXT[i], i === 0 ? "wait" : "think2");
+            push(STOP, "natural");
+            push("Answer: 3", "good");
+          } else {
+            push(STOP, "natural");
+            push("Answer: 2", "bad");
+          }
+          return toks;
+        }
+        var COLW = 88, ROWH = 34, COLS = 7, X0 = 30, Y0 = 74;
+        function layout(n) { return { x: X0 + (n % COLS) * COLW, y: Y0 + Math.floor(n / COLS) * ROWH }; }
+
+        function render(stage, i, opt) {
+          var mode = opt.mode || "natural";
+          var toks = build(mode);
+          var shown = Math.round(clamp(i / (TOTAL - 12), 0, 1) * toks.length);
+          var pivot = -1, j;
+          for (j = 0; j < toks.length; j++) if (toks[j].k === "suppressed" || toks[j].k === "forced") pivot = j;
+          var zoom = pivot >= 0 && shown > pivot && shown < pivot + 7;
+          var zt = zoom ? clamp((shown - pivot) / 2, 0, 1) * (shown > pivot + 4 ? 1 - clamp((shown - pivot - 4) / 3, 0, 1) : 1) : 0;
+          var pv = pivot >= 0 ? layout(pivot) : { x: 200, y: 150 };
+          var cam = camLerp(VB, [clamp(pv.x - 130, 0, 400), clamp(pv.y - 60, 0, 220), 340, 170], zt);
+          var s = frame(stage, VB, cam);
+
+          T(s, X0, 32, "prompt + reasoning trace", { fill: C.dim, "font-size": 10.5 });
+          T(s, X0, 50, mode === "forced" ? "mode: delimiter suppressed, \"Wait\" injected" : (mode === "capped" ? "mode: delimiter injected early (hard cap)" : "mode: model stops when it wants to"), { fill: C.amber, "font-size": 10 });
+
+          for (j = 0; j < toks.length && j < shown; j++) {
+            var pos = layout(j), tk = toks[j], fill = C.panel2, stroke = C.grid, col = C.ink, w = COLW - 8;
+            if (tk.k === "q") { stroke = C.rule; col = C.dim; }
+            if (tk.k === "think2") { stroke = "#2b4a3f"; col = C.green; }
+            if (tk.k === "wait") { fill = "#2a2410"; stroke = C.amber; col = C.amber; }
+            if (tk.k === "natural") { stroke = C.rule; col = C.dim; w = COLW + 40; }
+            if (tk.k === "suppressed" || tk.k === "forced") { fill = "#2a1614"; stroke = C.red; col = C.red; w = COLW + 40; }
+            if (tk.k === "bad") { fill = "#2a1614"; stroke = C.red; col = C.red; }
+            if (tk.k === "good") { fill = "#0f2a20"; stroke = C.green; col = C.green; }
+            var fresh = j === shown - 1;
+            R(s, pos.x, pos.y - 15, w, 24, { fill: fill, stroke: fresh ? C.blue : stroke, "stroke-width": fresh ? 1.8 : 1, rx: 3 });
+            var label = tk.t.length > 12 ? tk.t.slice(0, 12) + "…" : tk.t;
+            T(s, pos.x + 6, pos.y + 1, label, { fill: col, "font-size": tk.t.length > 9 ? 8.5 : 10 });
+            if (tk.k === "suppressed" || tk.k === "forced") {
+              if (tk.k === "suppressed") L(s, pos.x + 4, pos.y - 3, pos.x + w - 4, pos.y - 3, { stroke: C.red, "stroke-width": 1.6 });
+              T(s, pos.x, pos.y + 22, tk.k === "suppressed" ? "✗ suppressed — model wanted to stop here" : "↳ forced in early", { fill: C.red, "font-size": 8.5 });
+            }
+            if (tk.k === "wait") T(s, pos.x, pos.y - 22, "injected", { fill: C.amber, "font-size": 8.5 });
+          }
+
+          /* verdict */
+          var done = shown >= toks.length;
+          if (done) {
+            var last = toks[toks.length - 1];
+            var ok = last.k === "good";
+            R(s, 470, 300, 224, 44, { fill: ok ? "#0f2a20" : "#2a1614", stroke: ok ? C.green : C.red, "stroke-width": 1.3 });
+            T(s, 484, 320, ok ? "✓ 3 — corrected after \"Wait\"" : "✗ 2 — wrong, and confident", { fill: ok ? C.green : C.red, "font-size": 11 });
+            T(s, 484, 336, "tokens spent: " + toks.length, { fill: C.dim, "font-size": 9.5 });
+          }
+        }
+        Reel("fig5", {
+          total: TOTAL, ms: 110, opt: { mode: "natural" }, render: render,
+          caption: function (i, o) {
+            var m = o.mode || "natural";
+            if (m === "capped") return "The other half of budget forcing: inject the end-of-thinking delimiter early. The model transitions to answering from an unfinished trace — cheap, and sometimes wrong for exactly that reason.";
+            if (m === "natural") return "Left alone, the model spells the word, miscounts, emits the delimiter and commits. Nothing is broken; it simply stopped deliberating one token too early.";
+            if (i < 34) return "Same trace as before, up to the moment the model tries to terminate.";
+            if (i < 46) return "The delimiter is suppressed and \"Wait\" is appended instead. The model now finds itself mid-thought where it expected to be finished.";
+            return "It re-reads, enumerates properly, and overwrites its own answer. Two extra dozen tokens, one flipped result — no weights touched.";
+          },
+          label: function (i, o) {
+            var toks = build(o.mode || "natural");
+            var shown = Math.round(clamp(i / (TOTAL - 12), 0, 1) * toks.length);
+            return "token " + Math.min(shown, toks.length) + " / " + toks.length + "  ·  " + (o.mode || "natural");
+          }
+        });
+      }());
+
+      /* ==================================================================
+         FIGURE 6 — the inverted U and the walk that produces it
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 380], TOTAL = 68, STEPS = 60, ENS = 240;
+        var WX0 = 40, WX1 = 330, WY0 = 60, WY1 = 320;
+        var PX0 = 400, PX1 = 690, PY0 = 60, PY1 = 320;
+        var THRESH = 0.35;
+
+        function sim(pull, hard, n, seed) {
+          /* two competing forces: a capability drift towards the correct region
+             that decays as the easy structure is exhausted, and a distractor
+             attraction that grows as the trace lengthens. */
+          var r = rng(seed), paths = [], j;
+          var k10 = hard ? 0.072 : 0.22, tau = hard ? 58 : 17;
+          for (j = 0; j < n; j++) {
+            var skill = 0.45 + 1.15 * r();
+            var goal = 0.62 + 0.5 * r();
+            var x = -0.6 + 0.2 * (r() - 0.5), tr = [x], t;
+            for (t = 1; t <= STEPS; t++) {
+              var k1 = k10 * skill * Math.exp(-t / tau);
+              var k2 = pull * 0.024 * (1 - Math.exp(-t / 18));
+              x = clamp(x + k1 * (goal - x) + k2 * (-0.60 - x) + 0.075 * (r() - 0.5), -1, 1);
+              tr.push(x);
+            }
+            paths.push(tr);
+          }
+          return paths;
+        }
+        function accCurve(paths) {
+          var out = [], t, j;
+          for (t = 0; t <= STEPS; t++) { var c = 0; for (j = 0; j < paths.length; j++) if (paths[j][t] > THRESH) c++; out.push(c / paths.length); }
+          return out;
+        }
+
+        function render(stage, i, opt) {
+          var pull = opt.pull === undefined ? 0.5 : opt.pull, hard = !!opt.hard;
+          var shown = Math.min(STEPS, Math.round(i / (TOTAL - 10) * STEPS));
+          var vis = sim(pull, hard, 6, 11), ens = sim(pull, hard, ENS, 404), curve = accCurve(ens);
+          var zt = i > 40 ? clamp((i - 40) / 8, 0, 1) * (i > 58 ? 1 - clamp((i - 58) / 8, 0, 1) : 1) : 0;
+          var cam = camLerp(VB, [PX0 - 30, PY0 - 20, 330, 200], zt);
+          var s = frame(stage, VB, cam);
+
+          function wx(t) { return WX0 + (t / STEPS) * (WX1 - WX0); }
+          function wy(x) { return WY1 - ((x + 1) / 2) * (WY1 - WY0); }
+          R(s, WX0, wy(1), WX1 - WX0, wy(THRESH) - wy(1), { fill: C.green, opacity: 0.09 });
+          R(s, WX0, wy(-0.45), WX1 - WX0, wy(-1) - wy(-0.45), { fill: C.red, opacity: 0.1 });
+          L(s, WX0, wy(THRESH), WX1, wy(THRESH), { stroke: C.green, "stroke-dasharray": "4 4", opacity: 0.7 });
+          T(s, WX0 + 4, wy(0.92), "correct region", { fill: C.green, "font-size": 9.5 });
+          T(s, WX0 + 4, wy(-0.88), pull > 0 ? "distractor attractor" : "no attractor (pull = 0)", { fill: pull > 0 ? C.red : C.faint, "font-size": 9.5 });
+          T(s, WX0, WY0 - 22, "six reasoning trajectories in belief space", { fill: C.dim, "font-size": 10.5 });
+          T(s, (WX0 + WX1) / 2, WY1 + 30, "reasoning length T", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+          L(s, WX0, WY1, WX1, WY1, { stroke: C.rule });
+
+          var flips = 0, j, t;
+          for (j = 0; j < vis.length; j++) {
+            var pts = [], was = false;
+            for (t = 0; t <= shown; t++) {
+              pts.push([wx(t), wy(vis[j][t])]);
+              var now = vis[j][t] > THRESH;
+              if (was && !now) { E("circle", { cx: wx(t), cy: wy(vis[j][t]), r: 3.4, fill: C.red }, s); flips++; }
+              was = now;
+            }
+            if (pts.length > 1) PATH(s, poly(pts), { stroke: vis[j][shown] > THRESH ? C.green : C.dim, "stroke-width": 1.4, opacity: 0.85 });
+            if (pts.length) E("circle", { cx: pts[pts.length - 1][0], cy: pts[pts.length - 1][1], r: 2.6, fill: vis[j][shown] > THRESH ? C.green : C.dim }, s);
+          }
+
+          function ax(t) { return PX0 + (t / STEPS) * (PX1 - PX0); }
+          function ay(v) { return PY1 - v * (PY1 - PY0); }
+          R(s, PX0, PY0, PX1 - PX0, PY1 - PY0, { fill: "none", stroke: C.grid });
+          [0, 0.25, 0.5, 0.75, 1].forEach(function (v) {
+            L(s, PX0, ay(v), PX1, ay(v), { stroke: C.grid, "stroke-dasharray": "2 4" });
+            T(s, PX0 - 6, ay(v) + 3.5, (v * 100).toFixed(0) + "%", { fill: C.faint, "font-size": 9, "text-anchor": "end" });
+          });
+          T(s, PX0, PY0 - 22, "accuracy of the full ensemble vs T", { fill: C.dim, "font-size": 10.5 });
+          T(s, (PX0 + PX1) / 2, PY1 + 30, "reasoning length T", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+          var cp = [];
+          for (t = 0; t <= shown; t++) cp.push([ax(t), ay(curve[t])]);
+          if (cp.length > 1) PATH(s, poly(cp), { stroke: C.blue, "stroke-width": 2.3 });
+          var best = 0, bi = 0;
+          for (t = 0; t <= STEPS; t++) if (curve[t] > best) { best = curve[t]; bi = t; }
+          if (shown >= bi) {
+            L(s, ax(bi), PY0, ax(bi), PY1, { stroke: C.amber, "stroke-dasharray": "3 4" });
+            T(s, ax(bi) + 5, PY0 + 14, "peak T = " + bi, { fill: C.amber, "font-size": 9.5 });
+          }
+          if (shown > 0) E("circle", { cx: ax(shown), cy: ay(curve[shown]), r: 3.8, fill: C.blue }, s);
+          if (shown === STEPS && curve[STEPS] < best - 0.01) {
+            T(s, PX0 + 8, PY1 - 12, "lost " + pct(best - curve[STEPS]) + " past the peak", { fill: C.red, "font-size": 10 });
+          }
+        }
+        Reel("fig6", {
+          total: TOTAL, ms: 115, opt: { pull: 0.5, hard: 0 }, render: render,
+          caption: function (i, o) {
+            var pull = o.pull === undefined ? 0.5 : o.pull;
+            if (pull === 0) return "No attractor. Drift is always towards the correct region, so accuracy is monotone and saturating — the picture everyone assumes.";
+            if (i < 16) return "Early steps. Drift towards the correct region is strong, because the model is applying the skill it actually has.";
+            if (i < 32) return "The capability drift decays while the distractor pull grows. Trajectories start crossing back out; red dots are negative flips.";
+            if (i < 50) return "The ensemble curve has turned over. The peak is not where the budget ran out — it is where the two forces balanced.";
+            return "Past the peak, extra reasoning is net destructive. Notice how much earlier the peak arrives on the easy setting.";
+          },
+          label: function (i, o) {
+            var shown = Math.min(60, Math.round(i / (68 - 10) * 60));
+            var c = accCurve(sim(o.pull === undefined ? 0.5 : o.pull, !!o.hard, 240, 404));
+            return "T = " + shown + "  ·  accuracy " + pct(c[shown]);
+          }
+        });
+      }());
+
+      /* ==================================================================
+         FIGURE 7 — water-filling a test-time budget
+         ================================================================== */
+      (function () {
+        var VB = [0, 0, 720, 380], TOTAL = 76, M = 20;
+        var BX0 = 56, BX1 = 690, BY = 300, BTOP = 92;
+        var PS = (function () { var a = [], j; for (j = 0; j < M; j++) a.push(0.9 * Math.pow(0.72, j)); return a; }());
+
+        function allocate(B) {
+          var b = new Array(M), j;
+          for (j = 0; j < M; j++) b[j] = 0;
+          var marg = PS[0], u;
+          for (u = 0; u < B; u++) {
+            var bestI = 0, bestV = -1;
+            for (j = 0; j < M; j++) { var v = PS[j] * Math.pow(1 - PS[j], b[j]); if (v > bestV) { bestV = v; bestI = j; } }
+            b[bestI]++;
+            marg = bestV;
+          }
+          return { b: b, lambda: marg };
+        }
+        function expected(b) { var s = 0, j; for (j = 0; j < M; j++) s += 1 - Math.pow(1 - PS[j], b[j]); return s; }
+
+        function render(stage, i, opt) {
+          var B = opt.budget || 150, showUni = opt.uniform === undefined ? 1 : opt.uniform;
+          var spent = Math.round(clamp(i / (TOTAL - 8), 0, 1) * B);
+          var A = allocate(spent), full = allocate(B);
+          var maxB = Math.max(1, Math.max.apply(null, full.b));
+          var zt = i > 44 ? clamp((i - 44) / 9, 0, 1) * (i > 62 ? 1 - clamp((i - 62) / 8, 0, 1) : 1) : 0;
+          var peakI = full.b.indexOf(maxB);
+          var px = BX0 + (peakI + 0.5) * ((BX1 - BX0) / M);
+          var cam = camLerp(VB, [clamp(px - 150, 0, 420), 60, 300, 158], zt);
+          var s = frame(stage, VB, cam);
+
+          var w = (BX1 - BX0) / M;
+          L(s, BX0, BY, BX1, BY, { stroke: C.rule });
+          T(s, BX0, 44, "20 problems, sorted from easy to effectively unsolvable", { fill: C.dim, "font-size": 10.5 });
+          T(s, BX0, 60, "bar height = samples allocated · units spent " + spent + " / " + B, { fill: C.faint, "font-size": 9.5 });
+
+          var j;
+          for (j = 0; j < M; j++) {
+            var x = BX0 + j * w;
+            var h = (A.b[j] / maxB) * (BY - BTOP);
+            var hu = showUni ? ((B / M) / maxB) * (BY - BTOP) : 0;
+            if (showUni) R(s, x + 2, BY - hu, w - 4, hu, { fill: "none", stroke: C.faint, "stroke-width": 1, "stroke-dasharray": "3 3" });
+            R(s, x + 3, BY - h, w - 6, h, { fill: A.b[j] > 0 ? C.green : C.grid, opacity: A.b[j] > 0 ? 0.85 : 1 });
+            T(s, x + w / 2, BY + 14, PS[j] >= 0.01 ? PS[j].toFixed(2) : PS[j].toExponential(0), { fill: C.faint, "font-size": 7.5, "text-anchor": "middle" });
+            if (A.b[j] > 0) T(s, x + w / 2, BY - h - 5, String(A.b[j]), { fill: C.green, "font-size": 8, "text-anchor": "middle" });
+            if (full.b[j] === 0) T(s, x + w / 2, BY - 10, "0", { fill: C.red, "font-size": 9, "text-anchor": "middle" });
+          }
+          T(s, (BX0 + BX1) / 2, BY + 30, "per-sample success probability p", { fill: C.dim, "font-size": 10, "text-anchor": "middle" });
+
+          /* theoretical b*(p) overlay */
+          if (i > 20) {
+            var lam = A.lambda, pts = [], op = clamp((i - 20) / 8, 0, 1);
+            for (j = 0; j < M; j++) {
+              var p = PS[j], bstar = p > lam ? (1 / p) * Math.log(p / lam) : 0;
+              pts.push([BX0 + (j + 0.5) * w, BY - clamp(bstar / maxB, 0, 1.2) * (BY - BTOP)]);
+            }
+            PATH(s, poly(pts), { stroke: C.amber, "stroke-width": 1.6, "stroke-dasharray": "5 3", opacity: op });
+            T(s, BX0 + 6, BTOP - 8, "— b*(p) = (1/p)·ln(p/λ)", { fill: C.amber, "font-size": 9.5, opacity: op });
+          }
+
+          /* readouts */
+          var eA = expected(A.b), eU = expected(A.b.map(function () { return spent / M; }));
+          R(s, BX1 - 236, 66, 236, 62, { fill: C.panel2, stroke: C.grid });
+          T(s, BX1 - 224, 86, "expected solved — adaptive", { fill: C.dim, "font-size": 9.5 });
+          T(s, BX1 - 224, 106, eA.toFixed(2) + " / 20", { fill: C.green, "font-size": 15, "font-weight": 600 });
+          T(s, BX1 - 100, 86, "uniform", { fill: C.dim, "font-size": 9.5 });
+          T(s, BX1 - 100, 106, eU.toFixed(2), { fill: C.faint, "font-size": 15, "font-weight": 600 });
+          T(s, BX0, 350, "λ (marginal value of the last unit) = " + (typeof A.lambda === "number" ? A.lambda.toExponential(2) : "—"), { fill: C.amber, "font-size": 10 });
+          T(s, BX0, 366, "give-up threshold: any problem with p ≤ λ receives nothing.", { fill: C.dim, "font-size": 9.5 });
+        }
+        Reel("fig7", {
+          total: TOTAL, ms: 105, opt: { budget: 150, uniform: 1 }, render: render,
+          caption: function (i) {
+            if (i < 12) return "The first units go to the easiest problems — their marginal return is highest at zero samples.";
+            if (i < 26) return "Easy problems saturate fast. Their marginal return collapses geometrically, and allocation moves rightward.";
+            if (i < 44) return "The dashed curve is the closed-form optimum b*(p) = (1/p)·ln(p/λ). The greedy allocation is tracing it out unit by unit.";
+            if (i < 62) return "Zooming the peak. Maximum allocation lands at p = e·λ — just above the give-up threshold, not at the hardest solvable problem.";
+            return "Final profile: a hump, not a ramp. The rightmost problems never receive a single sample, and the leftmost stopped receiving them early.";
+          },
+          label: function (i, o) {
+            var B = o.budget || 150, spent = Math.round(clamp(i / (76 - 8), 0, 1) * B);
+            return "spent " + spent + " / " + B;
+          }
+        });
+      }());
+    }());
+    </script>
+    <script src="../../assets/js/blogs.js"></script>
+  </body>
+</html>
