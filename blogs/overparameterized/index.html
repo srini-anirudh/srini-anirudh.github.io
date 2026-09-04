@@ -323,23 +323,38 @@
         <h2>Double descent</h2>
         <p>In 2019 <a href="https://www.pnas.org/doi/10.1073/pnas.1903070116" target="_blank" rel="noopener noreferrer">Belkin, Hsu, Ma and Mandal</a> pointed out that the textbook curve is not wrong, it is <em>truncated</em>. It stops drawing at the interpolation threshold. Keep going, and the test error comes back down &mdash; often below the classical sweet spot.</p>
         <p>The shape has a name and a picture:</p>
-        <div class="keymath">
-          &nbsp;&nbsp;&nbsp;&nbsp;test<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;error&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9474;<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9585;&#9586;&nbsp;&nbsp;&nbsp;&#9585;&#9474;&#9586;<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9585;&nbsp;&nbsp;&nbsp;&#9586;&#9585;&nbsp;&#9474;&nbsp;&#9586;&#9586;&#9586;&#9586;&#9586;&#9586;&#9586;<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9474;<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;classical U&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#9474;&nbsp;&nbsp;&nbsp;modern regime<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#8593;&nbsp;&nbsp;capacity &rarr;<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;interpolation threshold (p = n)
-        </div>
+        <figure class="concept-figure">
+          <div class="concept-figure__header">The complete capacity curve</div>
+          <svg class="concept-chart" viewBox="0 0 900 430" role="img" aria-labelledby="dd-title dd-desc">
+            <title id="dd-title">The double-descent test-error curve</title>
+            <desc id="dd-desc">Test error first falls, rises sharply at the interpolation threshold where parameters equal samples, then falls again in the overparameterized regime.</desc>
+            <rect class="zone" x="100" y="55" width="330" height="295"></rect>
+            <rect class="zone" x="430" y="55" width="390" height="295" style="opacity:.1"></rect>
+            <path class="axis" d="M100 55V350H825"></path>
+            <path class="guide" d="M430 70V350"></path>
+            <path class="curve" d="M125 120 C185 155 230 275 300 265 C360 255 385 96 430 92 C500 92 540 220 790 275"></path>
+            <circle class="point" cx="300" cy="265" r="7"></circle>
+            <circle class="point" cx="430" cy="92" r="7"></circle>
+            <circle class="point" cx="790" cy="275" r="7"></circle>
+            <text x="35" y="72">test error</text>
+            <text x="680" y="395">model capacity &#8594;</text>
+            <text x="180" y="325">classical regime</text>
+            <text x="560" y="325">modern regime</text>
+            <text class="muted" x="430" y="375" text-anchor="middle">interpolation threshold: p = n</text>
+            <text class="muted" x="300" y="240" text-anchor="middle">classical sweet spot</text>
+            <text class="muted" x="450" y="78">conditioning spike</text>
+          </svg>
+          <figcaption>The textbook U-curve stops on the left. At the interpolation threshold the fit becomes ill-conditioned; beyond it, the minimum-norm solution has room to spread out.</figcaption>
+        </figure>
         <p>Before explaining anything, it helps to know exactly where the spike comes from, because in the linear case it is not mysterious at all. Consider fitting <em>p</em> random features to <em>n</em> points and taking the minimum-norm solution. The fitted coefficients involve inverting the feature Gram matrix, and its smallest eigenvalue controls everything.</p>
-        <div class="keymath">
-          p &#8810; n &nbsp;&rarr;&nbsp; Gram matrix well conditioned. Small coefficients.<br />
-          p &rarr; n &nbsp;&rarr;&nbsp; smallest eigenvalue &rarr; 0. <b>Coefficients explode.</b><br />
-          p &#8811; n &nbsp;&rarr;&nbsp; many directions available; the min-norm solution<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;spreads itself thin and the norm falls again.
-        </div>
+        <figure class="concept-figure">
+          <div class="concept-flow">
+            <div class="concept-flow__node"><strong><code>p &#8810; n</code></strong><span>Gram matrix is well-conditioned. Coefficients stay small.</span></div>
+            <div class="concept-flow__node"><strong><code>p &asymp; n</code></strong><span>Smallest eigenvalue approaches zero. Coefficients explode.</span></div>
+            <div class="concept-flow__node"><strong><code>p &#8811; n</code></strong><span>Many fitting directions exist. The minimum-norm solution spreads out.</span></div>
+          </div>
+          <figcaption>The peak is a conditioning failure: too few directions before the threshold, one brittle solution at it, and many low-norm solutions after it.</figcaption>
+        </figure>
         <p>At the threshold the model is forced to use every one of its degrees of freedom to hit every point exactly, and it has none left over to be small with. Past the threshold it has room to choose &mdash; and "choose the smallest solution" turns out to be a good choice. The peak is a conditioning failure, not a philosophical statement.</p>
         <p>The following three figures are computed live in your browser: forty noisy samples from a fixed smooth function, random ReLU features, ridge-regularized least squares solved exactly. No curve here is drawn by hand.</p>
         <div class="article-panel" id="fig-model-wise">

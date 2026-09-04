@@ -646,15 +646,24 @@
 
         <p>Here is the part that is easy to skim past and is actually the whole trick. The two modes are two <em>target formats</em>, distinguished by a flag in the user message:</p>
 
-        <pre><code>Thinking mode                        Non-thinking mode
-─────────────────────────────        ─────────────────────────────
-&lt;|im_start|&gt;user                     &lt;|im_start|&gt;user
-{query} /think&lt;|im_end|&gt;             {query} /no_think&lt;|im_end|&gt;
-&lt;|im_start|&gt;assistant                &lt;|im_start|&gt;assistant
-&lt;think&gt;                              &lt;think&gt;
-{thinking content}
-&lt;/think&gt;                             &lt;/think&gt;
-{response}&lt;|im_end|&gt;                 {response}&lt;|im_end|&gt;</code></pre>
+        <figure class="concept-figure">
+          <div class="concept-figure__header">One template, two target formats</div>
+          <div class="mode-compare">
+            <div class="mode-card">
+              <h4>Thinking mode</h4>
+              <div class="token-line"><span class="token-chip">user</span><span class="token-chip">{query}</span><span class="token-chip token-chip--thinking">/think</span></div>
+              <div class="token-line"><span class="token-chip">assistant</span><span class="token-chip">&lt;think&gt;</span><span class="token-chip token-chip--thinking">{reasoning tokens}</span><span class="token-chip">&lt;/think&gt;</span></div>
+              <div class="token-line"><span class="token-chip">{response}</span><span class="token-chip">&lt;|im_end|&gt;</span></div>
+            </div>
+            <div class="mode-card">
+              <h4>Non-thinking mode</h4>
+              <div class="token-line"><span class="token-chip">user</span><span class="token-chip">{query}</span><span class="token-chip token-chip--thinking">/no_think</span></div>
+              <div class="token-line"><span class="token-chip">assistant</span><span class="token-chip">&lt;think&gt;</span><span class="token-chip token-chip--empty">empty</span><span class="token-chip">&lt;/think&gt;</span></div>
+              <div class="token-line"><span class="token-chip">{response}</span><span class="token-chip">&lt;|im_end|&gt;</span></div>
+            </div>
+          </div>
+          <figcaption>The outer grammar never changes. The control token changes only whether the shared think block contains reasoning tokens or closes immediately.</figcaption>
+        </figure>
 
         <p>Notice that the non-thinking target keeps the <code>&lt;think&gt;</code> block. It is just <em>empty</em>. That looks like a stylistic quirk and it is the load-bearing design decision, for two reasons.</p>
 

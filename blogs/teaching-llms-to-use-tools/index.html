@@ -478,15 +478,17 @@ Thought N  I have both dates. Answer.</code></pre>
         <p>which is 40,000 tokens at \(N=400\) before the user has said a word, and roughly \(1.5\times 10^{7}\) at \(N = 10^5\). Even where the context window technically allows it, you are paying prefill on every turn of a multi-step task. And prefill attention is quadratic in sequence length, so the cost of a tool you never call is not zero — it is charged on every step of the loop.</p>
         <p>There is a second cost that is easy to miss and often larger. Selection accuracy degrades with the number of distractors. Adding tools does not merely make the prompt longer; it makes the discrimination problem harder, especially since real API catalogues are full of near-duplicates with subtly different constraints — three ways to search flights, two of which do not support one-way trips.</p>
         <p>So the schemas have to be filtered before they reach the model. The structure is exactly retrieval-augmented generation with function signatures as documents:</p>
-        <pre><code>user request
-     ↓
-tool retriever  (dense encoder over descriptions)
-     ↓
-top-k relevant schemas          k ≈ 5–20  ≪  N
-     ↓
-inject into prompt
-     ↓
-model selects and calls</code></pre>
+        <figure class="concept-figure">
+          <div class="concept-figure__header">Tool retrieval is RAG over actions</div>
+          <div class="concept-flow concept-flow--five">
+            <div class="concept-flow__node"><strong>User request</strong><span>Intent in natural language</span></div>
+            <div class="concept-flow__node"><strong>Encode and retrieve</strong><span>Search tool descriptions and schemas</span></div>
+            <div class="concept-flow__node"><strong>Keep top <em>k</em></strong><span>Usually 5&ndash;20 tools rather than all <em>N</em></span></div>
+            <div class="concept-flow__node"><strong>Inject schemas</strong><span>Only relevant interfaces enter context</span></div>
+            <div class="concept-flow__node"><strong>Select and call</strong><span>The model fills one grounded schema</span></div>
+          </div>
+          <figcaption>Retrieval separates discovery from execution: the retriever reduces the catalogue; the language model reasons only over the surviving interfaces.</figcaption>
+        </figure>
         <p>ToolLLM built precisely this: a corpus of 16,464 real RESTful APIs from RapidAPI across 49 categories, paired with a neural API retriever trained to recommend the relevant subset for each instruction, so that nobody has to hand-pick tools at inference time. Gorilla approaches the same problem from the model side with retriever-aware training — the model is trained with retrieved documentation already in its prompt, so it learns to treat that documentation as authoritative rather than as decoration.</p>
 
         <div class="article-panel" role="group" aria-label="Figure 6: an animation of tool retrieval, showing a large catalogue of schemas reduced to a top-k set by a query encoder, then the failure mode where the correct tool falls outside the retrieved set">
