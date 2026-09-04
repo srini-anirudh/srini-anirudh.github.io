@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/bound-by-bytes/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/bound-by-bytes/preview.png" />
     <meta property="article:published_time" content="2026-03-13" />
-    <meta property="article:modified_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-03-18" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Bound by Bytes: Compute, Memory, and Why Peak FLOPs Lie" />
     <meta name="twitter:description" content="A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels." />
@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/bound-by-bytes/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/bound-by-bytes/"},"headline":"Bound by Bytes: Compute, Memory, and Why Peak FLOPs Lie","description":"A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels.","image":"https://srini-anirudh.github.io/blogs/bound-by-bytes/preview.png","datePublished": "2026-03-13","dateModified":"2026-09-04","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["Roofline model", "arithmetic intensity", "compute-bound", "memory-bound", "GPU performance", "FlashAttention"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/bound-by-bytes/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/bound-by-bytes/"},"headline":"Bound by Bytes: Compute, Memory, and Why Peak FLOPs Lie","description":"A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels.","image":"https://srini-anirudh.github.io/blogs/bound-by-bytes/preview.png","datePublished": "2026-03-13","dateModified":"2026-03-18","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["Roofline model", "arithmetic intensity", "compute-bound", "memory-bound", "GPU performance", "FlashAttention"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
       :root {
         --paper: #e4e2dc;
@@ -200,7 +200,7 @@
           <span>Roofline</span><span>Arithmetic intensity</span><span>Memory bandwidth</span><span>Kernel analysis</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-13">March 13, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>46 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-13">March 13, 2026</time></span><span>Last modified <time datetime="2026-03-18">March 18, 2026</time></span><span>46 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -212,7 +212,7 @@
     <nav class="ml-series-nav" aria-label="ML Systems from First Principles">
       <a class="ml-series-nav__identity" href="../index.html#ml-systems">ML Systems from First Principles</a>
       <span class="ml-series-nav__position">02 of 08 · Part I · Understanding the Machine</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../new-mask-same-task/"><span>Previous · 01</span><strong>New Mask, Same Task</strong></a><a class="ml-series-nav__link" href="../talk-is-not-cheap/"><span>Next · 03</span><strong>Talk Is Not Cheap</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../new-mask-same-task/"><span>Previous · 01</span><strong>From Cores to Warps</strong></a><a class="ml-series-nav__link" href="../talk-is-not-cheap/"><span>Next · 03</span><strong>Talk Is Not Cheap</strong></a></div>
     </nav>
 
     <script>
@@ -3503,7 +3503,7 @@
   month        = {mar},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/bound-by-bytes/},
-  note         = {Published March 13, 2026; updated September 4, 2026}
+  note         = {Published March 13, 2026; updated March 18, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

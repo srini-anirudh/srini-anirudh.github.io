@@ -9,17 +9,17 @@
     <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
-    <meta property="og:title" content="Anatomy of a Training Step: what actually happens when a transformer trains" />
+    <meta property="og:title" content="Inside a Training Step: what actually happens when a transformer trains" />
     <meta property="og:description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png" />
     <meta property="article:published_time" content="2026-05-15" />
-    <meta property="article:modified_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-05-19" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Anatomy of a Training Step: what actually happens when a transformer trains" />
+    <meta name="twitter:title" content="Inside a Training Step: what actually happens when a transformer trains" />
     <meta name="twitter:description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png" />
-    <title>Anatomy of a Training Step | Anirudh Srinivasan</title>
+    <title>Inside a Training Step | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,11 +33,11 @@
         "@type": "BlogPosting",
         "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/" },
-        "headline": "Anatomy of a Training Step",
+        "headline": "Inside a Training Step",
         "description": "A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger.",
         "image": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png",
         "datePublished": "2026-05-15",
-        "dateModified": "2026-09-04",
+        "dateModified": "2026-05-19",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
         "keywords": ["transformer training", "activation memory", "backpropagation", "mixed precision", "MFU"],
@@ -169,13 +169,13 @@
     <header class="article-mast">
       <div class="article-wrap">
         <p class="article-eyebrow">ML Systems from First Principles · 04 of 08</p>
-        <h1 class="article-title">Anatomy of a Training Step</h1>
+        <h1 class="article-title">Inside a Training Step</h1>
         <p class="article-subtitle">Five lines of PyTorch hide a machine of moving parts. Before you can split training across a thousand GPUs, you have to know exactly what you are splitting.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>transformers</span><span>memory</span><span>systems</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-15">May 15, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>29 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-15">May 15, 2026</time></span><span>Last modified <time datetime="2026-05-19">May 19, 2026</time></span><span>29 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -616,16 +616,16 @@
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Anatomy of a Training Step</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/">https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Inside a Training Step</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/">https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/</a></p>
       <div class="article-citation-code">
         <pre><code>@misc{srinivasan2026anatomy,
   author       = {Srinivasan, Anirudh},
-  title        = {Anatomy of a Training Step},
+  title        = {Inside a Training Step},
   year         = {2026},
   month        = {may},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/},
-  note         = {Published May 15, 2026; updated September 4, 2026}
+  note         = {Published May 15, 2026; updated May 19, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -634,7 +634,7 @@
 
     <footer class="article-footer">
       <div class="article-wrap">
-        <p>Anirudh Srinivasan &middot; Anatomy of a Training Step</p>
+        <p>Anirudh Srinivasan &middot; Inside a Training Step</p>
       </div>
     </footer>
     <footer class="site-footer" aria-label="Contact links">
@@ -648,7 +648,7 @@
     <script src="../../assets/js/blogs.js"></script>
     <script>
     /* ===================================================================
-       Animated figures for "Anatomy of a Training Step".
+       Animated figures for "Inside a Training Step".
        One shared playback engine, eight SVG figures.
        =================================================================== */
     (function () {
