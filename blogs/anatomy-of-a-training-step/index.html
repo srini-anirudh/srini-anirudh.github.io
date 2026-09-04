@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Anatomy of a Training Step: what actually happens when a transformer trains" />
+    <meta property="og:description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png" />
+    <meta property="article:published_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-09-04" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Anatomy of a Training Step: what actually happens when a transformer trains" />
+    <meta name="twitter:description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png" />
+    <title>Anatomy of a Training Step | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/" },
+        "headline": "Anatomy of a Training Step",
+        "description": "A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger.",
+        "image": "https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/preview.png",
+        "datePublished": "2026-09-04",
+        "dateModified": "2026-09-04",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["transformer training", "activation memory", "backpropagation", "mixed precision", "MFU"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-controls button[disabled] { opacity: 0.35; cursor: not-allowed; }
+      .animation-controls button[disabled]:hover { color: #dce4e9; background: #161c22; border-color: #39454e; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* --- article-specific additions ------------------------------------ */
+      figure.article-panel { margin-left: 0; margin-right: 0; }
+      .article-panel svg { display: block; width: 100%; height: auto; }
+      .figcap { margin: 15px 0 0; padding-top: 13px; color: #93a0a8; border-top: 1px solid #242c34; font: 13.5px/1.6 var(--mono); }
+      .figcap b { color: #cfd8dd; font-weight: 600; }
+      .eq { margin: 26px 0; padding: 18px 20px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 17px/1.7 var(--mono); }
+      .eq em { color: var(--ink-soft); font-style: italic; }
+      .eq .why { display: block; margin-top: 9px; color: var(--muted); font: 13px/1.5 var(--mono); }
+      .aside-note { margin: 26px 0; padding: 16px 20px; background: rgba(63, 209, 160, 0.09); border-left: 3px solid #2a9c78; font-size: 17px; }
+      .aside-note p:last-child { margin-bottom: 0; }
+      .article-content pre { margin: 24px 0; padding: 18px 20px; overflow-x: auto; color: #e4eaee; background: var(--panel); font: 14px/1.65 var(--mono); }
+      .article-content code { font: 0.88em var(--mono); }
+      .article-content p code, .article-content li code { padding: 1px 4px; background: rgba(20, 23, 26, 0.07); }
+      table.ledger { width: 100%; margin: 26px 0; border-collapse: collapse; font: 14.5px/1.5 var(--mono); }
+      table.ledger th { padding: 8px 10px; text-align: left; color: var(--muted); border-bottom: 1px solid var(--ink); font-weight: 600; }
+      table.ledger td { padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+      table.ledger td.num { text-align: right; }
+      table.ledger tr.total td { font-weight: 600; border-bottom: 2px solid var(--ink); }
+      .article-content ul.plain { padding-left: 1.2em; }
+      .article-content ul.plain li { margin-bottom: 9px; }
+      .pull { max-width: 30ch; margin: 40px 0; font: 700 30px/1.16 var(--display); letter-spacing: -0.02em; }
+      .article-taxonomy span { display: inline-block; margin: 0 8px 0 0; padding: 5px 10px; color: var(--ink-soft); border: 1px solid var(--rule); font: 11px/1 var(--mono); }
+      .article-meta-bar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 20px; color: var(--muted); font: 12px/1.6 var(--mono); }
+      .article-taxonomy { margin-top: 26px; }
+      .article-share { display: inline-flex; gap: 7px; align-items: center; padding: 6px 11px; color: var(--ink); background: none; border: 1px solid var(--rule); cursor: pointer; font: 11px/1 var(--mono); }
+      .article-share svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+      .article-citation { width: min(70ch, calc(100% - 32px)); margin: 0 auto 60px; padding: 24px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .article-citation-kicker { margin: 0; color: var(--muted); font: 600 11px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-citation h2 { margin: 10px 0 14px; font: 700 26px/1.1 var(--display); }
+      .article-citation-code pre { margin: 14px 0 10px; padding: 16px; overflow-x: auto; color: #e4eaee; background: var(--panel); font: 12.5px/1.6 var(--mono); }
+      .citation-copy { display: inline-flex; gap: 7px; align-items: center; padding: 7px 12px; color: var(--ink); background: none; border: 1px solid var(--rule); cursor: pointer; font: 11px/1 var(--mono); }
+      .site-footer { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; padding: 30px 20px 44px; color: var(--muted); font: 12px/1 var(--mono); }
+      .site-footer a { display: inline-flex; gap: 6px; align-items: center; color: var(--ink-soft); text-decoration: none; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article anatomy-of-a-training-step-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">ML Systems from First Principles · 04 of 08</p>
+        <h1 class="article-title">Anatomy of a Training Step</h1>
+        <p class="article-subtitle">Five lines of PyTorch hide a machine of moving parts. Before you can split training across a thousand GPUs, you have to know exactly what you are splitting.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>transformers</span><span>memory</span><span>systems</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>29 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+    <nav class="ml-series-nav" aria-label="ML Systems from First Principles">
+      <a class="ml-series-nav__identity" href="../index.html#ml-systems">ML Systems from First Principles</a>
+      <span class="ml-series-nav__position">04 of 08 · Part II · Understanding the Workload</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../talk-is-not-cheap/"><span>Previous · 03</span><strong>Talk Is Not Cheap</strong></a><a class="ml-series-nav__link" href="../parallelism-playbook/"><span>Next · 05</span><strong>The Parallelism Playbook</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#five-lines">Five lines that hide everything</a></li>
+          <li><a href="#journey">Before the GPU: a batch's journey</a></li>
+          <li><a href="#block">Inside one transformer block</a></li>
+          <li><a href="#compute">Why compute scales like N × D</a></li>
+          <li><a href="#backward">Backprop: one GEMM in, two out</a></li>
+          <li><a href="#graph">The graph and the activation lifetime</a></li>
+          <li><a href="#ledger">The training memory ledger</a></li>
+          <li><a href="#precision">Four precisions, not one</a></li>
+          <li><a href="#checkpointing">Activation checkpointing</a></li>
+          <li><a href="#accumulation">Gradient accumulation</a></li>
+          <li><a href="#optimizer">The optimizer step is bandwidth</a></li>
+          <li><a href="#timeline">The step, end to end</a></li>
+          <li><a href="#utilization">Utilization is not efficiency</a></li>
+          <li><a href="#walls">Two walls, one question</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="five-lines">
+        <h2>Five lines that hide everything</h2>
+        <p>Every transformer ever trained, at every scale, reduces to this loop:</p>
+<pre><code>for batch in loader:
+    output = model(batch)
+    loss = loss_fn(output, target)
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()</code></pre>
+        <p>Six lines. Nothing in them tells you that <code>model(batch)</code> will allocate seventeen gigabytes of intermediate tensors, that <code>loss.backward()</code> costs roughly twice the arithmetic of the line above it, or that <code>optimizer.step()</code> — mathematically the most trivial line on the page — can eat a fifth of your step time because it reads and writes two hundred gigabytes of memory to do a handful of multiplications per parameter.</p>
+        <p>This article opens the loop up. We will walk one step from the moment bytes leave storage to the moment updated weights land back in HBM, keeping track of four quantities the whole way: <em>what arithmetic is done</em>, <em>what memory is allocated</em>, <em>what data moves and how far</em>, and <em>what depends on what</em>. That last one is the sleeper. Dependencies are what make training hard to parallelize, and they are the reason activation memory exists at all.</p>
+        <p>Throughout, I will use one concrete model so that every number is checkable rather than gestural. A dense decoder-only transformer, roughly Llama-2-7B shaped:</p>
+        <div class="eq">
+          layers <em>L</em> = 32 · hidden <em>H</em> = 4096 · heads = 32 × 128<br />
+          MLP intermediate <em>I</em> = 11008 (SwiGLU) · vocab <em>V</em> = 32000<br />
+          sequence <em>S</em> = 4096 · microbatch <em>B</em> = 1 · BF16 weights, Adam optimizer
+          <span class="why">Parameters: 32 × (4H² + 3HI) + 2VH ≈ 6.74 × 10⁹. Call it 6.7B.</span>
+        </div>
+        <p>Everything below is arithmetic on those six numbers. If you can reproduce the numbers, you can re-derive them for your own model — which is the actual skill, because the model you care about is never the one in the blog post.</p>
+        <p>By the end you should be able to answer the question this whole series is building toward: <em>what exactly are we trying to split across GPUs?</em></p>
+      </section>
+
+      <section id="journey">
+        <h2>Before the GPU: a batch's journey</h2>
+        <p>Training starts long before the first kernel launches. A batch has to be found on disk, decoded, turned into tensors, moved into a region of host memory the DMA engine is allowed to touch, and shipped across PCIe. Each of those hops has its own bandwidth, and they differ by three orders of magnitude.</p>
+
+        <figure class="article-panel" id="fig1">
+          <svg id="fig1-svg" viewBox="0 0 760 330" role="img" aria-label="Animated diagram of the input path: storage to CPU RAM to a pinned host buffer, across PCIe, into GPU HBM, with the bandwidth of each hop labelled."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 07</span>
+          </div>
+          <figcaption class="figcap"><b>The input path.</b> Bandwidth drops by roughly 500× between HBM and the storage tier. Every hop is a place the GPU can be left waiting.</figcaption>
+        </figure>
+
+        <p>Three details in that path matter more than the rest.</p>
+        <p><strong>Worker processes.</strong> Decoding and tokenizing happen on CPU cores, in separate processes, because Python cannot do it concurrently in one. Those workers run <em>ahead</em> of the GPU: while step <em>N</em> computes, the workers are already preparing <em>N+1</em>. If they can't keep up, the GPU idles, and no amount of parallelism strategy will save you. This is input starvation, and it is the single most common cause of a training job running at half the throughput its owner expects.</p>
+        <p><strong>Pinned memory.</strong> Ordinary host allocations are pageable — the OS can move them. A DMA engine cannot chase a moving target, so a copy from pageable memory is really two copies: kernel staging buffer, then device. Page-locking the buffer removes the staging copy and, more importantly, makes the transfer <em>asynchronous</em>: it can be issued on a side stream and overlap with compute.</p>
+        <p><strong>Double buffering.</strong> Asynchrony is only useful if there is somewhere to put the incoming batch while the current one is still in use. Two device-side buffers, alternating, gives the copy engine and the SMs disjoint working sets, and the H2D transfer disappears behind the forward pass.</p>
+        <div class="aside-note">
+          <p>For text, none of this is hard: a batch of 4096 int32 tokens is 16 KB, which crosses PCIe in under a microsecond. For vision-language training it is a different story. A microbatch of 32 images at 384×384×3 in uint8 is 14 MB before augmentation, and the decode is JPEG, not <code>str.split</code>. In VLM runs the dataloader is frequently the bottleneck, and the fix is CPU-side — more workers, pre-resized shards, GPU decode — not anything to do with the model.</p>
+        </div>
+      </section>
+
+      <section id="block">
+        <h2>Inside one transformer block</h2>
+        <p>Now the arithmetic. A decoder block is seven operations in a fixed order, and each one has a completely different profile: some are enormous matrix multiplications that saturate the tensor cores, some are elementwise passes that do almost no arithmetic and exist only to move memory around.</p>
+        <p>The figure below walks a single <code>[1, 4096, 4096]</code> activation through one block, showing at each step the tensor shape, the FLOPs, the HBM traffic, and the arithmetic intensity that follows from those two — the ratio that decides whether the step is limited by the tensor cores or by memory bandwidth.</p>
+
+        <figure class="article-panel" id="fig2">
+          <svg id="fig2-svg" viewBox="0 0 760 470" role="img" aria-label="Animated walkthrough of one transformer block. A highlight moves down the operation stack while a side panel reports tensor shape, FLOPs, HBM bytes, arithmetic intensity, and whether the operation is compute-bound or memory-bound."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 11</span>
+          </div>
+          <figcaption class="figcap"><b>One block, op by op.</b> B=1, S=4096, H=4096, I=11008, BF16. Intensity is FLOPs ÷ HBM bytes; on an H100 the crossover between memory-bound and compute-bound sits near 300 FLOP/byte.</figcaption>
+        </figure>
+
+        <p>Read the pattern rather than the individual numbers. The five projections — QKV, output, gate, up, down — carry <strong>92% of the arithmetic</strong> and are comfortably compute-bound. The four cheap operations — two norms, the SiLU-multiply, two residual adds — carry under a twentieth of a percent of the arithmetic and are entirely memory-bound. They are not free. The SwiGLU activation alone reads and writes 270 MB per layer to perform one multiply per element; across 32 layers that is 8.6 GB of HBM traffic for arithmetic you could do on a phone.</p>
+        <p>This is why kernel fusion matters, and why <code>torch.compile</code> tends to buy 10–20% on transformer training without touching a single matrix multiply. It isn't making the GEMMs faster. It is deleting round trips to HBM in the gaps between them.</p>
+
+        <h3>Reading shapes off an architecture diagram</h3>
+        <p>The habit worth building is converting any block diagram into shapes without thinking. Everything downstream — parallelism, communication volume, memory — is a function of these.</p>
+        <table class="ledger">
+          <thead><tr><th>Tensor</th><th>Shape</th><th class="num">Elements</th><th class="num">BF16 size</th></tr></thead>
+          <tbody>
+            <tr><td>block input X</td><td>[B, S, H]</td><td class="num">16.8 M</td><td class="num">33.6 MB</td></tr>
+            <tr><td>Q, K, V (packed)</td><td>[B, S, 3H]</td><td class="num">50.3 M</td><td class="num">100.7 MB</td></tr>
+            <tr><td>per-head view</td><td>[B, 32, S, 128]</td><td class="num">16.8 M</td><td class="num">33.6 MB</td></tr>
+            <tr><td>attention scores</td><td>[B, 32, S, S]</td><td class="num">537 M</td><td class="num">1.07 GB</td></tr>
+            <tr><td>MLP intermediate</td><td>[B, S, I]</td><td class="num">45.1 M</td><td class="num">90.2 MB</td></tr>
+            <tr><td>logits</td><td>[B, S, V]</td><td class="num">131 M</td><td class="num">262 MB</td></tr>
+          </tbody>
+        </table>
+        <p>Two rows in that table should make you uncomfortable. The <strong>attention score matrix</strong> is 1.07 GB per layer — larger than every other tensor in the block combined, and it grows quadratically. This is the single tensor FlashAttention exists to never materialize: it tiles the computation so the S × S matrix lives in SRAM and is discarded, turning attention's memory cost from O(S²) into O(S).</p>
+        <p>The <strong>logits</strong> are 262 MB in BF16, but the cross-entropy path typically upcasts to FP32 and keeps the softmax output plus a gradient buffer — call it 1.5 GB for one sequence. Double the vocabulary, as recent models have, and this single tensor becomes the peak-memory event of the entire step. It is the reason fused and chunked cross-entropy kernels have become standard equipment.</p>
+      </section>
+
+      <section id="compute">
+        <h2>Why compute scales like N × D</h2>
+        <p>A matrix multiply of an <em>[m, k]</em> by a <em>[k, n]</em> produces <em>m × n</em> outputs, each a dot product of length <em>k</em>: one multiply and one add per term.</p>
+        <div class="eq">
+          FLOPs(GEMM) = 2 · m · n · k
+          <span class="why">The 2 is the fused multiply-add counted as two operations.</span>
+        </div>
+        <p>Now apply it to a linear layer. Its weight is <em>[H, H']</em>, which is exactly its parameter count, and it is applied once to every token. So a forward pass through a linear layer costs <em>2 × (params) × (tokens)</em>, and summing over every linear layer in the model gives:</p>
+        <div class="eq">
+          Forward FLOPs ≈ 2 · <em>N</em> · <em>D</em>
+          <span class="why">N = parameters, D = tokens processed. Not an empirical law — just the GEMM cost, summed.</span>
+        </div>
+        <p>The whole scaling-law formalism rests on this identity, which is why compute budgets are quoted in <em>N × D</em> at all. But notice what the derivation assumed: <em>every FLOP comes from a weight being used</em>. Attention breaks that assumption. The QKᵀ and PV products multiply activations by activations; no parameters are involved, so they contribute nothing to <em>N</em> and are invisible in <em>2ND</em>.</p>
+        <div class="eq">
+          Attention FLOPs per layer = 4 · <em>B</em> · <em>S</em>² · <em>H</em><br />
+          Projection FLOPs per layer = 2 · <em>B</em> · <em>S</em> · <em>P<sub>layer</sub></em>
+          <span class="why">Setting them equal: S* = P<sub>layer</sub> / 2H. For our model, 202.4M / 8192 ≈ 24,700 tokens.</span>
+        </div>
+        <p>So at <em>S</em> = 4096, attention is about 17% of the block's arithmetic and the <em>2ND</em> approximation is off by a tolerable margin. At <em>S</em> = 32k, attention has overtaken every projection in the model and <em>2ND</em> under-counts your compute by more than a third. The approximation isn't wrong; it has a domain of validity, and long-context training sits outside it. Causal masking halves the attention term, which buys you roughly a factor of two of headroom and no more.</p>
+      </section>
+
+      <section id="backward">
+        <h2>Backprop: one GEMM in, two out</h2>
+        <p>The backward pass is not magic and it is not, despite the name, a reversal. It is the chain rule applied to a graph, and for the operation that dominates transformers — the matrix multiply — it produces a startlingly clean result.</p>
+        <p>Take <em>Y = XW</em>, with X of shape [S, H] and W of shape [H, H']. Given the gradient of the loss with respect to the output, <em>dY</em>, we need two things: the gradient to pass further back, and the gradient of the weight itself.</p>
+        <div class="eq">
+          forward &nbsp; <em>Y</em> = <em>X W</em> &nbsp;&nbsp; → &nbsp;&nbsp; 2 · S · H · H'<br />
+          backward &nbsp; <em>dX</em> = <em>dY W</em>ᵀ &nbsp;&nbsp; → &nbsp;&nbsp; 2 · S · H' · H<br />
+          backward &nbsp; <em>dW</em> = <em>X</em>ᵀ <em>dY</em> &nbsp;&nbsp; → &nbsp;&nbsp; 2 · H · S · H'
+          <span class="why">Three GEMMs of identical cost. Backward is exactly 2× forward for every linear layer.</span>
+        </div>
+
+        <figure class="article-panel" id="fig3">
+          <svg id="fig3-svg" viewBox="0 0 760 380" role="img" aria-label="Animated derivation of the backward pass of a matrix multiply, showing that the forward GEMM Y equals X times W produces two backward GEMMs, and that computing the weight gradient requires the saved input X."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 08</span>
+          </div>
+          <figcaption class="figcap"><b>Y = XW and its two children.</b> The dW branch is the one that forces X to stay resident in memory from the forward pass until the backward pass reaches it.</figcaption>
+        </figure>
+
+        <p>Three GEMMs where there was one gives the familiar estimate:</p>
+        <div class="eq">
+          Training FLOPs ≈ 6 · <em>N</em> · <em>D</em>
+          <span class="why">2ND forward + 4ND backward. Assumes: dense model, all parameters trainable, no recomputation, attention negligible, elementwise ops negligible.</span>
+        </div>
+        <p>State the assumptions out loud, because each one fails somewhere real. Freeze a vision tower and its weight-gradient GEMM disappears — that branch costs 2ND for the frozen portion, and you no longer pay it. Turn on full activation checkpointing and you re-run the forward pass, pushing the coefficient toward 8. A mixture-of-experts model routes each token to a fraction of its parameters, so the <em>N</em> in the formula is active parameters, not total. And at long context, as we just saw, the attention term you dropped is no longer a rounding error.</p>
+        <p>Used with those caveats, 6ND is an excellent estimate. Used as a law, it will mislead you by 30% in either direction — which, on a run that costs six figures, is a real number.</p>
+        <div class="pull">The gradient of a weight needs the input that weight saw. That single fact creates activation memory.</div>
+      </section>
+
+      <section id="graph">
+        <h2>The graph and the activation lifetime</h2>
+        <p>Autograd builds a directed acyclic graph as the forward pass runs. Every operation that produces a tensor requiring gradients records a node holding: the backward function, references to its inputs' nodes, and — critically — any tensors it will need later. Calling <code>.backward()</code> traverses that graph in reverse topological order, and each node's backward function fires as soon as the gradient of its output is available.</p>
+        <p>The consequence is a memory profile shaped like a mountain. Look at what the <em>dW</em> = <em>X</em>ᵀ<em>dY</em> rule demands: to compute the weight gradient of layer 1, you need the input to layer 1 — a tensor produced at the very beginning of the forward pass and not consumed until the very end of the backward pass. Its lifetime spans the entire step. Layer 2's input spans slightly less. Layer 32's, barely any.</p>
+
+        <figure class="article-panel" id="fig4">
+          <svg id="fig4-svg" viewBox="0 0 760 400" role="img" aria-label="Animated timeline showing activation lifetimes as nested bars across the forward and backward passes, with the resulting memory curve rising to a peak at the forward-backward boundary and draining during the backward pass."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 13</span>
+          </div>
+          <figcaption class="figcap"><b>Nested lifetimes.</b> Each layer's saved tensors live from its forward until its backward. Peak memory is reached at the turn — the instant the loss is computed.</figcaption>
+        </figure>
+
+        <p>That nesting is why activation memory dominates, and why it scales with depth even though nothing about a single layer is large. It also explains a phenomenon everyone training large models has hit: the job survives the forward pass, reports a comfortable memory reading, and then OOMs milliseconds into the backward. Nothing went wrong in the backward pass. The peak was always going to be at the turn; you just hadn't reached it yet.</p>
+        <p>A useful mental model: <strong>the forward pass is a push, the backward pass is a pop.</strong> Memory grows monotonically through the forward, peaks at the loss, and drains through the backward as each saved tensor is consumed and freed. Anything that reduces what gets pushed — checkpointing, smaller microbatches, fused kernels that save one tensor instead of four — moves the whole mountain down.</p>
+      </section>
+
+      <section id="ledger">
+        <h2>The training memory ledger</h2>
+        <p>We can now account for every byte an H100 holds during training. There are five categories and they behave completely differently: three scale with parameters, one scales with batch and sequence, and one is whatever the allocator happens to be doing.</p>
+        <div class="eq">
+          <em>M</em><sub>train</sub> = <em>M</em><sub>params</sub> + <em>M</em><sub>grads</sub> + <em>M</em><sub>optimizer</sub> + <em>M</em><sub>activations</sub> + <em>M</em><sub>workspace</sub>
+        </div>
+
+        <h3>The three that scale with parameters</h3>
+        <p>In the standard mixed-precision recipe, each parameter carries: a BF16 copy used for the forward and backward GEMMs (2 bytes), a BF16 gradient (2 bytes), an FP32 master copy the optimizer actually updates (4 bytes), and Adam's two moment estimates in FP32 (4 + 4 bytes). Sixteen bytes per parameter, before a single activation exists.</p>
+
+        <table class="ledger">
+          <thead><tr><th>Component</th><th>Precision</th><th class="num">Bytes / param</th><th class="num">6.7B model</th></tr></thead>
+          <tbody>
+            <tr><td>Parameters (compute copy)</td><td>BF16</td><td class="num">2</td><td class="num">13.5 GB</td></tr>
+            <tr><td>Gradients</td><td>BF16</td><td class="num">2</td><td class="num">13.5 GB</td></tr>
+            <tr><td>Master parameters</td><td>FP32</td><td class="num">4</td><td class="num">27.0 GB</td></tr>
+            <tr><td>Adam first moment <em>m</em></td><td>FP32</td><td class="num">4</td><td class="num">27.0 GB</td></tr>
+            <tr><td>Adam second moment <em>v</em></td><td>FP32</td><td class="num">4</td><td class="num">27.0 GB</td></tr>
+            <tr class="total"><td>Model states</td><td>—</td><td class="num">16</td><td class="num">108 GB</td></tr>
+          </tbody>
+        </table>
+
+        <p>An 80 GB H100 cannot hold the states of a 7B model. Not with a batch size of one; not with a sequence length of one. The model is 13.5 GB and the machine has 80 GB, and it still does not fit — because training a parameter costs eight times what storing it does.</p>
+
+        <h3>The one that scales with the batch</h3>
+        <p>Activations are a different animal. Counting the tensors a SwiGLU block must save for its backward — the block input, both norm outputs, Q/K/V, the attention output, the projection output, and the three MLP intermediates — comes to roughly 16<em>H</em> elements per token per layer with FlashAttention in play.</p>
+        <div class="eq">
+          <em>M</em><sub>act</sub> ≈ <em>L</em> · <em>B</em> · <em>S</em> · 16<em>H</em> · 2 bytes<br />
+          = 32 · 1 · 4096 · 65,536 · 2 ≈ <strong>17.2 GB</strong>
+          <span class="why">≈ 4.2 MB per token, for this architecture. Multiply by microbatch size directly.</span>
+        </div>
+        <p>Note what is <em>not</em> in that expression: the parameter count. Activation memory depends on depth, width, batch, and sequence — you cannot predict it from model size, and two models with identical parameter counts can differ by 3× here depending on how wide and shallow they are and how many tensors their kernels save.</p>
+
+        <figure class="article-panel" id="fig5">
+          <svg id="fig5-svg" viewBox="0 0 760 360" role="img" aria-label="Animated stacked bar building up the training memory ledger component by component, crossing the 80 gigabyte HBM capacity line partway through."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 08</span>
+          </div>
+          <figcaption class="figcap"><b>The ledger, stacked.</b> Model states alone overshoot an 80 GB H100 by 35%. Activations and workspace then double the overshoot.</figcaption>
+        </figure>
+
+        <h3>The one nobody budgets for</h3>
+        <p>Workspace is everything the allocator holds that isn't yours: cuBLAS split-k buffers, FlashAttention's softmax statistics, NCCL's communication buffers, the temporaries inside a fused kernel. It is usually 2–5 GB, and it is <em>peaky</em> — it spikes inside a kernel and vanishes, which is exactly the behaviour that fragments a caching allocator.</p>
+        <p>Which brings up the distinction that actually matters when a job dies: <strong>peak memory versus steady-state memory.</strong> PyTorch's caching allocator never returns memory to the driver, so <code>memory_allocated</code> tells you what is live and <code>memory_reserved</code> tells you what has been claimed. A job with 60 GB allocated and 78 GB reserved is one fragmentation event from an OOM, and the error message will name a 200 MB allocation as the culprit. Watch the gap between the two numbers, not either one alone.</p>
+      </section>
+
+      <section id="precision">
+        <h2>Four precisions, not one</h2>
+        <p>"Training in BF16" is four independent decisions collapsed into one phrase, and conflating them is how people end up with silently diverging runs.</p>
+        <ul class="plain">
+          <li><strong>Storage precision</strong> — how weights sit in HBM. Halving it halves parameter memory and halves the bytes a GEMM must read.</li>
+          <li><strong>Activation precision</strong> — how intermediates are saved for backward. This is the lever on the 17 GB above.</li>
+          <li><strong>Compute precision</strong> — what the tensor cores multiply. BF16 inputs are what unlock ~989 TFLOP/s on an H100 against ~67 for FP32.</li>
+          <li><strong>Accumulation precision</strong> — what the multiply-adds sum into. This is almost always FP32 <em>inside the tensor core</em>, and it is the reason low-precision training works at all.</li>
+        </ul>
+        <p>The distinction between the last two is the whole trick. A BF16 multiply is fine; a BF16 <em>sum of 4096 terms</em> is not, because BF16's 8-bit mantissa means adding a small number to a large accumulator silently does nothing. Tensor cores multiply in BF16 and accumulate in FP32, so the dot product is accurate even though its inputs are not.</p>
+        <p>The same logic explains the FP32 master weights in the ledger. An Adam update at learning rate 3e-4 changes a weight by a relative amount around 10⁻⁴ — below BF16's resolution, which is about 2⁻⁸ ≈ 4×10⁻³. Update a BF16 weight directly and thousands of steps round to no change at all. Keep the master copy in FP32, apply the update there, and cast down for compute. Four bytes per parameter is the price of the updates not vanishing.</p>
+        <p>BF16 versus FP16 is a related choice: BF16 keeps FP32's 8-bit exponent and gives up mantissa bits, so it has the dynamic range to represent gradients without a loss scaler. FP16 has more precision and less range, and needs gradient scaling to keep small gradients from flushing to zero. FP8 goes further still — E4M3 for forward tensors, E5M2 for gradients — but needs per-tensor scaling factors and careful handling of outlier channels, which is why it lands first in the projections and last, if ever, in the norms.</p>
+      </section>
+
+      <section id="checkpointing">
+        <h2>Activation checkpointing</h2>
+        <p>Seventeen gigabytes of activations for a single sequence is the problem. Activation checkpointing is the answer, and it is the cleanest compute-for-memory trade in all of training.</p>
+        <p>The idea follows directly from the lifetime picture. Instead of saving every intermediate tensor in the forward pass, save only a sparse set of checkpoints — typically one per transformer block — and discard everything between them. When the backward pass reaches a block, re-run its forward from the nearest checkpoint to regenerate the tensors it needs, use them, and free them immediately.</p>
+
+        <figure class="article-panel" id="fig6">
+          <svg id="fig6-svg" viewBox="0 0 760 400" role="img" aria-label="Animated comparison of storing every activation versus checkpointing: the top track fills all activation slots during the forward pass, the bottom track keeps only block boundaries and recomputes the interior during the backward pass."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 12</span>
+          </div>
+          <figcaption class="figcap"><b>Store everything vs. store boundaries.</b> Checkpointing trades a second forward pass for an order-of-magnitude cut in activation memory.</figcaption>
+        </figure>
+
+        <div class="eq">
+          full checkpointing: &nbsp; memory ↓ ~10× &nbsp;·&nbsp; compute ↑ ~33%
+          <span class="why">One extra forward (2ND) on top of 6ND gives 8ND. Recomputation is cheap because forward is the cheap half.</span>
+        </div>
+        <p>Checkpointing every block is the blunt version. The sharp version is <strong>selective</strong>: recompute only the operations that are cheap in FLOPs and expensive in memory, and keep the ones that are the reverse. The SiLU-multiply is nearly free to recompute and saves 90 MB per layer. A GEMM output is expensive to recompute and saves the same 33 MB. Recompute the first, keep the second, and you capture most of the memory saving for a fraction of the compute penalty — Korthikanti et al. report keeping the overhead near 4% instead of 33%.</p>
+        <p>The asymmetry gets sharper in multimodal models. In a VLM, the vision tower runs on far more tokens per image than the language model sees after pooling, and its activations are correspondingly larger relative to its parameter count. Full checkpointing on ViT blocks and selective checkpointing on LLM blocks is often the right split, precisely because the two towers sit at different points on this trade curve.</p>
+      </section>
+
+      <section id="accumulation">
+        <h2>Gradient accumulation</h2>
+        <p>Large-batch training is a statistical requirement — you want a global batch of a few million tokens for stable optimization at scale — and it collides with a hardware limit: activation memory scales linearly with microbatch size, and you only have 80 GB.</p>
+        <p>The resolution is to decouple the batch you optimize with from the batch you compute with. Run several microbatches in sequence, letting their gradients sum into the same buffer, and only then take an optimizer step.</p>
+
+        <figure class="article-panel" id="fig7">
+          <svg id="fig7-svg" viewBox="0 0 760 360" role="img" aria-label="Animated diagram of gradient accumulation: four microbatches run forward and backward in sequence, each adding into a single persistent gradient buffer, with activation memory rising and falling each time, followed by one optimizer step."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 10</span>
+          </div>
+          <figcaption class="figcap"><b>Accumulation.</b> Activation memory is paid per microbatch and released; the gradient buffer is allocated once and written many times.</figcaption>
+        </figure>
+
+        <div class="eq">
+          <em>B</em><sub>global</sub> = <em>B</em><sub>micro</sub> × <em>N</em><sub>devices</sub> × <em>N</em><sub>accum</sub>
+        </div>
+        <p>The three factors are not interchangeable, and treating them as such is a classic source of confusion. <em>N</em><sub>devices</sub> buys you <strong>speed</strong>: the microbatches run concurrently, so wall-clock time per step stays flat. <em>N</em><sub>accum</sub> buys you <strong>batch size</strong> only: the microbatches run one after another, so step time scales linearly with it. Accumulation is not parallelism. It is a way to reach a target global batch on hardware you don't have enough of.</p>
+        <p>Two implementation details bite people. First, the loss must be scaled by 1/<em>N</em><sub>accum</sub> (or the gradients divided afterwards), or your effective learning rate silently scales with the accumulation count. Second, anything that averages over the batch — batch norm, and any loss normalized by token count — does not decompose across microbatches, so per-microbatch normalization gives a different answer than the equivalent large batch would.</p>
+        <p>There is also a forward reference here worth flagging. In data-parallel training, gradients must be all-reduced across devices before the step. With accumulation, you only need that all-reduce on the <em>last</em> microbatch — the earlier ones are pure local accumulation. That one observation is why <code>no_sync()</code> exists and why accumulation is a communication-reduction technique as much as a memory one.</p>
+      </section>
+
+      <section id="optimizer">
+        <h2>The optimizer step is bandwidth</h2>
+        <p>Adam looks like nothing. Per parameter: two exponential moving averages, a square root, a division. Maybe a dozen FLOPs. It should be instant.</p>
+        <p>Count the bytes instead. For one parameter, with BF16 compute weights and FP32 master and moments, the step must read the gradient (2), read the master weight (4), read and write <em>m</em> (8), read and write <em>v</em> (8), write the master weight (4), and write the downcast BF16 weight (2).</p>
+        <div class="eq">
+          28 bytes moved · ~12 FLOPs &nbsp;→&nbsp; arithmetic intensity ≈ 0.43 FLOP/byte
+          <span class="why">An H100's ridge point is near 300 FLOP/byte. The optimizer sits roughly 700× below it.</span>
+        </div>
+        <p>For 6.7B parameters that is 189 GB of HBM traffic per step. At a realistic 2.5 TB/s achieved, about <strong>75 ms</strong> — against roughly 330 ms of forward and backward compute for a 4096-token step. The most arithmetically trivial line in the training loop is 20% of the step.</p>
+        <p>This is also why <em>fused</em> and <em>foreach</em> optimizers are not micro-optimizations. A naive implementation launches a handful of kernels per parameter tensor; with hundreds of tensors that is thousands of launches, each reading and writing HBM separately. A fused optimizer does the whole update in one pass over each tensor, and a multi-tensor implementation batches small tensors into single launches. Same math, a third of the traffic, and no launch overhead.</p>
+        <p>And it is the reason optimizer state sharding is such an effective idea. If the step is bandwidth-bound and each device only owns 1/<em>k</em> of the parameters, the step gets <em>k</em>× faster in addition to using <em>k</em>× less memory. That is ZeRO's second gift, and it is usually undersold next to the memory saving.</p>
+      </section>
+
+      <section id="timeline">
+        <h2>The step, end to end</h2>
+        <p>Assemble everything. One training step, three concurrent lanes, real durations for our 6.7B model on one H100 with a 4096-token microbatch.</p>
+
+        <figure class="article-panel" id="fig8">
+          <svg id="fig8-svg" viewBox="0 0 760 400" role="img" aria-label="Animated end-to-end timeline of a training step with three lanes: CPU dataloader workers preparing the next batch, the PCIe copy engine, and the GPU running forward, backward and optimizer phases, with annotations for memory growth and pipeline bubbles."></svg>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status" aria-live="polite">Stage 01 / 11</span>
+          </div>
+          <figcaption class="figcap"><b>One step.</b> The CPU and copy lanes run a step ahead. When they fall behind, the GPU lane grows a bubble and every efficiency number you track gets worse at once.</figcaption>
+        </figure>
+
+        <p>The shape to internalize is the offset between lanes. The dataloader is working on batch <em>N+1</em> while the GPU computes batch <em>N</em>; the H2D copy for <em>N+1</em> overlaps the forward pass of <em>N</em> on a side stream. Everything to the left of the GPU lane is supposed to be invisible. When it becomes visible, you have a bubble.</p>
+      </section>
+
+      <section id="utilization">
+        <h2>Utilization is not efficiency</h2>
+        <p><code>nvidia-smi</code> reporting 100% means one thing: at least one kernel was resident on the device during each sampling interval. It says nothing about how many SMs that kernel occupied, whether it used the tensor cores, or whether it spent its life waiting on HBM. A kernel that copies memory back and forth forever will report 100% utilization at approximately zero useful throughput.</p>
+        <p>The measurement that means something is <strong>model FLOPs utilization</strong>:</p>
+        <div class="eq">
+          MFU = (6 · <em>N</em> · <em>D</em><sub>step</sub> / <em>t</em><sub>step</sub>) ÷ peak FLOP/s
+          <span class="why">Numerator counts the arithmetic the model definition requires. Denominator is the chip's dense peak.</span>
+        </div>
+        <p>MFU deliberately excludes recomputation, because recomputation is a choice you made, not work the model needed. <strong>Hardware FLOPs utilization</strong> includes it. The gap between them is the price of your memory strategy: with full activation checkpointing, HFU ≈ 1.33 × MFU, and if you see that ratio in your logs it tells you recomputation is costing you a third of the machine.</p>
+        <p>Good large-scale transformer training lands somewhere around 35–55% MFU. Below 30%, something specific is wrong and it is nearly always one of: an input pipeline that can't keep up, unfused elementwise kernels between the GEMMs, a microbatch too small to fill the tensor cores, a communication pattern that isn't overlapping, or an optimizer that isn't fused. Every one of those is diagnosable from the timeline in the previous figure, which is why the timeline is the artifact worth building first when a run is slow.</p>
+      </section>
+
+      <section id="walls">
+        <h2>Two walls, one question</h2>
+        <p>Everything above collapses into two failure modes.</p>
+        <p>The <strong>time wall</strong>: the model fits, and training will take four months. This is an arithmetic statement. 6<em>ND</em> for a 7B model on 2T tokens is 8.1 × 10²² FLOPs; one H100 at 45% MFU delivers about 4.4 × 10¹⁴ FLOP/s, so the run takes roughly six years. There is no clever kernel that fixes six years. You need more chips, working on different data at the same time.</p>
+        <p>The <strong>memory wall</strong>: the model does not fit at all. 108 GB of model states plus 17 GB of activations on an 80 GB card. This one is not fixed by more chips working on different data — every device would still need the full 108 GB. It is fixed by making each device hold <em>less of the model</em>.</p>
+        <p>Two walls, two different escapes, and the second is the one that forces real architectural change. Which brings us to the question this whole dissection was for:</p>
+        <div class="pull">Which parts of this step can be divided across devices, and what does each division cost in communication?</div>
+        <p>Look back at what we found. The <strong>batch</strong> divides trivially — different tokens are independent until the gradient all-reduce. The <strong>optimizer states</strong> divide cleanly, because each parameter's update depends only on that parameter. The <strong>parameters</strong> divide at the cost of gathering them back before every GEMM. The <strong>sequence</strong> divides everywhere except attention, which needs every token to see every other token. The <strong>layers</strong> divide, but they are strictly sequential, so dividing them creates idle time by construction.</p>
+        <p>Five axes, five different communication bills. That is <a href="../parallelism-playbook/">The Parallelism Playbook</a>, and it is the next article.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Architecture</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Attention Is All You Need</a> · Vaswani et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1910.07467" target="_blank" rel="noopener noreferrer">Root Mean Square Layer Normalization</a> · Zhang &amp; Sennrich, 2019</li>
+            <li><a href="https://arxiv.org/abs/2002.05202" target="_blank" rel="noopener noreferrer">GLU Variants Improve Transformer</a> · Shazeer, 2020</li>
+            <li><a href="https://arxiv.org/abs/2307.09288" target="_blank" rel="noopener noreferrer">Llama 2: Open Foundation and Fine-Tuned Chat Models</a> · Touvron et al., 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Compute accounting and scaling</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2001.08361" target="_blank" rel="noopener noreferrer">Scaling Laws for Neural Language Models</a> · Kaplan et al., 2020 — Appendix F derives the 6ND estimate</li>
+            <li><a href="https://arxiv.org/abs/2203.15556" target="_blank" rel="noopener noreferrer">Training Compute-Optimal Large Language Models</a> · Hoffmann et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2204.02311" target="_blank" rel="noopener noreferrer">PaLM: Scaling Language Modeling with Pathways</a> · Chowdhery et al., 2022 — introduces MFU</li>
+            <li><a href="https://arxiv.org/abs/2007.00072" target="_blank" rel="noopener noreferrer">Data Movement Is All You Need</a> · Ivanov et al., 2020</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Memory</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1604.06174" target="_blank" rel="noopener noreferrer">Training Deep Nets with Sublinear Memory Cost</a> · Chen et al., 2016</li>
+            <li><a href="https://arxiv.org/abs/2205.05198" target="_blank" rel="noopener noreferrer">Reducing Activation Recomputation in Large Transformer Models</a> · Korthikanti et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/1910.02054" target="_blank" rel="noopener noreferrer">ZeRO: Memory Optimizations Toward Training Trillion Parameter Models</a> · Rajbhandari et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a> · Dao et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener noreferrer">FlashAttention-2</a> · Dao, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Precision and optimization</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1710.03740" target="_blank" rel="noopener noreferrer">Mixed Precision Training</a> · Micikevicius et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/2209.05433" target="_blank" rel="noopener noreferrer">FP8 Formats for Deep Learning</a> · Micikevicius et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/1412.6980" target="_blank" rel="noopener noreferrer">Adam: A Method for Stochastic Optimization</a> · Kingma &amp; Ba, 2014</li>
+            <li><a href="https://arxiv.org/abs/1711.05101" target="_blank" rel="noopener noreferrer">Decoupled Weight Decay Regularization</a> · Loshchilov &amp; Hutter, 2017</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Systems and tooling</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1909.08053" target="_blank" rel="noopener noreferrer">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism</a> · Shoeybi et al., 2019</li>
+            <li><a href="https://pytorch.org/assets/pytorch2-2.pdf" target="_blank" rel="noopener noreferrer">PyTorch 2: Faster Machine Learning Through Dynamic Python Bytecode Transformation and Graph Compilation</a> · Ansel et al., 2024</li>
+            <li><a href="https://docs.pytorch.org/docs/stable/notes/cuda.html" target="_blank" rel="noopener noreferrer">CUDA semantics: streams, pinned memory and the caching allocator</a> · PyTorch documentation</li>
+            <li><a href="https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html" target="_blank" rel="noopener noreferrer">Matrix Multiplication Background User's Guide</a> · NVIDIA</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Anatomy of a Training Step</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/">https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026anatomy,
+  author       = {Srinivasan, Anirudh},
+  title        = {Anatomy of a Training Step},
+  year         = {2026},
+  month        = {sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/anatomy-of-a-training-step/},
+  note         = {Published September 4, 2026; updated September 4, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Anatomy of a Training Step</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script>
+    /* ===================================================================
+       Animated figures for "Anatomy of a Training Step".
+       One shared playback engine, eight SVG figures.
+       =================================================================== */
+    (function () {
+      "use strict";
+      var NS = "http://www.w3.org/2000/svg";
+      var MONO = '"IBM Plex Mono", ui-monospace, monospace';
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var C = {
+        ink: "#e4eaee", dim: "#93a0a8", faint: "#5d6a73", line: "#39454e",
+        grid: "#1b232a", panel: "#161c22", deep: "#0b0f13",
+        acc: "#3fd1a0", blue: "#5ab2e8", amber: "#e8b45a", rose: "#e8737d", violet: "#a98ae8"
+      };
+
+      function E(p, tag, a, t) {
+        var e = document.createElementNS(NS, tag);
+        if (a) for (var k in a) e.setAttribute(k, a[k]);
+        if (t != null) e.textContent = t;
+        if (p) p.appendChild(e);
+        return e;
+      }
+      function T(p, x, y, t, o) {
+        o = o || {};
+        return E(p, "text", {
+          x: x, y: y, fill: o.fill || C.dim, "font-family": MONO,
+          "font-size": o.size || 11, "font-weight": o.weight || 400,
+          "text-anchor": o.anchor || "start", "letter-spacing": o.ls || 0
+        }, t);
+      }
+      function R(p, x, y, w, h, a) {
+        return E(p, "rect", Object.assign({ x: x, y: y, width: Math.max(0, w), height: Math.max(0, h) }, a || {}));
+      }
+      function L(p, x1, y1, x2, y2, a) {
+        return E(p, "line", Object.assign({ x1: x1, y1: y1, x2: x2, y2: y2, stroke: C.line, "stroke-width": 1 }, a || {}));
+      }
+      var lerp = function (a, b, t) { return a + (b - a) * t; };
+      var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
+      var ease = function (t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
+      var eo = function (t) { return 1 - Math.pow(1 - t, 3); };
+      var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+      function svgOf(id) { return document.getElementById(id); }
+
+      /* ---------------- playback engine ---------------- */
+      function Figure(rootId, cfg) {
+        var root = document.getElementById(rootId);
+        if (!root) return;
+        var n = cfg.labels.length;
+        var dur = cfg.duration || 2600;
+        var ctr = root.querySelector(".animation-controls");
+        var status = root.querySelector(".animation-status");
+        var bPP = ctr.querySelector('[data-action="play-pause"]');
+        var bPrev = ctr.querySelector('[data-action="previous"]');
+        var bNext = ctr.querySelector('[data-action="next"]');
+        var speedBtns = Array.prototype.slice.call(ctr.querySelectorAll("[data-speed]"));
+        var stage = 0, t = 0, speed = 1, playing = false, userPaused = false, raf = 0, last = 0;
+
+        function draw() {
+          cfg.render(stage, REDUCED ? 1 : clamp(t, 0, 1));
+          status.textContent = "Stage " + pad(stage + 1) + " / " + pad(n) + " \u00b7 " + cfg.labels[stage];
+        }
+        function tick(ts) {
+          if (!playing) return;
+          if (!last) last = ts;
+          var dt = Math.min(ts - last, 90); last = ts;
+          t += dt / (dur / speed);
+          if (t >= 1) { t = 0; stage = (stage + 1) % n; }
+          draw();
+          raf = window.requestAnimationFrame(tick);
+        }
+        function play() {
+          if (REDUCED) return;
+          if (t >= 1) t = 0;
+          playing = true; userPaused = false; last = 0;
+          bPP.textContent = "Pause";
+          bPP.setAttribute("aria-pressed", "true");
+          bPP.setAttribute("aria-label", "Pause animation");
+          window.cancelAnimationFrame(raf);
+          raf = window.requestAnimationFrame(tick);
+        }
+        function pause(manual) {
+          playing = false;
+          if (manual) userPaused = true;
+          bPP.textContent = "Play";
+          bPP.setAttribute("aria-pressed", "false");
+          bPP.setAttribute("aria-label", "Play animation");
+          window.cancelAnimationFrame(raf);
+        }
+        function jump(d) { pause(true); stage = (stage + d + n) % n; t = 1; draw(); }
+
+        bPrev.addEventListener("click", function () { jump(-1); });
+        bNext.addEventListener("click", function () { jump(1); });
+        bPP.addEventListener("click", function () { playing ? pause(true) : play(); });
+        speedBtns.forEach(function (b) {
+          b.addEventListener("click", function () {
+            speed = parseFloat(b.getAttribute("data-speed"));
+            speedBtns.forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+            draw();
+          });
+        });
+
+        cfg.build();
+        if (REDUCED) {
+          pause(false);
+          bPP.disabled = true;
+          speedBtns.forEach(function (b) { b.disabled = true; });
+        }
+        t = REDUCED ? 1 : 0;
+        draw();
+
+        if (!REDUCED && "IntersectionObserver" in window) {
+          new IntersectionObserver(function (entries) {
+            entries.forEach(function (en) {
+              if (en.isIntersecting) { if (!userPaused && !playing) play(); }
+              else if (playing) { pause(false); }
+            });
+          }, { threshold: 0.3 }).observe(root);
+        } else if (!REDUCED) { play(); }
+      }
+
+      /* =================================================================
+         FIGURE 1 — the input path
+         ================================================================= */
+      function mkFig1() {
+        var s = {};
+        var stations = [
+          { x: 22, w: 148, t: "STORAGE", s: "webdataset shards" },
+          { x: 208, w: 148, t: "CPU RAM", s: "decode \u00b7 tokenize" },
+          { x: 394, w: 148, t: "PINNED BUF", s: "page-locked" },
+          { x: 592, w: 148, t: "GPU HBM", s: "80 GB" }
+        ];
+        var links = [
+          { x: 170, w: 38, l: "2\u20137 GB/s" },
+          { x: 356, w: 38, l: "~200 GB/s" },
+          { x: 542, w: 50, l: "PCIe5 \u00d716 \u00b7 55 GB/s" }
+        ];
+        var active = [0, 1, 1, 2, 3, 3, 1];
+        var seg = [[96, 96], [96, 282], [282, 282], [282, 468], [468, 666], [666, 666], [96, 282]];
+        var caps = [
+          ["Shards sit on object storage or NVMe.", "A step needs bytes that are 500\u00d7 further from the SMs than HBM."],
+          ["Worker processes decode and tokenize.", "Separate processes, because one Python interpreter cannot keep up."],
+          ["Samples are collated into a tensor.", "4096 int32 tokens \u2192 16 KB. For images this is 14 MB per microbatch."],
+          ["Copied into a page-locked buffer.", "Pageable memory would force an extra staging copy through the kernel."],
+          ["DMA engine pushes it across PCIe.", "Asynchronous: issued on a side stream, overlapped with compute."],
+          ["Resident in HBM, 3.35 TB/s away.", "The only tier the tensor cores can actually read from."],
+          ["Meanwhile, batch N+1 is already moving.", "Prefetch depth is what keeps the GPU lane free of bubbles."]
+        ];
+        return {
+          labels: ["Shards on disk", "Workers decode", "Collate to tensor", "Into pinned memory", "DMA across PCIe", "Resident in HBM", "Prefetch N+1"],
+          duration: 2500,
+          build: function () {
+            var svg = svgOf("fig1-svg"); if (!svg) return;
+            T(svg, 22, 26, "INPUT PATH \u00b7 one microbatch", { fill: C.faint, size: 10.5, ls: 1.6 });
+            var cam = E(svg, "g", {});
+            s.cam = cam;
+            s.boxes = []; s.titles = []; s.subs = [];
+            stations.forEach(function (st) {
+              var g = E(cam, "g", {});
+              var r = R(g, st.x, 104, st.w, 74, { fill: C.panel, stroke: C.line, "stroke-width": 1.2 });
+              var a = T(g, st.x + 14, 133, st.t, { fill: C.ink, size: 13, weight: 600 });
+              var b = T(g, st.x + 14, 153, st.s, { fill: C.faint, size: 10.5 });
+              s.boxes.push(r); s.titles.push(a); s.subs.push(b);
+            });
+            s.links = links.map(function (lk) {
+              var g = E(cam, "g", {});
+              L(g, lk.x, 141, lk.x + lk.w, 141, { stroke: C.line, "stroke-width": 1.2 });
+              E(g, "path", { d: "M" + (lk.x + lk.w - 6) + " 137 L" + (lk.x + lk.w) + " 141 L" + (lk.x + lk.w - 6) + " 145", fill: "none", stroke: C.line, "stroke-width": 1.2 });
+              T(g, lk.x + lk.w / 2, 128, lk.l, { fill: C.faint, size: 9.5, anchor: "middle" });
+              return g;
+            });
+            s.workers = [];
+            for (var i = 0; i < 4; i++) {
+              s.workers.push(R(cam, 222 + i * 30, 186, 22, 12, { fill: C.blue, opacity: 0 }));
+            }
+            s.pkt = E(cam, "circle", { cx: 96, cy: 141, r: 11, fill: C.acc, opacity: 0 });
+            s.pkt2 = E(cam, "circle", { cx: 96, cy: 141, r: 9, fill: C.violet, opacity: 0 });
+            s.pktLbl = T(cam, 96, 90, "", { fill: C.acc, size: 10, anchor: "middle" });
+            L(svg, 22, 228, 738, 228, { stroke: C.grid });
+            s.c1 = T(svg, 22, 256, "", { fill: C.ink, size: 14 });
+            s.c2 = T(svg, 22, 278, "", { fill: C.faint, size: 11.5 });
+            s.hbm = T(svg, 738, 300, "HBM3 \u00b7 3.35 TB/s", { fill: C.faint, size: 10, anchor: "end" });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var a = active[k];
+            s.boxes.forEach(function (r, i) {
+              r.setAttribute("stroke", i === a ? C.acc : C.line);
+              r.setAttribute("fill", i === a ? "#12231d" : C.panel);
+              r.setAttribute("opacity", i === a ? 1 : 0.55);
+            });
+            s.titles.forEach(function (x, i) { x.setAttribute("fill", i === a ? C.acc : C.dim); });
+            s.subs.forEach(function (x, i) { x.setAttribute("opacity", i === a ? 1 : 0.55); });
+            var sg = seg[k];
+            var x = lerp(sg[0], sg[1], e);
+            s.pkt.setAttribute("opacity", k === 6 ? 0.35 : 1);
+            s.pkt.setAttribute("cx", k === 6 ? 666 : x);
+            s.pkt.setAttribute("r", k >= 2 ? 8 : 11);
+            s.pkt2.setAttribute("opacity", k === 6 ? 1 : 0);
+            s.pkt2.setAttribute("cx", k === 6 ? x : 96);
+            s.pktLbl.setAttribute("x", k === 6 ? x : x);
+            s.pktLbl.textContent = k === 6 ? "batch N+1" : (k >= 2 ? "16 KB" : "batch N");
+            s.pktLbl.setAttribute("fill", k === 6 ? C.violet : C.acc);
+            s.workers.forEach(function (w, i) {
+              var on = (k === 1 || k === 6) && e > i * 0.2;
+              w.setAttribute("opacity", on ? 0.85 : 0.12);
+              w.setAttribute("fill", k === 6 ? C.violet : C.blue);
+            });
+            s.links.forEach(function (g, i) { g.setAttribute("opacity", (k >= 1 && i === Math.min(a - 1 + (k === 4 ? 1 : 0), 2) && k !== 0) ? 1 : 0.45); });
+            if (!REDUCED) {
+              var cx = stations[a].x + stations[a].w / 2, cy = 141, sc = 1 + 0.07 * Math.sin(Math.PI * e);
+              s.cam.setAttribute("transform", "translate(" + (cx * (1 - sc)) + "," + (cy * (1 - sc)) + ") scale(" + sc + ")");
+            } else { s.cam.setAttribute("transform", ""); }
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 2 — one transformer block, op by op
+         ================================================================= */
+      function mkFig2() {
+        var s = {};
+        var ops = [
+          ["input X", "[1, 4096, 4096]", "\u2014", "33.6 MB", null, "residual stream", 0],
+          ["RMSNorm", "[1, 4096, 4096]", "0.08 GF", "67 MB", 1.25, "memory-bound", 0.08],
+          ["QKV projection", "[4096] \u2192 [12288]", "412 GF", "235 MB", 1753, "compute-bound", 412],
+          ["attention (flash, causal)", "[1, 32, 4096, 128]", "137 GF", "134 MB", 1022, "compute-bound", 137],
+          ["output projection", "[4096] \u2192 [4096]", "137 GF", "101 MB", 1360, "compute-bound", 137],
+          ["residual add", "[1, 4096, 4096]", "0.02 GF", "101 MB", 0.17, "memory-bound", 0.02],
+          ["RMSNorm", "[1, 4096, 4096]", "0.08 GF", "67 MB", 1.25, "memory-bound", 0.08],
+          ["gate + up projection", "[4096] \u2192 [2\u00d711008]", "739 GF", "394 MB", 1876, "compute-bound", 739],
+          ["SiLU \u00d7 gate", "[1, 4096, 11008]", "0.45 GF", "271 MB", 1.66, "memory-bound", 0.45],
+          ["down projection", "[11008] \u2192 [4096]", "369 GF", "214 MB", 1724, "compute-bound", 369],
+          ["residual add", "[1, 4096, 4096]", "0.02 GF", "101 MB", 0.17, "memory-bound", 0.02]
+        ];
+        var TOT = 1794.7, ROW = 36, Y0 = 52, PX = 336;
+        function dialX(ai) { return PX + 20 + clamp(Math.log(ai / 0.05) / Math.log(60000), 0, 1) * 344; }
+        return {
+          labels: ops.map(function (o) { return o[0]; }),
+          duration: 2100,
+          build: function () {
+            var svg = svgOf("fig2-svg"); if (!svg) return;
+            T(svg, 22, 26, "ONE DECODER BLOCK \u00b7 B=1 \u00b7 S=4096 \u00b7 BF16", { fill: C.faint, size: 10.5, ls: 1.6 });
+            s.track = R(svg, 22, Y0 - 8, 300, ops.length * ROW + 8, { fill: "none" });
+            s.hl = R(svg, 22, Y0, 300, ROW - 5, { fill: "#12231d", stroke: C.acc, "stroke-width": 1.4 });
+            s.rows = ops.map(function (o, i) {
+              var g = E(svg, "g", {});
+              var y = Y0 + i * ROW;
+              L(g, 22, y + ROW - 5, 322, y + ROW - 5, { stroke: C.grid });
+              var nm = T(g, 34, y + 20, o[0], { fill: C.dim, size: 11.5 });
+              var bw = (o[6] / 739) * 92;
+              var bar = R(g, 322 - bw, y + 8, bw, 12, { fill: o[4] != null && o[4] > 300 ? C.blue : C.rose, opacity: 0.5 });
+              return { g: g, nm: nm, bar: bar, y: y };
+            });
+            s.conn = E(svg, "path", { d: "", fill: "none", stroke: C.acc, "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0.6 });
+            var pg = E(svg, "g", {});
+            s.pg = pg;
+            R(pg, PX, Y0 - 8, 402, 250, { fill: C.deep, stroke: C.line });
+            s.pName = T(pg, PX + 20, Y0 + 24, "", { fill: C.acc, size: 17, weight: 600 });
+            s.pShape = T(pg, PX + 20, Y0 + 48, "", { fill: C.dim, size: 11.5 });
+            s.k1 = T(pg, PX + 20, Y0 + 88, "FLOPs", { fill: C.faint, size: 9.5, ls: 1.4 });
+            s.v1 = T(pg, PX + 20, Y0 + 110, "", { fill: C.ink, size: 16 });
+            s.k2 = T(pg, PX + 150, Y0 + 88, "HBM BYTES", { fill: C.faint, size: 9.5, ls: 1.4 });
+            s.v2 = T(pg, PX + 150, Y0 + 110, "", { fill: C.ink, size: 16 });
+            s.k3 = T(pg, PX + 280, Y0 + 88, "SHARE OF BLOCK", { fill: C.faint, size: 9.5, ls: 1.4 });
+            s.v3 = T(pg, PX + 280, Y0 + 110, "", { fill: C.ink, size: 16 });
+            T(pg, PX + 20, Y0 + 148, "ARITHMETIC INTENSITY  (FLOP / byte, log scale)", { fill: C.faint, size: 9.5, ls: 1.2 });
+            L(pg, PX + 20, Y0 + 176, PX + 364, Y0 + 176, { stroke: C.line });
+            s.ridge = L(pg, dialX(300), Y0 + 164, dialX(300), Y0 + 188, { stroke: C.amber, "stroke-width": 1.4, "stroke-dasharray": "3 2" });
+            T(pg, dialX(300), Y0 + 203, "H100 ridge \u2248 300", { fill: C.amber, size: 9, anchor: "middle" });
+            s.dot = E(pg, "circle", { cx: PX + 20, cy: Y0 + 176, r: 6, fill: C.acc });
+            s.dotLbl = T(pg, PX + 20, Y0 + 162, "", { fill: C.ink, size: 10.5, anchor: "middle" });
+            s.verdict = T(pg, PX + 20, Y0 + 232, "", { fill: C.ink, size: 13, weight: 600 });
+            var f = E(svg, "g", {});
+            T(f, 22, 452, "projections 92.3% of FLOPs", { fill: C.blue, size: 10.5 });
+            T(f, 250, 452, "attention 7.6%", { fill: C.blue, size: 10.5 });
+            T(f, 400, 452, "elementwise + norms 0.036% of FLOPs, 32% of the traffic", { fill: C.rose, size: 10.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var prev = (k - 1 + ops.length) % ops.length;
+            var y = REDUCED ? s.rows[k].y : lerp(s.rows[prev].y, s.rows[k].y, k === 0 ? 1 : e);
+            s.hl.setAttribute("y", y);
+            s.rows.forEach(function (r, i) {
+              r.nm.setAttribute("fill", i === k ? C.ink : C.dim);
+              r.nm.setAttribute("opacity", i === k ? 1 : 0.55);
+              r.bar.setAttribute("opacity", i === k ? 1 : 0.35);
+            });
+            var o = ops[k];
+            var yc = s.rows[k].y + 14;
+            s.conn.setAttribute("d", "M322 " + yc + " C 340 " + yc + ", 320 " + (Y0 + 24) + ", " + PX + " " + (Y0 + 20));
+            s.pName.textContent = o[0];
+            s.pShape.textContent = o[1];
+            s.v1.textContent = o[2];
+            s.v2.textContent = o[3];
+            s.v3.textContent = o[6] ? (o[6] / TOT * 100).toFixed(o[6] > 1 ? 1 : 2) + " %" : "\u2014";
+            var ai = o[4];
+            var tx = ai == null ? PX + 20 : dialX(ai);
+            s.dot.setAttribute("opacity", ai == null ? 0 : 1);
+            s.dot.setAttribute("cx", REDUCED ? tx : lerp(PX + 20, tx, eo(p)));
+            s.dot.setAttribute("fill", ai != null && ai > 300 ? C.blue : C.rose);
+            s.dotLbl.setAttribute("x", REDUCED ? tx : lerp(PX + 20, tx, eo(p)));
+            s.dotLbl.textContent = ai == null ? "" : (ai >= 10 ? Math.round(ai) : ai.toFixed(2));
+            s.dotLbl.setAttribute("opacity", ai == null ? 0 : 1);
+            s.verdict.textContent = o[5];
+            s.verdict.setAttribute("fill", ai == null ? C.dim : (ai > 300 ? C.blue : C.rose));
+            s.pg.setAttribute("opacity", REDUCED ? 1 : clamp(p * 4, 0.35, 1));
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 3 — Y = XW and its two backward children
+         ================================================================= */
+      function mkFig3() {
+        var s = {};
+        var caps = [
+          ["Forward: one GEMM.", "Y = XW costs 2 \u00b7 S \u00b7 H \u00b7 H'. This is the 2ND term."],
+          ["X is stashed on the graph.", "Autograd keeps a reference; the tensor cannot be freed yet."],
+          ["Y flows on to the next layer.", "Nothing here hints at what the backward pass will need."],
+          ["The gradient dY arrives.", "Computed by everything downstream, handed to this node."],
+          ["dX = dY W\u1d40 \u00b7 needs W.", "Same cost as the forward GEMM. This is what continues backward."],
+          ["dW = X\u1d40 dY \u00b7 needs X.", "The saved input is consumed here \u2014 and only here."],
+          ["Three GEMMs of equal cost.", "Backward is exactly twice the forward, for every linear layer."],
+          ["Hence \u2248 6ND per token.", "2ND forward + 4ND backward, under the stated assumptions."]
+        ];
+        return {
+          labels: ["Forward GEMM", "X saved", "Y flows on", "dY arrives", "dX = dY W\u1d40", "dW = X\u1d40 dY", "Three GEMMs", "6ND"],
+          duration: 2500,
+          build: function () {
+            var svg = svgOf("fig3-svg"); if (!svg) return;
+            T(svg, 22, 26, "ONE LINEAR LAYER, BOTH DIRECTIONS", { fill: C.faint, size: 10.5, ls: 1.6 });
+            function mat(x, y, w, h, label, shape, col) {
+              var g = E(svg, "g", {});
+              var r = R(g, x, y, w, h, { fill: C.panel, stroke: col, "stroke-width": 1.4 });
+              for (var i = 1; i < 4; i++) {
+                L(g, x + (w / 4) * i, y, x + (w / 4) * i, y + h, { stroke: C.grid });
+                L(g, x, y + (h / 4) * i, x + w, y + (h / 4) * i, { stroke: C.grid });
+              }
+              var a = T(g, x + w / 2, y + h / 2 + 6, label, { fill: col, size: 19, weight: 600, anchor: "middle" });
+              var b = T(g, x + w / 2, y + h + 17, shape, { fill: C.faint, size: 9.5, anchor: "middle" });
+              return { g: g, r: r, lbl: a, shp: b };
+            }
+            s.X = mat(60, 60, 86, 86, "X", "[S, H]", C.acc);
+            s.W = mat(196, 60, 74, 74, "W", "[H, H']", C.blue);
+            s.Y = mat(320, 60, 86, 86, "Y", "[S, H']", C.ink);
+            s.op1 = T(svg, 166, 108, "\u00d7", { fill: C.dim, size: 18, anchor: "middle" });
+            s.eq1 = T(svg, 292, 108, "=", { fill: C.dim, size: 18, anchor: "middle" });
+            s.fw = T(svg, 440, 92, "forward", { fill: C.faint, size: 10, ls: 1.4 });
+            s.fwc = T(svg, 440, 112, "2 \u00b7 S \u00b7 H \u00b7 H'", { fill: C.ink, size: 14 });
+            s.dY = mat(320, 216, 86, 86, "dY", "[S, H']", C.amber);
+            s.dX = mat(60, 216, 86, 86, "dX", "[S, H]", C.amber);
+            s.dW = mat(560, 216, 74, 74, "dW", "[H, H']", C.amber);
+            s.op2 = T(svg, 250, 264, "\u2190  dY W\u1d40", { fill: C.dim, size: 13, anchor: "middle" });
+            s.op3 = T(svg, 470, 264, "X\u1d40 dY  \u2192", { fill: C.dim, size: 13, anchor: "middle" });
+            s.hook = E(svg, "path", { d: "M103 146 L103 180 L560 180 L560 216", fill: "none", stroke: C.acc, "stroke-width": 1.4, "stroke-dasharray": "4 4", opacity: 0 });
+            s.hookLbl = T(svg, 300, 172, "saved activation \u2014 alive for the whole step", { fill: C.acc, size: 10.5, anchor: "middle", opacity: 0 });
+            s.wHook = E(svg, "path", { d: "M233 134 L233 196 L150 196 L150 216", fill: "none", stroke: C.blue, "stroke-width": 1.4, "stroke-dasharray": "4 4", opacity: 0 });
+            s.flow = E(svg, "path", { d: "M406 103 L470 103", fill: "none", stroke: C.ink, "stroke-width": 1.4, opacity: 0 });
+            s.counter = T(svg, 738, 26, "", { fill: C.ink, size: 12, anchor: "end" });
+            L(svg, 22, 322, 738, 322, { stroke: C.grid });
+            s.c1 = T(svg, 22, 348, "", { fill: C.ink, size: 14 });
+            s.c2 = T(svg, 22, 370, "", { fill: C.faint, size: 11.5 });
+            s.big = T(svg, 738, 300, "", { fill: C.acc, size: 26, weight: 600, anchor: "end" });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            function show(o, on, glow) {
+              o.g.setAttribute("opacity", on ? 1 : 0.16);
+              o.r.setAttribute("stroke-width", glow ? 2.4 : 1.4);
+            }
+            show(s.X, k >= 0, k === 1 || k === 5);
+            show(s.W, k >= 0, k === 4);
+            show(s.Y, k >= 0, k === 2);
+            show(s.dY, k >= 3, k === 3);
+            show(s.dX, k >= 4, k === 4);
+            show(s.dW, k >= 5, k === 5);
+            s.op2.setAttribute("opacity", k >= 4 ? 1 : 0.16);
+            s.op3.setAttribute("opacity", k >= 5 ? 1 : 0.16);
+            s.op2.setAttribute("fill", k === 4 ? C.amber : C.dim);
+            s.op3.setAttribute("fill", k === 5 ? C.amber : C.dim);
+            var hookOn = k >= 1 ? 1 : 0;
+            s.hook.setAttribute("opacity", k === 5 ? 1 : hookOn * 0.45);
+            s.hookLbl.setAttribute("opacity", (k === 1 || k === 5) ? 1 : hookOn * 0.4);
+            s.wHook.setAttribute("opacity", k === 4 ? 1 : (k >= 4 ? 0.35 : 0));
+            s.flow.setAttribute("opacity", k === 2 ? clamp(e * 2, 0, 1) : (k > 2 ? 0.25 : 0));
+            var gemms = k >= 6 ? 3 : (k >= 5 ? 3 : (k >= 4 ? 2 : 1));
+            s.counter.textContent = "GEMMs so far: " + gemms + " \u00b7 cost " + (gemms * 2) + "\u00b7S\u00b7H\u00b7H'";
+            s.counter.setAttribute("opacity", k >= 4 ? 1 : 0.4);
+            s.big.textContent = k === 7 ? "6ND" : (k === 6 ? "3 \u00d7 2ND" : "");
+            s.big.setAttribute("opacity", k >= 6 ? clamp(e * 2, 0, 1) : 0);
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 4 — activation lifetimes and the memory mountain
+         ================================================================= */
+      function mkFig4() {
+        var s = {};
+        var NL = 6, X0 = 70, XE = 716, TURN = 386;
+        var fwd = [], bwd = [];
+        for (var i = 0; i < NL; i++) { fwd.push(70 + i * 52); bwd.push(422 + (NL - 1 - i) * 52); }
+        var marks = [];
+        for (i = 0; i < NL; i++) marks.push(fwd[i]);
+        marks.push(TURN);
+        for (i = NL - 1; i >= 0; i--) marks.push(bwd[i]);
+        marks.push(XE);
+        var caps = [
+          "Layer 1 runs. Its inputs are saved.",
+          "Layer 2 runs. Two lifetimes now open.",
+          "Layer 3 runs. Memory is still only climbing.",
+          "Layer 4 runs. Nothing has been freed yet.",
+          "Layer 5 runs.",
+          "Layer 6 runs. The forward pass ends.",
+          "Loss computed \u2014 peak memory, 17.2 GB.",
+          "Backward through layer 6. Its tensors are freed.",
+          "Backward through layer 5.",
+          "Backward through layer 4.",
+          "Backward through layer 3.",
+          "Backward through layer 2.",
+          "Backward through layer 1. Memory drains to zero."
+        ];
+        function liveAt(x) { var c = 0; for (var i = 0; i < NL; i++) if (x >= fwd[i] && x < bwd[i]) c++; return c; }
+        return {
+          labels: ["fwd L1", "fwd L2", "fwd L3", "fwd L4", "fwd L5", "fwd L6", "loss \u00b7 peak", "bwd L6", "bwd L5", "bwd L4", "bwd L3", "bwd L2", "bwd L1"],
+          duration: 1900,
+          build: function () {
+            var svg = svgOf("fig4-svg"); if (!svg) return;
+            T(svg, 22, 26, "ACTIVATION LIFETIME \u00b7 6 layers", { fill: C.faint, size: 10.5, ls: 1.6 });
+            s.turn = L(svg, TURN, 40, TURN, 372, { stroke: C.amber, "stroke-dasharray": "4 4", opacity: 0.7 });
+            T(svg, TURN + 8, 52, "loss", { fill: C.amber, size: 10 });
+            s.bars = [];
+            for (var i = 0; i < NL; i++) {
+              var y = 62 + i * 24;
+              T(svg, 24, y + 11, "L" + (i + 1), { fill: C.faint, size: 10 });
+              R(svg, X0, y, XE - X0, 15, { fill: C.grid, opacity: 0.5 });
+              s.bars.push(R(svg, fwd[i], y, 0, 15, { fill: C.acc, opacity: 0.75 }));
+            }
+            T(svg, 24, 224, "MEM", { fill: C.faint, size: 10 });
+            L(svg, X0, 356, XE, 356, { stroke: C.line });
+            s.area = E(svg, "path", { d: "", fill: C.acc, opacity: 0.22 });
+            s.curve = E(svg, "path", { d: "", fill: "none", stroke: C.acc, "stroke-width": 2 });
+            s.head = E(svg, "circle", { cx: X0, cy: 356, r: 4.5, fill: C.ink });
+            s.peak = T(svg, TURN, 226, "peak 17.2 GB", { fill: C.amber, size: 11, anchor: "middle", opacity: 0 });
+            s.read = T(svg, 716, 226, "", { fill: C.ink, size: 13, anchor: "end" });
+            L(svg, 22, 372, 738, 372, { stroke: C.grid });
+            s.cap = T(svg, 22, 394, "", { fill: C.ink, size: 13.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var x = lerp(marks[k], marks[k + 1], e);
+            for (var i = 0; i < NL; i++) {
+              var st = fwd[i], en = Math.min(bwd[i], x);
+              s.bars[i].setAttribute("x", st);
+              s.bars[i].setAttribute("width", Math.max(0, en - st));
+              s.bars[i].setAttribute("fill", (x >= fwd[i] && x < bwd[i]) ? C.acc : C.faint);
+              s.bars[i].setAttribute("opacity", (x >= fwd[i] && x < bwd[i]) ? 0.8 : 0.3);
+            }
+            var d = "M" + X0 + " 356", px = X0, py = 356, cur = 0;
+            var evs = [];
+            for (i = 0; i < NL; i++) { evs.push([fwd[i], 1]); evs.push([bwd[i], -1]); }
+            evs.sort(function (a, b) { return a[0] - b[0]; });
+            for (var j = 0; j < evs.length; j++) {
+              if (evs[j][0] > x) break;
+              d += " L" + evs[j][0] + " " + py;
+              cur += evs[j][1];
+              py = 356 - cur * 21;
+              d += " L" + evs[j][0] + " " + py;
+              px = evs[j][0];
+            }
+            d += " L" + x + " " + py;
+            s.curve.setAttribute("d", d);
+            s.area.setAttribute("d", d + " L" + x + " 356 Z");
+            s.head.setAttribute("cx", x);
+            s.head.setAttribute("cy", py);
+            s.peak.setAttribute("opacity", k >= 6 ? 1 : 0);
+            s.read.textContent = "live: " + liveAt(x) + " / 6 layers \u00b7 " + (liveAt(x) * 2.87).toFixed(1) + " GB";
+            s.cap.textContent = caps[k];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 5 — the memory ledger
+         ================================================================= */
+      function mkFig5() {
+        var s = {};
+        var X0 = 60, W = 660, MAX = 140, Y = 118, H = 62;
+        var segs = [
+          ["parameters BF16", 13.5, C.acc],
+          ["gradients BF16", 13.5, "#35b489"],
+          ["master weights FP32", 27.0, C.blue],
+          ["Adam m FP32", 27.0, "#4a93c4"],
+          ["Adam v FP32", 27.0, "#3d7ba6"],
+          ["activations (S=4096)", 17.2, C.violet],
+          ["workspace + fragmentation", 4.0, C.amber]
+        ];
+        var caps = [
+          ["An empty H100.", "80 GB of HBM. Everything below has to fit inside the dashed line."],
+          ["Weights in BF16.", "2 bytes per parameter \u00b7 the only part people usually count."],
+          ["Gradients in BF16.", "One tensor per trainable parameter. Doubles the bill."],
+          ["FP32 master weights.", "Because a BF16 weight cannot represent a 1e-4 relative update."],
+          ["Adam's first moment.", "FP32 momentum, one value per parameter."],
+          ["Adam's second moment.", "108 GB of model states. Already 35% over capacity, at batch size zero."],
+          ["Activations for one sequence.", "Scales with B \u00d7 S \u00d7 L \u00d7 H \u2014 not with parameter count."],
+          ["Workspace and fragmentation.", "129 GB wanted, 80 GB available. This is the memory wall."]
+        ];
+        var px = W / MAX;
+        return {
+          labels: ["capacity", "+ params", "+ grads", "+ master", "+ Adam m", "+ Adam v", "+ activations", "+ workspace"],
+          duration: 2000,
+          build: function () {
+            var svg = svgOf("fig5-svg"); if (!svg) return;
+            T(svg, 22, 26, "TRAINING MEMORY LEDGER \u00b7 6.7B PARAMS \u00b7 ONE H100", { fill: C.faint, size: 10.5, ls: 1.6 });
+            R(svg, X0, Y, W, H, { fill: C.deep, stroke: C.line });
+            s.segs = segs.map(function (g) { return R(svg, X0, Y, 0, H, { fill: g[2], opacity: 0.9 }); });
+            s.cap = L(svg, X0 + 80 * px, Y - 20, X0 + 80 * px, Y + H + 22, { stroke: C.rose, "stroke-width": 1.8, "stroke-dasharray": "5 4" });
+            T(svg, X0 + 80 * px + 8, Y - 8, "80 GB \u00b7 H100 capacity", { fill: C.rose, size: 11 });
+            for (var g = 0; g <= MAX; g += 20) {
+              L(svg, X0 + g * px, Y + H + 2, X0 + g * px, Y + H + 8, { stroke: C.line });
+              T(svg, X0 + g * px, Y + H + 22, g + "", { fill: C.faint, size: 9, anchor: "middle" });
+            }
+            T(svg, X0 + W, Y + H + 22, "GB", { fill: C.faint, size: 9, anchor: "end" });
+            s.total = T(svg, X0, Y - 30, "0.0 GB", { fill: C.ink, size: 24, weight: 600 });
+            s.over = T(svg, 738, Y - 30, "", { fill: C.rose, size: 15, anchor: "end", weight: 600 });
+            s.keys = segs.map(function (g, i) {
+              var kg = E(svg, "g", { opacity: 0.2 });
+              var col = i % 2, row = Math.floor(i / 2);
+              var kx = 60 + col * 340, ky = 236 + row * 24;
+              R(kg, kx, ky - 9, 11, 11, { fill: g[2] });
+              T(kg, kx + 20, ky, g[0], { fill: C.dim, size: 11 });
+              T(kg, kx + 300, ky, g[1].toFixed(1) + " GB", { fill: C.ink, size: 11, anchor: "end" });
+              return kg;
+            });
+            L(svg, 22, 314, 738, 314, { stroke: C.grid });
+            s.c1 = T(svg, 22, 336, "", { fill: C.ink, size: 13.5 });
+            s.c2 = T(svg, 22, 356, "", { fill: C.faint, size: 11.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var acc = 0, i;
+            for (i = 0; i < segs.length; i++) {
+              var full = i < k - 1 ? 1 : (i === k - 1 ? e : 0);
+              var w = segs[i][1] * full * px;
+              s.segs[i].setAttribute("x", X0 + acc * px);
+              s.segs[i].setAttribute("width", w);
+              acc += segs[i][1] * full;
+              s.keys[i].setAttribute("opacity", i <= k - 1 ? 1 : 0.18);
+            }
+            s.total.textContent = acc.toFixed(1) + " GB";
+            s.total.setAttribute("x", clamp(X0 + acc * px - 20, X0, 600));
+            s.total.setAttribute("fill", acc > 80 ? C.rose : C.ink);
+            s.over.textContent = acc > 80 ? "over capacity by " + (acc - 80).toFixed(1) + " GB" : "";
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 6 — store everything vs. checkpoint and recompute
+         ================================================================= */
+      function mkFig6() {
+        var s = {};
+        var N = 12, SX = 62, SW = 46, SG = 54, YA = 96, YB = 250, SH = 32;
+        var caps = [
+          ["Two identical forward passes.", "Top keeps every saved tensor. Bottom keeps only block boundaries."],
+          ["Block 1 runs.", "Top stores 4 tensors; bottom stores 1 and throws away the interior."],
+          ["Block 2 runs.", "The gap widens linearly with depth."],
+          ["Block 3 runs. Forward complete.", "12 units held versus 3. This ratio is roughly what you see in practice."],
+          ["Peak memory reached.", "Same loss, same gradients, a quarter of the activation footprint."],
+          ["Backward reaches block 3.", "The top track already has what it needs."],
+          ["Bottom recomputes block 3.", "Re-run the forward from the stored boundary. One extra forward, total."],
+          ["Block 3 tensors freed.", "The recomputed interior is discarded the moment it is consumed."],
+          ["Recompute block 2.", "Only one block's interior is ever live at once."],
+          ["Block 2 freed.", "Bottom's memory never rises above checkpoints + one block."],
+          ["Recompute block 1.", "The last block to be recomputed is the first that ran."],
+          ["Memory \u00f7 4, compute +33%.", "6ND becomes 8ND. Selective checkpointing cuts that to nearer +4%."]
+        ];
+        function blockOf(i) { return Math.floor(i / 4); }
+        return {
+          labels: ["setup", "block 1 fwd", "block 2 fwd", "block 3 fwd", "peak", "bwd \u2192 block 3", "recompute 3", "free 3", "recompute 2", "free 2", "recompute 1", "totals"],
+          duration: 2000,
+          build: function () {
+            var svg = svgOf("fig6-svg"); if (!svg) return;
+            T(svg, 22, 26, "ACTIVATION CHECKPOINTING \u00b7 3 blocks \u00d7 4 saved tensors", { fill: C.faint, size: 10.5, ls: 1.6 });
+            T(svg, 22, 70, "store everything", { fill: C.dim, size: 12 });
+            T(svg, 22, 224, "checkpoint each block", { fill: C.dim, size: 12 });
+            s.a = []; s.b = []; s.bg = [];
+            for (var i = 0; i < N; i++) {
+              var x = SX + i * SG;
+              R(svg, x, YA, SW, SH, { fill: "none", stroke: C.grid });
+              s.a.push(R(svg, x + 2, YA + 2, SW - 4, SH - 4, { fill: C.acc, opacity: 0 }));
+              R(svg, x, YB, SW, SH, { fill: "none", stroke: i % 4 === 0 ? C.line : C.grid, "stroke-dasharray": i % 4 === 0 ? "" : "3 3" });
+              s.b.push(R(svg, x + 2, YB + 2, SW - 4, SH - 4, { fill: C.acc, opacity: 0 }));
+            }
+            for (var bl = 0; bl < 3; bl++) {
+              var bx = SX + bl * 4 * SG;
+              T(svg, bx, YA - 12, "block " + (bl + 1), { fill: C.faint, size: 9.5 });
+              L(svg, bx, YA - 8, bx + 3 * SG + SW, YA - 8, { stroke: C.grid });
+            }
+            T(svg, SX, YB + SH + 20, "solid outline = checkpoint kept \u00b7 dashed = discarded, recomputed later", { fill: C.faint, size: 9.5 });
+            s.ca = T(svg, 738, 70, "", { fill: C.ink, size: 13, anchor: "end" });
+            s.cb = T(svg, 738, 224, "", { fill: C.ink, size: 13, anchor: "end" });
+            s.head = E(svg, "path", { d: "M0 0 L10 0 L5 9 Z", fill: C.amber, opacity: 0 });
+            L(svg, 22, 322, 738, 322, { stroke: C.grid });
+            s.c1 = T(svg, 22, 348, "", { fill: C.ink, size: 13.5 });
+            s.c2 = T(svg, 22, 370, "", { fill: C.faint, size: 11.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var fillProgress = function (bl) {
+              if (k > bl + 1) return 4;
+              if (k === bl + 1) return e * 4;
+              return 0;
+            };
+            var freed = { 2: k >= 7, 1: k >= 9, 0: k >= 11 };
+            var recomp = { 2: k === 6, 1: k === 8, 0: k === 10 };
+            var liveA = 0, liveB = 0;
+            for (var i = 0; i < N; i++) {
+              var bl = blockOf(i), idx = i % 4;
+              var fp = fillProgress(bl);
+              var onA = fp > idx && !freed[bl];
+              s.a[i].setAttribute("opacity", onA ? 0.9 : 0.06);
+              s.a[i].setAttribute("fill", C.acc);
+              if (onA) liveA++;
+              var isCkpt = idx === 0;
+              var onB = false, col = C.acc;
+              if (isCkpt) { onB = fp > 0 && !freed[bl]; }
+              else if (recomp[bl]) { onB = e * 4 > idx; col = C.amber; }
+              else if (k === bl + 1) { onB = fp > idx && fp < 4; col = C.faint; }
+              s.b[i].setAttribute("opacity", onB ? 0.9 : 0.06);
+              s.b[i].setAttribute("fill", col);
+              if (onB) liveB++;
+            }
+            s.ca.textContent = "live: " + liveA + " units";
+            s.cb.textContent = "live: " + liveB + " units";
+            s.cb.setAttribute("fill", liveB < liveA ? C.acc : C.ink);
+            var hb = k >= 5 ? (k <= 7 ? 2 : (k <= 9 ? 1 : 0)) : -1;
+            if (hb >= 0) {
+              var hx = SX + (hb * 4 + 2) * SG;
+              s.head.setAttribute("opacity", 1);
+              s.head.setAttribute("transform", "translate(" + hx + "," + (YB - 22) + ")");
+            } else { s.head.setAttribute("opacity", 0); }
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 7 — gradient accumulation
+         ================================================================= */
+      function mkFig7() {
+        var s = {};
+        var X0 = 70, MW = 158, NM = 4, TOPY = 74, BASE = 246, AH = 62;
+        var caps = [
+          ["The gradient buffer is allocated once.", "13.5 GB in BF16, one tensor per parameter, live for the whole step."],
+          ["Microbatch 1 forward.", "Activation memory climbs to 4.3 GB \u2014 a quarter of the full-batch cost."],
+          ["Microbatch 1 backward.", "Gradients are added into the buffer, then the activations are freed."],
+          ["Microbatch 2 forward.", "Same peak again. Memory is paid per microbatch, not per global batch."],
+          ["Microbatch 2 backward.", "Buffer holds the sum of two microbatches. Its size has not changed."],
+          ["Microbatch 3 forward.", "Wall-clock time grows linearly. This is the cost of accumulation."],
+          ["Microbatch 3 backward.", "Still no optimizer step, and in DDP still no all-reduce."],
+          ["Microbatch 4 forward.", "The last one."],
+          ["Microbatch 4 backward.", "Now the gradient is complete \u2014 and only now is it worth communicating."],
+          ["optimizer.step()", "One update for a global batch 4\u00d7 larger than any microbatch that fit."]
+        ];
+        return {
+          labels: ["buffer allocated", "\u00b5b1 forward", "\u00b5b1 backward", "\u00b5b2 forward", "\u00b5b2 backward", "\u00b5b3 forward", "\u00b5b3 backward", "\u00b5b4 forward", "\u00b5b4 backward", "optimizer step"],
+          duration: 1800,
+          build: function () {
+            var svg = svgOf("fig7-svg"); if (!svg) return;
+            T(svg, 22, 26, "GRADIENT ACCUMULATION \u00b7 4 microbatches \u2192 1 step", { fill: C.faint, size: 10.5, ls: 1.6 });
+            s.cells = [];
+            for (var m = 0; m < NM; m++) {
+              var x = X0 + m * MW;
+              var g = E(svg, "g", { opacity: 0.25 });
+              R(g, x, TOPY, MW - 12, 34, { fill: C.panel, stroke: C.line });
+              L(g, x + (MW - 12) / 2, TOPY, x + (MW - 12) / 2, TOPY + 34, { stroke: C.grid });
+              T(g, x + (MW - 12) / 4, TOPY + 21, "fwd", { fill: C.dim, size: 10.5, anchor: "middle" });
+              T(g, x + 3 * (MW - 12) / 4, TOPY + 21, "bwd", { fill: C.dim, size: 10.5, anchor: "middle" });
+              T(g, x, TOPY - 8, "microbatch " + (m + 1), { fill: C.faint, size: 9.5 });
+              s.cells.push(g);
+            }
+            T(svg, 22, BASE - 40, "activation", { fill: C.faint, size: 9.5 });
+            T(svg, 22, BASE - 28, "memory", { fill: C.faint, size: 9.5 });
+            L(svg, X0, BASE, 716, BASE, { stroke: C.line });
+            s.area = E(svg, "path", { d: "", fill: C.violet, opacity: 0.2 });
+            s.curve = E(svg, "path", { d: "", fill: "none", stroke: C.violet, "stroke-width": 2 });
+            s.buf = R(svg, X0, BASE + 28, 220, 30, { fill: C.acc, opacity: 0.25, stroke: C.acc });
+            s.bufLbl = T(svg, X0 + 12, BASE + 48, "\u2211 gradients \u00b7 13.5 GB \u00b7 fixed size", { fill: C.ink, size: 11.5 });
+            s.count = T(svg, X0 + 240, BASE + 48, "", { fill: C.acc, size: 12 });
+            s.opt = R(svg, 610, BASE + 28, 106, 30, { fill: C.amber, opacity: 0.12, stroke: C.amber });
+            s.optLbl = T(svg, 663, BASE + 48, "step()", { fill: C.amber, size: 12, anchor: "middle", opacity: 0.3 });
+            L(svg, 22, 300, 738, 300, { stroke: C.grid });
+            s.c1 = T(svg, 22, 324, "", { fill: C.ink, size: 13.5 });
+            s.c2 = T(svg, 22, 345, "", { fill: C.faint, size: 11.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var phase = k === 0 ? -1 : (k === 9 ? 8 : k - 1);
+            var m = Math.floor(phase / 2), half = phase % 2;
+            s.cells.forEach(function (g, i) {
+              g.setAttribute("opacity", (phase >= 0 && i <= m && k !== 9) || k === 9 ? (i === m && k !== 9 ? 1 : 0.5) : 0.22);
+            });
+            var xNow = k === 0 ? X0 : (k === 9 ? 716 : X0 + m * MW + (half === 0 ? e : 1 + e) * ((MW - 12) / 2));
+            var d = "M" + X0 + " " + BASE;
+            for (var i = 0; i < NM; i++) {
+              var x0 = X0 + i * MW, xm = x0 + (MW - 12) / 2, x1 = x0 + MW - 12;
+              if (xNow <= x0) break;
+              d += " L" + Math.min(x0, xNow) + " " + BASE;
+              if (xNow <= xm) { d += " L" + xNow + " " + (BASE - AH * ((xNow - x0) / ((MW - 12) / 2))); break; }
+              d += " L" + xm + " " + (BASE - AH);
+              if (xNow <= x1) { d += " L" + xNow + " " + (BASE - AH * (1 - (xNow - xm) / ((MW - 12) / 2))); break; }
+              d += " L" + x1 + " " + BASE;
+            }
+            s.curve.setAttribute("d", d);
+            s.area.setAttribute("d", d + " L" + Math.min(xNow, 716) + " " + BASE + " Z");
+            var done = k === 0 ? 0 : (k === 9 ? 4 : (half === 1 ? m + e : m));
+            s.count.textContent = "written " + (k === 0 ? "0" : Math.floor(done + 0.001)) + " / 4 microbatches";
+            s.buf.setAttribute("opacity", 0.15 + 0.16 * Math.min(done, 4));
+            s.opt.setAttribute("opacity", k === 9 ? 0.15 + 0.5 * e : 0.08);
+            s.optLbl.setAttribute("opacity", k === 9 ? 1 : 0.3);
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* =================================================================
+         FIGURE 8 — the step, end to end
+         ================================================================= */
+      function mkFig8() {
+        var s = {};
+        var X0 = 90, XE = 730, TMAX = 420, PX = (XE - X0) / TMAX;
+        var LY = { cpu: 92, h2d: 132, gpu: 172 }, LH = 26;
+        function tx(ms) { return X0 + ms * PX; }
+        var span = [[0, 0], [0, 110], [110, 110], [110, 180], [180, 250], [250, 300], [300, 330], [330, 405], [405, 420], [420, 420], [420, 420]];
+        var caps = [
+          ["Batch N is already in HBM.", "The copy that put it there overlapped the previous step."],
+          ["Forward pass \u00b7 0\u2013110 ms.", "62 TFLOP of GEMMs; activations accumulate the whole way."],
+          ["Peak memory at the loss.", "17.2 GB of activations, plus 108 GB of model states."],
+          ["Backward pass begins.", "Two GEMMs per linear layer, so roughly twice the forward's duration."],
+          ["Workers are building batch N+1.", "On CPU cores, in parallel, entirely off the critical path."],
+          ["H2D copy for N+1 overlaps.", "A side stream and a pinned buffer make this invisible."],
+          ["Backward ends \u00b7 330 ms.", "Every gradient now exists; activation memory has drained."],
+          ["Optimizer \u00b7 330\u2013405 ms.", "12 FLOPs per parameter and 189 GB of HBM traffic. Bandwidth, not math."],
+          ["Step = 405 ms.", "6ND / t = 409 TFLOP/s achieved \u2192 41% MFU on an H100."],
+          ["Batch N+1 is resident.", "The loop closes with no gap. This is what a healthy step looks like."],
+          ["When the loader falls behind.", "A bubble appears in the GPU lane and every efficiency metric drops at once."]
+        ];
+        return {
+          labels: ["t = 0", "forward", "peak", "backward", "workers", "H2D N+1", "backward ends", "optimizer", "step total", "N+1 resident", "the bubble"],
+          duration: 2200,
+          build: function () {
+            var svg = svgOf("fig8-svg"); if (!svg) return;
+            T(svg, 22, 26, "ONE TRAINING STEP \u00b7 6.7B \u00b7 4096 TOKENS \u00b7 ONE H100", { fill: C.faint, size: 10.5, ls: 1.6 });
+            ["cpu", "h2d", "gpu"].forEach(function (k2) { R(svg, X0, LY[k2], XE - X0, LH, { fill: C.grid, opacity: 0.45 }); });
+            T(svg, 22, LY.cpu + 17, "CPU", { fill: C.faint, size: 10 });
+            T(svg, 22, LY.h2d + 17, "H2D", { fill: C.faint, size: 10 });
+            T(svg, 22, LY.gpu + 17, "GPU", { fill: C.faint, size: 10 });
+            s.fwd = R(svg, tx(0), LY.gpu, tx(110) - tx(0), LH, { fill: C.acc, opacity: 0.15 });
+            s.bwd = R(svg, tx(110), LY.gpu, tx(330) - tx(110), LH, { fill: C.blue, opacity: 0.15 });
+            s.opt = R(svg, tx(330), LY.gpu, tx(405) - tx(330), LH, { fill: C.amber, opacity: 0.15 });
+            T(svg, tx(55), LY.gpu + 17, "forward 110", { fill: C.ink, size: 10.5, anchor: "middle" });
+            T(svg, tx(220), LY.gpu + 17, "backward 220", { fill: C.ink, size: 10.5, anchor: "middle" });
+            T(svg, tx(367), LY.gpu + 17, "step 75", { fill: C.ink, size: 10.5, anchor: "middle" });
+            s.cpuB = R(svg, tx(20), LY.cpu, tx(180) - tx(20), LH, { fill: C.violet, opacity: 0.1 });
+            s.cpuT = T(svg, tx(100), LY.cpu + 17, "decode + tokenize batch N+1", { fill: C.violet, size: 10.5, anchor: "middle", opacity: 0.3 });
+            s.h2dB = R(svg, tx(250), LY.h2d, tx(285) - tx(250), LH, { fill: C.violet, opacity: 0.1 });
+            s.h2dT = T(svg, tx(300), LY.h2d + 17, "copy N+1", { fill: C.violet, size: 10.5, opacity: 0.3 });
+            s.bubble = R(svg, tx(405), LY.gpu, tx(420) - tx(405), LH, { fill: C.rose, opacity: 0 });
+            s.bubbleT = T(svg, tx(413), LY.gpu - 8, "bubble: GPU idle, waiting on input", { fill: C.rose, size: 10.5, anchor: "end", opacity: 0 });
+            T(svg, 22, 244, "MEM", { fill: C.faint, size: 10 });
+            L(svg, X0, 300, XE, 300, { stroke: C.line });
+            s.area = E(svg, "path", { d: "", fill: C.acc, opacity: 0.18 });
+            s.curve = E(svg, "path", { d: "", fill: "none", stroke: C.acc, "stroke-width": 2 });
+            s.memLbl = T(svg, XE, 244, "", { fill: C.dim, size: 11, anchor: "end" });
+            for (var ms = 0; ms <= TMAX; ms += 60) {
+              L(svg, tx(ms), 300, tx(ms), 306, { stroke: C.line });
+              T(svg, tx(ms), 318, ms + "", { fill: C.faint, size: 9, anchor: "middle" });
+            }
+            T(svg, XE, 318, "ms", { fill: C.faint, size: 9, anchor: "end" });
+            s.head = L(svg, X0, 78, X0, 306, { stroke: C.amber, "stroke-width": 1.4, opacity: 0.85 });
+            L(svg, 22, 336, 738, 336, { stroke: C.grid });
+            s.c1 = T(svg, 22, 360, "", { fill: C.ink, size: 13.5 });
+            s.c2 = T(svg, 22, 382, "", { fill: C.faint, size: 11.5 });
+          },
+          render: function (k, p) {
+            var e = ease(p);
+            var ms = lerp(span[k][0], span[k][1], e);
+            var x = tx(ms);
+            s.head.setAttribute("x1", x); s.head.setAttribute("x2", x);
+            s.fwd.setAttribute("opacity", ms > 0 ? 0.55 : 0.15);
+            s.bwd.setAttribute("opacity", ms > 110 ? 0.55 : 0.15);
+            s.opt.setAttribute("opacity", ms > 330 ? 0.6 : 0.15);
+            var cpuOn = k >= 4;
+            s.cpuB.setAttribute("opacity", cpuOn ? 0.5 : 0.12);
+            s.cpuT.setAttribute("opacity", cpuOn ? 1 : 0.3);
+            var h2dOn = k >= 5;
+            s.h2dB.setAttribute("opacity", h2dOn ? 0.5 : 0.12);
+            s.h2dT.setAttribute("opacity", h2dOn ? 1 : 0.3);
+            var mem = function (t) {
+              if (t <= 110) return (t / 110) * 62;
+              if (t <= 330) return 62 * (1 - (t - 110) / 220);
+              return 4;
+            };
+            var d = "M" + X0 + " 300", step = 6;
+            for (var t2 = 0; t2 <= ms; t2 += step) d += " L" + tx(t2) + " " + (300 - mem(t2));
+            d += " L" + x + " " + (300 - mem(ms));
+            s.curve.setAttribute("d", d);
+            s.area.setAttribute("d", d + " L" + x + " 300 Z");
+            s.memLbl.textContent = "activations " + (mem(ms) / 62 * 17.2).toFixed(1) + " GB" + (ms > 330 ? "  \u00b7 189 GB moved by the optimizer" : "");
+            var bub = k === 10;
+            s.bubble.setAttribute("opacity", bub ? 0.5 + 0.3 * Math.sin(p * Math.PI * 4) : 0);
+            s.bubble.setAttribute("width", bub ? tx(420) - tx(405) : 0);
+            s.bubbleT.setAttribute("opacity", bub ? 1 : 0);
+            s.c1.textContent = caps[k][0];
+            s.c2.textContent = caps[k][1];
+          }
+        };
+      }
+
+      /* ---------------- boot ---------------- */
+      function boot() {
+        Figure("fig1", mkFig1());
+        Figure("fig2", mkFig2());
+        Figure("fig3", mkFig3());
+        Figure("fig4", mkFig4());
+        Figure("fig5", mkFig5());
+        Figure("fig6", mkFig6());
+        Figure("fig7", mkFig7());
+        Figure("fig8", mkFig8());
+
+        var share = document.querySelector(".article-share");
+        var shareStatus = document.querySelector(".share-status");
+        if (share) {
+          share.addEventListener("click", function () {
+            var url = window.location.href;
+            if (navigator.share) { navigator.share({ title: document.title, url: url }).catch(function () { }); }
+            else if (navigator.clipboard) {
+              navigator.clipboard.writeText(url).then(function () {
+                if (shareStatus) { shareStatus.textContent = "Link copied"; setTimeout(function () { shareStatus.textContent = ""; }, 2400); }
+              });
+            }
+          });
+        }
+        var copy = document.querySelector("[data-copy-citation]");
+        if (copy) {
+          copy.addEventListener("click", function () {
+            var code = document.querySelector(".article-citation-code code");
+            var st = document.querySelector(".citation-status");
+            if (code && navigator.clipboard) {
+              navigator.clipboard.writeText(code.textContent).then(function () {
+                if (st) { st.textContent = "BibTeX copied"; setTimeout(function () { st.textContent = ""; }, 2400); }
+              });
+            }
+          });
+        }
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+      else boot();
+    })();
+    </script>
+  </body>
+</html>

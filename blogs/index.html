@@ -34,7 +34,7 @@
         "description": "Animated, illustrated deep dives on machine learning systems, GPU performance, vision-language models, deep learning, and neural architectures.",
         "author": { "@id": "https://srini-anirudh.github.io/about.html#person" },
         "isPartOf": { "@id": "https://srini-anirudh.github.io/#website" },
-        "hasPart": { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#hardware-performance-foundations", "name": "Part I — Hardware + Performance Foundations" }
+        "hasPart": { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 }
       }
     </script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -84,7 +84,7 @@
           <button type="button" class="blog-filter" data-blog-filter="training" aria-pressed="false">Training</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 14 articles</p>
+        <p class="blog-filter-status" aria-live="polite">Showing all 18 articles</p>
 
         <div class="blog-list">
           <a class="blog-card blog-card-featured" href="vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
@@ -99,54 +99,108 @@
               <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
             </div>
           </a>
-          <a class="blog-card" href="parallelism-playbook/" target="_self" data-blog-categories="systems training">
+          <a class="blog-card" id="ml-systems" href="new-mask-same-task/" target="_self" data-blog-categories="systems foundations" data-blog-series="ml-systems">
             <picture class="blog-card-media">
-              <img src="parallelism-playbook/preview.png" data-still-src="parallelism-playbook/preview.png" data-animated-src="parallelism-playbook/preview.gif" width="960" height="540" loading="eager" decoding="async" alt="Animated pipeline-parallel schedule showing forward and backward work distributed across a GPU cluster." />
-              <span class="animated-preview-title" aria-hidden="true"><strong>The Parallelism Playbook</strong><em>How Large Models Train Across Clusters</em></span>
+              <img src="new-mask-same-task/preview.png" data-still-src="new-mask-same-task/preview.png" data-animated-src="new-mask-same-task/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison of CPU and GPU execution, latency hiding, and memory hierarchy." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>New Mask, Same Task</strong><em>CPU and GPU Parallelism from First Principles</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Systems &middot; Distributed training</span>
-              <h3>The Parallelism Playbook</h3>
-              <p>From NCCL collectives to DDP, ZeRO/FSDP, tensor, pipeline, context, and expert parallelism&mdash;and how to combine them.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-09-01">September 1, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>52 min read</span></div>
-              <div class="blog-tags"><span>Distributed Training</span><span>Parallelism</span><span>FSDP &amp; ZeRO</span></div>
+              <span class="blog-card-label">ML Systems &middot; 01 &middot; Understanding the Machine</span>
+              <h3>New Mask, Same Task</h3>
+              <p>Why CPUs and GPUs spend their transistor budgets differently—and how execution hierarchy, latency hiding, memory access, tiling, and Tensor Cores follow from that choice.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-06-12">June 12, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>38 min read</span></div>
+              <div class="blog-tags"><span>CPU vs GPU</span><span>Parallelism</span><span>GPU Architecture</span></div>
             </div>
           </a>
-          <a class="blog-card" href="talk-is-not-cheap/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
+          <a class="blog-card" href="bound-by-bytes/" target="_self" data-blog-categories="systems foundations" data-blog-series="ml-systems">
             <picture class="blog-card-media">
-              <img src="talk-is-not-cheap/preview.png" data-still-src="talk-is-not-cheap/preview.png" data-animated-src="talk-is-not-cheap/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated communication hierarchy connecting GPUs through NVLink, PCIe, and an RDMA fabric." />
-              <span class="animated-preview-title" aria-hidden="true"><strong>Talk is not cheap</strong><em>From PCIe and NVLink to InfiniBand</em></span>
+              <img src="bound-by-bytes/preview.png" data-still-src="bound-by-bytes/preview.png" data-animated-src="bound-by-bytes/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated Roofline chart comparing compute and memory-bandwidth limits." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>Bound by Bytes</strong><em>Compute, Memory, and Why Peak FLOPs Lie</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Part I · 03 · Systems</span>
-              <h3>Talk is not cheap</h3>
-              <p>From PCIe and NVLink to InfiniBand: links, fabrics, collectives, topology, overlap, and the real cost of making GPUs communicate.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-08-21">August 21, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>62 min read</span></div>
-              <div class="blog-tags"><span>PCIe</span><span>NVLink</span><span>InfiniBand</span></div>
-            </div>
-          </a>
-          <a class="blog-card" href="bound-by-bytes/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
-            <picture class="blog-card-media">
-              <img src="bound-by-bytes/preview.png" data-still-src="bound-by-bytes/preview.png" data-animated-src="bound-by-bytes/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated Roofline chart locating workloads beneath compute and memory-bandwidth ceilings." />
-            </picture>
-            <div class="blog-card-body">
-              <span class="blog-card-label">Part I · 02 · Systems</span>
+              <span class="blog-card-label">ML Systems &middot; 02 &middot; Understanding the Machine</span>
               <h3>Bound by Bytes</h3>
-              <p>Compute-bound and memory-bound workloads, derived through arithmetic intensity and applied to GEMM, attention, fusion, optimizers, and distributed training.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-07-17">July 17, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>52 min read</span></div>
+              <p>Arithmetic intensity and the Roofline model derived from first principles, then applied to GEMM, attention, fusion, optimizers, and real ML kernels.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-07-17">July 17, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>46 min read</span></div>
               <div class="blog-tags"><span>Roofline</span><span>Arithmetic Intensity</span><span>Performance</span></div>
             </div>
           </a>
-          <a class="blog-card" href="new-mask-same-task/" target="_self" data-blog-categories="systems foundations" data-blog-series="hardware-performance">
+          <a class="blog-card" href="talk-is-not-cheap/" target="_self" data-blog-categories="systems foundations" data-blog-series="ml-systems">
             <picture class="blog-card-media">
-              <img src="new-mask-same-task/preview.png" data-still-src="new-mask-same-task/preview.png" data-animated-src="new-mask-same-task/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison of CPU and GPU execution and memory hierarchies." />
+              <img src="talk-is-not-cheap/preview.png" data-still-src="talk-is-not-cheap/preview.png" data-animated-src="talk-is-not-cheap/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated ring AllReduce across GPUs connected through a communication hierarchy." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>Talk Is Not Cheap</strong><em>Communication from PCIe to InfiniBand</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Part I · 01 · Systems</span>
-              <h3>New Mask, Same Task</h3>
-              <p>CPU and GPU parallelism explained through pipelines, SIMD and SIMT, execution hierarchies, memory, coalescing, tiling, and tensor cores.</p>
-              <div class="blog-meta"><span>Published <time datetime="2026-06-12">June 12, 2026</time></span><span>Updated <time datetime="2026-09-01">September 1, 2026</time></span><span>52 min read</span></div>
-              <div class="blog-tags"><span>CPU vs GPU</span><span>Parallelism</span><span>Memory Hierarchy</span></div>
+              <span class="blog-card-label">ML Systems &middot; 03 &middot; Understanding the Machine</span>
+              <h3>Talk Is Not Cheap</h3>
+              <p>What changes when data is no longer local: PCIe, NVLink, NVSwitch, RDMA, topology, collective communication, and overlap.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-08-21">August 21, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>60 min read</span></div>
+              <div class="blog-tags"><span>PCIe & NVLink</span><span>InfiniBand</span><span>Collectives</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="anatomy-of-a-training-step/" target="_self" data-blog-categories="systems training" data-blog-series="ml-systems">
+            <picture class="blog-card-media">
+              <img src="anatomy-of-a-training-step/preview.png" data-still-src="anatomy-of-a-training-step/preview.png" data-animated-src="anatomy-of-a-training-step/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated memory ledger for the parameters, gradients, optimizer states, activations, and workspace in one transformer training step." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>Anatomy of a Training Step</strong><em>What a Transformer Actually Does to Train</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">ML Systems &middot; 04 &middot; Understanding the Workload</span>
+              <h3>Anatomy of a Training Step</h3>
+              <p>A first-principles walkthrough of tensor shapes, forward and backward passes, FLOPs, activation lifetimes, optimizer states, memory accounting, and checkpointing.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>29 min read</span></div>
+              <div class="blog-tags"><span>Training</span><span>Transformers</span><span>Memory</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="parallelism-playbook/" target="_self" data-blog-categories="systems training" data-blog-series="ml-systems">
+            <picture class="blog-card-media">
+              <img src="parallelism-playbook/preview.png" data-still-src="parallelism-playbook/preview.png" data-animated-src="parallelism-playbook/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated pipeline-parallel schedule showing work distributed across a GPU cluster." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>The Parallelism Playbook</strong><em>How Large Models Train Across Clusters</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">ML Systems &middot; 05 &middot; Scaling the Workload</span>
+              <h3>The Parallelism Playbook</h3>
+              <p>The six things a training workload can split, from DDP and ZeRO/FSDP through tensor, pipeline, context, expert, and hybrid parallelism.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-01">September 1, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>48 min read</span></div>
+              <div class="blog-tags"><span>Distributed Training</span><span>Parallelism</span><span>FSDP & ZeRO</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="llm-inference/" target="_self" data-blog-categories="systems vlms" data-blog-series="ml-systems">
+            <picture class="blog-card-media">
+              <img src="llm-inference/preview.png" data-still-src="llm-inference/preview.png" data-animated-src="llm-inference/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated LLM inference timeline progressing from prefill through serial decode and a growing KV cache." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>One Token at a Time</strong><em>The Anatomy of LLM and VLM Inference</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">ML Systems &middot; 06 &middot; Understanding Inference</span>
+              <h3>One Token at a Time</h3>
+              <p>Why inference becomes a different machine: autoregression, prefill, decode, KV cache, batching, bandwidth, latency metrics, quantization, and multimodal workloads.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>56 min read</span></div>
+              <div class="blog-tags"><span>Inference</span><span>KV Cache</span><span>Prefill & Decode</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="serving-playbook/" target="_self" data-blog-categories="systems vlms" data-blog-series="ml-systems">
+            <picture class="blog-card-media">
+              <img src="serving-playbook/preview.png" data-still-src="serving-playbook/preview.png" data-animated-src="serving-playbook/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated serving timelines comparing static and continuous batching across GPU slots." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>The Serving Playbook</strong><em>How LLM and VLM Serving Systems Keep GPUs Busy</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">ML Systems &middot; 07 &middot; Serving</span>
+              <h3>The Serving Playbook</h3>
+              <p>Continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, distributed serving, speculative decoding, and goodput under SLOs.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>62 min read</span></div>
+              <div class="blog-tags"><span>LLM Serving</span><span>Scheduling</span><span>Paged KV</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="finding-the-bottleneck/" target="_self" data-blog-categories="systems foundations" data-blog-series="ml-systems">
+            <picture class="blog-card-media">
+              <img src="finding-the-bottleneck/preview.png" data-still-src="finding-the-bottleneck/preview.png" data-animated-src="finding-the-bottleneck/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated ML systems timeline revealing compute, memory, communication, synchronization, and input bottlenecks." />
+              <span class="animated-preview-title" aria-hidden="true"><strong>Finding the Bottleneck</strong><em>Profiling ML Systems from First Principles</em></span>
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">ML Systems &middot; 08 &middot; Performance Engineering</span>
+              <h3>Finding the Bottleneck</h3>
+              <p>A practical method for reading timelines and counters, using PyTorch Profiler and Nsight, diagnosing Roofline regimes, and testing optimization hypotheses.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>38 min read</span></div>
+              <div class="blog-tags"><span>Profiling</span><span>Nsight</span><span>Performance</span></div>
             </div>
           </a>
           <a class="blog-card" href="vision-encoders/" target="_self" data-blog-categories="vlms architecture">

@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/serving-playbook/" />
+    <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="The Serving Playbook: How Modern LLM and VLM Serving Systems Keep GPUs Busy" />
+    <meta property="og:description" content="A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/serving-playbook/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/serving-playbook/preview.png" />
+    <meta property="article:published_time" content="2026-09-04" />
+    <meta property="article:modified_time" content="2026-09-04" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Serving Playbook: How Modern LLM and VLM Serving Systems Keep GPUs Busy" />
+    <meta name="twitter:description" content="A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/serving-playbook/preview.png" />
+    <title>The Serving Playbook: How LLM and VLM Serving Systems Keep GPUs Busy | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/serving-playbook/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/serving-playbook/" },
+        "headline": "The Serving Playbook",
+        "description": "A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs.",
+        "image": "https://srini-anirudh.github.io/blogs/serving-playbook/preview.png",
+        "datePublished": "2026-09-04",
+        "dateModified": "2026-09-04",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["LLM inference", "GPU scheduling", "PagedAttention", "continuous batching", "VLM serving", "goodput"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content code { padding: 1px 5px; background: rgba(20, 23, 26, 0.06); font: 500 0.86em var(--mono); }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* Figure additions used by the animated panels in this article.
+         Specificity is deliberately high: the shared site stylesheet also
+         has svg rules (icons, share button) and must not reach these. */
+      .blog-article .article-panel .animation-stage { min-height: 40px; }
+      .blog-article .article-panel .animation-stage > svg {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-width: 100%;
+      }
+      .figure-caption { margin: 13px 0 0; color: #9fb0ba; font: 400 13.5px/1.55 var(--mono); }
+      .figure-caption b { color: #3fd1a0; font-weight: 600; }
+      .figure-lede { margin: 0 0 14px; color: #8d9aa3; font: 600 11px/1.4 var(--mono); letter-spacing: 0.13em; text-transform: uppercase; }
+      .keymath { margin: 26px 0; padding: 18px 20px; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 15.5px/1.75 var(--mono); overflow-x: auto; }
+      .keymath b { font-weight: 600; }
+      .aside-note { margin: 24px 0; padding: 4px 0 4px 18px; border-left: 2px solid var(--rule); color: var(--ink-soft); font-size: 17px; }
+      .sys-table { width: 100%; margin: 26px 0; border-collapse: collapse; font-size: 15px; }
+      .sys-table th, .sys-table td { padding: 9px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+      .sys-table th { color: var(--ink-soft); font: 600 11px/1.4 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; }
+      .sys-table td { font-family: var(--body); line-height: 1.45; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article serving-playbook-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">ML Systems from First Principles · 07 of 08</p>
+        <h1 class="article-title">The Serving Playbook</h1>
+        <p class="article-subtitle">A serving system is a scheduler wearing a transformer costume. Everything it does &mdash; batching, paging, caching, chunking, splitting, speculating &mdash; falls out of one uncomfortable fact about decoding.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Inference</span><span>Scheduling</span><span>Multimodal</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Last modified <time datetime="2026-09-04">September 4, 2026</time></span><span>62 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+    <nav class="ml-series-nav" aria-label="ML Systems from First Principles">
+      <a class="ml-series-nav__identity" href="../index.html#ml-systems">ML Systems from First Principles</a>
+      <span class="ml-series-nav__position">07 of 08 · Part V · Serving</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../llm-inference/"><span>Previous · 06</span><strong>One Token at a Time</strong></a><a class="ml-series-nav__link" href="../finding-the-bottleneck/"><span>Next · 08</span><strong>Finding the Bottleneck</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#naive">One request, one GPU</a></li>
+          <li><a href="#static-batching">Static batching</a></li>
+          <li><a href="#continuous-batching">Continuous batching</a></li>
+          <li><a href="#scheduler">The scheduler</a></li>
+          <li><a href="#kv-allocation">The KV allocation problem</a></li>
+          <li><a href="#paged-kv">Paged KV cache</a></li>
+          <li><a href="#prefix-caching">Prefix caching</a></li>
+          <li><a href="#chunked-prefill">Chunked prefill</a></li>
+          <li><a href="#interference">Prefill/decode interference</a></li>
+          <li><a href="#policy">Scheduling policy</a></li>
+          <li><a href="#disaggregation">Disaggregation</a></li>
+          <li><a href="#distributed">Distributed serving</a></li>
+          <li><a href="#topology">Topology awareness</a></li>
+          <li><a href="#speculative">Speculative decoding</a></li>
+          <li><a href="#cuda-graphs">CUDA graphs</a></li>
+          <li><a href="#fusion">Kernel fusion</a></li>
+          <li><a href="#quantization">Quantized serving</a></li>
+          <li><a href="#routing">Multi-node routing</a></li>
+          <li><a href="#vlm">VLM serving</a></li>
+          <li><a href="#systems">Systems compared</a></li>
+          <li><a href="#vllm">vLLM up close</a></li>
+          <li><a href="#sglang">SGLang up close</a></li>
+          <li><a href="#goodput">Goodput</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="naive">
+        <h2>One request, one GPU</h2>
+        <p>Put a single 8B-parameter model on a single H100 and send it one request. The prompt goes in, tokens come out, the user is happy. Now open a profiler and look at what the GPU is actually doing. The answer is: almost nothing.</p>
+        <p>Decoding is autoregressive. To produce token <em>t</em>, you need token <em>t&minus;1</em>, so every token costs one full forward pass through the network. In that forward pass, the model reads every weight exactly once and performs roughly <code>2&Psi;</code> floating-point operations, where <code>&Psi;</code> is the parameter count. For an 8B model in bf16 that is 16 GB read from HBM and 16 GFLOPs of arithmetic.</p>
+        <p>Divide one by the other and you get the arithmetic intensity of a decode step: <b>1 FLOP per byte</b>. An H100 SXM delivers about 3.35 TB/s of HBM bandwidth and about 989 TFLOP/s of dense bf16 tensor-core throughput, so its balance point &mdash; the intensity at which the two run out simultaneously &mdash; sits near 295 FLOPs per byte. A batch-1 decode step is roughly 295&times; below that line. You are paying for a machine that can do a thousand trillion operations per second and using it to move memory around.</p>
+        <div class="keymath">
+          decode step, batch size B, bf16 weights<br />
+          bytes moved &nbsp;&asymp;&nbsp; 2&Psi;<br />
+          FLOPs done &nbsp;&nbsp;&asymp;&nbsp; 2&Psi;B<br />
+          <b>arithmetic intensity &asymp; B FLOPs/byte</b>
+        </div>
+        <p>That last line is the whole reason serving systems exist. The weight read is a fixed cost per iteration. It does not care whether one sequence or two hundred sequences are riding along. Every sequence you add to the batch converts a matrix&ndash;vector product into a slightly taller matrix&ndash;matrix product, which the tensor cores were built for and which costs no extra weight traffic at all. Batching is not an optimization you bolt on later. It is the only way the hardware makes sense.</p>
+        <div class="article-panel" id="fig-amortize">
+          <p class="figure-lede">Figure 1 · Where the batch-size free lunch comes from</p>
+          <div class="animation-stage" role="img" aria-label="Animated diagram showing how weight reads are amortized across a growing batch"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 1">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>Prefill behaves in the opposite way. A 2,000-token prompt does <code>2&Psi;&times;2000</code> FLOPs against the same single weight read, which lands it far to the right of the balance point. Prefill is compute-bound and already efficient at batch 1; decode is memory-bound and catastrophically inefficient at batch 1. Almost every technique in this article exists to move decode rightward on that axis without wrecking latency.</p>
+        <div class="aside-note">One caveat that will haunt us later: attention does <em>not</em> amortize. The KV cache is per-sequence, so a batch of B sequences reads B distinct KV caches. The GEMMs get cheaper per token as B grows; attention gets exactly as expensive per token as it always was. At long context, attention becomes the dominant memory traffic and the free lunch quietly ends.</div>
+      </section>
+
+      <section id="static-batching">
+        <h2>Static batching, and why it disappoints</h2>
+        <p>The obvious first move: collect requests until you have B of them, pad them into a rectangle, run the batch to completion, return the results, repeat. This is how you batch a ResNet, and it works there because every image takes exactly one forward pass.</p>
+        <p>Generation is not like that. Four things go wrong at once.</p>
+        <ul>
+          <li><b>Arrival jitter.</b> The batch cannot start until it is full, so the first request to arrive pays the wait time of the last. Under light load this dominates time-to-first-token entirely.</li>
+          <li><b>Length heterogeneity.</b> Output lengths in real traffic vary by an order of magnitude &mdash; a yes/no answer and a code file share a queue. The batch runs for as long as the longest member.</li>
+          <li><b>Padding.</b> Rectangular tensors mean short prompts carry dead columns through every layer.</li>
+          <li><b>Slot squatting.</b> A sequence that emits its end-of-sequence token on iteration 4 keeps occupying its batch slot, its KV allocation and its share of every GEMM until iteration 24.</li>
+        </ul>
+        <p>The last one is the expensive one, and it is worth staring at.</p>
+        <div class="article-panel" id="fig-static">
+          <p class="figure-lede">Figure 2 · A static batch decaying into dead slots</p>
+          <div class="animation-stage" role="img" aria-label="Animated grid showing sequences in a static batch finishing at different times and leaving wasted slots"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 2">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>The batch you paid for is not the batch you get. Effective batch size decays monotonically from B to 1 over the life of the group, so the arithmetic intensity you carefully bought in section 1 leaks away iteration by iteration, and newly arrived requests sit in the queue watching it happen.</p>
+      </section>
+
+      <section id="continuous-batching">
+        <h2>Continuous batching</h2>
+        <p>The fix comes from asking a slightly rude question:</p>
+        <p><em>Why is the batch a property of the request group at all?</em></p>
+        <p>The model does not know what a "batch" is. Each iteration it receives some set of token positions, multiplies them by weights, and returns logits. Nothing requires that set to be the same from one iteration to the next. So make it not be.</p>
+        <p>This is <b>iteration-level scheduling</b>, introduced by Orca and now standard everywhere. At every decode step the scheduler assembles a fresh batch from whatever is currently runnable. A sequence that finishes is evicted immediately and its slot is refilled from the waiting queue on the very next iteration. Nobody waits for anybody.</p>
+        <div class="article-panel" id="fig-continuous">
+          <p class="figure-lede">Figure 3 · Static batching versus iteration-level scheduling, same twelve requests</p>
+          <div class="animation-stage" role="img" aria-label="Side-by-side animation comparing static batching with continuous batching over the same request stream"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 3">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+        <p>There is a subtlety that makes this harder than it sounds. You cannot simply stack sequences of different lengths into a rectangular tensor. Orca's answer is <b>selective batching</b>: the operations that are position-independent &mdash; every linear layer, the MLP, the normalizations &mdash; get a flattened, ragged token dimension, so a batch is just <code>[total_tokens, d_model]</code> with no padding whatsoever. Attention, which must not mix sequences, is handled per-sequence using cumulative-length offsets, which is precisely the interface a variable-length attention kernel exposes.</p>
+        <div class="keymath">
+          <b>ragged batch layout</b><br />
+          tokens&nbsp;&nbsp;&nbsp;&nbsp;[ s0 s0 s0 | s1 | s2 s2 | s3 ]&nbsp;&nbsp;&rarr; shape [7, d]<br />
+          cu_seqlens [ 0, 3, 4, 6, 7 ]<br /><br />
+          linear/MLP &rarr; one GEMM over all 7 rows<br />
+          attention&nbsp;&nbsp; &rarr; per-sequence, gathers its own KV
+        </div>
+        <p>Once the batch is ragged, prefill tokens and decode tokens stop being different species. A prefill contributes many rows, a decode contributes one, and the GEMM does not care. That observation is what makes sections 8 and 9 possible.</p>
+      </section>
+
+      <section id="scheduler">
+        <h2>The scheduler you are actually building</h2>
+        <p>At this point the interesting object is no longer the model. It is a small resource allocator that runs once per iteration and answers one question: <em>which sequences run in the next forward pass?</em></p>
+        <p>It holds sequences in a handful of states &mdash; waiting, running, and (when memory runs out) preempted &mdash; and it allocates four scarce things:</p>
+        <ul>
+          <li><b>A token budget</b>, the maximum number of token positions in one iteration. This bounds iteration time, and therefore bounds the inter-token latency of every sequence in flight.</li>
+          <li><b>Sequence slots</b>, a cap on concurrent sequences, which bounds per-sequence bookkeeping and attention kernel overhead.</li>
+          <li><b>KV blocks</b>, the real constraint, discussed next.</li>
+          <li><b>Priority</b>, which decides who gets the above when they are contended.</li>
+        </ul>
+        <p>Admission is not just "is there a free slot". A sequence admitted now will need one more KV block every <code>block_size</code> steps for as long as it lives, so schedulers hold a watermark of free blocks and refuse to admit a request that would leave the running set unable to grow. When the watermark is breached anyway &mdash; because everyone kept generating &mdash; something has to be evicted.</p>
+        <div class="article-panel" id="fig-scheduler">
+          <p class="figure-lede">Figure 4 · One iteration of admission, growth, pressure and preemption</p>
+          <div class="animation-stage" role="img" aria-label="Animated scheduler state machine showing requests moving between waiting, running and preempted queues under resource budgets"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 4">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p>Eviction has two flavours and the choice is a genuine trade. <b>Recompute</b> throws the KV away and re-prefills the sequence when it is readmitted: free to evict, costs one prefill later. <b>Swap</b> copies KV to host memory over PCIe and copies it back: costs bandwidth in both directions but preserves the work. Recompute is the usual default, though not for the reason people give &mdash; section 21 does the arithmetic and finds the swap is actually cheaper in raw time. What decides it is <em>when</em> the memory comes back, not how much the round trip costs.</p>
+      </section>
+
+      <section id="kv-allocation">
+        <h2>The KV allocation problem</h2>
+        <p>Attention needs the keys and values of every previous position, so a serving system stores them. The size is exact and unforgiving:</p>
+        <div class="keymath">
+          bytes per token = 2 &times; L &times; H<sub>kv</sub> &times; d<sub>head</sub> &times; sizeof(dtype)<br /><br />
+          Llama-3-8B: 2 &times; 32 &times; 8 &times; 128 &times; 2 B = <b>128 KiB / token</b><br />
+          one 8,192-token sequence &nbsp;&rarr;&nbsp; <b>1 GiB of KV</b>
+        </div>
+        <p>On an 80 GB H100 holding 16 GB of weights and a few GB of activations and workspace, you have perhaps 60 GB for KV. That is sixty full-length sequences, or six hundred short ones. The KV cache, not the model, is what determines how many users you can serve.</p>
+        <p>Now the naive implementation. You do not know how long a response will be, so you reserve the maximum: one contiguous buffer of <code>max_model_len</code> tokens per sequence, allocated at admission. Two kinds of waste follow immediately.</p>
+        <p><b>Internal waste.</b> If the average response is 400 tokens and you reserved 8,192, then 95% of every reservation is untouched. Concurrency drops by the same factor, and with it your arithmetic intensity, and with that your throughput. The waste is not in memory, it is in the batch size you could have had.</p>
+        <p><b>External waste.</b> If you instead reserve per-request maxima of different sizes, the free pool fragments. After a few hundred admissions and completions you can have 12 GB free and still be unable to place a 3 GB request, because the free space is in pieces. The PagedAttention authors measured existing systems wasting 60&ndash;80% of their KV memory this way.</p>
+        <div class="article-panel" id="fig-kv-waste">
+          <p class="figure-lede">Figure 5 · Reserve-the-maximum, then watch the free pool shatter</p>
+          <div class="animation-stage" role="img" aria-label="Animated memory bar showing reserved-but-unused KV space and then external fragmentation of contiguous allocations"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 5">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>An operating systems person reading the previous paragraph is already impatient. We solved this in 1962.</p>
+      </section>
+
+      <section id="paged-kv">
+        <h2>Paged KV cache</h2>
+        <p>The only reason a sequence's KV needed to be contiguous is that the attention kernel indexed it with a stride. That is a kernel convention, not a mathematical requirement. Position <em>i</em> of a sequence has no opinion about where position <em>i&minus;1</em> physically lives.</p>
+        <p>So do what virtual memory does. Cut KV into fixed-size <b>blocks</b> of, say, 16 tokens. Give each sequence a <b>block table</b> mapping its logical block indices to physical block numbers. Let the attention kernel gather through that table. This is PagedAttention, and its properties fall straight out of the analogy:</p>
+        <ul>
+          <li><b>External fragmentation goes to zero.</b> Every free block is interchangeable, so a free block is always usable.</li>
+          <li><b>Internal waste is bounded</b> by at most <code>block_size &minus; 1</code> tokens in the last block of each sequence &mdash; under a kilobyte per sequence rather than a gigabyte.</li>
+          <li><b>Allocation becomes lazy.</b> You allocate a block when you fill one, not when you admit a request, so you never pay for tokens that were never generated.</li>
+          <li><b>Sharing becomes free.</b> Two sequences whose prefixes are identical can point at the same physical blocks. Reference-count them, and copy-on-write only the partially filled block where they diverge.</li>
+        </ul>
+        <p>That last property is the one that keeps paying dividends. Parallel sampling, beam search, and &mdash; most importantly &mdash; shared system prompts all reduce to "several block tables, one set of physical blocks".</p>
+        <div class="article-panel" id="fig-paged">
+          <p class="figure-lede">Figure 6 · Logical blocks, block table, physical pages, and a copy-on-write fork</p>
+          <div class="animation-stage" role="img" aria-label="Animated diagram of a paged KV cache: logical blocks mapped through a block table onto non-contiguous physical blocks, then shared and forked"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 6">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 68</span>
+          </div>
+        </div>
+        <p>The cost is real but small: an extra indirection in the hottest kernel in the system, and a gather pattern that is less friendly to the memory system than a flat stride. This is why paged attention kernels are hand-written rather than expressed as a library call, and why block size is a tuning parameter &mdash; small blocks reduce waste and increase table overhead, large blocks do the reverse. Sixteen is a common compromise.</p>
+        <p>Only now is it fair to say the name: this is what vLLM is. The scheduler and the block manager are the product; the model is a plugin.</p>
+      </section>
+
+      <section id="prefix-caching">
+        <h2>Prefix caching</h2>
+        <p>Look at real traffic and you will find it is not a set of independent prompts. It is a set of prompts that share enormous amounts of text: a system prompt repeated across every request, a few-shot block, a retrieved document reused across a hundred questions, and in chat, the entire conversation so far resent on every turn.</p>
+        <p>Because attention is causal, the KV state of a prefix depends only on the tokens in that prefix. It is a pure function of the token sequence. So if you have computed it once, recomputing it is arithmetic you are choosing to pay for.</p>
+        <p>Two implementations dominate, and they are the same idea at different granularities. SGLang's <b>RadixAttention</b> keeps a radix tree over token sequences whose nodes own KV blocks, so a new request walks the tree to find its longest cached prefix. vLLM hashes each block's contents <em>together with the hash of all preceding blocks</em>, which is the same tree flattened into a hash table.</p>
+        <div class="aside-note">The prefix hash must chain. Hashing a block's own tokens alone would let <code>"...ignore all previous instructions"</code> at position 40 of one conversation collide with the identical block at position 40 of another, and you would serve one user's KV state to another user's prompt. The chained hash makes block identity mean "this content, at this position, after this history".</div>
+        <div class="article-panel" id="fig-radix">
+          <p class="figure-lede">Figure 7 · A prefix tree growing, hitting, and evicting</p>
+          <div class="animation-stage" role="img" aria-label="Animated radix tree of cached prompt prefixes showing matches, new branches, and leaf-first eviction"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 7">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>Eviction has one structural rule: never evict a node that has live children, because a child's KV is only valid if its ancestors are resident. So eviction proceeds leaf-first, ordered by last use. And a cache hit is only a hit if the request lands on the replica that holds the blocks &mdash; which turns prefix caching into a <em>routing</em> problem the moment you have more than one GPU. Section 18 comes back to this.</p>
+      </section>
+
+      <section id="chunked-prefill">
+        <h2>Chunked prefill</h2>
+        <p>Continuous batching gave us the right to mix sequences freely in an iteration. Now watch what happens when one of them is a 16,000-token prompt.</p>
+        <p>That prefill is a single enormous forward pass. For an 8B model it is roughly <code>2 &times; 8e9 &times; 16384 &asymp; 262</code> TFLOPs, which at a realistic 400 TFLOP/s of effective throughput takes about 650 ms. During those 650 ms, every one of the sixty sequences that were happily decoding at 20 ms per token produces nothing. Their inter-token latency spikes by 30&times;, and the user watching a stream sees the text freeze.</p>
+        <p>The prefill is not doing anything wrong. It is simply an indivisible unit of work that is far too large relative to the iteration cadence everyone else depends on. So divide it.</p>
+        <p><b>Chunked prefill</b>, from Sarathi, splits a long prompt into fixed-size chunks of C tokens and processes one chunk per iteration, piggybacking the running decodes into the same batch. The token budget becomes the scheduler's master clock: every iteration contains exactly C tokens, some prefill and some decode, so every iteration takes about the same time.</p>
+        <div class="article-panel" id="fig-chunked">
+          <p class="figure-lede">Figure 8 · One long prompt, before and after chunking</p>
+          <div class="animation-stage" role="img" aria-label="Animated timeline comparing a monolithic prefill stalling all decodes against chunked prefill with uniform iterations"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 8">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>Nothing is recomputed &mdash; chunk <em>k</em> attends to the KV that chunks 0 through <em>k&minus;1</em> already wrote, which the paged cache is happy to provide. What you do pay is weight traffic: each chunk re-reads the model weights, so a 512-token chunk has arithmetic intensity 512 instead of 16,384. Above the balance point that is invisible; below it, prefill efficiency collapses. This gives the tuning rule directly:</p>
+        <div class="keymath">
+          C too small &rarr; prefill becomes memory-bound, throughput falls<br />
+          C too large &rarr; iteration time rises, TPOT jitter returns<br />
+          <b>choose C so that one iteration is comfortably above the<br />
+          balance point and comfortably under the TPOT budget</b>
+        </div>
+        <p>Sarathi-Serve calls the second half of this <em>stall-free batching</em>: the scheduler never admits a unit of work that would push an iteration past the latency target, so decodes are never stalled by an admission decision.</p>
+      </section>
+
+      <section id="interference">
+        <h2>Prefill and decode want different machines</h2>
+        <p>Put the two phases on a roofline and the tension becomes geometric rather than rhetorical.</p>
+        <div class="article-panel" id="fig-roofline">
+          <p class="figure-lede">Figure 9 · Sweeping batch size across the roofline</p>
+          <div class="animation-stage" role="img" aria-label="Animated roofline plot showing decode moving up the memory-bound slope as batch size grows while prefill sits near peak compute"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 9">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>The optimistic reading is that these two workloads are complementary: one is starved of arithmetic, the other of bandwidth, so mixing them should fill both pipes. The real benefit is narrower than that, and worth stating precisely.</p>
+        <p>When a prefill chunk and forty decodes share an iteration, the weights are read from HBM <em>once</em> and used by both. The decodes ride along on a memory transfer that was going to happen anyway. That is a genuine and large win, and it is the actual mechanism behind piggybacking.</p>
+        <p>What does not happen is free parallelism inside the GPU. Both phases need the same weight matrices and the same SMs, and a kernel that is compute-bound does not leave idle tensor cores for someone else to use. So mixing raises efficiency, but it also means the decodes in that iteration finish no sooner than the whole iteration does. Their TPOT is set by the chunk size, which is why chunk size is a latency knob and not just a throughput knob.</p>
+        <p>Attention is the other spoiler. Prefill attention and decode attention are different kernels with different shapes &mdash; a square causal problem versus a long thin one &mdash; and they do not fuse into a single call. In practice they run as separate kernels within the iteration, which is why mixed batches sometimes lose the benefits of graph capture (section 15).</p>
+      </section>
+
+      <section id="policy">
+        <h2>Scheduling policy</h2>
+        <p>With the mechanism settled, the remaining question is who goes first. Serving inherits every classical scheduling problem plus one new handicap: <em>you do not know how long a job will run</em>. Output length is decided by the model, one token at a time.</p>
+        <p><b>FIFO</b> is the default and is defensible. It is starvation-free and predictable, and under continuous batching the head-of-line penalty is bounded by the token budget rather than by the longest sequence. Its failure mode is a burst of very long prompts arriving before a burst of short ones.</p>
+        <p><b>Shortest-job-first</b> would minimise mean latency, and cannot be implemented honestly. Systems that approximate it predict output length from the prompt, which works until it does not, and a mispredicted long job that has been scheduled as short must be preempted rather than merely regretted.</p>
+        <p><b>Priority classes</b> are what production actually uses: interactive traffic above batch traffic, paying tiers above free tiers. The mechanism is preemption, and the danger is starvation of the low class under sustained load, so priority is nearly always paired with an aging term or a reserved share of the token budget.</p>
+        <p><b>Fairness</b> in this setting is not requests per second, because requests are wildly unequal. The right unit is tokens: a fair queue counts the token positions each client has consumed, prefill and decode alike, and services whoever is furthest behind their share. This is the only policy that survives a single client sending 128k-token prompts.</p>
+        <p><b>Token-budget scheduling</b> deserves its own line because it is the mechanism underneath all of the above. Once every iteration is capped at C tokens, iteration time is roughly constant, and inter-token latency becomes a scheduler guarantee rather than an emergent property. Policy then operates on how the budget is divided rather than on whether iterations are the right size.</p>
+        <p>Finally, <b>SLO-aware admission</b>. A serving system that accepts everything under overload will miss every deadline instead of some of them. Queueing a request, shedding it, or routing it to a lower-cost configuration are all better outcomes than degrading the whole running set. Section 23 makes that argument quantitatively.</p>
+      </section>
+
+      <section id="disaggregation">
+        <h2>Disaggregating prefill and decode</h2>
+        <p>Chunking made the two phases coexist. It did not make them stop wanting different hardware configurations.</p>
+        <p>Prefill is compute-bound, benefits from high tensor parallelism to cut latency, and needs almost no KV capacity per request &mdash; it produces KV rather than accumulating it. Decode is bandwidth-bound, benefits from the largest batch memory will allow, and is dominated by KV capacity. Co-located, you must pick one parallelism degree, one batch policy, and one memory split that serves both badly.</p>
+        <p>So separate them into pools connected by a KV transfer.</p>
+        <div class="article-panel" id="fig-disagg">
+          <p class="figure-lede">Figure 10 · Prefill pool, layer-wise KV transfer, decode pool</p>
+          <div class="animation-stage" role="img" aria-label="Animated diagram of disaggregated serving with a prefill pool streaming KV cache layer by layer to a decode pool"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 10">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>What you buy is independence. The pools scale separately, so you can run eight decode replicas behind two prefill replicas if that is what your prompt-to-output ratio demands. They can use different parallelism degrees, different batch sizes, even different hardware generations &mdash; older, cheaper, bandwidth-rich parts are perfectly good decode machines. And most importantly, the two SLOs decouple completely: a prefill surge can no longer perturb anyone's inter-token latency, because prefill is not on the decode machines.</p>
+        <p>What you pay is the transfer. Using the earlier figure of 128 KiB per token, a 4,000-token prompt hands off 512 MiB of KV. At 400 Gb/s that is roughly 10 ms, which is tolerable against a 500 ms TTFT budget &mdash; and it is also entirely hideable, because layer <em>&ell;</em>'s KV is final the moment layer <em>&ell;</em> finishes, so the transfer streams behind the remaining layers of prefill. What is <em>not</em> free is everything around it: interconnect provisioning between pools, a router that knows where each request's KV lives, failure handling when a decode node dies holding live state, and the awkward question of which pool owns the prefix cache. Mooncake's answer &mdash; treat the KV cache as the primary object and build the cluster around it &mdash; is the honest conclusion of this line of thinking.</p>
+      </section>
+
+      <section id="distributed">
+        <h2>Distributed serving: scale up or scale out</h2>
+        <p>One GPU is not the interesting case. Four ways to use many, each answering a different question.</p>
+        <div class="article-panel" id="fig-parallel">
+          <p class="figure-lede">Figure 11 · Four parallelism strategies, one token's journey through each</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of data, tensor, pipeline and expert parallelism for inference"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 11">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+        <h3>Replicas</h3>
+        <p>The simplest and most robust: N independent copies behind a router. Throughput scales linearly, failures are isolated, and there is no collective communication anywhere. It does nothing for per-token latency and nothing for models that do not fit, and each replica's KV capacity is limited by whatever the weights left behind.</p>
+        <h3>Tensor parallelism</h3>
+        <p>Shard each weight matrix across GPUs and all-reduce twice per transformer layer. This is the only technique that makes a single token faster, and it also divides the weights, which frees HBM for KV &mdash; a doubly good deal for decode. The catch is the communication profile: a decode all-reduce moves only <code>batch &times; d_model</code> elements, so it is pure latency, not bandwidth. Small messages, twice per layer, sixty-four times per token. Anything but a fast intra-node fabric turns this into the bottleneck.</p>
+        <h3>Pipeline parallelism</h3>
+        <p>Assign layer ranges to devices and pass activations forward. Communication is one small tensor per stage boundary, which makes it the only parallelism that tolerates slow links gracefully. In serving, the bubble is not a throughput problem in the training sense &mdash; continuous batching supplies a steady stream of micro-batches &mdash; but it does add latency per stage, and it does not reduce per-GPU weight memory as usefully as TP does for a single request.</p>
+        <h3>Expert parallelism</h3>
+        <p>For mixture-of-experts models, place experts on different devices and route tokens to them with an all-to-all. Weight memory per device drops dramatically for a given total capacity, which is why MoE is attractive for serving in the first place. The problem is that routing is data-dependent: a batch that happens to favour a few experts leaves most devices idle while a couple are swamped, and the all-to-all runs at the speed of the slowest.</p>
+        <div class="aside-note">Scale-up makes a single instance faster or larger; scale-out makes more instances. The counterintuitive result from AlpaServe is that scale-up can improve <em>latency SLO attainment</em> under bursty load even when it lowers peak throughput, because a fast shared instance absorbs a burst that would have queued at a slower dedicated one. Peak throughput and SLO attainment are different objectives and they select different configurations.</div>
+      </section>
+
+      <section id="topology">
+        <h2>Topology awareness</h2>
+        <p>Every choice above assumes GPUs are interchangeable. They are not. Inside an 8-GPU node, NVLink gives each GPU hundreds of gigabytes per second to every other. Between nodes, a fast NIC gives you 400 Gb/s &mdash; 50 GB/s &mdash; and adds microseconds of latency that the intra-node fabric does not have. That is roughly an order of magnitude in bandwidth and considerably more in small-message latency.</p>
+        <div class="article-panel" id="fig-topology">
+          <p class="figure-lede">Figure 12 · The same all-reduce, inside the NVLink domain and across the fabric</p>
+          <div class="animation-stage" role="img" aria-label="Animated node topology showing an all-reduce completing quickly over NVLink and slowly across the inter-node network"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 12">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 52</span>
+          </div>
+        </div>
+        <p>Three rules follow, and they are close to absolute.</p>
+        <p><b>Tensor parallel groups stay inside one NVLink domain.</b> TP's all-reduces are small and frequent, exactly the profile that punishes a network with a per-message cost. A TP=16 group spanning two nodes usually performs worse than TP=8 on one, despite having twice the hardware.</p>
+        <p><b>Replicas are packed, not striped.</b> A replica that spans nodes inherits the worst link in its group for every collective. Pack each replica onto a single node, then scale out with independent replicas; this also means a node failure costs you one replica rather than degrading many.</p>
+        <p><b>Cross-node traffic is the one you choose deliberately.</b> If something must cross the fabric, make it pipeline stage boundaries or disaggregated KV transfers &mdash; large, infrequent, latency-tolerant messages that overlap with compute &mdash; rather than per-layer all-reduces. And check NIC affinity: a GPU pushing KV through a NIC on a different PCIe root complex loses a surprising amount of the bandwidth you paid for.</p>
+        <p>For MoE, add a fourth: expert placement is a topology decision. Keeping an all-to-all inside a node, or replicating the handful of consistently hot experts so that routing has a local option, is often worth more than any kernel-level optimization.</p>
+      </section>
+
+      <section id="speculative">
+        <h2>Speculative decoding</h2>
+        <p>Return to section 1 one more time. A decode forward pass at batch 1 uses about 0.3% of the machine's arithmetic. The tokens are serial because each depends on the last &mdash; but the <em>verification</em> of a guessed token does not depend on anything. If you already had a candidate for tokens <em>t</em> through <em>t+4</em>, you could score all five positions in one forward pass for almost exactly the price of scoring one.</p>
+        <p>So guess. A cheap draft &mdash; a small model, an extra prediction head, or an n-gram lookup over the prompt &mdash; proposes &gamma; tokens. The target model runs once over all &gamma;+1 positions and produces the true distribution at each. Then a rejection-sampling rule accepts the longest prefix of the draft that is consistent with the target's distribution and resamples the first rejected position from an adjusted distribution. The output is <em>distributionally identical</em> to ordinary sampling from the target model. This is not an approximation.</p>
+        <div class="keymath">
+          acceptance rate &alpha;, draft length &gamma;<br /><br />
+          expected accepted tokens per target pass = (1 &minus; &alpha;<sup>&gamma;+1</sup>) / (1 &minus; &alpha;)<br /><br />
+          &alpha;=0.8, &gamma;=4 &nbsp;&rarr;&nbsp; <b>3.36 tokens per target forward pass</b>
+        </div>
+        <div class="article-panel" id="fig-spec">
+          <p class="figure-lede">Figure 13 · Draft, verify, accept, resample &mdash; and what happens as the batch grows</p>
+          <div class="animation-stage" role="img" aria-label="Animated speculative decoding: a draft model proposes tokens, the target verifies them in one pass, some are accepted and one is resampled"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 13">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>The variants differ in where the draft comes from. An independent small model is simple but needs a matching tokenizer and adds a second model to serve. Medusa attaches extra heads to the target model itself and verifies a tree of candidates at once. EAGLE drafts in feature space rather than token space, which raises acceptance substantially for the same draft cost. Prompt lookup skips the model entirely and proposes n-grams copied from the input, which is startlingly effective for summarization, editing and code-completion workloads where the output quotes the input.</p>
+        <p>The catch is the one the derivation predicts. Speculation spends spare FLOPs, and spare FLOPs only exist at small batch. Once continuous batching has filled the machine, the extra &gamma;+1 positions per sequence are no longer free &mdash; they are a multiplicative increase in real compute, paid on every token including the rejected ones. Speculative decoding is a <b>latency</b> technique that <b>costs</b> throughput, and the crossover is a property of your load, not of your model. Good implementations disable it dynamically when the running batch gets large.</p>
+      </section>
+
+      <section id="cuda-graphs">
+        <h2>CUDA graphs and the CPU you forgot about</h2>
+        <p>A decode iteration for a 32-layer model launches on the order of several hundred kernels: attention, projections, norms, activations, residuals, sampling. Each one is tiny &mdash; tens of microseconds of GPU work at small batch. Each one also costs the CPU a few microseconds to launch.</p>
+        <p>Multiply it out. If the average kernel does 15 &micro;s of work and takes 6 &micro;s to launch, the GPU is idle 40% of the time waiting for its instructions, and no kernel optimization will fix that because the kernels are not the problem. Below a certain batch size, an LLM server is a Python program bottlenecked on Python.</p>
+        <div class="article-panel" id="fig-graphs">
+          <p class="figure-lede">Figure 14 · Launch-bound execution, then captured and replayed</p>
+          <div class="animation-stage" role="img" aria-label="Animated CPU and GPU timeline showing launch gaps and then a captured CUDA graph replayed with a single launch"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 14">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 52</span>
+          </div>
+        </div>
+        <p>A CUDA graph records the entire dependency DAG of an iteration once and replays it with a single launch. The GPU-side work is unchanged; the CPU-side cost collapses to nearly zero.</p>
+        <p>The price is rigidity. A captured graph pins tensor shapes and device addresses, so a serving system must: bucket batch sizes and capture a graph per bucket, padding up to the nearest one; preallocate every buffer the iteration touches, including block tables and slot mappings, at fixed maximum sizes; and keep all control flow out of the captured region, which means sampling parameters become tensors rather than Python branches. Prefill, whose shapes change with every prompt, is normally left in eager mode &mdash; and this is exactly why a mixed chunked-prefill iteration often falls back to eager execution, giving back some of what chunking won at small batch. Systems resolve this in different ways, including capturing graphs for the decode portion only, or restructuring the scheduler so that CPU work for iteration <em>i+1</em> overlaps GPU work for iteration <em>i</em> and the launch cost is hidden rather than eliminated.</p>
+      </section>
+
+      <section id="fusion">
+        <h2>Kernel fusion, briefly</h2>
+        <p>Fusion is the same argument as batching, applied within an iteration: every kernel boundary is an HBM round trip, and HBM is what you are short of.</p>
+        <ul>
+          <li><b>Attention.</b> FlashAttention never materializes the <code>n&times;n</code> score matrix, tiling the computation so it lives in SRAM. For decode, where the query is a single position and the KV is long, Flash-Decoding splits the reduction along the KV axis instead, which is the only way to get parallelism when there is one query row and a hundred thousand keys.</li>
+          <li><b>Norms and residuals.</b> RMSNorm fused with the residual add saves reading and writing the hidden state twice per block. Small individually, multiplied by <code>2L</code> per token.</li>
+          <li><b>Activations.</b> SwiGLU fused into the gate and up projections avoids materializing two full intermediates at <code>d_ff</code> width.</li>
+          <li><b>Sampling.</b> The one people forget. Top-k, top-p, penalties and multinomial sampling done on the host require copying logits back and synchronizing, which serializes the CPU against the GPU exactly where you least want it. Fused GPU sampling removes a synchronization point per token, which matters more than its FLOP count suggests.</li>
+        </ul>
+        <p>The pattern: in serving, the enemy is rarely arithmetic. It is memory round trips and synchronization.</p>
+      </section>
+
+      <section id="quantization">
+        <h2>Quantized serving</h2>
+        <p>Quantization is usually discussed as a compression technique. In serving it is better understood as three separate levers that happen to share a name, because each targets a different bottleneck.</p>
+        <div class="article-panel" id="fig-quant">
+          <p class="figure-lede">Figure 15 · Where the 80 GB goes, scheme by scheme</p>
+          <div class="animation-stage" role="img" aria-label="Animated memory budget bars showing weights, KV cache and free space across quantization schemes"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 15">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 48</span>
+          </div>
+        </div>
+        <p><b>Weight-only quantization</b> (GPTQ, AWQ, typically 4-bit weights with 16-bit activations) attacks weight bandwidth. Since decode time at small batch is <code>2&Psi;&times;bits/8 &divide; BW</code>, cutting weights from 16 to 4 bits cuts decode latency by close to 4&times;. It also frees HBM for KV. But it does nothing for compute, and the dequantization work is real, so as batch size grows and the workload crosses the balance point, the advantage shrinks to nothing and can invert.</p>
+        <p><b>Activation quantization</b> (W8A8: SmoothQuant, or FP8 on Hopper) attacks compute. It uses the low-precision tensor-core paths, so it speeds up prefill and large-batch decode &mdash; precisely the regime weight-only quantization abandons. The difficulty is activation outliers, which is what SmoothQuant's rescaling between activations and weights is for.</p>
+        <p><b>KV quantization</b> attacks the constraint that actually limits concurrency. At long context and high batch, KV dwarfs the weights: sixty sequences of 8k tokens at 128 KiB per token is 60 GB against 16 GB of weights. Halving KV precision doubles the batch you can hold, and also halves the attention memory traffic that we noted in section 1 refuses to amortize. Eight-bit KV is close to free in quality terms. Four-bit needs care &mdash; KIVI's observation is that keys have consistent per-channel outliers while values do not, so K wants per-channel quantization and V wants per-token.</p>
+        <div class="aside-note">Evaluate quantization on the axis you will be judged on. Perplexity moves very little under aggressive KV quantization while long-context retrieval degrades noticeably, because the damage concentrates in exactly the attention lookups that a needle-in-a-haystack task depends on. A model that is fine on short chats and subtly broken on 100k-token documents will pass most benchmark suites.</div>
+      </section>
+
+      <section id="routing">
+        <h2>Routing across replicas</h2>
+        <p>Now there are twenty replicas and something in front of them. That something is making decisions that matter more than most kernel work.</p>
+        <div class="article-panel" id="fig-routing">
+          <p class="figure-lede">Figure 16 · Balance-only routing versus prefix-aware routing</p>
+          <div class="animation-stage" role="img" aria-label="Animated router sending requests to replicas, first round-robin producing cache misses, then prefix-aware producing hits"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 16">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p><b>Load must be measured in tokens, not requests.</b> Least-connections routing assumes requests are comparable; here one request can be 400&times; another. The useful signals are pending prefill tokens, running sequence count, and KV utilization &mdash; all of which the replicas already track and can export.</p>
+        <p><b>Cache locality fights load balance.</b> Sending every request that shares a system prompt to one replica maximizes prefix hits and creates a hotspot. The workable policy is a soft one: prefer the replica with the longest matching cached prefix, unless its queue exceeds the fleet average by some margin, in which case pay the recompute. Multi-turn sessions get the same treatment with a stickiness that decays under pressure.</p>
+        <p><b>Failure is a cache-coherence problem.</b> When a replica dies, the KV of every in-flight sequence dies with it. Retries on another replica must re-prefill from the original prompt, which means the router has to keep the request, not just a handle to it, and the client-visible effect is a latency spike rather than an error. In disaggregated deployments this gets worse: a decode node holds state that no prefill node can reconstruct without redoing the prompt.</p>
+        <p><b>Stragglers are structural.</b> One replica holding a few 128k-token sequences will have a genuinely slower iteration cadence than its neighbours for as long as those sequences live. Percentile latency across the fleet is therefore shaped by the worst-loaded replica, which argues for admission control at the router rather than only inside each replica.</p>
+      </section>
+
+      <section id="vlm">
+        <h2>Serving vision&ndash;language models</h2>
+        <p>Everything so far assumed the prompt is text and its length is known when the request arrives. A VLM breaks both assumptions, and the consequences reach into every layer of the design.</p>
+        <div class="article-panel" id="fig-vlm">
+          <p class="figure-lede">Figure 17 · An image becoming tokens, and everything that queues along the way</p>
+          <div class="animation-stage" role="img" aria-label="Animated VLM serving pipeline: image decode, tiling, vision encoder batching, connector, visual token injection and LLM prefill"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 17">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+        <h3>The prompt length is data, not metadata</h3>
+        <p>Modern VLMs use dynamic resolution: an image is tiled or resized according to its own aspect ratio and detail, so it contributes anywhere from a few dozen to several thousand visual tokens. The scheduler cannot compute a token budget from the request body without running the preprocessor first. Every admission decision therefore depends on work that has not happened yet, which means either you preprocess before admission (adding latency to the critical path) or you admit on an estimate and handle being wrong.</p>
+        <h3>Preprocessing is a CPU service</h3>
+        <p>JPEG decode, resize, normalize and tile are host-side work, and at meaningful QPS they will saturate the CPUs on a GPU node long before the GPUs are busy. This belongs in a separate process pool with its own queue, overlapped with GPU execution, and ideally with decoded tensors cached &mdash; otherwise you have built an expensive accelerator that waits on <code>libjpeg</code>.</p>
+        <h3>The encoder is a second model with different tastes</h3>
+        <p>A ViT over a few thousand patches is compute-bound, fixed-shape per tile, and embarrassingly batchable across requests. The language model is memory-bound and ragged. Their ideal batch sizes, ideal parallelism degrees and ideal schedulers disagree. The work ratio between them also swings by two orders of magnitude across requests: a single small image with a 500-token answer is decoder-dominated, while twelve high-resolution tiles with a one-word answer is almost entirely encoder. Running the encoder as its own pool &mdash; a small-scale version of section 11's disaggregation &mdash; is the natural response, with the connector output shipped to the language pool.</p>
+        <h3>Cache embeddings, not just KV</h3>
+        <p>In a multi-turn conversation about one image, or a workload where the same document page is queried repeatedly, the post-connector embeddings are identical every time. They are keyed by the image content hash <em>plus</em> the preprocessing configuration, and they are far smaller than the KV they produce. This is the cheapest win in VLM serving and the one most often missing.</p>
+        <h3>Prefix caching must hash pixels</h3>
+        <p>This is a correctness trap worth stating loudly. Visual tokens occupy placeholder positions in the token id sequence, and those placeholder ids are identical for every image. A prefix cache that hashes token ids alone will conclude that two requests with completely different images share a prefix, and serve one image's KV to the other's question. The block hash must incorporate the image hash. It is a quiet bug: the outputs remain fluent.</p>
+        <h3>Visual tokens are a scheduling knob</h3>
+        <p>Unlike text, you control how many tokens an image becomes. Resolution selection, tile count, and token merging or pruning in the connector all trade answer quality for prefill cost, per request. Under load, a server can serve the same model at a lower visual token budget rather than queueing &mdash; a graceful degradation axis text-only serving simply does not have.</p>
+        <p>One last scheduling wrinkle: chunked prefill interacts awkwardly with images. The language-model prefill over an image's visual tokens can be chunked normally, but the encoder pass that produced them cannot be split mid-image without changing the result. An image is an indivisible unit of encoder work sitting inside an otherwise perfectly divisible prefill.</p>
+      </section>
+
+      <section id="systems">
+        <h2>Reading a serving system's architecture</h2>
+        <p>Feature lists age badly. Every system eventually grows every feature, and a table of checkmarks tells you almost nothing about how a server will behave at three in the morning under a traffic spike.</p>
+        <p>What does not change is the bottleneck each project was originally built against. That first choice decides which abstraction sits at the centre of the codebase, and the central abstraction is the expensive thing to reverse. Everything else gets arranged around it.</p>
+        <div class="article-panel" id="fig-frameworks">
+          <p class="figure-lede">Figure 18 &middot; Six systems, six different things they refuse to tolerate</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison showing which bottlenecks each serving system was designed to attack and by what method"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 18">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+
+        <h3>Orca: the batch was the wrong unit</h3>
+        <p><b>Bottleneck.</b> In 2022 the dominant waste was not memory and not kernels. It was that a batch was a fixed group of requests, so the slowest member set the lifetime of every slot, and effective batch size decayed toward one over the life of the group. On a workload with 10&times; variance in output length, most of the machine was multiplying padding.</p>
+        <p><b>Method.</b> Two changes, both structural. <em>Iteration-level scheduling</em> moved the batching decision from the request group to the forward pass: the scheduler runs once per iteration and assembles whatever is runnable. <em>Selective batching</em> made that legal, by observing that most operators do not care which sequence a token belongs to. Linear layers, the MLP and the normalizations get one flattened <code>[total_tokens, d_model]</code> tensor with zero padding; only attention is split per sequence, because only attention reads a sequence-specific KV cache.</p>
+        <p><b>What it left open.</b> Orca still assumed contiguous per-sequence KV with reserved capacity, so it fixed slot waste and inherited memory waste. That is precisely the gap the next system walked into.</p>
+
+        <h3>vLLM: the memory allocator is the product</h3>
+        <p><b>Bottleneck.</b> With iteration-level scheduling solved, the binding constraint became how many sequences you can hold at once, and that is a KV-memory question. Reserving <code>max_model_len</code> per sequence wastes most of the reservation; reserving variable contiguous extents fragments the pool. Measured waste in contemporary systems was 60&ndash;80%, which translates directly into a batch size several times smaller than the hardware could sustain.</p>
+        <p><b>Method.</b> Borrow virtual memory. Fixed-size blocks, a per-sequence block table, and an attention kernel that gathers through it. The consequences compound in a way that is worth spelling out, because they explain the shape of the whole project:</p>
+        <ul>
+          <li>Allocation becomes lazy and incremental, so admission control is a question about <em>blocks</em>, and the block manager becomes the scheduler's source of truth. In vLLM the scheduler is small; the block manager is where the difficulty lives.</li>
+          <li>Sharing is a refcount, so parallel sampling, beam search and shared system prompts stop being three features and become one.</li>
+          <li>Prefix caching then falls out almost for free: hash each block's contents chained with the hash of everything before it, and a cache hit is a block-table entry pointing at an existing block. Nothing about the scheduler changes.</li>
+          <li>A token budget per iteration gives chunked prefill, which is why vLLM can mix phases without a separate code path.</li>
+        </ul>
+        <p><b>The cost, and the follow-up.</b> Paging puts an indirection in the hottest kernel, which is why paged attention kernels are hand-written rather than borrowed, and why block size is a tuning knob. Portability across accelerators is a stated goal, so the project prefers pluggable attention backends over vendor-specific compilation. Section 21 takes this one apart properly. The later engine rework addressed the bottleneck that emerges once memory is solved &mdash; Python on the critical path &mdash; by moving the engine core into its own process and overlapping scheduling with execution, which is the same problem the next two systems attack from different directions.</p>
+
+        <h3>SGLang: reuse and CPU overhead as first-class</h3>
+        <p><b>Bottleneck.</b> Two, both invisible in a single-prompt benchmark. First, real programs &mdash; agents, few-shot pipelines, multi-turn chat, tree search &mdash; issue many calls that share enormous prefixes, and a cache hit is worth far more than any kernel win when the shared prefix is thousands of tokens. Second, once decode iterations get short, the per-iteration CPU work (building the batch, preparing block tables, sampling parameters, launching kernels) stops hiding behind the GPU and becomes the limit.</p>
+        <p><b>Method.</b> <em>RadixAttention</em> makes the prefix tree an explicit runtime structure rather than a cache with a hit rate: nodes own KV, matching is a tree walk, eviction is LRU restricted to leaves, and &mdash; the part that matters most &mdash; the scheduler is allowed to <em>reorder the queue</em> to group requests that share ancestors, converting a routing problem into a scheduling one. Against the second bottleneck, the scheduler for iteration <em>i+1</em> is prepared on the CPU while iteration <em>i</em> is running on the GPU, so launch and bookkeeping cost is overlapped rather than eliminated. And because structured output is a first-class use case, grammars are compiled into a finite-state machine so that tokens the constraint has already determined are emitted without a model call at all.</p>
+        <p><b>Consequence.</b> SGLang is shaped like a language runtime with a serving engine attached, not the other way around. If your workload is one-shot prompts with no shared structure, most of that machinery is dormant. Section 22 takes this one apart properly.</p>
+
+        <h3>TensorRT-LLM: resolve everything before the request arrives</h3>
+        <p><b>Bottleneck.</b> The gap between what the silicon can do and what an eagerly executed Python graph achieves. That gap is made of unfused operators, generic kernels chosen at runtime, per-kernel launch cost, and precision conversions that were not planned. It is a compiler problem, and compilers want to know the shapes in advance.</p>
+        <p><b>Method.</b> Compile the network ahead of time into an engine specialised for a specific model, precision, parallelism degree and set of shape buckets. Fusion, kernel selection, quantization plumbing and graph capture are all resolved at build time. Continuous batching (here called in-flight batching) and paged KV are then implemented inside a C++ runtime, so that at serve time there is no interpreter on the hot path at all.</p>
+        <p><b>The trade.</b> You give up flexibility to buy the last twenty percent. Engines take minutes to build and must be rebuilt when the configuration changes; shapes outside the buckets pad up; a new model architecture is a porting exercise rather than a config change; and the whole approach is tied to one vendor's toolchain. On NVIDIA hardware with a fixed configuration and a throughput target, that is often the right trade.</p>
+
+        <h3>Disaggregated systems: stop making one config serve two SLOs</h3>
+        <p><b>Bottleneck.</b> Everything above still runs prefill and decode on the same machine, which forces one parallelism degree, one batch policy and one memory split to serve two workloads with opposite appetites. Chunking makes them coexist; it does not make them agree. Under a mixed load you end up tuning to satisfy the TTFT target and paying for it in TPOT, or the reverse.</p>
+        <p><b>Method.</b> DistServe splits the phases into separate pools and, crucially, treats the placement itself as a search: given SLO targets, find the parallelism degrees and the prefill-to-decode ratio that maximise goodput. Splitwise makes the same split and adds the observation that the two pools want <em>different hardware</em>, since decode is bandwidth-bound and can run happily on older, cheaper parts. Mooncake follows the logic to its conclusion and puts a distributed KV cache at the centre of the cluster, pooling the otherwise idle DRAM and network across nodes, so that prefix reuse becomes a fleet-wide property rather than a per-replica one.</p>
+        <p><b>The cost.</b> A KV transfer on the critical path (hideable, but only if you stream it layer by layer), a router that must know where state lives, and a failure model where a dead decode node destroys work that only a re-prefill can reconstruct.</p>
+
+        <h3>TGI, routers, and the layer nobody benchmarks</h3>
+        <p><b>Bottleneck.</b> Once you have twenty replicas, your p99 is set by the worst-loaded one, and no engine-level optimization can see that. The bottleneck is placement.</p>
+        <p><b>Method.</b> A router in front of sharded backends, measuring load in pending <em>tokens</em> rather than connections, routing by longest cached prefix with a load-based escape hatch, holding session affinity for multi-turn traffic, and doing admission control before the request reaches an engine at all. TGI's architecture &mdash; a thin router process over model shards, deliberately agnostic about which engine is underneath &mdash; is the clearest statement of this separation, and the emerging cluster-level frameworks are essentially this layer with disaggregation-aware routing added.</p>
+
+        <div class="aside-note">Notice how often these converge. Chunked prefill and DeepSpeed-FastGen's dynamic SplitFuse are the same idea reached independently; prefix caching arrived as a radix tree in one system and a chained block hash in another; every engine now has continuous batching, paged KV and some form of prefix reuse. The interesting question is never whether a system has a feature, but whether that feature is load-bearing in its design or bolted to the side.</div>
+
+        <h3>The five questions</h3>
+        <p>Applied to any new system, these predict behaviour under load better than a benchmark table:</p>
+        <table class="sys-table">
+          <thead>
+            <tr><th>Question</th><th>Why it decides the system's behaviour</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><b>What is the KV abstraction?</b></td><td>Paged or contiguous determines your achievable concurrency, and whether sharing and prefix reuse are cheap or special-cased.</td></tr>
+            <tr><td><b>What is the scheduling unit?</b></td><td>Per-iteration with a token budget gives you a latency guarantee; per-batch gives you head-of-line blocking you cannot tune away.</td></tr>
+            <tr><td><b>What does prefix reuse cost to enable?</b></td><td>Free and always-on implies the cache is structural. A flag with caveats implies it was added later and interacts badly with something.</td></tr>
+            <tr><td><b>Where does the CPU work happen?</b></td><td>Overlapped, compiled away, or on the critical path. This alone can be a 40% difference at small batch and is invisible at large batch.</td></tr>
+            <tr><td><b>What happens when the input has an image?</b></td><td>Whether the preprocessor, the encoder and the cache keys are part of the scheduler's model, or an adapter wrapped around a text-only design.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+
+
+      <section id="vllm">
+        <h2>vLLM up close: the allocator is the scheduler</h2>
+        <p>vLLM's bet is stated in section 20 and worth repeating before taking it apart: on a decoding workload the scarce resource is KV memory, and if you build a good enough allocator for it, several things that look like separate features stop being projects and become consequences.</p>
+        <p>That claim only earns its keep at the level of mechanism. Four places where it does.</p>
+
+        <h3>Where num_gpu_blocks comes from</h3>
+        <p>Everything downstream &mdash; how many sequences run concurrently, how large a batch the GEMMs see, how far right you sit on the roofline from section 1 &mdash; is bounded by a single integer computed once at startup. It is worth being able to derive it from memory.</p>
+        <div class="article-panel" id="fig-block-budget">
+          <p class="figure-lede">Figure 19 &middot; Carving 80 GB down to a block count</p>
+          <div class="animation-stage" role="img" aria-label="Animated memory budget showing weights, profiled activation peak and the utilisation cap subtracted from HBM to yield the number of KV blocks"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 19">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>Two details in that arithmetic are more interesting than they look. The weights are measured <em>after loading</em> rather than derived from the parameter count, because quantization formats, LoRA adapters, and layout padding all move the real number. And the activation peak comes from an actual profiling forward pass at the configured maximum batch and sequence length, not from a formula &mdash; which is why a misconfigured <code>max_num_batched_tokens</code> shows up as a startup failure rather than as a mysterious out-of-memory four hours into a traffic spike.</p>
+        <p>The practical consequence is that <code>gpu_memory_utilization</code> is not a safety knob, it is a concurrency knob. Moving it from 0.85 to 0.95 on an 80 GB card hands eight more gigabytes to the KV pool, which at a 4k context is sixteen more concurrent sequences, which is a straightforward multiplier on throughput. The reason you cannot simply set it to 1.0 is that the profiling run cannot see everything: fragmentation inside the allocator, communication buffers, and the odd transient all live in the margin you leave behind.</p>
+
+        <h3>The block table lives in the hottest kernel in the system</h3>
+        <p>Paging is cheap to describe and expensive to implement, because the indirection lands in exactly the code that runs most often. Understanding why the attention kernel is hand-written starts with the shape it is given.</p>
+        <div class="article-panel" id="fig-paged-kernel">
+          <p class="figure-lede">Figure 20 &middot; One query row, eight thousand keys, and a gather in between</p>
+          <div class="animation-stage" role="img" aria-label="Animated view of the paged attention kernel: the decode shape problem, partitioning over the KV axis with block-table lookups, and the effect of block size"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 20">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 72</span>
+          </div>
+        </div>
+        <p>A decode step gives the kernel one query row per sequence and a KV cache thousands of rows tall. Parallelizing the classical way &mdash; over query positions and heads &mdash; produces a handful of thread blocks for a machine with 132 streaming multiprocessors. So the parallelism has to come from the KV axis instead: each thread block takes one block of the cache, looks up where it physically lives, computes a partial softmax over its sixteen tokens, and a second pass rescales the partials into the answer. That is the same online-softmax reduction that Flash-Decoding uses, with a pointer chase bolted onto the front.</p>
+        <p>The pointer chase is what makes the layout fussy. A gather that lands wherever the free list happened to point will not coalesce unless the data inside a block is arranged so that consecutive lanes still read consecutive addresses; the original CUDA implementation reshapes the head dimension into short vectors specifically so that the loads stay wide despite the indirection. This is also why <code>block_size</code> resists a default: internal waste falls with smaller blocks, block-table traffic and gather efficiency both improve with larger ones, and sixteen is where the three curves cross for typical traffic. On workloads dominated by very long generations, thirty-two is often better; on workloads of very short replies it is strictly worse.</p>
+
+        <h3>Prefix caching as a side effect of the allocator</h3>
+        <p>Here is the payoff for having built the allocator first. Blocks are fixed-size and aligned, so a block's contents are a well-defined thing to name. Name them by hashing &mdash; and the reuse machinery is a dictionary.</p>
+        <div class="article-panel" id="fig-block-hash">
+          <p class="figure-lede">Figure 21 &middot; Chained block hashes, the collision they prevent, and the free queue that keeps them alive</p>
+          <div class="animation-stage" role="img" aria-label="Animated diagram of automatic prefix caching by chained block hashing, including the failure mode of unchained hashes and the free queue that lets evicted blocks be revived"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 21">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 76</span>
+          </div>
+        </div>
+        <p>The chain is the load-bearing part. A block's key is the hash of its own token ids folded together with the hash of every block before it, so a key means <em>this content, at this offset, after this history</em>. Hash the block's own tokens alone and two unrelated conversations containing the same sixteen tokens at the same offset collide, and one user's KV is served against another user's prompt. The output stays perfectly fluent, which is what makes this class of bug so unpleasant.</p>
+        <p>The second detail worth knowing is that eviction is lazy in a useful way. A block whose refcount falls to zero goes to the tail of a free list but <em>keeps its hash entry</em>; it is only unregistered at the moment it is actually handed to a different sequence. So a prefix can come back from the dead, and a measured hit rate can be higher than the live working set would explain.</p>
+        <div class="aside-note">Compare with RadixAttention in the next section. The hash table answers "is this exact block resident" in constant time and never needs to restructure itself, because fixed-size blocks and alignment do the work a tree would otherwise do by splitting. What it cannot answer is "which waiting requests share the most with each other", because a flat dictionary has no notion of shape. That is why prefix-aware <em>scheduling</em> is natural in one design and awkward in the other. The hash is the better allocator; the tree is the better scheduler input.</div>
+
+        <h3>Sharing is a reference count</h3>
+        <p>The same mechanism absorbs three features that would otherwise each need their own code path. Parallel sampling with <code>n=8</code> over a 2,000-token prompt does not copy anything: eight block tables point at the same 125 physical blocks, refcount eight, and only the partially filled final block is copied when the samples diverge. Beam search is the same operation with more forking and pruning. A shared system prompt across unrelated users is the same operation again, discovered by hash rather than declared by the API. Figure 6 shows the copy-on-write moment; the point here is that there is only one moment, reused everywhere.</p>
+        <p>The memory arithmetic is worth doing once. Naively, eight samples of a 2,000-token prompt cost eight copies of 250 MiB. Shared, they cost 250 MiB plus eight partial blocks &mdash; about 4 MiB of divergence. That is the difference between a feature you ration and a feature you leave on.</p>
+
+        <h3>Preemption, where the folklore is wrong</h3>
+        <p>When the watermark is breached something has to be evicted, and vLLM offers two policies. The received wisdom is that recomputation is cheaper than swapping. Run the numbers and that turns out to be false, for an interesting reason.</p>
+        <div class="article-panel" id="fig-preempt">
+          <p class="figure-lede">Figure 22 &middot; Recompute versus swap, and why the cheaper one is not the default</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of preemption by recomputation against preemption by swapping KV cache to host memory, with the cost of each"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 22">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <div class="keymath">
+          8,192-token sequence, 8B model, 128 KiB of KV per token<br /><br />
+          <b>recompute</b> = 2&Psi;L / achieved FLOPs = 131 TFLOP / 400 TFLOP/s = <b>327 ms</b><br />
+          <b>swap</b> &nbsp;&nbsp;&nbsp;&nbsp;= 2 &times; 1 GiB / 50 GB/s &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <b>43 ms</b>
+        </div>
+        <p>A KV byte moves across PCIe far faster than a FLOP regenerates it, and grouped-query attention makes the KV small relative to the model's arithmetic, so on raw time the swap wins by roughly eight times. The ratio narrows for full multi-head models, where KV per token is four times larger, but it does not usually invert.</p>
+        <p>Recompute is nonetheless the default, and every reason is about timing rather than magnitude. It frees the blocks <em>now</em>, whereas a swap only relieves pressure after the copy lands &mdash; and pressure is why you are preempting. It needs no reserved host buffer, so it cannot itself run out. It does not contend for a PCIe link that disaggregated deployments may already be using for KV transfer. And with prefix caching on, the re-prefill frequently hits the cache and costs almost nothing, which collapses the 327 ms to a rounding error. Swapping earns its place in the narrow band where prompts are long, the prefix cache cannot help, and preemption is frequent enough that the recompute bill compounds.</p>
+
+        <h3>Why the scheduler ends up thin</h3>
+        <p>Notice what the scheduler in this design actually does. It asks the block manager whether a candidate can be admitted, it counts tokens against a budget, and it decides who to preempt. That is nearly all of it &mdash; chunked prefill from section 8 is just the token budget applied to a prompt, and prefix reuse happens inside the allocator without the scheduler being told. The difficulty was moved rather than removed: the block manager is where the invariants live, and a bug there is a correctness bug rather than a performance one.</p>
+        <p>The overhead this design does not address is the one section 22 is about. Once memory is no longer the constraint, the Python that runs between iterations becomes visible, which is why the engine was later restructured to run its core in a separate process with scheduling overlapped against execution &mdash; the same conclusion, reached from the other end.</p>
+
+        <h3>When this is the wrong bet</h3>
+        <p>Paging costs an indirection in the hottest kernel and a tuning parameter that has no universally right value. If your workload is a fixed batch of identical shapes &mdash; offline scoring, a benchmark harness, a batch job with uniform prompts &mdash; there is no fragmentation to eliminate and no sharing to discover, and a compiled engine with static shapes will simply be faster. Portability is also a deliberate cost: keeping the attention backend pluggable across vendors means declining some of the fusion a single-target compiler would take. The bet pays when your traffic is heterogeneous, bursty, and full of accidental repetition, which is what production traffic mostly is.</p>
+      </section>
+
+      <section id="sglang">
+        <h2>SGLang up close: the runtime as a cache</h2>
+        <p>The survey above is deliberately shallow. It is worth going one level down into a single system, and SGLang is the most instructive one to pick, because its design starts from a premise the rest of this article has quietly been assuming away.</p>
+        <p>That premise: <em>a request is not an independent event</em>. An agent loop issues twenty calls that share a system prompt and a growing scratchpad. A few-shot pipeline sends the same four thousand tokens of examples in front of every query. A tree-of-thought search forks the same context a dozen ways. A chat turn resends the entire conversation. In every one of these, the overwhelming majority of the tokens the server sees have been seen before, often seconds ago, often on the same GPU. Once you take that seriously, the interesting object is no longer the request queue. It is the structure the requests share.</p>
+
+        <h3>RadixAttention: the four operations</h3>
+        <p>The data structure is a radix tree &mdash; a compressed trie &mdash; over token id sequences. Each edge carries a span of tokens; each node owns the KV blocks for its span; the path from the root to any node spells a prefix whose KV is resident. Four operations do all the work, and the third one is where the "radix" earns its name.</p>
+        <div class="article-panel" id="fig-radix-ops">
+          <p class="figure-lede">Figure 23 &middot; Match, split, insert, evict &mdash; the whole data structure in four moves</p>
+          <div class="animation-stage" role="img" aria-label="Animated radix tree showing prefix matching, node splitting, insertion of an unmatched suffix, and reference-counted leaf eviction"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 23">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 88</span>
+          </div>
+        </div>
+        <p><b>Match.</b> Walk from the root comparing token ids. The cost is proportional to the length of the match, not to the size of the cache, which matters because the cache is large and the match is what you are about to reuse anyway.</p>
+        <p><b>Split.</b> The awkward case: the request agrees with a node for part of its span and then diverges mid-node. The node is cut into a parent holding the agreed prefix and a child holding the rest. This is the operation people are surprised by, and the thing worth internalizing is that <em>no KV moves</em>. The blocks stay exactly where they are; only the tree's edges are rewritten. Splitting is a pointer edit.</p>
+        <p><b>Insert.</b> The unmatched suffix becomes a new child of the split point, and that suffix is the only thing prefilled. Twelve new tokens against a hundred resident ones is a typical ratio for a chat turn.</p>
+        <p><b>Evict.</b> Every node on the path of a running request carries a reference count and cannot be freed &mdash; a sequence is mid-generation and its attention will read those blocks on the next iteration. Eviction is therefore LRU restricted to <em>unpinned leaves</em>, applied recursively, because freeing a leaf may turn its parent into the next candidate. The rule that a node with live children can never go is what keeps the invariant intact: a prefix is only valid if its own prefix is resident.</p>
+        <div class="aside-note">Compare this with vLLM's chained block hash from section 21. They compute the same thing. The hash table finds a reusable block in constant time and never needs to split, because blocks are fixed-size and alignment does the work; the tree finds the longest match in one walk and knows the <em>shape</em> of the sharing, which is what lets the scheduler reason about it. The hash is the better allocator. The tree is the better scheduler input.</div>
+
+        <h3>The tree changes what the scheduler should do</h3>
+        <p>Here is the consequence that a hit-rate metric hides. If the cache is a passive thing you consult, arrival order decides your hit rate, and arrival order is adversarial: alternating prefixes evict each other in exactly the wrong sequence. If the cache is a structure the scheduler can see, the waiting queue can be <em>reordered</em> to group requests that share ancestors, and the same eight requests produce half the prefill work.</p>
+        <div class="article-panel" id="fig-cache-sched">
+          <p class="figure-lede">Figure 24 &middot; Same eight requests, same two cache slots, different order</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of first-in-first-out scheduling against cache-aware reordering, showing prefill tokens recomputed in each case"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 24">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 64</span>
+          </div>
+        </div>
+        <p>There is a second, quieter benefit. Requests batched together that share a prefix are also reading the same KV blocks in the attention kernel, so the shared portion is fetched from HBM once for the batch rather than once per sequence. Recall from section 1 that attention is the part that refuses to amortize with batch size &mdash; prefix sharing is one of the few things that makes it amortize anyway.</p>
+        <p>And the obvious hazard: unbounded reordering starves cold prefixes. In practice the sort is bounded, by a window over the queue, by an aging term, or by a rule that a request may only be deferred so many times. This is the same tension as section 18's routing problem, one level down: <b>cache locality and fairness pull in opposite directions, and something has to arbitrate.</b></p>
+
+        <h3>Getting the CPU off the critical path</h3>
+        <p>Once prefix reuse has shortened prefill and continuous batching has shortened iterations, the next thing to become visible is embarrassing: the server's own bookkeeping. Building the next batch, assembling block tables, preparing sampling metadata, and detokenizing the last step's output are all host work, and at a twelve-millisecond iteration they are not hiding behind anything.</p>
+        <div class="article-panel" id="fig-overlap-sched">
+          <p class="figure-lede">Figure 25 &middot; The scheduler running one step ahead of the GPU</p>
+          <div class="animation-stage" role="img" aria-label="Animated CPU and GPU lanes comparing a serial scheduler loop with an overlapped one where the next batch is prepared during the current forward pass"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 25">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 56</span>
+          </div>
+        </div>
+        <p>The fix is structural rather than clever: prepare iteration <em>i+1</em> on the CPU while iteration <em>i</em> is executing, and move tokenization and detokenization into separate processes so a slow detokenize can never stall the loop. Note the relationship to section 15 &mdash; CUDA graphs attack kernel-launch overhead, this attacks scheduling overhead, and they are the same disease at different altitudes. A system can need both.</p>
+
+        <h3>Structured output, where most of the tokens are not decisions</h3>
+        <p>SGLang treats constrained generation as a serving problem rather than a sampling detail, and the reason is visible the moment you count. Ask for JSON matching a schema and a large fraction of the output is <em>determined</em>: after the opening brace the next characters must be the first key, and no amount of sampling will change that. The conventional approach masks the logits so only legal tokens survive &mdash; correct, but it still runs a full forward pass to produce logits that the grammar was going to override anyway.</p>
+        <div class="article-panel" id="fig-jump-forward">
+          <p class="figure-lede">Figure 26 &middot; Thirteen tokens of JSON, three of which are actually decisions</p>
+          <div class="animation-stage" role="img" aria-label="Animated comparison of token-by-token grammar masking against jump-forward decoding, where deterministic runs of the automaton are emitted without a forward pass"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 26">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 68</span>
+          </div>
+        </div>
+        <p>Compressing deterministic runs of the finite-state machine into a single edge lets the runtime emit them directly, and the model is only consulted where the grammar leaves a genuine choice. For tool calls and fixed schemas &mdash; where the payload is a handful of values inside a lot of punctuation &mdash; this removes most of the model calls in the response.</p>
+        <p>It is not free of sharp edges. A jumped string has to be re-tokenized before it can be appended to the KV cache, and the tokenizer may not split it the way the model would have; implementations handle this by backing off the last few characters of a jump and letting the model resolve the boundary. The mask computation itself is also real work &mdash; walking a context-free grammar against a 100k-token vocabulary every step is expensive enough that dedicated engines such as XGrammar exist to precompute which parts of the vocabulary are context-independent and to overlap the rest with GPU execution.</p>
+
+        <h3>When none of this helps</h3>
+        <p>Worth stating plainly, because it is the honest test of any of these designs. If your traffic is independent one-shot prompts with no shared structure, RadixAttention holds a tree that never matches and cache-aware scheduling sorts a queue with nothing to sort. If your batches are already large, the overlapped scheduler is hiding an overhead that was already hidden. If you never emit structured output, the FSM machinery is dead code. The tree also costs memory: KV held for a prefix that might be reused is KV not available to a running sequence, so the eviction policy is arbitrating between speculative reuse and actual concurrency.</p>
+        <p>Which is the general lesson, and it applies to every system in the previous section. These are not universal improvements. They are bets about the shape of the workload, and the reason to understand the mechanism rather than the benchmark is so you can tell whether the bet matches yours.</p>
+      </section>
+
+      <section id="goodput">
+        <h2>The objective is goodput</h2>
+        <p>Every technique in this article has a knob, and every knob moves throughput and latency in opposite directions. Larger batches, larger chunks, more aggressive admission, more speculation: each one has a setting that maximizes tokens per second and a different setting that keeps users happy. Optimizing throughput alone produces a server that is magnificently efficient at missing deadlines.</p>
+        <p>So state the objective properly. Fix the service-level objectives first &mdash; a time-to-first-token target and an inter-token latency target, both at a percentile, because means hide the failures. Then:</p>
+        <div class="keymath">
+          <b>maximize</b>&nbsp;&nbsp; requests/s that satisfy their SLOs<br />
+          <b>subject to</b><br />
+          &nbsp;&nbsp;p99 TTFT &le; T<sub>first</sub><br />
+          &nbsp;&nbsp;p99 TPOT &le; T<sub>inter</sub><br />
+          &nbsp;&nbsp;KV working set &le; HBM &minus; weights &minus; workspace
+        </div>
+        <p>This quantity &mdash; goodput &mdash; behaves very differently from throughput. Throughput rises with load and then flattens. Goodput rises, peaks, and then <em>falls off a cliff</em>, because past the knee every additional admitted request pushes the whole running set over the latency line and you get paid for none of them.</p>
+        <div class="article-panel" id="fig-goodput">
+          <p class="figure-lede">Figure 27 · Sweeping offered load: throughput saturates, goodput collapses</p>
+          <div class="animation-stage" role="img" aria-label="Animated chart sweeping offered load and showing throughput saturating while tail latency rises and goodput peaks then collapses"></div>
+          <p class="figure-caption"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls for figure 27">
+            <button type="button" data-action="previous" aria-label="Previous animation frame">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation frame">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Frame 01 / 60</span>
+          </div>
+        </div>
+        <p>Reading the article backwards through this lens makes it much shorter. Continuous batching raises the ceiling of the goodput curve. Paged KV and prefix caching move the knee to the right by making concurrency cheaper. Chunked prefill flattens the TPOT tail so the constraint binds later. Disaggregation decouples the two constraints so they stop trading against each other. Speculation buys TTFT and TPOT headroom at low load and must be switched off at high load. Quantization relaxes the memory constraint. Routing prevents one replica from setting the fleet's percentile. Admission control is what keeps you on the left side of the cliff when the knobs run out.</p>
+        <p>None of it is about making the model faster. All of it is about keeping expensive silicon doing work that someone is still waiting for.</p>
+        <p>Once the system is assembled, the final question is diagnostic: <a href="../finding-the-bottleneck/">how do we find what it is actually waiting for?</a></p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Batching and scheduling</h3>
+          <ul>
+            <li><a href="https://www.usenix.org/conference/osdi22/presentation/yu" target="_blank" rel="noopener noreferrer">Orca: A Distributed Serving System for Transformer-Based Generative Models</a> · Yu et al., OSDI 2022</li>
+            <li><a href="https://arxiv.org/abs/2308.16369" target="_blank" rel="noopener noreferrer">SARATHI: Efficient LLM Inference by Piggybacking Decodes with Chunked Prefills</a> · Agrawal et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.02310" target="_blank" rel="noopener noreferrer">Taming Throughput-Latency Tradeoff in LLM Inference with Sarathi-Serve</a> · Agrawal et al., OSDI 2024</li>
+            <li><a href="https://www.anyscale.com/blog/continuous-batching-llm-inference" target="_blank" rel="noopener noreferrer">How Continuous Batching Enables 23x Throughput in LLM Inference</a> · Anyscale, 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>KV cache management</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener noreferrer">Efficient Memory Management for Large Language Model Serving with PagedAttention</a> · Kwon et al., SOSP 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.07104" target="_blank" rel="noopener noreferrer">SGLang: Efficient Execution of Structured Language Model Programs (RadixAttention)</a> · Zheng et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2411.15100" target="_blank" rel="noopener noreferrer">XGrammar: Flexible and Efficient Structured Generation Engine for Large Language Models</a> · Dong et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener noreferrer">Efficient Streaming Language Models with Attention Sinks</a> · Xiao et al., 2023</li>
+            <li><a href="https://github.com/vllm-project/vllm" target="_blank" rel="noopener noreferrer">vLLM</a> · project repository</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Disaggregation and distributed serving</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2401.09670" target="_blank" rel="noopener noreferrer">DistServe: Disaggregating Prefill and Decoding for Goodput-optimized LLM Serving</a> · Zhong et al., OSDI 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.18677" target="_blank" rel="noopener noreferrer">Splitwise: Efficient Generative LLM Inference Using Phase Splitting</a> · Patel et al., ISCA 2024</li>
+            <li><a href="https://arxiv.org/abs/2407.00079" target="_blank" rel="noopener noreferrer">Mooncake: A KVCache-centric Disaggregated Architecture for LLM Serving</a> · Qin et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2302.11665" target="_blank" rel="noopener noreferrer">AlpaServe: Statistical Multiplexing with Model Parallelism for Deep Learning Serving</a> · Li et al., OSDI 2023</li>
+            <li><a href="https://arxiv.org/abs/2211.05102" target="_blank" rel="noopener noreferrer">Efficiently Scaling Transformer Inference</a> · Pope et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/1909.08053" target="_blank" rel="noopener noreferrer">Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism</a> · Shoeybi et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2006.16668" target="_blank" rel="noopener noreferrer">GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding</a> · Lepikhin et al., 2020</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Speculative decoding</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noopener noreferrer">Fast Inference from Transformers via Speculative Decoding</a> · Leviathan et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2302.01318" target="_blank" rel="noopener noreferrer">Accelerating Large Language Model Decoding with Speculative Sampling</a> · Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2401.10774" target="_blank" rel="noopener noreferrer">Medusa: Simple LLM Inference Acceleration with Multiple Decoding Heads</a> · Cai et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2401.15077" target="_blank" rel="noopener noreferrer">EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty</a> · Li et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Kernels, graphs and precision</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener noreferrer">FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness</a> · Dao et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2307.08691" target="_blank" rel="noopener noreferrer">FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning</a> · Dao, 2023</li>
+            <li><a href="https://pytorch.org/blog/flash-decoding/" target="_blank" rel="noopener noreferrer">Flash-Decoding for Long-Context Inference</a> · Dao et al., PyTorch blog, 2023</li>
+            <li><a href="https://developer.nvidia.com/blog/cuda-graphs/" target="_blank" rel="noopener noreferrer">Getting Started with CUDA Graphs</a> · NVIDIA, 2019</li>
+            <li><a href="https://dl.acm.org/doi/10.1145/1498765.1498785" target="_blank" rel="noopener noreferrer">Roofline: An Insightful Visual Performance Model for Multicore Architectures</a> · Williams et al., 2009</li>
+            <li><a href="https://arxiv.org/abs/2210.17323" target="_blank" rel="noopener noreferrer">GPTQ: Accurate Post-Training Quantization for Generative Pre-trained Transformers</a> · Frantar et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2306.00978" target="_blank" rel="noopener noreferrer">AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration</a> · Lin et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2211.10438" target="_blank" rel="noopener noreferrer">SmoothQuant: Accurate and Efficient Post-Training Quantization for LLMs</a> · Xiao et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2209.05433" target="_blank" rel="noopener noreferrer">FP8 Formats for Deep Learning</a> · Micikevicius et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2402.02750" target="_blank" rel="noopener noreferrer">KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV Cache</a> · Liu et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Multimodal serving</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">Visual Instruction Tuning (LLaVA)</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2409.12191" target="_blank" rel="noopener noreferrer">Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.17146" target="_blank" rel="noopener noreferrer">Molmo and PixMo: Open Weights and Open Data for State-of-the-Art Vision-Language Models</a> · Deitke et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Serving systems</h3>
+          <ul>
+            <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener noreferrer">SGLang</a> · project repository</li>
+            <li><a href="https://github.com/NVIDIA/TensorRT-LLM" target="_blank" rel="noopener noreferrer">TensorRT-LLM</a> · NVIDIA</li>
+            <li><a href="https://github.com/huggingface/text-generation-inference" target="_blank" rel="noopener noreferrer">Text Generation Inference</a> · Hugging Face</li>
+            <li><a href="https://arxiv.org/abs/2401.08671" target="_blank" rel="noopener noreferrer">DeepSpeed-FastGen: High-throughput Text Generation via MII and DeepSpeed-Inference</a> · Holmes et al., 2024</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Serving Playbook</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/serving-playbook/">https://srini-anirudh.github.io/blogs/serving-playbook/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026servingplaybook,
+  author       = {Srinivasan, Anirudh},
+  title        = {The Serving Playbook},
+  year         = {2026},
+  month        = {sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/serving-playbook/},
+  note         = {Published September 4, 2026; updated September 4, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; The Serving Playbook</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script src="figures.js"></script>
+    <script src="figures2.js"></script>
+    <script src="figures3.js"></script>
+    <script src="figures4.js"></script>
+    <script src="figures5.js"></script>
+  </body>
+</html>

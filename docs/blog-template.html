@@ -190,6 +190,18 @@
       </div>
     </header>
 
+    <!-- Optional for a named series. Keep this compact navigator directly
+         after the mast and update the number, part label, and sibling links.
+         Use the same CreativeWorkSeries @id in every member's JSON-LD. -->
+    <nav class="ml-series-nav" aria-label="[SERIES NAME]">
+      <a class="ml-series-nav__identity" href="../index.html#[SERIES-ID]">[SERIES NAME]</a>
+      <span class="ml-series-nav__position">[NN] of [TOTAL] &middot; [PART LABEL]</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../[PREVIOUS-SLUG]/"><span>Previous &middot; [NN]</span><strong>[PREVIOUS TITLE]</strong></a>
+        <a class="ml-series-nav__link" href="../[NEXT-SLUG]/"><span>Next &middot; [NN]</span><strong>[NEXT TITLE]</strong></a>
+      </div>
+    </nav>
+
     <main class="article-content">
       <!-- Required TOC source for both layouts: this inline version remains
            visible at every width, while assets/js/blogs.js derives the shared
