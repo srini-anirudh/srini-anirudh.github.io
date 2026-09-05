@@ -38,6 +38,68 @@ blogNavToggle?.addEventListener("keydown", (event) => {
 const blogFilterButtons = [...document.querySelectorAll("[data-blog-filter]")];
 const blogCards = [...document.querySelectorAll("[data-blog-categories]")];
 const blogFilterStatus = document.querySelector(".blog-filter-status");
+const blogFilterReset = document.querySelector(".blog-filter-reset");
+const blogList = document.querySelector(".blog-list");
+const originalBlogCardOrder = [...blogCards];
+const learningPathPanel = document.querySelector(".learning-path-panel");
+const learningPathTitle = document.querySelector(".learning-path-title");
+const learningPathDescription = document.querySelector(".learning-path-description");
+const learningPathGroups = document.querySelector(".learning-path-groups");
+
+function getBlogCardSlug(card) {
+  return (card.getAttribute("href") || "").replace(/^\.\//, "").replace(/\/$/, "");
+}
+
+function getLearningPathGroups(button) {
+  return (button?.dataset.blogPaths || "")
+    .split(";")
+    .map((definition) => {
+      const [label, slugs = ""] = definition.split("::");
+      return { label: label?.trim(), slugs: slugs.split(/\s+/).filter(Boolean) };
+    })
+    .filter((group) => group.label && group.slugs.length);
+}
+
+function renderLearningPath(button) {
+  if (!learningPathPanel || !learningPathGroups) return;
+  const pathGroups = getLearningPathGroups(button);
+
+  if (!pathGroups.length) {
+    learningPathPanel.hidden = true;
+    learningPathGroups.replaceChildren();
+    return;
+  }
+
+  const cardsBySlug = new Map(blogCards.map((card) => [getBlogCardSlug(card), card]));
+  const fragment = document.createDocumentFragment();
+  pathGroups.forEach((group) => {
+    const section = document.createElement("section");
+    const heading = document.createElement("h3");
+    const list = document.createElement("ol");
+    heading.textContent = group.label;
+    group.slugs.forEach((slug, index) => {
+      const card = cardsBySlug.get(slug);
+      if (!card) return;
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      const number = document.createElement("span");
+      const title = document.createElement("strong");
+      number.textContent = String(index + 1).padStart(2, "0");
+      title.textContent = card.querySelector("h3")?.textContent.trim() || slug;
+      link.href = card.getAttribute("href");
+      link.append(number, title);
+      item.append(link);
+      list.append(item);
+    });
+    section.append(heading, list);
+    fragment.append(section);
+  });
+
+  learningPathTitle.textContent = button.dataset.blogFilterLabel || button.textContent.trim();
+  learningPathDescription.textContent = button.dataset.pathDescription || "";
+  learningPathGroups.replaceChildren(fragment);
+  learningPathPanel.hidden = false;
+}
 
 function applyBlogFilter(filter, updateAddress = true) {
   if (!blogFilterButtons.length || !blogCards.length) return;
@@ -45,18 +107,32 @@ function applyBlogFilter(filter, updateAddress = true) {
   const selected = blogFilterButtons.some((button) => button.dataset.blogFilter === filter)
     ? filter
     : "all";
+  const selectedButton = blogFilterButtons.find((button) => button.dataset.blogFilter === selected);
+  const pathSlugs = getLearningPathGroups(selectedButton).flatMap((group) => group.slugs);
+  const selectedSeries = (selectedButton?.dataset.blogMembers || "").split(/\s+/).filter(Boolean);
   let visible = 0;
 
+  if (blogList) {
+    const cardsBySlug = new Map(blogCards.map((card) => [getBlogCardSlug(card), card]));
+    const orderedCards = selected === "all"
+      ? originalBlogCardOrder
+      : [
+          ...pathSlugs.map((slug) => cardsBySlug.get(slug)).filter(Boolean),
+          ...originalBlogCardOrder.filter((card) => !pathSlugs.includes(getBlogCardSlug(card))),
+        ];
+    orderedCards.forEach((card) => blogList.append(card));
+  }
+
   blogCards.forEach((card) => {
-    const categories = (card.dataset.blogCategories || "").split(/\s+/);
-    const show = selected === "all" || categories.includes(selected);
+    const series = (card.dataset.blogSeries || "").split(/\s+/);
+    const show = selected === "all" || selectedSeries.some((name) => series.includes(name));
     card.hidden = !show;
     if (show) visible += 1;
   });
 
   document.querySelectorAll("[data-blog-series-heading]").forEach((heading) => {
     const series = heading.dataset.blogSeriesHeading;
-    heading.hidden = !blogCards.some((card) => !card.hidden && card.dataset.blogSeries === series);
+    heading.hidden = !blogCards.some((card) => !card.hidden && (card.dataset.blogSeries || "").split(/\s+/).includes(series));
   });
 
   blogFilterButtons.forEach((button) => {
@@ -66,16 +142,20 @@ function applyBlogFilter(filter, updateAddress = true) {
   });
 
   if (blogFilterStatus) {
-    const label = blogFilterButtons.find((button) => button.dataset.blogFilter === selected)?.textContent.trim();
+    const label = selectedButton?.dataset.blogFilterLabel || selectedButton?.textContent.trim();
     blogFilterStatus.textContent = selected === "all"
       ? `Showing all ${visible} articles`
-      : `Showing ${visible} ${label} ${visible === 1 ? "article" : "articles"}`;
+      : `Showing ${visible} ${visible === 1 ? "article" : "articles"} in ${label}`;
   }
+
+  if (blogFilterReset) blogFilterReset.hidden = selected === "all";
+  renderLearningPath(selected === "all" ? null : selectedButton);
 
   if (updateAddress) {
     const url = new URL(window.location.href);
-    if (selected === "all") url.searchParams.delete("category");
-    else url.searchParams.set("category", selected);
+    url.searchParams.delete("category");
+    if (selected === "all") url.searchParams.delete("series");
+    else url.searchParams.set("series", selected);
     window.history.replaceState({}, "", url);
   }
 }
@@ -85,9 +165,28 @@ blogFilterButtons.forEach((button) => {
 });
 
 if (blogFilterButtons.length) {
-  const initialFilter = new URL(window.location.href).searchParams.get("category") || "all";
+  const url = new URL(window.location.href);
+  const legacyCategory = url.searchParams.get("category");
+  const legacyCategoryMap = {
+    architecture: "architectures",
+    training: "llms",
+    posttraining: "llms",
+    reasoning: "llms",
+    agents: "agents",
+    systems: "systems",
+    vlms: "vlms",
+    foundations: "foundations",
+  };
+  const initialFilter = url.searchParams.get("series")
+    || legacyCategoryMap[legacyCategory]
+    || "all";
   applyBlogFilter(initialFilter, false);
 }
+
+window.addEventListener("popstate", () => {
+  const selected = new URL(window.location.href).searchParams.get("series") || "all";
+  applyBlogFilter(selected, false);
+});
 
 const animatedPreviewCards = [...document.querySelectorAll(".blog-card")]
   .filter((card) => card.querySelector("[data-animated-src]"));

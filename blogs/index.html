@@ -84,32 +84,29 @@
           <div class="blog-magazine-byline"><span>By Anirudh Srinivasan</span></div>
         </header>
 
-        <nav class="blog-filter-bar" aria-label="Filter articles by category">
-          <span class="blog-filter-label">Browse</span>
-          <button type="button" class="blog-filter is-active" data-blog-filter="all" aria-pressed="true">All</button>
-          <button type="button" class="blog-filter" data-blog-filter="vlms" aria-pressed="false">VLMs</button>
-          <button type="button" class="blog-filter" data-blog-filter="architecture" aria-pressed="false">Architecture</button>
-          <button type="button" class="blog-filter" data-blog-filter="foundations" aria-pressed="false">Foundations</button>
-          <button type="button" class="blog-filter" data-blog-filter="training" aria-pressed="false">Training</button>
-          <button type="button" class="blog-filter" data-blog-filter="posttraining" aria-pressed="false">Post-training</button>
-          <button type="button" class="blog-filter" data-blog-filter="reasoning" aria-pressed="false">Reasoning</button>
-          <button type="button" class="blog-filter" data-blog-filter="agents" aria-pressed="false">Tools &amp; Agents</button>
-          <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
+        <div class="blog-filter-status-row">
+          <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
+          <button type="button" class="blog-filter-reset" data-blog-filter="all" aria-pressed="true" hidden>Show all</button>
+        </div>
+        <nav class="series-directory" aria-label="Filter articles by learning path">
+          <button type="button" data-blog-filter="foundations" data-blog-filter-label="DL Foundations" data-blog-members="foundations" data-blog-paths="Core sequence::why-neural-networks-need-nonlinearity the-geometry-of-normalization how-attention-moves-information how-models-know-where-they-are what-an-optimizer-actually-does what-autograd-actually-does why-transformers-do-not-explode choosing-the-next-token" data-path-description="Build the mathematical and mechanical foundations needed to understand modern neural networks." aria-pressed="false"><b>DL Foundations</b><span>8 articles</span></button>
+          <button type="button" data-blog-filter="architectures" data-blog-filter-label="DL Architectures" data-blog-members="architectures" data-blog-paths="Architecture sequence::evolution-of-ml-architectures across-the-cnnverse an-image-is-a-sentence one-transformer-two-modalities what-changed-inside-the-transformer" data-path-description="Follow the architectural ideas that led from convolutional networks to modern multimodal transformers." aria-pressed="false"><b>DL Architectures</b><span>5 articles</span></button>
+          <button type="button" data-blog-filter="llms" data-blog-filter-label="LLMs" data-blog-members="training-science post-training reasoning-models" data-blog-paths="Pretraining science::the-puzzle-of-overparameterization scaling-laws-from-first-principles how-llms-are-pretrained;Post-training &amp; adaptation::teaching-a-language-model-to-follow-instructions mixing-data-without-losing-capabilities teaching-a-model-what-we-prefer reinforcement-learning-from-first-principles how-lora-changes-a-model-without-rewriting-it;Reasoning models::how-reinforcement-learning-teaches-models-to-reason thinking-in-tokens how-models-improve-without-changing-their-weights" data-path-description="Choose a path through how language models are pretrained, adapted, aligned, and taught to reason." aria-pressed="false"><b>LLMs</b><span>11 articles · 3 paths</span></button>
+          <button type="button" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Vision-language sequence::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery" data-path-description="See how images become tokens and how visual encoders connect to language models." aria-pressed="false"><b>VLMs</b><span>3 articles</span></button>
+          <button type="button" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false"><b>Agents</b><span>7 articles</span></button>
+          <button type="button" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Systems sequence::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap inside-a-training-step the-parallelism-playbook the-mechanics-of-llm-inference the-serving-playbook how-to-find-what-is-slowing-your-model" data-path-description="Trace model execution from GPU hardware and distributed training through inference, serving, and diagnosis." aria-pressed="false"><b>ML Systems</b><span>8 articles</span></button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
-        <nav class="series-directory" aria-label="Browse complete article series">
-          <a href="#foundations"><b>Foundations</b><span>8 articles</span></a>
-          <a href="#understanding-llms"><b>Architectures</b><span>5 articles</span></a>
-          <a href="#training-science"><b>Training science</b><span>3 articles</span></a>
-          <a href="#post-training"><b>Post-training</b><span>5 articles</span></a>
-          <a href="#reasoning-models"><b>Reasoning models</b><span>3 articles</span></a>
-          <a href="#agents"><b>Tools &amp; agents</b><span>7 articles</span></a>
-          <a href="#vlms"><b>Vision-language</b><span>3 articles</span></a>
-          <a href="#ml-systems"><b>ML systems</b><span>8 articles</span></a>
-        </nav>
+        <section class="learning-path-panel" aria-live="polite" hidden>
+          <div class="learning-path-intro">
+            <p class="learning-path-kicker">Selected learning path</p>
+            <h2 class="learning-path-title"></h2>
+            <p class="learning-path-description"></p>
+          </div>
+          <div class="learning-path-groups"></div>
+        </section>
 
         <div class="blog-list">
-          <a class="blog-card blog-card-featured" id="vlms" href="the-vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
+          <a class="blog-card blog-card-featured" id="vlms" href="the-vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture" data-blog-series="vlms">
             <picture class="blog-card-media">
               <img src="the-vlm-architecture-gallery/preview.png" data-still-src="the-vlm-architecture-gallery/preview.png" data-animated-src="the-vlm-architecture-gallery/preview.gif" width="960" height="540" loading="eager" fetchpriority="high" decoding="async" alt="Animated standardized plates comparing vision-language model architectures." />
             </picture>
@@ -501,7 +498,7 @@
               <div class="blog-tags"><span>CPU vs GPU</span><span>Parallelism</span><span>GPU Architecture</span></div>
             </div>
           </a>
-          <a class="blog-card" href="inside-a-modern-vision-encoder/" target="_self" data-blog-categories="vlms architecture">
+          <a class="blog-card" href="inside-a-modern-vision-encoder/" target="_self" data-blog-categories="vlms architecture" data-blog-series="vlms">
             <picture class="blog-card-media">
               <img src="inside-a-modern-vision-encoder/preview.png" data-still-src="inside-a-modern-vision-encoder/preview.png" data-animated-src="inside-a-modern-vision-encoder/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated document patch lattice becoming a sequence of visual tokens." />
             </picture>
@@ -513,7 +510,7 @@
               <div class="blog-tags"><span>Vision Encoders</span><span>VLMs</span><span>Multimodal</span></div>
             </div>
           </a>
-          <a class="blog-card" href="one-transformer-two-modalities/" target="_self" data-blog-categories="architecture foundations">
+          <a class="blog-card" href="one-transformer-two-modalities/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures vlms">
             <picture class="blog-card-media">
               <img src="one-transformer-two-modalities/preview.png" data-still-src="one-transformer-two-modalities/preview.png" data-animated-src="one-transformer-two-modalities/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated image patchification sequence comparing a Transformer with a Vision Transformer." />
             </picture>
@@ -525,7 +522,7 @@
               <div class="blog-tags"><span>Transformers</span><span>ViT</span><span>Attention</span></div>
             </div>
           </a>
-          <a class="blog-card" href="an-image-is-a-sentence/" target="_self" data-blog-categories="architecture foundations">
+          <a class="blog-card" href="an-image-is-a-sentence/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures">
             <picture class="blog-card-media">
               <img src="an-image-is-a-sentence/preview.png" data-still-src="an-image-is-a-sentence/preview.png" data-animated-src="an-image-is-a-sentence/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated shifted-window attention sequence showing how a Swin Transformer groups and reconnects visual tokens." />
             </picture>
@@ -537,7 +534,7 @@
               <div class="blog-tags"><span>Vision Transformers</span><span>Attention</span><span>Video</span></div>
             </div>
           </a>
-          <a class="blog-card" href="across-the-cnnverse/" target="_self" data-blog-categories="architecture foundations">
+          <a class="blog-card" href="across-the-cnnverse/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures">
             <picture class="blog-card-media">
               <img src="across-the-cnnverse/preview.png" data-still-src="across-the-cnnverse/preview.png" data-animated-src="across-the-cnnverse/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated convolution kernel sliding across an image grid and accumulating an output feature map." />
             </picture>
@@ -549,7 +546,7 @@
               <div class="blog-tags"><span>Convolution</span><span>CNNs</span><span>Architecture</span></div>
             </div>
           </a>
-          <a class="blog-card" href="evolution-of-ml-architectures/" target="_self" data-blog-categories="architecture foundations">
+          <a class="blog-card" href="evolution-of-ml-architectures/" target="_self" data-blog-categories="architecture foundations" data-blog-series="architectures">
             <picture class="blog-card-media">
               <img src="evolution-of-ml-architectures/preview.png" data-still-src="evolution-of-ml-architectures/preview.png" data-animated-src="evolution-of-ml-architectures/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated timeline comparing how neural architectures move information from perceptrons through state-space models." />
             </picture>
