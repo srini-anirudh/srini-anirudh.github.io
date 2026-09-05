@@ -35,12 +35,10 @@ blogNavToggle?.addEventListener("keydown", (event) => {
   }
 });
 
-const blogFilterButtons = [...document.querySelectorAll(".blog-filter[data-blog-filter]")];
+const blogFilterButtons = [...document.querySelectorAll("[data-blog-filter]")];
 const blogCards = [...document.querySelectorAll("[data-blog-categories]")];
 const blogFilterStatus = document.querySelector(".blog-filter-status");
 const blogFilterReset = document.querySelector(".blog-filter-reset");
-const blogSearchInput = document.querySelector("[data-blog-search]");
-const blogTagFilter = document.querySelector("[data-blog-tag-filter]");
 const blogList = document.querySelector(".blog-list");
 const originalBlogCardOrder = [...blogCards];
 const learningPathPanel = document.querySelector(".learning-path-panel");
@@ -50,52 +48,6 @@ const learningPathGroups = document.querySelector(".learning-path-groups");
 
 function getBlogCardSlug(card) {
   return (card.getAttribute("href") || "").replace(/^\.\//, "").replace(/\/$/, "");
-}
-
-function normalizeBlogFilterText(value) {
-  return (value || "")
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9+#.]+/g, " ")
-    .trim();
-}
-
-function getBlogCardTags(card) {
-  return [...card.querySelectorAll(".blog-tags span")]
-    .map((tag) => tag.textContent.trim())
-    .filter(Boolean);
-}
-
-const blogCardSearchData = new Map(blogCards.map((card) => {
-  const title = card.querySelector("h3")?.textContent || "";
-  const summary = card.querySelector(".blog-card-body > p")?.textContent || "";
-  const label = card.querySelector(".blog-card-label")?.textContent || "";
-  const tags = getBlogCardTags(card);
-  return [card, {
-    tags: tags.map(normalizeBlogFilterText),
-    text: normalizeBlogFilterText([title, summary, label, ...tags].join(" ")),
-  }];
-}));
-
-if (blogTagFilter && blogCards.length) {
-  const tags = new Map();
-  blogCards.forEach((card) => {
-    getBlogCardTags(card).forEach((label) => {
-      const value = normalizeBlogFilterText(label);
-      const current = tags.get(value) || { label, count: 0 };
-      current.count += 1;
-      tags.set(value, current);
-    });
-  });
-  [...tags.entries()]
-    .sort((left, right) => left[1].label.localeCompare(right[1].label))
-    .forEach(([value, tag]) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = `${tag.label} (${tag.count})`;
-      blogTagFilter.append(option);
-    });
 }
 
 function getLearningPathGroups(button) {
@@ -149,21 +101,15 @@ function renderLearningPath(button) {
   learningPathPanel.hidden = false;
 }
 
-let activeBlogFilter = "all";
-let activeBlogSearch = "";
-let activeBlogTag = "all";
-
-function applyBlogFilters(updateAddress = true) {
+function applyBlogFilter(filter, updateAddress = true) {
   if (!blogFilterButtons.length || !blogCards.length) return;
 
-  const selected = blogFilterButtons.some((button) => button.dataset.blogFilter === activeBlogFilter)
-    ? activeBlogFilter
+  const selected = blogFilterButtons.some((button) => button.dataset.blogFilter === filter)
+    ? filter
     : "all";
-  activeBlogFilter = selected;
   const selectedButton = blogFilterButtons.find((button) => button.dataset.blogFilter === selected);
   const pathSlugs = getLearningPathGroups(selectedButton).flatMap((group) => group.slugs);
   const selectedSeries = (selectedButton?.dataset.blogMembers || "").split(/\s+/).filter(Boolean);
-  const searchTokens = normalizeBlogFilterText(activeBlogSearch).split(/\s+/).filter(Boolean);
   let visible = 0;
 
   if (blogList) {
@@ -179,11 +125,7 @@ function applyBlogFilters(updateAddress = true) {
 
   blogCards.forEach((card) => {
     const series = (card.dataset.blogSeries || "").split(/\s+/);
-    const searchData = blogCardSearchData.get(card);
-    const matchesTopic = selected === "all" || selectedSeries.some((name) => series.includes(name));
-    const matchesTag = activeBlogTag === "all" || searchData.tags.includes(activeBlogTag);
-    const matchesSearch = !searchTokens.length || searchTokens.every((token) => searchData.text.includes(token));
-    const show = matchesTopic && matchesTag && matchesSearch;
+    const show = selected === "all" || selectedSeries.some((name) => series.includes(name));
     card.hidden = !show;
     if (show) visible += 1;
   });
@@ -201,19 +143,12 @@ function applyBlogFilters(updateAddress = true) {
 
   if (blogFilterStatus) {
     const label = selectedButton?.dataset.blogFilterLabel || selectedButton?.textContent.trim();
-    const tagLabel = blogTagFilter?.selectedOptions[0]?.textContent.replace(/\s+\(\d+\)$/, "");
-    const qualifiers = [];
-    if (selected !== "all") qualifiers.push(`in ${label}`);
-    if (activeBlogTag !== "all") qualifiers.push(`tagged ${tagLabel}`);
-    if (activeBlogSearch.trim()) qualifiers.push(`matching “${activeBlogSearch.trim()}”`);
-    blogFilterStatus.textContent = !qualifiers.length
+    blogFilterStatus.textContent = selected === "all"
       ? `Showing all ${visible} articles`
-      : `Showing ${visible} ${visible === 1 ? "article" : "articles"} ${qualifiers.join(" ")}`;
+      : `Showing ${visible} ${visible === 1 ? "article" : "articles"} in ${label}`;
   }
 
-  if (blogFilterReset) {
-    blogFilterReset.hidden = selected === "all" && activeBlogTag === "all" && !activeBlogSearch.trim();
-  }
+  if (blogFilterReset) blogFilterReset.hidden = selected === "all";
   renderLearningPath(selected === "all" ? null : selectedButton);
 
   if (updateAddress) {
@@ -221,19 +156,12 @@ function applyBlogFilters(updateAddress = true) {
     url.searchParams.delete("category");
     if (selected === "all") url.searchParams.delete("series");
     else url.searchParams.set("series", selected);
-    if (activeBlogTag === "all") url.searchParams.delete("tag");
-    else url.searchParams.set("tag", activeBlogTag);
-    if (activeBlogSearch.trim()) url.searchParams.set("q", activeBlogSearch.trim());
-    else url.searchParams.delete("q");
     window.history.replaceState({}, "", url);
   }
 }
 
 blogFilterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    activeBlogFilter = button.dataset.blogFilter;
-    applyBlogFilters();
-  });
+  button.addEventListener("click", () => applyBlogFilter(button.dataset.blogFilter));
 });
 
 if (blogFilterButtons.length) {
@@ -249,50 +177,15 @@ if (blogFilterButtons.length) {
     vlms: "vlms",
     foundations: "foundations",
   };
-  activeBlogFilter = url.searchParams.get("series")
+  const initialFilter = url.searchParams.get("series")
     || legacyCategoryMap[legacyCategory]
     || "all";
-  activeBlogSearch = url.searchParams.get("q") || "";
-  activeBlogTag = normalizeBlogFilterText(url.searchParams.get("tag")) || "all";
-  if (blogSearchInput) blogSearchInput.value = activeBlogSearch;
-  if (blogTagFilter && [...blogTagFilter.options].some((option) => option.value === activeBlogTag)) {
-    blogTagFilter.value = activeBlogTag;
-  } else {
-    activeBlogTag = "all";
-  }
-  applyBlogFilters(false);
+  applyBlogFilter(initialFilter, false);
 }
 
-blogSearchInput?.addEventListener("input", () => {
-  activeBlogSearch = blogSearchInput.value;
-  applyBlogFilters();
-});
-
-blogTagFilter?.addEventListener("change", () => {
-  activeBlogTag = blogTagFilter.value;
-  applyBlogFilters();
-});
-
-blogFilterReset?.addEventListener("click", () => {
-  activeBlogFilter = "all";
-  activeBlogSearch = "";
-  activeBlogTag = "all";
-  if (blogSearchInput) blogSearchInput.value = "";
-  if (blogTagFilter) blogTagFilter.value = "all";
-  applyBlogFilters();
-});
-
 window.addEventListener("popstate", () => {
-  const url = new URL(window.location.href);
-  activeBlogFilter = url.searchParams.get("series") || "all";
-  activeBlogSearch = url.searchParams.get("q") || "";
-  activeBlogTag = normalizeBlogFilterText(url.searchParams.get("tag")) || "all";
-  if (blogSearchInput) blogSearchInput.value = activeBlogSearch;
-  if (blogTagFilter) {
-    if (![...blogTagFilter.options].some((option) => option.value === activeBlogTag)) activeBlogTag = "all";
-    blogTagFilter.value = activeBlogTag;
-  }
-  applyBlogFilters(false);
+  const selected = new URL(window.location.href).searchParams.get("series") || "all";
+  applyBlogFilter(selected, false);
 });
 
 const animatedPreviewCards = [...document.querySelectorAll(".blog-card")]
