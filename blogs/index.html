@@ -93,13 +93,25 @@
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference;Scaling the workloads::the-parallelism-playbook the-serving-playbook;Profiling::how-to-find-what-is-slowing-your-model" data-path-description="Choose a path through hardware and communication, workload mechanics, distributed scaling, serving, and performance diagnosis." aria-pressed="false">ML Systems</button>
         </nav>
+        <div class="blog-discovery-tools" role="search" aria-label="Search and filter articles by tag">
+          <label class="blog-search-field">
+            <span>Search</span>
+            <input type="search" data-blog-search autocomplete="off" spellcheck="false" placeholder="Type a title, concept, or tag&hellip;" aria-label="Search articles by title, concept, or tag" />
+          </label>
+          <label class="blog-tag-field">
+            <span>Tag</span>
+            <select data-blog-tag-filter aria-label="Filter articles by tag">
+              <option value="all">All tags</option>
+            </select>
+          </label>
+        </div>
         <div class="blog-filter-status-row">
           <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
-          <button type="button" class="blog-filter-reset" data-blog-filter="all" aria-pressed="true" hidden>Show all</button>
+          <button type="button" class="blog-filter-reset" hidden>Clear filters</button>
         </div>
         <section class="learning-path-panel" aria-live="polite" hidden>
           <div class="learning-path-intro">
-            <p class="learning-path-kicker">Selected learning path</p>
+            <p class="learning-path-kicker">Blog Series</p>
             <h2 class="learning-path-title"></h2>
             <p class="learning-path-description"></p>
           </div>
