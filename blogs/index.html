@@ -91,7 +91,7 @@
           <button type="button" class="blog-filter" data-blog-filter="llms" data-blog-filter-label="LLMs" data-blog-members="training-science post-training reasoning-models" data-blog-paths="Pretraining science::the-puzzle-of-overparameterization scaling-laws-from-first-principles how-llms-are-pretrained;Post-training &amp; adaptation::teaching-a-language-model-to-follow-instructions mixing-data-without-losing-capabilities teaching-a-model-what-we-prefer reinforcement-learning-from-first-principles how-lora-changes-a-model-without-rewriting-it;Reasoning models::how-reinforcement-learning-teaches-models-to-reason thinking-in-tokens how-models-improve-without-changing-their-weights" data-path-description="Choose a path through how language models are pretrained, adapted, aligned, and taught to reason." aria-pressed="false">LLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Vision-language sequence::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery" data-path-description="See how images become tokens and how visual encoders connect to language models." aria-pressed="false">VLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
-          <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference how-to-find-what-is-slowing-your-model;Scaling the workloads::talk-is-not-cheap the-parallelism-playbook the-serving-playbook" data-path-description="Choose a path through the hardware, workload mechanics, and scaling techniques behind modern ML systems." aria-pressed="false">ML Systems</button>
+          <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference;Scaling the workloads::the-parallelism-playbook the-serving-playbook;Profiling::how-to-find-what-is-slowing-your-model" data-path-description="Choose a path through hardware and communication, workload mechanics, distributed scaling, serving, and performance diagnosis." aria-pressed="false">ML Systems</button>
         </nav>
         <div class="blog-discovery-tools" role="search" aria-label="Search and filter articles by tag">
           <label class="blog-search-field">
@@ -413,7 +413,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>How to Find What Is Slowing Your Model</strong><em>Profiling ML Systems from First Principles</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; Understanding the Workloads &middot; 03</span>
+              <span class="blog-card-label">ML Systems &middot; Profiling &middot; 01</span>
               <h3>How to Find What Is Slowing Your Model</h3>
               <p>A practical method for reading timelines and counters, using PyTorch Profiler and Nsight, diagnosing Roofline regimes, and testing optimization hypotheses.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>38 min read</span></div>
@@ -426,7 +426,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>The Serving Playbook</strong><em>How LLM and VLM Serving Systems Keep GPUs Busy</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 03</span>
+              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 02</span>
               <h3>The Serving Playbook</h3>
               <p>Continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, distributed serving, speculative decoding, and goodput under SLOs.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-08-14">August 14, 2026</time></span><span>Updated <time datetime="2026-08-18">August 18, 2026</time></span><span>62 min read</span></div>
@@ -452,7 +452,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>The Parallelism Playbook</strong><em>How Large Models Train Across Clusters</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 02</span>
+              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 01</span>
               <h3>The Parallelism Playbook</h3>
               <p>The six things a training workload can split, from DDP and ZeRO/FSDP through tensor, pipeline, context, expert, and hybrid parallelism.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-06-19">June 19, 2026</time></span><span>Updated <time datetime="2026-06-24">June 24, 2026</time></span><span>48 min read</span></div>
@@ -478,7 +478,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>Talk Is Not Cheap</strong><em>Communication from PCIe to InfiniBand</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 01</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Machine &middot; 03</span>
               <h3>Talk Is Not Cheap</h3>
               <p>What changes when data is no longer local: PCIe, NVLink, NVSwitch, RDMA, topology, collective communication, and overlap.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-04-17">April 17, 2026</time></span><span>Updated <time datetime="2026-04-23">April 23, 2026</time></span><span>60 min read</span></div>
