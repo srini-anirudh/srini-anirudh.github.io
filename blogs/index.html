@@ -91,11 +91,23 @@
           <button type="button" class="blog-filter" data-blog-filter="llms" data-blog-filter-label="LLMs" data-blog-members="training-science post-training reasoning-models" data-blog-paths="Pretraining science::the-puzzle-of-overparameterization scaling-laws-from-first-principles how-llms-are-pretrained;Post-training &amp; adaptation::teaching-a-language-model-to-follow-instructions mixing-data-without-losing-capabilities teaching-a-model-what-we-prefer reinforcement-learning-from-first-principles how-lora-changes-a-model-without-rewriting-it;Reasoning models::how-reinforcement-learning-teaches-models-to-reason thinking-in-tokens how-models-improve-without-changing-their-weights" data-path-description="Choose a path through how language models are pretrained, adapted, aligned, and taught to reason." aria-pressed="false">LLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Vision-language sequence::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery" data-path-description="See how images become tokens and how visual encoders connect to language models." aria-pressed="false">VLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
-          <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Systems sequence::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap inside-a-training-step the-parallelism-playbook the-mechanics-of-llm-inference the-serving-playbook how-to-find-what-is-slowing-your-model" data-path-description="Trace model execution from GPU hardware and distributed training through inference, serving, and diagnosis." aria-pressed="false">ML Systems</button>
+          <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference how-to-find-what-is-slowing-your-model;Scaling the workloads::talk-is-not-cheap the-parallelism-playbook the-serving-playbook" data-path-description="Choose a path through the hardware, workload mechanics, and scaling techniques behind modern ML systems." aria-pressed="false">ML Systems</button>
         </nav>
+        <div class="blog-discovery-tools" role="search" aria-label="Search and filter articles by tag">
+          <label class="blog-search-field">
+            <span>Search</span>
+            <input type="search" data-blog-search autocomplete="off" spellcheck="false" placeholder="Type a title, concept, or tag&hellip;" aria-label="Search articles by title, concept, or tag" />
+          </label>
+          <label class="blog-tag-field">
+            <span>Tag</span>
+            <select data-blog-tag-filter aria-label="Filter articles by tag">
+              <option value="all">All tags</option>
+            </select>
+          </label>
+        </div>
         <div class="blog-filter-status-row">
           <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
-          <button type="button" class="blog-filter-reset" data-blog-filter="all" aria-pressed="true" hidden>Show all</button>
+          <button type="button" class="blog-filter-reset" hidden>Clear filters</button>
         </div>
         <section class="learning-path-panel" aria-live="polite" hidden>
           <div class="learning-path-intro">
@@ -401,7 +413,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>How to Find What Is Slowing Your Model</strong><em>Profiling ML Systems from First Principles</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 08 &middot; Performance Engineering</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Workloads &middot; 03</span>
               <h3>How to Find What Is Slowing Your Model</h3>
               <p>A practical method for reading timelines and counters, using PyTorch Profiler and Nsight, diagnosing Roofline regimes, and testing optimization hypotheses.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>Updated <time datetime="2026-09-04">September 4, 2026</time></span><span>38 min read</span></div>
@@ -414,7 +426,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>The Serving Playbook</strong><em>How LLM and VLM Serving Systems Keep GPUs Busy</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 07 &middot; Serving</span>
+              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 03</span>
               <h3>The Serving Playbook</h3>
               <p>Continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, distributed serving, speculative decoding, and goodput under SLOs.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-08-14">August 14, 2026</time></span><span>Updated <time datetime="2026-08-18">August 18, 2026</time></span><span>62 min read</span></div>
@@ -427,7 +439,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>The Mechanics of LLM Inference</strong><em>The Anatomy of LLM and VLM Inference</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 06 &middot; Understanding Inference</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Workloads &middot; 02</span>
               <h3>The Mechanics of LLM Inference</h3>
               <p>Why inference becomes a different machine: autoregression, prefill, decode, KV cache, batching, bandwidth, latency metrics, quantization, and multimodal workloads.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-07-17">July 17, 2026</time></span><span>Updated <time datetime="2026-07-23">July 23, 2026</time></span><span>56 min read</span></div>
@@ -440,7 +452,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>The Parallelism Playbook</strong><em>How Large Models Train Across Clusters</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 05 &middot; Scaling the Workload</span>
+              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 02</span>
               <h3>The Parallelism Playbook</h3>
               <p>The six things a training workload can split, from DDP and ZeRO/FSDP through tensor, pipeline, context, expert, and hybrid parallelism.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-06-19">June 19, 2026</time></span><span>Updated <time datetime="2026-06-24">June 24, 2026</time></span><span>48 min read</span></div>
@@ -453,7 +465,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>Inside a Training Step</strong><em>What a Transformer Actually Does to Train</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 04 &middot; Understanding the Workload</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Workloads &middot; 01</span>
               <h3>Inside a Training Step</h3>
               <p>A first-principles walkthrough of tensor shapes, forward and backward passes, FLOPs, activation lifetimes, optimizer states, memory accounting, and checkpointing.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-05-15">May 15, 2026</time></span><span>Updated <time datetime="2026-05-19">May 19, 2026</time></span><span>29 min read</span></div>
@@ -466,7 +478,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>Talk Is Not Cheap</strong><em>Communication from PCIe to InfiniBand</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 03 &middot; Understanding the Machine</span>
+              <span class="blog-card-label">ML Systems &middot; Scaling the Workloads &middot; 01</span>
               <h3>Talk Is Not Cheap</h3>
               <p>What changes when data is no longer local: PCIe, NVLink, NVSwitch, RDMA, topology, collective communication, and overlap.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-04-17">April 17, 2026</time></span><span>Updated <time datetime="2026-04-23">April 23, 2026</time></span><span>60 min read</span></div>
@@ -479,7 +491,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>Why Fast GPUs Still Wait for Memory</strong><em>Compute, Memory, and Why Peak FLOPs Lie</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 02 &middot; Understanding the Machine</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Machine &middot; 02</span>
               <h3>Why Fast GPUs Still Wait for Memory</h3>
               <p>Arithmetic intensity and the Roofline model derived from first principles, then applied to GEMM, attention, fusion, optimizers, and real ML kernels.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-03-13">March 13, 2026</time></span><span>Updated <time datetime="2026-03-18">March 18, 2026</time></span><span>46 min read</span></div>
@@ -492,7 +504,7 @@
               <span class="animated-preview-title" aria-hidden="true"><strong>Why GPUs Are Built for Deep Learning</strong><em>CPU and GPU Parallelism from First Principles</em></span>
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">ML Systems &middot; 01 &middot; Understanding the Machine</span>
+              <span class="blog-card-label">ML Systems &middot; Understanding the Machine &middot; 01</span>
               <h3>Why GPUs Are Built for Deep Learning</h3>
               <p>Why CPUs and GPUs spend their transistor budgets differently—and how execution hierarchy, latency hiding, memory access, tiling, and Tensor Cores follow from that choice.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-02-13">February 13, 2026</time></span><span>Updated <time datetime="2026-02-17">February 17, 2026</time></span><span>38 min read</span></div>
