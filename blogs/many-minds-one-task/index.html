@@ -44,14 +44,6 @@
         "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
       }
     </script>
-    <script>
-      window.MathJax = {
-        tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]], processEscapes: true },
-        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
-        svg: { fontCache: "global" }
-      };
-    </script>
-    <script id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
     <style>
       :root {
         --paper: #e4e2dc;
@@ -198,14 +190,11 @@
       </div>
     </header>
 
-    <nav class="ml-series-nav" aria-label="Agents series">
-      <a class="ml-series-nav__identity" href="../index.html#agents">Agents</a>
-      <span class="ml-series-nav__position">04 &middot; Coordination</span>
-      <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../what-should-an-agent-remember/"><span>Previous &middot; 03</span><strong>What Should an Agent Remember?</strong></a>
-        <a class="ml-series-nav__link" href="../learning-to-act/"><span>Next &middot; 06</span><strong>Learning to Act</strong></a>
-      </div>
-    </nav>
+    <nav class="ml-series-nav" aria-label="Tools & Agentic Models series">
+  <a class="ml-series-nav__identity" href="../index.html#agents">Tools & Agentic Models</a>
+  <span class="ml-series-nav__position">05 of 07 · Multi-agent systems</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../what-should-an-agent-remember/"><span>Previous</span><strong>What Should an Agent Remember?</strong></a><a class="ml-series-nav__link" href="../learning-to-act/"><span>Next</span><strong>Learning to Act</strong></a></div>
+</nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -325,8 +314,14 @@
         <p>which climbs fast. With \(p = 0.4\), five agents give you \(0.92\). This is the argument people reach for first, and it is the one that most often fails to survive contact with reality, for a reason developed in the next section: <em>independence is the assumption doing all the work, and language model errors are not independent.</em></p>
         <p>Note also that this mechanism does not require agents at all. It requires <em>samples</em> plus a way of choosing among them. Best-of-N with a verifier gets the same \(1-(1-p)^N\) without any messages. If your justification for a multi-agent system is independent search, you have justified best-of-N.</p>
         <h3>2. Specialisation</h3>
-        <p>One policy conditioned on &ldquo;research, then design, then implement, then test, then review&rdquo; is being asked to hold five distinct sets of priors, five output formats, and five failure vocabularies in one context. Splitting the roles &mdash;</p>
-        <pre><code>Research  ->  Design  ->  Implement  ->  Test  ->  Review</code></pre>
+        <p>One policy conditioned on &ldquo;research, then design, then implement, then test, then review&rdquo; is being asked to hold five distinct sets of priors, five output formats, and five failure vocabularies in one context. Splitting the roles makes each handoff explicit:</p>
+        <div class="concept-flow" style="--concept-columns:5" role="img" aria-label="A specialized multi-agent pipeline from research through design, implementation, testing, and review.">
+          <div class="concept-step"><b>Research</b><span>Evidence</span></div>
+          <div class="concept-step"><b>Design</b><span>Plan</span></div>
+          <div class="concept-step"><b>Implement</b><span>Artifact</span></div>
+          <div class="concept-step"><b>Test</b><span>Results</span></div>
+          <div class="concept-step"><b>Review</b><span>Decision</span></div>
+        </div>
         <p>&mdash; gives each stage a tighter prior and a shorter context. This is the insight MetaGPT formalised: encode human standard operating procedures into the agent workflow rather than letting agents free-associate in a group chat. ChatDev took the same idea through a waterfall of design, coding, testing, and documentation phases. The claim is not that a coding agent is smarter than a general agent. It is that a prompt is a prior, and narrower priors produce lower-variance behaviour.</p>
         <p>The interesting question &mdash; taken up in &sect;10 &mdash; is what kind of specialisation you are actually buying. A different system prompt is not a different policy in the way a different model is.</p>
         <h3>3. Information partitioning</h3>
@@ -497,14 +492,12 @@
 
       <section id="debate">
         <h2>Debate, and what it actually buys</h2>
-        <p>Debate is one protocol, not the definition of the field. The basic shape:</p>
-        <pre><code>A -> solution_A          B -> solution_B
-        |                        |
-        +---- A critiques B, B critiques A ----+
-                        |
-                    revision
-                        |
-              judge / consensus rule</code></pre>
+        <p>Debate is one protocol, not the definition of the field. Two independent proposals cross-examine each other before a judge sees the revision:</p>
+        <div class="concept-branches" role="img" aria-label="Two agents propose independent solutions, exchange critiques, revise, and send the result to a judge or consensus rule.">
+          <div class="concept-branch"><b>Agent A</b><span>Solution A → critique B</span></div>
+          <div class="concept-branch"><b>Agent B</b><span>Solution B → critique A</span></div>
+          <div class="concept-merge">Cross-critique → revision → judge or consensus rule</div>
+        </div>
         <p>Du and colleagues showed that having multiple model instances propose and debate their responses over several rounds improves mathematical and strategic reasoning and reduces hallucinated content. That result is real and was influential.</p>
         <p>Then came the compute-matched comparisons, and the picture got complicated. Smit and colleagues found debate did not reliably beat self-consistency at comparable cost, and that debate&rsquo;s ranking was unusually sensitive to hyperparameters. Tran and Kiela, holding thinking tokens constant, found debate among the multi-agent architectures that failed to beat a single agent. And their quieter finding is the sharpest: single-agent prompts with explicit pre-answer analysis recovered most of what looked like a collaboration benefit. The extra thinking was the source of the gain, not the collaboration &mdash; and you can have the extra thinking without the extra agents.</p>
         <p>So the honest reading of debate is: it is a way of spending more compute with a structure that sometimes helps and often does not, whose benefit is bounded by \(\rho\) exactly like voting, and which must be compared against self-consistency at equal cost before any claim is made. The 2026 audit of automatically-designed multi-agent systems reported the sharpest version of this: frameworks that search for good topologies frequently degenerate into trivial ensembles, rediscovering basic ensembling motifs under the guise of an optimised graph, so that roughly a tenfold cost increase bought little more than a redundant, poorly-routed version of a standard chain-of-thought-with-self-consistency baseline.</p>
@@ -895,8 +888,8 @@
           <h3>Companion articles on this site</h3>
           <ul>
             <li><a href="../what-should-an-agent-remember/">What Should an Agent Remember?</a> &mdash; the memory and context-engineering machinery that &sect;7 and &sect;13 depend on: write policies, truth decay, and the error-propagation loop.</li>
-            <li><a href="../teaching-llms-to-use-tools/">Teaching LLMs to Use Tools</a> &mdash; the agent loop, what a tool call actually is, and the compounding-failure arithmetic that governs every pipeline in &sect;8.</li>
-            <li><a href="../serving-playbook/">The Serving Playbook</a> &mdash; prefill cost and prefix caching, which is why the \(O(RN^2L)\) term in &sect;12 has a real bill attached.</li>
+            <li><a href="../how-language-models-learn-to-use-tools/">Teaching LLMs to Use Tools</a> &mdash; the agent loop, what a tool call actually is, and the compounding-failure arithmetic that governs every pipeline in &sect;8.</li>
+            <li><a href="../the-serving-playbook/">The Serving Playbook</a> &mdash; prefill cost and prefix caching, which is why the \(O(RN^2L)\) term in &sect;12 has a real bill attached.</li>
           </ul>
         </div>
       </section>

@@ -187,6 +187,12 @@
       </div>
     </header>
 
+<nav class="ml-series-nav" aria-label="Post-training series">
+  <a class="ml-series-nav__identity" href="../index.html#post-training">Post-training</a>
+  <span class="ml-series-nav__position">Companion · Efficient adaptation</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../supervised-fine-tuning/"><span>Previous</span><strong>From Base Model to Assistant</strong></a><a class="ml-series-nav__link" href="../mixing-data-without-losing-capabilities/"><span>Next</span><strong>Mixing Data Without Losing Capabilities</strong></a></div>
+</nav>
+
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
         <h2 id="toc-heading">Contents</h2>
@@ -244,7 +250,7 @@
         </div>
         <p class="figcap"><b>Figure 1.</b> The optimizer-state stack for a 7B model, built up byte by byte, then dismantled by freezing and by quantization. Bar heights are exact arithmetic from bytes-per-parameter; activation memory is shown as a representative band because it depends on batch, sequence length and recomputation policy, not on the method. The final column is the QLoRA regime and is previewed here; it is derived in <a href="#qlora">&sect;&thinsp;QLoRA</a>.</p>
 
-        <p>If you want the full picture of what a training step is spending — the activation stashes, the recomputation trade, the all-reduce — that is the subject of <a href="../inside-a-training-step/">Inside a Training Step</a> and <a href="../parallelism-playbook/">The Parallelism Playbook</a>. This article is about the one lever those posts do not pull: making almost every parameter read-only.</p>
+        <p>If you want the full picture of what a training step is spending — the activation stashes, the recomputation trade, the all-reduce — that is the subject of <a href="../inside-a-training-step/">Inside a Training Step</a> and <a href="../the-parallelism-playbook/">The Parallelism Playbook</a>. This article is about the one lever those posts do not pull: making almost every parameter read-only.</p>
       </section>
 
       <section id="the-delta">
@@ -545,7 +551,7 @@
 
         <h3>Many adapters, one base</h3>
 
-        <p>The deployment story that made LoRA an industry default is not single-task fine-tuning; it is <em>fleets</em>. One 70B base in VRAM, hundreds of 40&nbsp;MB adapters in host memory, and a router. Because the adapters are unmerged, a single batch can contain requests for different tasks: the base matmul is a normal GEMM over the whole batch, and the low-rank branch is a grouped operation over per-request adapters. <a href="https://arxiv.org/abs/2311.03285" target="_blank" rel="noopener noreferrer">S-LoRA</a> works this problem properly, with a unified paged memory pool shared between adapter weights of differing ranks and KV-cache blocks of differing lengths, plus custom kernels for the heterogeneous batching — reporting thousands of concurrent adapters on a single GPU. The memory-management ideas there are close cousins of the ones in <a href="../serving-playbook/">The Serving Playbook</a>.</p>
+        <p>The deployment story that made LoRA an industry default is not single-task fine-tuning; it is <em>fleets</em>. One 70B base in VRAM, hundreds of 40&nbsp;MB adapters in host memory, and a router. Because the adapters are unmerged, a single batch can contain requests for different tasks: the base matmul is a normal GEMM over the whole batch, and the low-rank branch is a grouped operation over per-request adapters. <a href="https://arxiv.org/abs/2311.03285" target="_blank" rel="noopener noreferrer">S-LoRA</a> works this problem properly, with a unified paged memory pool shared between adapter weights of differing ranks and KV-cache blocks of differing lengths, plus custom kernels for the heterogeneous batching — reporting thousands of concurrent adapters on a single GPU. The memory-management ideas there are close cousins of the ones in <a href="../the-serving-playbook/">The Serving Playbook</a>.</p>
 
         <div class="article-panel" role="group" aria-label="Animation showing adapter merging, task switching, and batched multi-adapter serving">
           <div class="panel-head"><h4>Merge, swap, and serve a fleet</h4><span>Figure 6 &middot; 10 stages</span></div>
@@ -719,6 +725,21 @@
           </div>
         </div>
         <p class="figcap"><b>Figure 9.</b> The same block, re-marked for each method: what is frozen, what is trainable, and where the modification enters. Parameter counts are computed in-page from Llama-2-7B geometry with the stated hyperparameters (adapter bottleneck 64, prefix and prompt length 32, LoRA rank 8 on all linear layers) and are exact for those settings. The merge/latency badge records whether the method can be folded into the frozen weights.</p>
+        <table class="concept-table">
+          <caption>PEFT methods across the decisions that matter</caption>
+          <thead>
+            <tr><th>Method</th><th>Changes weights?</th><th>Low-rank?</th><th>Quantized base?</th><th>Mergeable?</th><th>Inference overhead?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Full fine-tuning</td><td>✓ all</td><td>✕</td><td>Usually ✕</td><td>Native</td><td>None</td></tr>
+            <tr><td>LoRA</td><td>✕ frozen base</td><td>✓</td><td>Optional</td><td>✓</td><td>None after merge</td></tr>
+            <tr><td>QLoRA</td><td>✕ frozen base</td><td>✓</td><td>✓ 4-bit</td><td>Adapter only</td><td>Dequantization</td></tr>
+            <tr><td>DoRA</td><td>Magnitude + low-rank direction</td><td>✓ partly</td><td>Optional</td><td>✓</td><td>None after merge</td></tr>
+            <tr><td>Adapters</td><td>✕ frozen base</td><td>Bottleneck</td><td>Optional</td><td>✕</td><td>Extra layers</td></tr>
+            <tr><td>Prefix / prompt tuning</td><td>✕ frozen base</td><td>✕</td><td>Optional</td><td>✕</td><td>Extra tokens</td></tr>
+            <tr><td>IA³ / BitFit</td><td>Scales or biases</td><td>✕</td><td>Optional</td><td>Usually ✓</td><td>Low</td></tr>
+          </tbody>
+        </table>
       </section>
 
       <section id="tradeoff">

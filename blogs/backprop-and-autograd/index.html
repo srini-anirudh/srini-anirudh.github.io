@@ -193,14 +193,11 @@
       </div>
     </header>
 
-    <nav class="ml-series-nav" aria-label="Foundations series">
-      <a class="ml-series-nav__identity" href="../index.html#foundations">Foundations</a>
-      <span class="ml-series-nav__position">Companion &middot; The mathematics under the training step</span>
-      <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../what-an-optimizer-actually-does/"><span>Related &middot; Optimization</span><strong>What an Optimizer Actually Does</strong></a>
-        <a class="ml-series-nav__link" href="../inside-a-training-step/"><span>Related &middot; ML Systems</span><strong>Inside a training step</strong></a>
-      </div>
-    </nav>
+    <nav class="ml-series-nav" aria-label="Deep Learning Foundations series">
+  <a class="ml-series-nav__identity" href="../index.html#foundations">Deep Learning Foundations</a>
+  <span class="ml-series-nav__position">06 of 08 · Backpropagation</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../what-an-optimizer-actually-does/"><span>Previous</span><strong>What an Optimizer Actually Does</strong></a><a class="ml-series-nav__link" href="../keeping-a-transformer-alive/"><span>Next</span><strong>Keeping a Transformer Alive</strong></a></div>
+</nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -250,7 +247,16 @@
           <p class="panel-caption">The shape of the problem. Forward, an enormous parameter space funnels down through layer after layer into one number. Backward, that one number has to fan out and reach every parameter it touched. The asymmetry between those two directions is not a nuisance; it is the entire reason reverse-mode differentiation exists, and it is why the cost is what it is.</p>
         </div>
 
-        <p>The method has been rediscovered so many times it has half a dozen names. Control theorists found it in the 1960s as the adjoint method. Seppo Linnainmaa published it in 1970 as a way of tracking rounding error through a numerical algorithm, with no neural network anywhere in sight. Bert Speelpenning's 1980 thesis gave the first genuinely <em>automatic</em> implementation &mdash; you hand it a program, it hands you back a program that computes the gradient. Rumelhart, Hinton and Williams made it famous in 1986 by pointing it at neural networks and showing that the hidden units learned something interpretable. Griewank's short history of the idea is worth reading if only for the detail that Linnainmaa says it came to him on a sunny afternoon in a Copenhagen park.</p>
+        <table class="concept-table">
+          <caption>Why the same method acquired several names</caption>
+          <thead><tr><th>Field</th><th>Name</th><th>What changed</th><th>Core operation</th></tr></thead>
+          <tbody>
+            <tr><td>Control</td><td>Adjoint method</td><td>Sensitivities through a dynamical system</td><td rowspan="4">Accumulate local derivatives in reverse order</td></tr>
+            <tr><td>Numerical computing</td><td>Reverse accumulation</td><td>Differentiate an executed computation</td></tr>
+            <tr><td>Programming languages</td><td>Reverse-mode AD</td><td>Generate a gradient program automatically</td></tr>
+            <tr><td>Neural networks</td><td>Backpropagation</td><td>Apply the same machinery to learned weights</td></tr>
+          </tbody>
+        </table>
         <p>The plan for this article: build the machinery from a single scalar chain rule, watch it generalise to graphs and then to Jacobians, discover reverse mode by asking a question about matrix multiplication order, derive the backward pass of every layer in a transformer, and then follow the consequences into memory &mdash; because the price of reverse mode is not compute, it is that you have to remember the forward pass.</p>
       </section>
 

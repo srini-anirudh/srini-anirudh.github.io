@@ -34,7 +34,16 @@
         "description": "First-principles, illustrated deep dives into how modern AI models are built, trained, and scaled.",
         "author": { "@id": "https://srini-anirudh.github.io/about.html#person" },
         "isPartOf": { "@id": "https://srini-anirudh.github.io/#website" },
-        "hasPart": { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 }
+        "hasPart": [
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#foundations", "name": "Deep Learning Foundations", "numberOfItems": 8 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#understanding-llms", "name": "Neural and LLM Architectures", "numberOfItems": 5 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#training-science", "name": "Science of LLM Training", "numberOfItems": 3 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#post-training", "name": "Post-training and Reinforcement Learning", "numberOfItems": 5 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#reasoning-models", "name": "Reasoning Models", "numberOfItems": 3 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#agents", "name": "Tools and Agentic Models", "numberOfItems": 7 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#vlms", "name": "Vision-Language Models", "numberOfItems": 3 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 }
+        ]
       }
     </script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
@@ -88,9 +97,19 @@
           <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
         <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
+        <nav class="series-directory" aria-label="Browse complete article series">
+          <a href="#foundations"><b>Foundations</b><span>8 articles</span></a>
+          <a href="#understanding-llms"><b>Architectures</b><span>5 articles</span></a>
+          <a href="#training-science"><b>Training science</b><span>3 articles</span></a>
+          <a href="#post-training"><b>Post-training</b><span>5 articles</span></a>
+          <a href="#reasoning-models"><b>Reasoning models</b><span>3 articles</span></a>
+          <a href="#agents"><b>Tools &amp; agents</b><span>7 articles</span></a>
+          <a href="#vlms"><b>Vision-language</b><span>3 articles</span></a>
+          <a href="#ml-systems"><b>ML systems</b><span>8 articles</span></a>
+        </nav>
 
         <div class="blog-list">
-          <a class="blog-card blog-card-featured" href="the-vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
+          <a class="blog-card blog-card-featured" id="vlms" href="the-vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
             <picture class="blog-card-media">
               <img src="the-vlm-architecture-gallery/preview.png" data-still-src="the-vlm-architecture-gallery/preview.png" data-animated-src="the-vlm-architecture-gallery/preview.gif" width="960" height="540" loading="eager" fetchpriority="high" decoding="async" alt="Animated standardized plates comparing vision-language model architectures." />
             </picture>
@@ -114,7 +133,7 @@
               <div class="blog-tags"><span>Agent Evaluation</span><span>Reliability</span><span>Safety</span></div>
             </div>
           </a>
-          <a class="blog-card" id="foundations" href="backprop-and-autograd/" target="_self" data-blog-categories="foundations training" data-blog-series="foundations">
+          <a class="blog-card" href="backprop-and-autograd/" target="_self" data-blog-categories="foundations training" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="backprop-and-autograd/preview.png" data-still-src="backprop-and-autograd/preview.png" data-animated-src="backprop-and-autograd/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated reverse-mode gradient wave flowing from one scalar loss to a grid of parameters." />
             </picture>
@@ -150,7 +169,7 @@
               <div class="blog-tags"><span>Decoding</span><span>Sampling</span><span>Information Theory</span></div>
             </div>
           </a>
-          <a class="blog-card" href="supervised-fine-tuning/" target="_self" data-blog-categories="posttraining training" data-blog-series="post-training">
+          <a class="blog-card" id="post-training" href="supervised-fine-tuning/" target="_self" data-blog-categories="posttraining training" data-blog-series="post-training">
             <picture class="blog-card-media">
               <img src="supervised-fine-tuning/preview.png" data-still-src="supervised-fine-tuning/preview.png" data-animated-src="supervised-fine-tuning/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated contrast between teacher-forced demonstrations and a model's compounding rollout errors." />
             </picture>
@@ -227,14 +246,14 @@
               <img src="how-attention-moves-information/preview.png" data-still-src="how-attention-moves-information/preview.png" data-animated-src="how-attention-moves-information/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated attention map showing a token construct its representation by weighting information from other positions." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Deep Learning Foundations &middot; Attention</span>
+              <span class="blog-card-label">Deep Learning Foundations &middot; 03</span>
               <h3>How Attention Moves Information</h3>
               <p>Why attention exists, how Q, K, and V arise, and how the same operation becomes MHA, GQA, sliding windows, linear attention, MLA, and multimodal attention.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>52 min read</span></div>
               <div class="blog-tags"><span>Attention</span><span>QKV</span><span>GQA &amp; MLA</span></div>
             </div>
           </a>
-          <a class="blog-card" href="the-puzzle-of-overparameterization/" target="_self" data-blog-categories="training foundations" data-blog-series="training-science">
+          <a class="blog-card" id="training-science" href="the-puzzle-of-overparameterization/" target="_self" data-blog-categories="training foundations" data-blog-series="training-science">
             <picture class="blog-card-media">
               <img src="the-puzzle-of-overparameterization/preview.png" data-still-src="the-puzzle-of-overparameterization/preview.png" data-animated-src="the-puzzle-of-overparameterization/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated double-descent curve crossing the interpolation threshold as parameter count increases." />
             </picture>
@@ -263,14 +282,14 @@
               <img src="mixing-data-without-losing-capabilities/preview.png" data-still-src="mixing-data-without-losing-capabilities/preview.png" data-animated-src="mixing-data-without-losing-capabilities/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated capability scoreboard showing one trained skill rise while other model skills regress." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Post-training &middot; Data Mixtures</span>
+              <span class="blog-card-label">Post-training &middot; 02</span>
               <h3>Mixing Data Without Losing Capabilities</h3>
               <p>Why tasks interfere, how sampling weights become loss weights, how to measure transfer, and what to do when a capability regresses.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>44 min read</span></div>
               <div class="blog-tags"><span>Data Mixtures</span><span>Multi-task Learning</span><span>Forgetting</span></div>
             </div>
           </a>
-          <a class="blog-card" id="tool-agents" href="how-language-models-learn-to-use-tools/" target="_self" data-blog-categories="agents posttraining" data-blog-series="tool-agents">
+          <a class="blog-card" id="agents" href="how-language-models-learn-to-use-tools/" target="_self" data-blog-categories="agents posttraining" data-blog-series="tool-agents">
             <picture class="blog-card-media">
               <img src="how-language-models-learn-to-use-tools/preview.png" data-still-src="how-language-models-learn-to-use-tools/preview.png" data-animated-src="how-language-models-learn-to-use-tools/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated tool-augmented turn from injected schemas through structured decoding, execution, observation, and final response." />
             </picture>
@@ -318,12 +337,12 @@
               <div class="blog-tags"><span>Scaling Laws</span><span>Chinchilla</span><span>Compute</span></div>
             </div>
           </a>
-          <a class="blog-card" id="post-training" href="reinforcement-learning-from-first-principles/" target="_self" data-blog-categories="posttraining training foundations" data-blog-series="post-training">
+          <a class="blog-card" href="reinforcement-learning-from-first-principles/" target="_self" data-blog-categories="posttraining training foundations" data-blog-series="post-training">
             <picture class="blog-card-media">
               <img src="reinforcement-learning-from-first-principles/preview.png" data-still-src="reinforcement-learning-from-first-principles/preview.png" data-animated-src="reinforcement-learning-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated sampled answers receiving binary rewards and advantages around the group mean." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Post-training &middot; RL Foundations</span>
+              <span class="blog-card-label">Post-training &middot; 04</span>
               <h3>Reinforcement Learning from First Principles</h3>
               <p>Policy gradients, baselines, advantages, GAE, trust regions, and PPO derived first, then translated into language-model rollouts.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>58 min read</span></div>
@@ -335,14 +354,14 @@
               <img src="teaching-a-model-what-we-prefer/preview.png" data-still-src="teaching-a-model-what-we-prefer/preview.png" data-animated-src="teaching-a-model-what-we-prefer/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated KL-temperature sweep moving a policy from its reference distribution toward higher-reward completions." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Post-training &middot; Preferences</span>
+              <span class="blog-card-label">Post-training &middot; 03</span>
               <h3>Teaching a Model What We Prefer</h3>
               <p>How comparisons become reward, why RLHF needs a KL leash, and how the same objective turns into DPO&rsquo;s direct loss.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-09-04">September 4, 2026</time></span><span>54 min read</span></div>
               <div class="blog-tags"><span>RLHF</span><span>DPO</span><span>Preference Learning</span></div>
             </div>
           </a>
-          <a class="blog-card" href="how-reinforcement-learning-teaches-models-to-reason/" target="_self" data-blog-categories="reasoning posttraining training" data-blog-series="reasoning-models">
+          <a class="blog-card" id="reasoning-models" href="how-reinforcement-learning-teaches-models-to-reason/" target="_self" data-blog-categories="reasoning posttraining training" data-blog-series="reasoning-models">
             <picture class="blog-card-media">
               <img src="how-reinforcement-learning-teaches-models-to-reason/preview.png" data-still-src="how-reinforcement-learning-teaches-models-to-reason/preview.png" data-animated-src="how-reinforcement-learning-teaches-models-to-reason/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated group of reasoning rollouts receiving verifiable rewards and normalized relative advantages." />
             </picture>
@@ -542,48 +561,48 @@
               <div class="blog-tags"><span>Architectures</span><span>Complexity</span><span>State Space Models</span></div>
             </div>
           </a>
-          <a class="blog-card" href="how-models-know-where-they-are/" target="_self" data-blog-categories="architecture foundations">
+          <a class="blog-card" href="how-models-know-where-they-are/" target="_self" data-blog-categories="architecture foundations" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="how-models-know-where-they-are/preview.png" data-still-src="how-models-know-where-they-are/preview.png" data-animated-src="how-models-know-where-they-are/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated M-RoPE diagram assigning temporal, height, and width positions to multimodal tokens." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Architecture · Foundations</span>
+              <span class="blog-card-label">Deep Learning Foundations &middot; 04</span>
               <h3>How Models Know Where They Are</h3>
               <p>Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier features, and multimodal M-RoPE—explained visually.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-04-18">April 18, 2025</time></span><span>Updated <time datetime="2025-04-23">April 23, 2025</time></span><span>38 min read</span></div>
               <div class="blog-tags"><span>Position Encoding</span><span>RoPE</span><span>Long Context</span></div>
             </div>
           </a>
-          <a class="blog-card" href="what-an-optimizer-actually-does/" target="_self" data-blog-categories="training foundations">
+          <a class="blog-card" href="what-an-optimizer-actually-does/" target="_self" data-blog-categories="training foundations" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="what-an-optimizer-actually-does/preview.png" data-still-src="what-an-optimizer-actually-does/preview.png" data-animated-src="what-an-optimizer-actually-does/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated optimizer trajectories comparing how different update rules move across a loss landscape." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Training · Optimization</span>
+              <span class="blog-card-label">Deep Learning Foundations &middot; 05</span>
               <h3>What an Optimizer Actually Does</h3>
               <p>A mechanical tour from SGD to Muon: how optimizers build an update, what their state costs, and where a training step stalls.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-03-21">March 21, 2025</time></span><span>Updated <time datetime="2025-03-27">March 27, 2025</time></span><span>34 min read</span></div>
               <div class="blog-tags"><span>Optimizers</span><span>Distributed Training</span><span>Memory</span></div>
             </div>
           </a>
-          <a class="blog-card" href="the-geometry-of-normalization/" target="_self" data-blog-categories="training foundations">
+          <a class="blog-card" href="the-geometry-of-normalization/" target="_self" data-blog-categories="training foundations" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="the-geometry-of-normalization/preview.png" data-still-src="the-geometry-of-normalization/preview.png" data-animated-src="the-geometry-of-normalization/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated point cloud showing how RMSNorm and LayerNorm transform a vector." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Training · Foundations</span>
+              <span class="blog-card-label">Deep Learning Foundations &middot; 02</span>
               <h3>The Geometry of Normalization</h3>
               <p>Every normalization layer from BatchNorm to Peri-LN, plus why the modality interface in a VLM is a normalization problem.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-02-14">February 14, 2025</time></span><span>Updated <time datetime="2025-02-18">February 18, 2025</time></span><span>45 min read</span></div>
               <div class="blog-tags"><span>Normalization</span><span>Transformers</span><span>Training Stability</span></div>
             </div>
           </a>
-          <a class="blog-card" href="why-neural-networks-need-nonlinearity/" target="_self" data-blog-categories="training foundations">
+          <a class="blog-card" id="foundations" href="why-neural-networks-need-nonlinearity/" target="_self" data-blog-categories="training foundations" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="why-neural-networks-need-nonlinearity/preview.png" data-still-src="why-neural-networks-need-nonlinearity/preview.png" data-animated-src="why-neural-networks-need-nonlinearity/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated activation-function curves and signal distributions from the Activation Atlas." />
             </picture>
             <div class="blog-card-body">
-              <span class="blog-card-label">Training · Foundations</span>
+              <span class="blog-card-label">Deep Learning Foundations &middot; 01</span>
               <h3>Why Neural Networks Need Nonlinearity</h3>
               <p>From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU—with animated derivations and a map of what modern models use.</p>
               <div class="blog-meta"><span>Published <time datetime="2025-01-17">January 17, 2025</time></span><span>Updated <time datetime="2025-01-22">January 22, 2025</time></span><span>34 min read</span></div>

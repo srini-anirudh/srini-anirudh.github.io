@@ -139,13 +139,6 @@
       }
     </style>
     <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
-    <script>
-      window.MathJax = {
-        tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
-        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre"] }
-      };
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
   </head>
   <body class="blog-article learning-to-act-article">
     <nav class="navbar" aria-label="Main navigation">
@@ -185,6 +178,12 @@
         </div>
       </div>
     </header>
+
+<nav class="ml-series-nav" aria-label="Tools & Agentic Models series">
+  <a class="ml-series-nav__identity" href="../index.html#agents">Tools & Agentic Models</a>
+  <span class="ml-series-nav__position">06 of 07 · Agentic RL</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../many-minds-one-task/"><span>Previous</span><strong>Many Minds, One Task</strong></a><a class="ml-series-nav__link" href="../did-the-agent-actually-succeed/"><span>Next</span><strong>Did the Agent Actually Succeed?</strong></a></div>
+</nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -282,7 +281,7 @@
         <p>\[ \mathcal{A} = \{\text{search}, \text{click}, \text{type}, \text{run\_code}, \text{call\_api}, \text{ask\_user}, \text{answer}\}, \]</p>
         <p>except that each element is really a family. <code>search</code> is not one action; it is one action <em>type</em> parameterised by a query string drawn from a space the size of the language. So the policy factorises:</p>
         <p>\[ \pi_\theta(a_t \mid h_t) \;=\; \underbrace{P(\text{type} \mid h_t)}_{\text{a choice among a handful}} \;\cdot\; \underbrace{P(\text{arguments} \mid \text{type}, h_t)}_{\text{a generation problem}} . \]</p>
-        <p>The first factor is a small categorical distribution and is easy to learn. The second is the hard part and is where most tool-use failures live &mdash; the article on <a href="../teaching-llms-to-use-tools/">how models learn to call functions</a> is entirely about that second factor. What agent RL adds is that the two are now optimised jointly against an outcome that arrives many steps later.</p>
+        <p>The first factor is a small categorical distribution and is easy to learn. The second is the hard part and is where most tool-use failures live &mdash; the article on <a href="../how-language-models-learn-to-use-tools/">how models learn to call functions</a> is entirely about that second factor. What agent RL adds is that the two are now optimised jointly against an outcome that arrives many steps later.</p>
 
         <h3>Granularity is a lever, and it has an optimum</h3>
         <p>Consider the same task expressed at different levels of abstraction. At the bottom, <code>move_mouse(413, 271)</code> and <code>click()</code>. At the top, <code>process_refund(order_id)</code>. Both are valid action spaces for the same environment, and they produce completely different learning problems.</p>
@@ -347,9 +346,15 @@
         <p>The <em>early experience</em> line of work takes the observation that you do not need a reward to learn something from acting. If the agent proposes its own alternative action at a state from a demonstration and executes it, the resulting future state is real information about the environment, obtained without any reward function. Two ways to use it were studied systematically: <em>implicit world modelling</em>, where the policy is trained to predict the state that follows a state-action pair, grounding it in the dynamics; and <em>self-reflection</em>, where the model writes an explanation of why the expert's action was better than its own, given both outcomes.</p>
         <p>Across eight environments and several model families, both consistently beat plain imitation, with the largest gains on the long-horizon tasks; and checkpoints initialised this way reached higher ceilings after subsequent RL than imitation-initialised ones. That last point is the operationally interesting one. This is not a competitor to RL. It is a better place to start it from.</p>
         <p>The conceptual framing is worth keeping: three regimes, distinguished by what supervision they consume.</p>
-        <pre class="code-block"><b>imitation learning</b>      scalable data,  no reward,  states from the <i>expert</i>
-<b>early experience</b>       scalable data,  no reward,  states from the <i>agent</i>
-<b>reinforcement learning</b> scalable data,  reward,     states from the <i>agent</i></pre>
+        <table class="concept-table">
+          <caption>Three supervision regimes</caption>
+          <thead><tr><th>Regime</th><th>Scalable data</th><th>Reward</th><th>States come from</th></tr></thead>
+          <tbody>
+            <tr><td>Imitation learning</td><td>✓</td><td>✕</td><td>Expert</td></tr>
+            <tr><td>Early experience</td><td>✓</td><td>✕</td><td>Agent</td></tr>
+            <tr><td>Reinforcement learning</td><td>✓</td><td>✓</td><td>Agent</td></tr>
+          </tbody>
+        </table>
         <p>The middle row is doing something specific: it buys you the distribution shift fix from the interactive setting without requiring you to have solved reward design first. Given how much of the rest of this article is about how hard reward design is, that is not a small thing.</p>
       </section>
 
@@ -360,12 +365,17 @@
           <p>For pretraining, you curate documents. For supervised fine-tuning, you curate demonstrations. For agent RL, <strong>you curate worlds</strong> &mdash; and the engineering effort moves from data pipelines to environment construction, verification, and orchestration.</p>
         </div>
         <p>An environment is a small, boring interface:</p>
-        <pre class="code-block"><b>reset()</b>    <i>&rarr; initial observation, task specification</i>
-<b>observe()</b>  <i>&rarr; what the policy is allowed to see</i>
-<b>actions()</b>  <i>&rarr; the legal action set in this state</i>
-<b>step(a)</b>    <i>&rarr; next observation, reward, done</i>
-<b>reward()</b>   <i>&rarr; scalar, possibly only at termination</i>
-<b>done</b>       <i>&rarr; termination flag</i></pre>
+        <table class="concept-table">
+          <caption>The minimal environment contract</caption>
+          <tbody>
+            <tr><td><code>reset()</code></td><td>Initial observation and task specification</td></tr>
+            <tr><td><code>observe()</code></td><td>What the policy is allowed to see</td></tr>
+            <tr><td><code>actions()</code></td><td>Legal actions in the current state</td></tr>
+            <tr><td><code>step(a)</code></td><td>Next observation, reward, and termination state</td></tr>
+            <tr><td><code>reward()</code></td><td>Scalar feedback, possibly only at termination</td></tr>
+            <tr><td><code>done</code></td><td>Termination flag</td></tr>
+          </tbody>
+        </table>
         <p>Six functions. But notice what that interface is: a data generator with unbounded output. A dataset of a million demonstrations is a million samples, forever. An environment is a million samples per week, drawn from the current policy's distribution, with a reward attached. That is a categorically different asset, and it is why the centre of gravity in agent training moved.</p>
         <figure class="article-panel" data-figure="fig-envscale">
           <div class="animation-stage" aria-live="polite"></div>
@@ -565,12 +575,18 @@
           <figcaption><b>Figure 10 &mdash; the same budget, reached differently</b>Run A is given thirty turns from step zero and collapses; run B earns them. Curve shapes reproduce the qualitative pattern reported for fixed versus progressive interaction budgets; the numbers are illustrative.<span class="figure-caption-live"></span></figcaption>
         </figure>
         <p>The curriculum need not stop at horizon length. Anything that moves \(p\) toward the middle of the informative band is a candidate axis:</p>
-        <pre class="code-block"><b>horizon</b>        <i>5 turns  &rarr;  10  &rarr;  20  &rarr;  40</i>
-<b>tool count</b>     <i>one tool  &rarr;  several independent  &rarr;  dependent chains</i>
-<b>determinism</b>    <i>deterministic env  &rarr;  stochastic  &rarr;  adversarial</i>
-<b>failure rate</b>   <i>clean env  &rarr;  injected timeouts and invalid inputs</i>
-<b>specification</b>  <i>fully specified task  &rarr;  underspecified, must ask</i>
-<b>difficulty</b>     <i>resample tasks the current policy solves ~half the time</i></pre>
+        <table class="concept-table">
+          <caption>Curriculum axes</caption>
+          <thead><tr><th>Axis</th><th>Progression</th></tr></thead>
+          <tbody>
+            <tr><td>Horizon</td><td>5 → 10 → 20 → 40 turns</td></tr>
+            <tr><td>Tool count</td><td>One tool → independent tools → dependent chains</td></tr>
+            <tr><td>Determinism</td><td>Deterministic → stochastic → adversarial</td></tr>
+            <tr><td>Failure rate</td><td>Clean → injected timeouts and invalid inputs</td></tr>
+            <tr><td>Specification</td><td>Fully specified → underspecified; the agent must ask</td></tr>
+            <tr><td>Difficulty</td><td>Resample tasks the policy solves roughly half the time</td></tr>
+          </tbody>
+        </table>
         <p>The last line is the one that generalises. A curriculum in agent RL is a control loop on the success probability of the batch, and every other axis is a means of implementing it.</p>
       </section>
       <section id="engine">
@@ -659,10 +675,16 @@
           <figcaption><b>Figure 13 &mdash; sorting the action set by whether it has an inverse</b>Reads are free to explore. Local writes have exact inverses. External writes have awkward ones. Sends, payments and drops have none, and <code>env.reset()</code> does not help.<span class="figure-caption-live"></span></figcaption>
         </figure>
         <p>The useful decomposition is by inverse rather than by risk score:</p>
-        <pre class="code-block"><b>reversible</b>        <i>read, search, list, dry-run  &mdash; exploration costs latency</i>
-<b>locally undoable</b>  <i>file writes, commits, branches  &mdash; sandbox or VCS restores exactly</i>
-<b>externally undoable</b> <i>row updates, staging deploys  &mdash; possible, awkward, racy</i>
-<b>irreversible</b>      <i>emails, payments, merges, drops  &mdash; no inverse exists</i></pre>
+        <table class="concept-table">
+          <caption>Classify actions by their inverse</caption>
+          <thead><tr><th>Class</th><th>Examples</th><th>Recovery</th></tr></thead>
+          <tbody>
+            <tr><td>Reversible</td><td>Read, search, list, dry-run</td><td>No state change</td></tr>
+            <tr><td>Locally undoable</td><td>File writes, commits, branches</td><td>Sandbox or version control</td></tr>
+            <tr><td>Externally undoable</td><td>Row updates, staging deploys</td><td>Possible, awkward, and racy</td></tr>
+            <tr><td>Irreversible</td><td>Emails, payments, merges, drops</td><td>No dependable inverse</td></tr>
+          </tbody>
+        </table>
         <p>The mitigations are environmental rather than behavioural, and that is the point worth making. You do not fix this by prompting the policy to be careful; a policy under RL pressure will sample the action anyway, because sampling it is how it finds out. You fix it by building a world where sampling is safe:</p>
         <p><strong>A twin.</strong> Explore in a copy of the system with the same interface and none of the consequences. This is the same insight as the reproducible-replica approach to environments, applied for safety instead of reproducibility.</p>
         <p><strong>A staging layer.</strong> Let side-effecting actions accumulate into a transaction that is committed once, at the end, after the trajectory is scored. The agent experiences the effects; the world does not, until you decide it should.</p>
@@ -675,12 +697,14 @@
         <p>Offline is cheap, safe, parallel, and reproducible, and it has one fatal property for agents: the state distribution is frozen. You can only learn about states somebody already visited, which puts you back in the compounding-error regime of Section 4, with the additional problem that the value estimates extrapolate wildly on actions the behaviour policy never took.</p>
         <p>Online fixes the distribution and is expensive in every other dimension &mdash; slow, nondeterministic, sometimes unsafe, and it puts the environment on the critical path of the optimiser as Section 13 described.</p>
         <p>What almost everyone actually does is a staged hybrid, and the staging is not arbitrary. Each stage exists to make the next one affordable:</p>
-        <pre class="code-block"><b>1  base model</b>            <i>capability, formats, world knowledge</i>
-<b>2  behavioural cloning</b>   <i>action syntax, interface conventions, sane priors</i>
-<b>3  early experience</b>      <i>dynamics grounding, reward-free, off the expert path</i>
-<b>4  offline / rejection</b>   <i>filtered successful rollouts, cheap and stable</i>
-<b>5  online RL</b>             <i>the part that actually teaches recovery</i>
-<b>6  deployment traces</b>     <i>new tasks, new failures, back into the environments</i></pre>
+        <div class="concept-flow" style="--concept-columns:6" role="img" aria-label="A staged agent-training pipeline from base model through behavior cloning, early experience, offline filtering, online reinforcement learning, and deployment traces.">
+          <div class="concept-step"><b>Base model</b><span>Capability</span></div>
+          <div class="concept-step"><b>Behavior cloning</b><span>Action syntax</span></div>
+          <div class="concept-step"><b>Early experience</b><span>Dynamics</span></div>
+          <div class="concept-step"><b>Offline filtering</b><span>Stable successes</span></div>
+          <div class="concept-step"><b>Online RL</b><span>Recovery</span></div>
+          <div class="concept-step"><b>Deployment traces</b><span>New failures</span></div>
+        </div>
         <p>The order matters because step 5 is the one whose cost scales with everything &mdash; horizon, environment latency, group size, the informative-group fraction from Section 10. Every earlier stage exists to raise the policy's success probability before you start paying that bill. Starting online RL from a weak policy is not just slow; at long horizons it is close to sampling zeros.</p>
       </section>
 
@@ -733,14 +757,19 @@
         <p>A reasoning model is evaluated on whether the final answer is correct. An agent has to be evaluated on the trajectory, because two policies with identical success rates can be wildly different products.</p>
         <p>The outcome layer is the easy part: did the task get done, verified functionally where possible. Benchmarks that made this work did so by being executable &mdash; human-validated software-engineering tasks with real test suites, self-hosted web applications with programmatic checkers for long-horizon tasks, simulated professional environments where a task's completion is a state you can query rather than a string you compare.</p>
         <p>The process layer is where the information is:</p>
-        <pre class="code-block"><b>steps</b>            <i>how many actions to succeed; efficiency, not just capability</i>
-<b>invalid actions</b>  <i>malformed calls, nonexistent tools, illegal arguments</i>
-<b>tool calls</b>       <i>count and cost; a correct answer for $9 may be a failure</i>
-<b>recovery rate</b>    <i>fraction of errors the agent detects and works around</i>
-<b>redundancy</b>       <i>repeated observations, re-reads, loops with no state change</i>
-<b>latency</b>          <i>wall clock, which is what a user actually experiences</i>
-<b>safety events</b>    <i>irreversible actions taken, permission boundaries touched</i>
-<b>reward-proxy gap</b> <i>score up while held-out verification is flat &rarr; investigate</i></pre>
+        <table class="concept-table">
+          <caption>Process metrics reveal how success happened</caption>
+          <tbody>
+            <tr><td>Steps</td><td>Actions needed to succeed</td></tr>
+            <tr><td>Invalid actions</td><td>Malformed calls, missing tools, illegal arguments</td></tr>
+            <tr><td>Tool calls</td><td>Count and cost</td></tr>
+            <tr><td>Recovery rate</td><td>Errors detected and worked around</td></tr>
+            <tr><td>Redundancy</td><td>Repeated observations or loops with no state change</td></tr>
+            <tr><td>Latency</td><td>User-visible wall clock</td></tr>
+            <tr><td>Safety events</td><td>Irreversible actions and permission boundaries touched</td></tr>
+            <tr><td>Reward–proxy gap</td><td>Score rises while held-out verification stays flat</td></tr>
+          </tbody>
+        </table>
         <p>Recovery rate deserves special attention, because it is the metric most closely aligned with what interactive training is supposed to buy you and it is almost never reported. An agent that never errs and an agent that errs constantly but always notices can have the same success rate on a benchmark and behave completely differently in a system where the environment is less forgiving than the benchmark was.</p>
         <p>Two findings from the evaluation literature are worth carrying around. Cross-environment benchmarks localise the dominant failures not in knowledge but in long-term reasoning, decision-making and instruction following &mdash; that is, in the sequential structure, exactly where this article has been pointing. And realistic long-horizon web tasks continue to show a large gap between model and human performance, which is a useful corrective to leaderboard numbers on shorter, cleaner suites.</p>
       </section>
@@ -919,7 +948,7 @@
         <div class="reference-group">
           <h3>Companion articles on this site</h3>
           <ul>
-            <li><a href="../teaching-llms-to-use-tools/">From Tokens to Actions: how a model learns that a function exists</a> &middot; Srinivasan, 2026 &mdash; the argument-construction half of the action distribution</li>
+            <li><a href="../how-language-models-learn-to-use-tools/">From Tokens to Actions: how a model learns that a function exists</a> &middot; Srinivasan, 2026 &mdash; the argument-construction half of the action distribution</li>
             <li><a href="../what-should-an-agent-remember/">What Should an Agent Remember? Memory and Context Engineering for LLM Agents</a> &middot; Srinivasan, 2026 &mdash; the history the POMDP policy conditions on</li>
           </ul>
         </div>

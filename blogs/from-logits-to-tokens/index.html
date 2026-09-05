@@ -171,6 +171,12 @@
       </div>
     </header>
 
+<nav class="ml-series-nav" aria-label="Deep Learning Foundations series">
+  <a class="ml-series-nav__identity" href="../index.html#foundations">Deep Learning Foundations</a>
+  <span class="ml-series-nav__position">08 of 08 · Decoding</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../keeping-a-transformer-alive/"><span>Previous</span><strong>Keeping a Transformer Alive</strong></a></div>
+</nav>
+
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
         <h2 id="toc-heading">Contents</h2>
@@ -821,7 +827,7 @@
         </div>
 
         <p>The token-level machinery does not become irrelevant — it is the substrate every trajectory is drawn on, and the sampler you choose determines how diverse your trajectories are, which is the entire input to majority voting. A test-time-scaling method that samples 64 solutions and votes is only as good as the diversity of those 64 samples, and that diversity is a decoding-parameter question. Temperature and truncation reappear one level up, as controls on exploration rather than on wording.</p>
-        <p>That is where this article stops and the next one starts. The trajectory-level story — sample-and-vote, verifier-guided search, sequential revision, and how compute at inference trades against compute at training — is the subject of the companion piece on <a href="../test-time-scaling/">test-time scaling</a>.</p>
+        <p>That is where this article stops and the next one starts. The trajectory-level story — sample-and-vote, verifier-guided search, sequential revision, and how compute at inference trades against compute at training — is the subject of the companion piece on <a href="../how-models-improve-without-changing-their-weights/">test-time scaling</a>.</p>
 
         <h3>What to take away</h3>
         <p>Four things, if you keep nothing else.</p>

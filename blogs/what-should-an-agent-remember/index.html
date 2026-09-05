@@ -27,13 +27,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
-    <script>
-      window.MathJax = {
-        tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
-        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] }
-      };
-    </script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -195,6 +188,12 @@
       </div>
     </header>
 
+<nav class="ml-series-nav" aria-label="Tools & Agentic Models series">
+  <a class="ml-series-nav__identity" href="../index.html#agents">Tools & Agentic Models</a>
+  <span class="ml-series-nav__position">04 of 07 · Memory</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../the-machine-around-the-model/"><span>Previous</span><strong>The Machine Around the Model</strong></a><a class="ml-series-nav__link" href="../many-minds-one-task/"><span>Next</span><strong>Many Minds, One Task</strong></a></div>
+</nav>
+
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
         <h2 id="toc-heading">Contents</h2>
@@ -282,7 +281,7 @@
         <p>\[ C_t \;=\; \big[\, S,\; T_t,\; M_t,\; A_t,\; P_t,\; H_t,\; O_t,\; U \,\big] \]</p>
         <ul>
           <li>\(S\) &mdash; system and developer instructions: the agent's standing policy.</li>
-          <li>\(T_t\) &mdash; tool definitions currently exposed. Every unused tool schema is rent paid on tokens. See <a href="../teaching-llms-to-use-tools/">Teaching LLMs to Use Tools</a> for how these are interpreted.</li>
+          <li>\(T_t\) &mdash; tool definitions currently exposed. Every unused tool schema is rent paid on tokens. See <a href="../how-language-models-learn-to-use-tools/">Teaching LLMs to Use Tools</a> for how these are interpreted.</li>
           <li>\(M_t\) &mdash; memories retrieved from the persistent store.</li>
           <li>\(A_t\) &mdash; artifacts: file contents, documents, retrieved passages.</li>
           <li>\(P_t\) &mdash; the plan and task state: what we are trying to do, what is done, what remains.</li>
@@ -385,7 +384,7 @@
         <p>Why not simply put everything in? There are four costs, and they are of genuinely different kinds &mdash; two are about resources, two are about the model.</p>
 
         <h3>1. Prefill compute</h3>
-        <p>Attention is quadratic in sequence length; the rest of the forward pass is linear. Doubling the context more than doubles the prefill work. If the agent runs many steps, and each step re-reads a growing history, the total compute grows superlinearly in the number of steps. Prefix caching helps enormously when the prefix is stable &mdash; which is exactly why you put stable things (system prompt, tool schemas) first and volatile things last. The systems side of this is in <a href="../serving-playbook/">The Serving Playbook</a>; the mechanics of the quadratic term are in <a href="../attention-from-first-principles/">Attention, From First Principles</a>.</p>
+        <p>Attention is quadratic in sequence length; the rest of the forward pass is linear. Doubling the context more than doubles the prefill work. If the agent runs many steps, and each step re-reads a growing history, the total compute grows superlinearly in the number of steps. Prefix caching helps enormously when the prefix is stable &mdash; which is exactly why you put stable things (system prompt, tool schemas) first and volatile things last. The systems side of this is in <a href="../the-serving-playbook/">The Serving Playbook</a>; the mechanics of the quadratic term are in <a href="../how-attention-moves-information/">Attention, From First Principles</a>.</p>
 
         <h3>2. Money and latency</h3>
         <p>Input tokens are billed and prefill takes wall-clock time. For a long-running agent, per-step context length multiplied by number of steps is often the dominant cost line, well above output tokens. An agent that re-reads 60k tokens of history on every one of 300 steps has read 18 million tokens to do one task.</p>
@@ -475,15 +474,10 @@
         <h3>Semantic memory &mdash; what I know</h3>
         <p>Distilled facts, detached from the episode that produced them. &ldquo;The user works on vision-language models.&rdquo; &ldquo;Project X uses PostgreSQL.&rdquo; &ldquo;Service Y requires OAuth scope Z.&rdquo;</p>
         <p>The move from episodic to semantic is <strong>consolidation</strong>, and it is where most of the compression happens:</p>
-<pre class="code-block"><i>EPISODE (Tuesday, 412 tokens)</i>
-"...and honestly I'd rather read one long piece that
- derives things from scratch than five short posts.
- Skip the executive summary, I'll read the whole thing."
-
-                    &darr;  consolidate
-
-<i>SEMANTIC (9 tokens)</i>
-<b>blog_style</b>: long_form, first_principles, no_summary</pre>
+        <div class="concept-flow" style="--concept-columns:2" role="img" aria-label="A 412-token episode is consolidated into a 9-token semantic preference.">
+          <div class="concept-step"><b>Episode · 412 tokens</b><span>A reader explains, in context, that they prefer one long first-principles article.</span></div>
+          <div class="concept-step"><b>Semantic memory · 9 tokens</b><span>blog_style: long_form, first_principles</span></div>
+        </div>
         <p>Note what was lost: the phrasing, the date, the fact that this came up while discussing something else. Note what was gained: retrievability by topic, updatability in place, and a 45&times; reduction. Consolidation is lossy compression with an editorial policy, and the policy is the interesting part.</p>
 
         <h3>Procedural memory &mdash; how to do something</h3>
@@ -579,11 +573,11 @@
 
         <h3>Graph memory</h3>
         <p>Entities as nodes, relations as edges, with time on the edges:</p>
-<pre class="code-block">(user) ──works_on──&gt; (Project A) ──uses──&gt; (PostgreSQL)
-                          │
-                     deploys_via  [valid 2026-08-14 &rarr; ∞]
-                          ↓
-                  (GitHub Actions)</pre>
+        <div class="concept-branches" role="img" aria-label="A temporal knowledge graph: the user works on Project A, which uses PostgreSQL and deploys through GitHub Actions.">
+          <div class="concept-branch"><b>User → Project A</b><span>works_on</span></div>
+          <div class="concept-branch"><b>Project A → PostgreSQL</b><span>uses</span></div>
+          <div class="concept-merge">Project A → GitHub Actions · deploys_via · valid from 2026-08-14</div>
+        </div>
         <p>Zep is the clearest worked example of this design. Its core is Graphiti, a temporally-aware knowledge-graph engine that integrates both unstructured conversational data and structured business data while preserving historical relationships &mdash; the graph is organised into an episode subgraph holding raw non-lossy input, a semantic entity subgraph extracted from it, and a community subgraph above that. Mem0 explores both a straightforward extracted-memory pipeline and a graph variant for relational structure.</p>
         <p>The honest assessment: graphs buy you multi-hop relational queries and clean temporal invalidation, and they cost you an extraction step that can itself be wrong, plus meaningfully more write-time latency and complexity. The published comparisons between graph and vector memory are mostly run by the authors of the graph systems on benchmarks of their own selection, which is not a criticism of anyone's integrity but is a reason to run your own evaluation before committing.</p>
 
@@ -1290,9 +1284,9 @@ m₂  lives_in(user, Bangalore)   valid [2026-09-01 &rarr; ∞      ]</pre>
         <div class="reference-group">
           <h3>Companion articles on this site</h3>
           <ul>
-            <li><a href="../teaching-llms-to-use-tools/">Teaching LLMs to Use Tools</a> &mdash; the agent loop, what a tool call actually is, and the compounding-failure arithmetic that motivates procedural memory.</li>
-            <li><a href="../serving-playbook/">The Serving Playbook</a> &mdash; prefix caching, prefill cost, and why context ordering has a bill attached.</li>
-            <li><a href="../attention-from-first-principles/">Attention, From First Principles</a> &mdash; where the quadratic term in &sect;5 comes from.</li>
+            <li><a href="../how-language-models-learn-to-use-tools/">Teaching LLMs to Use Tools</a> &mdash; the agent loop, what a tool call actually is, and the compounding-failure arithmetic that motivates procedural memory.</li>
+            <li><a href="../the-serving-playbook/">The Serving Playbook</a> &mdash; prefix caching, prefill cost, and why context ordering has a bill attached.</li>
+            <li><a href="../how-attention-moves-information/">Attention, From First Principles</a> &mdash; where the quadratic term in &sect;5 comes from.</li>
           </ul>
         </div>
       </section>

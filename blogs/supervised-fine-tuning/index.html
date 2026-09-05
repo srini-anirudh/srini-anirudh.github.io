@@ -181,14 +181,11 @@
       </div>
     </header>
 
-    <nav class="ml-series-nav" aria-label="Post-training">
-      <a class="ml-series-nav__identity" href="../index.html#post-training">Post-training</a>
-      <span class="ml-series-nav__position">01 of 04 &middot; Imitation</span>
-      <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../how-llms-are-pretrained/"><span>Previous &middot; Pretraining</span><strong>From the Internet to a Foundation Model</strong></a>
-        <a class="ml-series-nav__link" href="../mixing-data-without-losing-capabilities/"><span>Next &middot; 02</span><strong>Mixing Data Without Losing Capabilities</strong></a>
-      </div>
-    </nav>
+    <nav class="ml-series-nav" aria-label="Post-training series">
+  <a class="ml-series-nav__identity" href="../index.html#post-training">Post-training</a>
+  <span class="ml-series-nav__position">01 of 04 · Supervised fine-tuning</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-llms-are-pretrained/"><span>Previous</span><strong>How LLMs Are Pretrained</strong></a><a class="ml-series-nav__link" href="../mixing-data-without-losing-capabilities/"><span>Next</span><strong>Mixing Data Without Losing Capabilities</strong></a></div>
+</nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -720,7 +717,7 @@ SGD estimates the gradient ...<b>&lt;|eot_id|&gt;</b>   <i>&lt;-- generation sto
           <p class="fig-caption"><b>Left panel: published counts.</b> Domain totals are aggregated from the Tülu 3 SFT mixture's released source list. <b>Right and lower panels: schematic.</b> The saturation curves and the skill-score responses are a toy model illustrating differing time constants and one negative interaction; they are not measured evaluation results.</p>
         </div>
 
-        <p>The mixture question is deep enough that it has its own article — negative transfer, catastrophic forgetting, replay ratios, mixture laws and merging are all mixture-level phenomena rather than SFT-level ones. Rather than duplicate it here, see <a href="../post-training-data-mixtures/">One Model, Many Skills</a>, which takes the weights <span class="term">λ<sub>i</sub></span> as its subject.</p>
+        <p>The mixture question is deep enough that it has its own article — negative transfer, catastrophic forgetting, replay ratios, mixture laws and merging are all mixture-level phenomena rather than SFT-level ones. Rather than duplicate it here, see <a href="../mixing-data-without-losing-capabilities/">One Model, Many Skills</a>, which takes the weights <span class="term">λ<sub>i</sub></span> as its subject.</p>
       </section>
 
       <section id="construction">
@@ -809,12 +806,11 @@ SGD estimates the gradient ...<b>&lt;|eot_id|&gt;</b>   <i>&lt;-- generation sto
 
         <p>The most consequential single decision in a modern SFT set is whether the target is</p>
 
-        <pre class="plain">  question <b>-&gt;</b> answer
-
-<i>or</i>
-
-  question <b>-&gt;</b> rationale <b>-&gt;</b> answer
-</pre>
+        <div class="concept-branches" role="img" aria-label="Two decoding paths: a direct path from question to answer, and a reasoning path from question through a rationale to the answer.">
+          <div class="concept-branch"><b>Direct answer</b><span>Question → answer</span></div>
+          <div class="concept-branch"><b>Reasoning trace</b><span>Question → rationale → answer</span></div>
+          <div class="concept-merge">The rationale adds serial compute and a writable intermediate state.</div>
+        </div>
 
         <p>and the reason it matters is architectural, not stylistic.</p>
 
@@ -959,7 +955,7 @@ SGD estimates the gradient ...<b>&lt;|eot_id|&gt;</b>   <i>&lt;-- generation sto
           <p>A dropped benchmark number after SFT is far more often a <em>format</em> problem than a knowledge problem — the model still knows the answer but no longer emits it in the shape the harness parses, because you just trained it to answer conversationally and the harness expects a bare letter. Before reaching for replay ratios or LoRA or model merging, check three cheaper things: re-score with the chat template the model was actually trained with; inspect raw generations rather than parsed scores; and check whether the answer appears anywhere in the generation. In my experience most of the alarming drops resolve at one of those three steps.</p>
         </div>
 
-        <p>Where the loss is real, the mitigations are the ones that already appear in every part of this pipeline: keep the learning rate low, keep the mixture broad, replay a fraction of general instruction data alongside the specialised data, and stop early. Parameter-efficient methods change the trade-off — constraining the update to a low-rank subspace both learns less and forgets less — rather than eliminating it. The mixture-level treatment of all of this is in <a href="../post-training-data-mixtures/">One Model, Many Skills</a>.</p>
+        <p>Where the loss is real, the mitigations are the ones that already appear in every part of this pipeline: keep the learning rate low, keep the mixture broad, replay a fraction of general instruction data alongside the specialised data, and stop early. Parameter-efficient methods change the trade-off — constraining the update to a low-rank subspace both learns less and forgets less — rather than eliminating it. The mixture-level treatment of all of this is in <a href="../mixing-data-without-losing-capabilities/">One Model, Many Skills</a>.</p>
 
         <div class="article-panel" role="img" aria-label="Interactive training-dynamics dashboard showing target-task score, general-capability retention, response length and output diversity evolving over the course of an SFT run under varying learning rate, epochs and mixture breadth.">
           <p class="fig-title">Figure 11 &middot; Four curves that disagree about when to stop</p>
@@ -995,22 +991,7 @@ SGD estimates the gradient ...<b>&lt;|eot_id|&gt;</b>   <i>&lt;-- generation sto
       <section id="pipeline">
         <h2>Where SFT sits in the pipeline</h2>
 
-        <p>The tidy diagram everyone draws is a sequence:</p>
-
-        <pre class="plain">  BASE MODEL
-      <b>|</b>
-      <b>v</b>
-  SUPERVISED FINE-TUNING          <i>imitate demonstrations</i>
-      <b>|</b>
-      <b>v</b>
-  PREFERENCE OPTIMISATION         <i>RLHF / DPO — learn from comparisons</i>
-      <b>|</b>
-      <b>v</b>
-  RLVR / REASONING RL             <i>learn from verifiable outcomes</i>
-      <b>|</b>
-      <b>v</b>
-  SPECIALISED CAPABILITIES        <i>tools, agents, long context, domains</i>
-</pre>
+        <p>The tidy story is linear: base model → supervised fine-tuning → preference optimization → reinforcement learning → specialized capabilities. The animated map below adds the important part that shorthand omits: later stages generate data for earlier ones.</p>
 
         <p>Tülu 3 is the clearest open instantiation: curated prompts, then SFT, then DPO, then RLVR, with a published evaluation scheme separating development from genuinely unseen benchmarks. It is worth reading precisely because it documents what did <em>not</em> work as well as what did.</p>
 

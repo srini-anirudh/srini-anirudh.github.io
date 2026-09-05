@@ -138,13 +138,6 @@
       }
     </style>
     <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
-    <script>
-      window.MathJax = {
-        tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
-        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] }
-      };
-    </script>
-    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   </head>
   <body class="blog-article the-machine-around-the-model-article">
     <nav class="navbar" aria-label="Main navigation">
@@ -185,14 +178,11 @@
       </div>
     </header>
 
-    <nav class="ml-series-nav" aria-label="Agents series">
-      <a class="ml-series-nav__identity" href="../index.html#agents">Agents</a>
-      <span class="ml-series-nav__position">03 of 07 &middot; The machine around the model</span>
-      <div class="ml-series-nav__links">
-        <a class="ml-series-nav__link" href="../the-making-of-an-ai-agent/"><span>Previous &middot; 02</span><strong>The Making of an AI Agent</strong></a>
-        <a class="ml-series-nav__link" href="../what-should-an-agent-remember/"><span>Next &middot; 04</span><strong>What Should an Agent Remember?</strong></a>
-      </div>
-    </nav>
+    <nav class="ml-series-nav" aria-label="Tools & Agentic Models series">
+  <a class="ml-series-nav__identity" href="../index.html#agents">Tools & Agentic Models</a>
+  <span class="ml-series-nav__position">03 of 07 · Agent harnesses</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../the-making-of-an-ai-agent/"><span>Previous</span><strong>The Making of an AI Agent</strong></a><a class="ml-series-nav__link" href="../what-should-an-agent-remember/"><span>Next</span><strong>What Should an Agent Remember?</strong></a></div>
+</nav>
 
     <main class="article-content">
       <nav class="toc" aria-labelledby="toc-heading">
@@ -727,11 +717,13 @@ PlanUpdated(items)         Compacted(from, to, summary_id)</code></pre>
         <p>linear in the number of tools and multiplied by the loop length. At \(M = 300\), \(\tau = 120\) and \(K = 40\) that is 1.4 million tokens spent describing capabilities, most of which will not be used.</p>
         <p>Two structurally different fixes are in production. The first is <strong>deferred discovery</strong>: OpenAI's harness makes integrations, custom MCP tools, skills and plugins surfaceable only when needed, rather than loading them all up front. The second is <strong>filesystem-shaped tools</strong>: expose servers as directories the agent can list and read, so it loads the definitions for the two tools this task needs and never sees the other 298 — the pattern behind the 150k-to-2k figure from §7.</p>
         <p>Skills are the same idea applied to procedures rather than APIs. Codex puts skill <em>metadata</em> — names and descriptions — into the initial prompt alongside project instructions, with the body fetched only when the model decides to use one. Which sets up a spectrum worth thinking about explicitly when you design a harness:</p>
-        <pre><code>prompt  →  project instruction  →  skill  →  tool  →  code
-
-  cheap to change ..................... expensive to change
-  advisory ................................. enforced
-  always in context ............ loaded or executed on demand</code></pre>
+        <div class="concept-flow" style="--concept-columns:5" role="img" aria-label="A spectrum from prompts to code: moving right is more expensive to change, more strongly enforced, and loaded more selectively.">
+          <div class="concept-step"><b>Prompt</b><span>Cheap · advisory · always present</span></div>
+          <div class="concept-step"><b>Project instruction</b><span>Scoped guidance</span></div>
+          <div class="concept-step"><b>Skill</b><span>Procedure on demand</span></div>
+          <div class="concept-step"><b>Tool</b><span>Schema + execution</span></div>
+          <div class="concept-step"><b>Code</b><span>Costly · enforced · deterministic</span></div>
+        </div>
         <p>The design question for any given behaviour is: how far right can I push it? "Always run the linter after editing" can live at any point on that line. As a prompt it is advice the model may forget under context pressure. As a skill it is a procedure loaded when relevant. As a tool it is an action with a schema. As code in a post-edit hook it is a fact about the universe. Each step right costs engineering and buys determinism, and the harness author's judgement is mostly about where on that line each behaviour belongs.</p>
       </section>
       <section id="harness-effect">
@@ -1265,7 +1257,7 @@ PlanUpdated(items)         Compacted(from, to, summary_id)</code></pre>
         <div class="reference-group">
           <h3>Elsewhere in this series</h3>
           <ul>
-            <li><a href="../teaching-llms-to-use-tools/">From Tokens to Actions: How LLMs Learn to Use Tools</a> &middot; where the tool call comes from in the first place, and why a tool call is a span of tokens some program agreed to interpret.</li>
+            <li><a href="../how-language-models-learn-to-use-tools/">From Tokens to Actions: How LLMs Learn to Use Tools</a> &middot; where the tool call comes from in the first place, and why a tool call is a span of tokens some program agreed to interpret.</li>
             <li><a href="../the-making-of-an-ai-agent/">The Making of an AI Agent</a> &middot; the loop as a training problem: trajectories, credit assignment, and what changes when the environment remembers what you did.</li>
             <li><a href="../what-should-an-agent-remember/">What Should an Agent Remember?</a> &middot; the write problem behind compaction, and how to decide what earns a place in the next context window.</li>
           </ul>
