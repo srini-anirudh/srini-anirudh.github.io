@@ -87,7 +87,7 @@
           <button type="button" class="blog-filter" data-blog-filter="agents" aria-pressed="false">Tools &amp; Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" aria-pressed="false">Systems</button>
         </nav>
-        <p class="blog-filter-status" aria-live="polite">Showing all 31 articles</p>
+        <p class="blog-filter-status" aria-live="polite">Showing all 41 articles</p>
 
         <div class="blog-list">
           <a class="blog-card blog-card-featured" href="the-vlm-architecture-gallery/" target="_self" data-blog-categories="vlms architecture">
@@ -102,7 +102,127 @@
               <div class="blog-tags"><span>VLMs</span><span>Architecture</span><span>Token Budgets</span></div>
             </div>
           </a>
-          <a class="blog-card" id="attention-from-first-principles" href="how-attention-moves-information/" target="_self" data-blog-categories="foundations architecture" data-blog-series="foundations">
+          <a class="blog-card" href="did-the-agent-actually-succeed/" target="_self" data-blog-categories="agents reasoning systems" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="did-the-agent-actually-succeed/preview.png" data-still-src="did-the-agent-actually-succeed/preview.png" data-animated-src="did-the-agent-actually-succeed/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison between grading an agent's words and verifying the world state it changed." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 07</span>
+              <h3>Did the Agent Actually Succeed?</h3>
+              <p>How to evaluate trajectories, state changes, reliability, safety, graders, budgets, and long-horizon failures.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-06">September 6, 2026</time></span><span>54 min read</span></div>
+              <div class="blog-tags"><span>Agent Evaluation</span><span>Reliability</span><span>Safety</span></div>
+            </div>
+          </a>
+          <a class="blog-card" id="foundations" href="backprop-and-autograd/" target="_self" data-blog-categories="foundations training" data-blog-series="foundations">
+            <picture class="blog-card-media">
+              <img src="backprop-and-autograd/preview.png" data-still-src="backprop-and-autograd/preview.png" data-animated-src="backprop-and-autograd/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated reverse-mode gradient wave flowing from one scalar loss to a grid of parameters." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Deep Learning Foundations &middot; 06</span>
+              <h3>The Backward Pass</h3>
+              <p>Backpropagation and autograd from scalar chain rules to Jacobian products, saved tensors, and checkpointing.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>46 min read</span></div>
+              <div class="blog-tags"><span>Backpropagation</span><span>Autograd</span><span>VJPs</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="keeping-a-transformer-alive/" target="_self" data-blog-categories="foundations training" data-blog-series="foundations">
+            <picture class="blog-card-media">
+              <img src="keeping-a-transformer-alive/preview.png" data-still-src="keeping-a-transformer-alive/preview.png" data-animated-src="keeping-a-transformer-alive/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated attention distribution showing entropy collapse as logits grow during unstable training." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Deep Learning Foundations &middot; 07</span>
+              <h3>Keeping a Transformer Alive</h3>
+              <p>Initialization, residual paths, normalization, optimizer dynamics, precision, and the signatures of unstable training.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>54 min read</span></div>
+              <div class="blog-tags"><span>Initialization</span><span>Training Stability</span><span>Numerics</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="from-logits-to-tokens/" target="_self" data-blog-categories="foundations systems reasoning" data-blog-series="foundations">
+            <picture class="blog-card-media">
+              <img src="from-logits-to-tokens/preview.png" data-still-src="from-logits-to-tokens/preview.png" data-animated-src="from-logits-to-tokens/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison of top-k, top-p, epsilon, min-p, eta, and typical sampling." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Deep Learning Foundations &middot; 08</span>
+              <h3>From Logits to Tokens</h3>
+              <p>Temperature, search, truncation, penalties, grammars, and contrastive generation organized around entropy.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>48 min read</span></div>
+              <div class="blog-tags"><span>Decoding</span><span>Sampling</span><span>Information Theory</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="supervised-fine-tuning/" target="_self" data-blog-categories="posttraining training" data-blog-series="post-training">
+            <picture class="blog-card-media">
+              <img src="supervised-fine-tuning/preview.png" data-still-src="supervised-fine-tuning/preview.png" data-animated-src="supervised-fine-tuning/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated contrast between teacher-forced demonstrations and a model's compounding rollout errors." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Post-training &middot; 01</span>
+              <h3>From Base Model to Assistant</h3>
+              <p>Supervised fine-tuning as behavior cloning: data construction, loss masking, distribution shift, and capability change.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>54 min read</span></div>
+              <div class="blog-tags"><span>SFT</span><span>Instruction Tuning</span><span>Behavior Cloning</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="peft-from-first-principles/" target="_self" data-blog-categories="posttraining training vlms" data-blog-series="post-training">
+            <picture class="blog-card-media">
+              <img src="peft-from-first-principles/preview.png" data-still-src="peft-from-first-principles/preview.png" data-animated-src="peft-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated low-rank factorization showing how LoRA rank changes trainable parameters and approximation capacity." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Post-training &middot; PEFT companion</span>
+              <h3>Fine-Tuning Without Updating Everything</h3>
+              <p>Why low-rank updates work, how LoRA and QLoRA spend memory, and when adapters lose to full fine-tuning.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>46 min read</span></div>
+              <div class="blog-tags"><span>LoRA</span><span>QLoRA</span><span>Adapters</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="the-machine-around-the-model/" target="_self" data-blog-categories="agents systems" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="the-machine-around-the-model/preview.png" data-still-src="the-machine-around-the-model/preview.png" data-animated-src="the-machine-around-the-model/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated agent harness expanding around the model into context, tools, sandboxing, verification, memory, and logs." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 03</span>
+              <h3>The Machine Around the Model</h3>
+              <p>The agent harness as a system: context assembly, action protocols, verification, containment, budgets, and event state.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>72 min read</span></div>
+              <div class="blog-tags"><span>Agent Harnesses</span><span>Sandboxing</span><span>Verification</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="what-should-an-agent-remember/" target="_self" data-blog-categories="agents systems" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="what-should-an-agent-remember/preview.png" data-still-src="what-should-an-agent-remember/preview.png" data-animated-src="what-should-an-agent-remember/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated agent memory loop covering write, manage, retrieve, rank, and context construction." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 04</span>
+              <h3>What Should an Agent Remember?</h3>
+              <p>Working, episodic, semantic, procedural, and reflective memory as one bounded context-allocation problem.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>58 min read</span></div>
+              <div class="blog-tags"><span>Agent Memory</span><span>Context Engineering</span><span>Retrieval</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="many-minds-one-task/" target="_self" data-blog-categories="agents reasoning systems" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="many-minds-one-task/preview.png" data-still-src="many-minds-one-task/preview.png" data-animated-src="many-minds-one-task/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated seven-agent network comparing pipeline, coordinator, hierarchy, mesh, and blackboard topologies." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 05</span>
+              <h3>Many Minds, One Task</h3>
+              <p>When multiple agents beat one: diversity, specialization, topology, communication cost, orchestration, and failure modes.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>48 min read</span></div>
+              <div class="blog-tags"><span>Multi-Agent Systems</span><span>Orchestration</span><span>Coordination</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="learning-to-act/" target="_self" data-blog-categories="agents posttraining reasoning" data-blog-series="tool-agents">
+            <picture class="blog-card-media">
+              <img src="learning-to-act/preview.png" data-still-src="learning-to-act/preview.png" data-animated-src="learning-to-act/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated rollout batch losing useful gradient signal as task horizon increases." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Tool Use &amp; Agentic Models &middot; 06</span>
+              <h3>Learning to Act</h3>
+              <p>Reinforcement learning for agents: environments, reward design, credit assignment, horizons, and rollout systems.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>62 min read</span></div>
+              <div class="blog-tags"><span>Agentic RL</span><span>Credit Assignment</span><span>Environments</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="how-attention-moves-information/" target="_self" data-blog-categories="foundations architecture" data-blog-series="foundations">
             <picture class="blog-card-media">
               <img src="how-attention-moves-information/preview.png" data-still-src="how-attention-moves-information/preview.png" data-animated-src="how-attention-moves-information/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated attention map showing a token construct its representation by weighting information from other positions." />
             </picture>

@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles guide to memory and context engineering for LLM agents: why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="What Should an Agent Remember? Memory and Context Engineering for LLM Agents" />
+    <meta property="og:description" content="A first-principles guide to memory and context engineering for LLM agents: why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="What Should an Agent Remember? Memory and Context Engineering for LLM Agents" />
+    <meta name="twitter:description" content="Why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/preview.png" />
+    <title>What Should an Agent Remember? Memory and Context Engineering for LLM Agents | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script>
+      window.MathJax = {
+        tex: { inlineMath: [["\\(", "\\)"]], displayMath: [["\\[", "\\]"]] },
+        options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] }
+      };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/" },
+        "headline": "What Should an Agent Remember?",
+        "description": "A first-principles guide to memory and context engineering for LLM agents: why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window.",
+        "image": "https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["Agent memory", "Context engineering", "Retrieval", "LLM agents", "Long-term memory", "Forgetting"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.35em; }
+      .article-content li { margin: 0 0 9px; }
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article-specific ---- */
+      .animation-stage { min-height: 60px; }
+      .animation-stage svg { display: block; width: 100%; height: auto; }
+      .stage-caption { margin-top: 12px; padding-top: 11px; border-top: 1px solid #242c34; color: #a9b6bf; font: 12.5px/1.6 var(--mono); }
+      .stage-caption b { color: #eaf1f5; font-weight: 600; }
+      .figure-lede { margin: 0 0 14px; color: #93a0a8; font: 600 10.5px/1.5 var(--mono); letter-spacing: 0.15em; text-transform: uppercase; }
+      .fig-note { margin: 26px 0 30px; color: var(--muted); font: italic 15.5px/1.55 var(--body); }
+      .lab-controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid #242c34; }
+      .lab-field { display: flex; flex-direction: column; gap: 5px; min-width: 172px; }
+      .lab-field label { color: #93a0a8; font: 600 10px/1.3 var(--mono); letter-spacing: 0.11em; text-transform: uppercase; }
+      .lab-field input[type="range"] { width: 100%; accent-color: #3fd1a0; }
+      .lab-field output { color: #3fd1a0; font: 600 12px/1.2 var(--mono); }
+      .lab-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+      .lab-toggles button { min-height: 32px; padding: 5px 9px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 10.5px/1 var(--mono); }
+      .lab-toggles button[aria-pressed="true"] { color: #06120e; background: #5ab2e8; border-color: #5ab2e8; }
+      .lab-toggles button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+
+      .callout { margin: 30px 0; padding: 20px 24px; background: var(--paper-bright); border-left: 3px solid var(--ink); }
+      .callout p:last-child { margin-bottom: 0; }
+      .callout .callout-kicker { margin: 0 0 8px; color: var(--muted); font: 600 10.5px/1.4 var(--mono); letter-spacing: 0.15em; text-transform: uppercase; }
+      .callout--open { border-left-color: #b8722f; }
+      .callout--key { border-left-color: #1f7a5a; }
+
+      .boxed-claim { margin: 30px auto; padding: 18px 22px; text-align: center; border: 1px solid var(--ink); font: 600 clamp(17px, 2.4vw, 22px)/1.4 var(--display); letter-spacing: -0.01em; }
+
+      .data-table { width: 100%; margin: 26px 0 30px; border-collapse: collapse; font: 15.5px/1.5 var(--body); }
+      .data-table caption { margin-bottom: 10px; color: var(--muted); font: 600 10.5px/1.5 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; text-align: left; }
+      .data-table th, .data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+      .data-table thead th { color: var(--muted); border-bottom: 1px solid var(--ink); font: 600 10.5px/1.5 var(--mono); letter-spacing: 0.11em; text-transform: uppercase; }
+      .data-table tbody th { font-weight: 600; }
+      .table-scroll { overflow-x: auto; }
+
+      pre.code-block { margin: 24px 0; padding: 18px 20px; overflow-x: auto; color: #dce4e9; background: var(--panel); border: 1px solid #242c34; font: 13px/1.62 var(--mono); }
+      pre.code-block b { color: #3fd1a0; font-weight: 600; }
+      pre.code-block i { color: #93a0a8; font-style: normal; }
+      code { padding: 1px 5px; background: rgba(20,23,26,0.06); border: 1px solid var(--rule); font: 0.86em/1 var(--mono); }
+
+      mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+        .lab-field { min-width: 100%; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article what-should-an-agent-remember-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide &middot; Agents</p>
+        <h1 class="article-title">What Should an Agent Remember?</h1>
+        <p class="article-subtitle">A language model call is stateless. An agent may run for months. Everything in between &mdash; what gets written down, what gets thrown away, and what earns a place in the next context window &mdash; is engineering.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Agent memory</span><span>Context engineering</span><span>Retrieval</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>58 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#stateless">The call that forgets</a></li>
+          <li><a href="#two-boxes">Context is not memory</a></li>
+          <li><a href="#what-model-sees">What the model actually sees</a></li>
+          <li><a href="#allocation">The allocation problem</a></li>
+          <li><a href="#not-usable">Accessible is not usable</a></li>
+          <li><a href="#loop">Memory is a loop, not a database</a></li>
+          <li><a href="#kinds">Four kinds of memory</a></li>
+          <li><a href="#representations">How a memory is written down</a></li>
+          <li><a href="#write">The write problem</a></li>
+          <li><a href="#update">Update is not append</a></li>
+          <li><a href="#forgetting">Forgetting is a feature</a></li>
+          <li><a href="#retrieval">Which memory comes back</a></li>
+          <li><a href="#hierarchy">The memory hierarchy</a></li>
+          <li><a href="#construction">Constructing the context</a></li>
+          <li><a href="#rag">Memory, RAG, and weights</a></li>
+          <li><a href="#poison">When memory poisons itself</a></li>
+          <li><a href="#governance">Provenance, scope, and privacy</a></li>
+          <li><a href="#evaluation">How do you know it works?</a></li>
+          <li><a href="#architecture">The whole machine</a></li>
+          <li><a href="#open">What is still open</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="stateless">
+        <h2>The call that forgets</h2>
+        <p>Start with the primitive, because everything else is scaffolding built on top of it. A call to a language model takes a sequence of tokens and returns a sequence of tokens:</p>
+        <p>\[ y_t \;=\; \mathrm{LLM}_\theta\!\left(x_t\right) \]</p>
+        <p>and then it is over. The weights \(\theta\) are unchanged. No hidden variable survives to the next call. Whatever the KV cache held is either evicted or, at best, reused as a prefix cache for latency &mdash; a performance optimisation, not a state channel. If something that happened during call \(t\) is going to matter during call \(t+1\), <em>some program outside the model has to put it into \(x_{t+1}\) as tokens</em>.</p>
+        <p>That program is the agent. This is the entire subject of this article: the agent is the thing that decides what goes into the next \(x\).</p>
+        <p>The analogy I keep coming back to is a brilliant consultant with total anterograde amnesia. Every morning they walk into the room having forgotten everything that ever happened, read whatever briefing folder is on the desk, give you genuinely excellent advice, and forget again. Their competence is real and their training is intact. What they lack is continuity. And the quality of their advice is bounded not by their intelligence but by whoever assembles the folder.</p>
+        <p>So there are exactly three places knowledge can live in such a system, and it is worth being pedantic about the distinction, because most confused arguments about agent memory come from conflating them.</p>
+
+        <div class="article-panel" data-fig="fig-substrates">
+          <p class="figure-lede">Figure 1 &middot; Three substrates &mdash; where an agent's knowledge can live</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+
+        <h3>Parametric memory</h3>
+        <p>Knowledge compressed into \(\theta\) during pretraining and post-training. It is enormous, cheap at inference (you do not pay tokens for it), generalises well, and is essentially impossible to edit precisely or to attribute. The model knows that Paris is in France without you saying so; it also cannot tell you when it learned that, or forget it on request.</p>
+
+        <h3>Contextual memory</h3>
+        <p>The tokens \(x_{1:n}\) present in the current forward pass. Perfectly fresh, perfectly attributable, editable at will, and gone the moment the call returns. It also costs money and attention, which is the whole reason this article exists.</p>
+
+        <h3>External persistent memory</h3>
+        <p>Anything stored outside the model &mdash; files, rows, vectors, graph edges &mdash; that some retrieval step can pull back into \(x\) later. Durable, inspectable, editable, deletable. Useless unless something puts the right pieces into context at the right moment.</p>
+
+        <p>The last one is where all the interesting engineering is, and it exists purely to bridge the other two. An agent's long-term behaviour is determined by the policy that moves information from the external store into the context window, and by the policy that decides what enters the external store in the first place.</p>
+      </section>
+
+      <section id="two-boxes">
+        <h2>Context is not memory</h2>
+        <p>Two claims worth nailing to the door before we go further, because a great deal of engineering effort is wasted by people who believe their negations.</p>
+
+        <div class="boxed-claim">Context &nbsp;&ne;&nbsp; Memory</div>
+
+        <p>Context is the working set for one decision. Memory is the store the working set is drawn from. Conflating them is like conflating your desk with your filing cabinet. A desk is not a small filing cabinet; it is a different object with a different job. You do not solve &ldquo;where do I keep my records&rdquo; by buying a bigger desk, and you do not solve &ldquo;what should I be looking at right now&rdquo; by dumping the cabinet onto the desk.</p>
+
+        <div class="boxed-claim">Long context &nbsp;&ne;&nbsp; Good memory</div>
+
+        <p>This is the one that costs teams the most time. Context windows have grown by orders of magnitude, and every time they grow someone announces that memory is now a solved problem: just put the whole history in. It does not work, for four separate reasons that we will take apart in <a href="#not-usable">&sect;5</a> &mdash; but the shortest version is that a long context is a capacity claim, not a utilisation claim. Being able to <em>fit</em> a million tokens tells you nothing about whether the model can reliably <em>use</em> the fact sitting at token 480,000. And even where it can, you are paying prefill compute and per-token cost on the other 999,999.</p>
+
+        <p>There is also a structural argument that has nothing to do with model limitations. An agent that runs for months produces an unbounded observation stream. No fixed window, however large, holds an unbounded stream. Sooner or later you are choosing what to keep. The only question is whether you choose deliberately or let a truncation rule choose for you.</p>
+      </section>
+
+      <section id="what-model-sees">
+        <h2>What the model actually sees</h2>
+        <p>Let us be concrete about the object we are engineering. At agent step \(t\), the tokens fed to the model are a concatenation of several different kinds of thing, each arriving from a different source and each governed by a different policy:</p>
+        <p>\[ C_t \;=\; \big[\, S,\; T_t,\; M_t,\; A_t,\; P_t,\; H_t,\; O_t,\; U \,\big] \]</p>
+        <ul>
+          <li>\(S\) &mdash; system and developer instructions: the agent's standing policy.</li>
+          <li>\(T_t\) &mdash; tool definitions currently exposed. Every unused tool schema is rent paid on tokens. See <a href="../teaching-llms-to-use-tools/">Teaching LLMs to Use Tools</a> for how these are interpreted.</li>
+          <li>\(M_t\) &mdash; memories retrieved from the persistent store.</li>
+          <li>\(A_t\) &mdash; artifacts: file contents, documents, retrieved passages.</li>
+          <li>\(P_t\) &mdash; the plan and task state: what we are trying to do, what is done, what remains.</li>
+          <li>\(H_t\) &mdash; recent conversation turns.</li>
+          <li>\(O_t\) &mdash; recent environment observations and tool results.</li>
+          <li>\(U\) &mdash; the current user request.</li>
+        </ul>
+        <p>Only \(U\) is given to you. Everything else is a choice. That is why <strong>context engineering</strong> is a better name than &ldquo;prompt engineering&rdquo; for what building agents actually involves &mdash; and it is the framing Anthropic uses in its own guidance on the subject: curating and maintaining the optimal set of tokens during inference, not just writing better instructions. The operative question at each step is not <em>what should I say to the model</em> but:</p>
+
+        <div class="callout callout--key">
+          <p class="callout-kicker">The context engineering problem</p>
+          <p>Given everything the agent could possibly know, construct the smallest working state sufficient for the next decision.</p>
+        </div>
+
+        <p>Note the two halves of that sentence pull in opposite directions, and both matter. &ldquo;Sufficient&rdquo; is a recall constraint: leave out the API key format and the call fails. &ldquo;Smallest&rdquo; is a precision constraint: include forty irrelevant memories and the model's attention is spread across noise. Every real system lives on the tension between them, and the figure below is that tension made visible.</p>
+
+        <div class="article-panel" data-fig="fig-assembly">
+          <p class="figure-lede">Figure 2 &middot; Assembling one context window, block by block</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 11</span>
+          </div>
+        </div>
+        <p class="fig-note">Token counts in this figure are representative of a mid-sized coding agent step; they are illustrative rather than measurements from a specific deployed system.</p>
+
+        <h3>The agent as a bounded-state controller</h3>
+        <p>Here is the framing I find most clarifying, and it is worth writing down formally because it makes several later results fall out for free.</p>
+        <p>The agent observes an unbounded stream \(o_1, o_2, \ldots\). It maintains a persistent memory state \(M_t\) via a <em>write</em> map, constructs a bounded context via a <em>read</em> map, and acts:</p>
+        <p>\[ M_t \;=\; W(M_{t-1},\, o_t,\, s_t), \qquad C_t \;=\; R(M_t,\, q_t) \ \ \text{with}\ \ |C_t| \le B, \qquad a_t \;=\; \mathrm{LLM}_\theta(C_t) \]</p>
+        <p>Read that again with the constraint in view. \(|C_t| \le B\) is a hard channel capacity. The full history is unbounded. Therefore <strong>every agent with memory is a lossy compressor of its own history into a fixed-width channel</strong>, and the pair \((W, R)\) <em>is</em> the codec. Designing agent memory is designing a codec whose distortion measure is &ldquo;how much worse are the decisions.&rdquo;</p>
+        <p>This immediately tells you three things. First, there is no free lunch: any \(W\) that discards information is optimal only relative to some distribution over future queries. Second, \(W\) and \(R\) must be co-designed &mdash; a write format that is easy to store but impossible to index is worthless. Third, the interesting failures are compression artifacts: things that were true, got summarised, and came back subtly wrong.</p>
+      </section>
+
+      <section id="allocation">
+        <h2>The allocation problem</h2>
+        <p>Once you accept that \(|C_t| \le B\), context construction stops being a matter of taste and becomes an optimisation problem. Let the candidate pool be \(\Omega = \{c_1, \ldots, c_N\}\): every memory, every file, every tool schema, every past turn that could go in. Each candidate has a cost in tokens and some usefulness for the decision at hand:</p>
+        <p>\[ \ell_i \;=\; \mathrm{tokens}(c_i), \qquad u_i \;=\; U(c_i \mid q, s_t) \]</p>
+        <p>and we want</p>
+        <p>\[ \max_{C \subseteq \Omega}\; U(C \mid q, s_t) \qquad \text{subject to} \qquad \sum_{c_i \in C} \ell_i \;\le\; B. \]</p>
+        <p>If \(U\) were additive &mdash; \(U(C) = \sum_{c_i \in C} u_i\) &mdash; this would be a 0/1 knapsack, and you would sort by <em>density</em> \(u_i / \ell_i\) and fill greedily. That is already a useful mental model, and it explains a real phenomenon: a 30-token fact that pins down the answer beats a 3,000-token document that merely contains it. Density, not relevance, is the currency. A long document with the answer buried in it has terrible density.</p>
+
+        <h3>Why it is harder than knapsack</h3>
+        <p>Utility is not additive. This is the crux:</p>
+        <p>\[ U(\{c_i, c_j\}) \;\ne\; U(\{c_i\}) + U(\{c_j\}) \]</p>
+        <p>and the deviation goes in both directions. Two items can be <strong>redundant</strong> (the same fact stated twice adds nothing: the marginal gain of the second is zero). They can be <strong>complementary</strong> (a schema plus an example of it is worth more than the sum: superadditive). They can be <strong>contradictory</strong> (&ldquo;the user lives in Hyderabad&rdquo; and &ldquo;the user lives in Bangalore&rdquo; together are worth <em>less</em> than either alone, because now the model must adjudicate and may pick wrong). And they can be <strong>distracting</strong> &mdash; a plausible but irrelevant memory that pulls the trajectory sideways.</p>
+        <p>The right primitive is therefore not the item's utility but its <em>marginal</em> utility given what is already in:</p>
+        <p>\[ \Delta(c \mid C) \;=\; U(C \cup \{c\}) - U(C) \]</p>
+        <p>and the greedy rule becomes: repeatedly add the candidate maximising \(\Delta(c \mid C) / \ell(c)\) while the budget allows. This single change absorbs all four interaction effects. A duplicate has \(\Delta \approx 0\) and is never selected. A contradiction has \(\Delta < 0\) and is actively excluded. A complement's \(\Delta\) rises once its partner is in, so it gets picked up on a later round.</p>
+        <p>If \(U\) happens to be monotone and submodular &mdash; diminishing returns, no negative interactions &mdash; density-greedy under a knapsack constraint has a well-known constant-factor guarantee. Real context utility is not submodular, because contradiction makes it non-monotone. So the guarantee does not transfer. But the greedy <em>algorithm</em> is still the right shape, and the standard practical approximation is maximal marginal relevance, which stands in for the interaction term with a redundancy penalty:</p>
+        <p>\[ \mathrm{MMR}(c \mid C) \;=\; \lambda\, \mathrm{rel}(c, q) \;-\; (1-\lambda)\, \max_{c' \in C} \mathrm{sim}(c, c') \]</p>
+        <p>That is a crude proxy &mdash; it models redundancy and nothing else &mdash; but it is cheap, and it captures the largest single effect in practice, which is near-duplicate memories crowding each other out of the budget.</p>
+
+        <div class="article-panel" data-fig="fig-knapsack">
+          <p class="figure-lede">Figure 3 &middot; A context budget, filled three ways</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="knap-budget">Context budget (tokens)</label>
+              <input type="range" id="knap-budget" min="600" max="4800" step="100" value="2400" />
+              <output for="knap-budget" id="knap-budget-out">2,400</output>
+            </div>
+            <div class="lab-field">
+              <label for="knap-strategy">Selection strategy</label>
+              <div class="lab-toggles" id="knap-strategy" role="group" aria-label="Selection strategy">
+                <button type="button" data-strategy="relevance" aria-pressed="false">Top-k relevance</button>
+                <button type="button" data-strategy="density" aria-pressed="false">Density</button>
+                <button type="button" data-strategy="marginal" aria-pressed="true">Marginal gain</button>
+              </div>
+            </div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+        <p class="fig-note">A schematic lab. The nine candidate items carry hand-assigned utilities and token costs chosen to expose the three interaction effects (duplication, complementarity, contradiction); the resulting scores are illustrative of the mechanism, not measurements.</p>
+
+        <p>One more wrinkle, which we will need in the next section and which genuinely breaks the knapsack analogy: <strong>\(U\) depends on the ordering, not just the set</strong>. The same nine items arranged differently do not produce the same behaviour. So the true problem is sequence construction under a budget, and knapsack is the relaxation you solve first.</p>
+      </section>
+
+      <section id="not-usable">
+        <h2>Accessible is not usable</h2>
+        <p>Why not simply put everything in? There are four costs, and they are of genuinely different kinds &mdash; two are about resources, two are about the model.</p>
+
+        <h3>1. Prefill compute</h3>
+        <p>Attention is quadratic in sequence length; the rest of the forward pass is linear. Doubling the context more than doubles the prefill work. If the agent runs many steps, and each step re-reads a growing history, the total compute grows superlinearly in the number of steps. Prefix caching helps enormously when the prefix is stable &mdash; which is exactly why you put stable things (system prompt, tool schemas) first and volatile things last. The systems side of this is in <a href="../serving-playbook/">The Serving Playbook</a>; the mechanics of the quadratic term are in <a href="../attention-from-first-principles/">Attention, From First Principles</a>.</p>
+
+        <h3>2. Money and latency</h3>
+        <p>Input tokens are billed and prefill takes wall-clock time. For a long-running agent, per-step context length multiplied by number of steps is often the dominant cost line, well above output tokens. An agent that re-reads 60k tokens of history on every one of 300 steps has read 18 million tokens to do one task.</p>
+
+        <h3>3. Attention dilution</h3>
+        <p>Softmax attention allocates a finite probability mass across the context. Adding irrelevant tokens does not create new attention; it divides the existing attention differently. This is the sense in which the model has an <em>attention budget</em> that you spend by including things. The practical signature is that adding a plausible-but-wrong memory is worse than adding nothing, because the model has to actively suppress it.</p>
+
+        <h3>4. Position effects</h3>
+        <p>The most-cited empirical result here is <em>Lost in the Middle</em>. Across multi-document question answering and key-value retrieval, Liu and colleagues found performance was often highest when the relevant information sat at the beginning or the end of the input context, and degraded significantly when the model had to reach for information in the middle &mdash; including for models explicitly built for long context. Performance also fell as the input grew longer, independent of position.</p>
+        <p>Take the consequence seriously. It means utilisation is a function of position:</p>
+        <p>\[ u_{\text{eff}}(c) \;=\; u(c) \cdot \phi\!\left(k, n\right) \]</p>
+        <p>where \(k\) is the item's position among \(n\) tokens and \(\phi\) is not flat. Two contexts containing exactly the same information can differ in effectiveness purely by arrangement. That is why the earlier &ldquo;set selection&rdquo; framing was a simplification, and it is why prompt-compression work treats position bias as a first-class target rather than as noise. LongLLMLingua frames long-context use as three coupled problems &mdash; computational cost, performance reduction, and position bias &mdash; and compresses the prompt specifically to raise the density and improve the placement of key information.</p>
+
+        <div class="article-panel" data-fig="fig-position">
+          <p class="figure-lede">Figure 4 &middot; The same fact, moved through the context</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 9</span>
+          </div>
+        </div>
+        <p class="fig-note">The U-shaped utilisation curve here is a schematic drawn to match the <em>qualitative</em> shape reported in the position-effect literature. The curve's exact height, depth, and asymmetry vary widely by model, task, and context length; treat it as a sign structure, not as reproduced measurements.</p>
+
+        <div class="boxed-claim">Accessible information &nbsp;&ne;&nbsp; Usable information</div>
+
+        <p>This is the sentence I would put above the desk of anyone building agents. The context window is a capacity guarantee and nothing more. Whether the model <em>uses</em> what is in there depends on how much else is in there and where it sits.</p>
+      </section>
+
+      <section id="loop">
+        <h2>Memory is a loop, not a database</h2>
+        <p>Most introductions to agent memory start with a vector database and a similarity search, which is a bit like explaining a kitchen by describing the fridge. The fridge matters. It is not the kitchen.</p>
+        <p>The useful abstraction is a closed loop, and it has three fundamental operations rather than one:</p>
+
+        <div class="boxed-claim">WRITE &nbsp;&rarr;&nbsp; MANAGE &nbsp;&rarr;&nbsp; READ</div>
+
+        <p><strong>Write</strong> decides whether an observation deserves to become a memory at all, and in what form. <strong>Manage</strong> maintains the store over time: merging, superseding, consolidating, expiring, deleting. <strong>Read</strong> decides what comes back and how it is arranged for the next decision. A vector database implements a small part of Read and almost none of Write or Manage. That is why teams who buy a vector database and declare memory solved end up, six weeks later, with an agent that confidently tells users things they stopped believing in March.</p>
+        <p>The loop closes because the agent's own actions produce the next observations. This is what separates agent memory from document retrieval: <em>the store is downstream of the agent's own behaviour</em>. Bad decisions produce bad experiences, which get written, which get retrieved, which produce more bad decisions. We will come back to this in <a href="#poison">&sect;16</a>, where it has real teeth.</p>
+
+        <div class="article-panel" data-fig="fig-loop">
+          <p class="figure-lede">Figure 5 &middot; The agent memory loop</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+        </div>
+
+        <p>Notice how many decision points there are. Between the observation arriving and the model acting, an engineered system makes at least six choices: whether to remember, in what form, where to file it, what to merge it with, what to retrieve later, and how to lay it out. Each of those is a policy. Each can be wrong independently. A vector store gives you one of them.</p>
+      </section>
+
+      <section id="kinds">
+        <h2>Four kinds of memory</h2>
+        <p>The standard taxonomy borrows from cognitive psychology. I want to be careful about the borrowing: the claim is <em>not</em> that agents reproduce human memory, and it is not that these four compartments are the uniquely correct decomposition. The claim is weaker and more practical &mdash; these categories have different lifetimes, different write triggers, different retrieval patterns, and different failure modes, so keeping them separate is good engineering hygiene. The vocabulary comes from Tulving's episodic/semantic distinction; the mapping onto language agents was formalised in the <em>Cognitive Architectures for Language Agents</em> framework, which sorts existing systems by which memory type they actually implement.</p>
+
+        <h3>Working memory &mdash; what matters right now</h3>
+        <p>The current goal, the plan, the file being edited, the last tool result, the unresolved question. This lives directly in context and is discarded or checkpointed at task boundaries. It is the closest thing an agent has to a program's stack frame.</p>
+<pre class="code-block"><b>goal</b>      deploy the staging service
+<b>step</b>      3 of 6 &mdash; fix failing test
+<b>editing</b>   services/auth/token.py
+<b>last</b>      pytest -k oauth  &rarr;  1 failed
+<b>error</b>     AssertionError: scope 'read:user' missing
+<b>open</b>      does the staging client have the scope?</pre>
+        <p>The important design property here is that working memory should be <em>rewritten</em>, not appended. A plan that grows by accretion becomes a log; a plan that is edited in place stays a plan. This is the difference between an agent that knows what it is doing at step 40 and one that is reconstructing its intent from a transcript.</p>
+
+        <h3>Episodic memory &mdash; what happened</h3>
+        <p>Events and experiences, with time attached. Formally an episode is a tuple</p>
+        <p>\[ e_i \;=\; \big(s_i,\; a_i,\; o_i,\; r_i,\; t_i\big) \]</p>
+        <p>&mdash; state, action, observation, outcome, timestamp. For agents this is unusually powerful because entire <em>trajectories</em> can become memories, not just facts. &ldquo;I tried X, it failed with Y, then Z worked&rdquo; is a single episode carrying a full causal chain.</p>
+        <p>Generative Agents is the canonical demonstration: it stores a complete natural-language record of experiences and retrieves them for planning using a combination of relevance, recency, and importance. Reflexion is the other end of the same idea &mdash; it keeps reflective text in an episodic buffer specifically so that a later attempt at the same task can exploit what went wrong in the earlier one, with no weight update at any point.</p>
+
+        <h3>Semantic memory &mdash; what I know</h3>
+        <p>Distilled facts, detached from the episode that produced them. &ldquo;The user works on vision-language models.&rdquo; &ldquo;Project X uses PostgreSQL.&rdquo; &ldquo;Service Y requires OAuth scope Z.&rdquo;</p>
+        <p>The move from episodic to semantic is <strong>consolidation</strong>, and it is where most of the compression happens:</p>
+<pre class="code-block"><i>EPISODE (Tuesday, 412 tokens)</i>
+"...and honestly I'd rather read one long piece that
+ derives things from scratch than five short posts.
+ Skip the executive summary, I'll read the whole thing."
+
+                    &darr;  consolidate
+
+<i>SEMANTIC (9 tokens)</i>
+<b>blog_style</b>: long_form, first_principles, no_summary</pre>
+        <p>Note what was lost: the phrasing, the date, the fact that this came up while discussing something else. Note what was gained: retrievability by topic, updatability in place, and a 45&times; reduction. Consolidation is lossy compression with an editorial policy, and the policy is the interesting part.</p>
+
+        <h3>Procedural memory &mdash; how to do something</h3>
+        <p>This is the category that makes agents qualitatively different from chat assistants, and it is under-discussed. Procedural memory stores <em>reusable capability</em>: how to deploy this repository, how to recover this database, the shape of the query that works against this API, the fix for a build failure that recurs every few weeks.</p>
+        <p>Voyager is the clearest illustration. Its Minecraft agent turns successful behaviours into executable code stored in an ever-growing skill library, retrieved for later tasks and composed into more complex ones &mdash; and, critically, it interacts with the underlying model purely through prompting, with no parameter updates. The skills it accumulates are temporally extended, interpretable, and compositional, so capability compounds rather than resetting each episode.</p>
+        <p>That is the striking claim hiding in this section:</p>
+
+        <div class="boxed-claim">experience &nbsp;&rarr;&nbsp; reusable skill, &nbsp;without touching \(\theta\)</div>
+
+        <h3>Reflective memory &mdash; what I have concluded</h3>
+        <p>Arguably a fifth type, arguably a process that produces the other types. Raw experience says <em>tool X failed on this file</em>. Reflection says <em>tool X fails on files above about 50 MB; use tool Y for those</em>. The second is a generalisation, and it is far more valuable per token than the episode that produced it.</p>
+        <p>Generative Agents periodically synthesises higher-level reflections from accumulated experience and stores those alongside the raw stream, so retrieval can surface either. Reflexion turns a failure signal into text explicitly intended to change the next attempt. A-MEM pushes the idea further still: new memories are dynamically linked to related historical ones, and existing memory representations are allowed to <em>evolve</em> as new information arrives, so the store behaves less like an append-only log and more like a set of notes that get rewritten as understanding improves.</p>
+        <p>\[ \{e_1, \ldots, e_k\} \;\xrightarrow{\ \text{reflect}\ }\; m_{\text{semantic}} \;\text{or}\; m_{\text{procedural}} \]</p>
+
+        <div class="article-panel" data-fig="fig-taxonomy">
+          <p class="figure-lede">Figure 6 &middot; The consolidation ladder &mdash; from raw turns to reusable rules</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 11</span>
+          </div>
+        </div>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open question</p>
+          <p>Whether these four compartments are the <em>right</em> decomposition for agents is not settled. They are borrowed vocabulary that happens to carve the design space along useful seams. It is entirely possible that the natural categories for an artificial agent are different &mdash; organised by write trigger, or by expected lifetime, or by scope &mdash; and that the cognitive analogy is a convenient scaffold we will eventually discard. Treat the taxonomy as a design checklist, not as a theory.</p>
+        </div>
+      </section>
+
+      <section id="representations">
+        <h2>How a memory is written down</h2>
+        <p>Having decided <em>that</em> something should be remembered, you must decide <em>as what</em>. This choice determines everything downstream: what can be retrieved, what can be updated, what can be contradicted, and how much it costs to bring back.</p>
+        <p>There is a spectrum, and it trades fidelity against retrievability. Nothing on it dominates.</p>
+
+        <div class="article-panel" data-fig="fig-representations">
+          <p class="figure-lede">Figure 7 &middot; One conversation, seven representations</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+        </div>
+
+        <h3>Full transcript</h3>
+        <p>Lossless and useless. Everything is there; nothing is findable; the token cost is the entire history. Still worth keeping as an archival tier (see <a href="#hierarchy">&sect;13</a>) because it is the only representation from which you can re-derive the others when your extraction policy improves.</p>
+
+        <h3>Chunks</h3>
+        <p>Classic retrieval segmentation: split by length or by structure, embed, index. Cheap and general. Its weakness for agents is that chunk boundaries are insensitive to <em>event</em> boundaries. A tool call, its failure, and its fix are one causal unit; a 512-token window will happily cut through the middle of it, leaving you with a chunk that says a thing failed and a separate chunk that says something was fixed.</p>
+
+        <h3>Summaries</h3>
+        <p>Compress 10,000 tokens into 500. Effective, and the workhorse of every production agent's compaction step. But summarisation is lossy in a specific and awkward way: it is lossy <em>with respect to a purpose</em>, and the purpose is not known at write time. Which leads to the question that this entire article circles:</p>
+        <div class="callout">
+          <p class="callout-kicker">The uncomfortable question</p>
+          <p>Who decides, today, what will matter six months from now?</p>
+        </div>
+
+        <h3>Atomic facts</h3>
+        <p>Triples of the form \((\text{subject},\ \text{relation},\ \text{object})\): <code>(user, prefers, vegetarian food)</code>. Small, individually retrievable, and &mdash; crucially &mdash; individually <em>updatable</em>. You can supersede one triple without touching its neighbours. This is why systems that need to track changing state converge on fact-level granularity rather than passage-level.</p>
+
+        <h3>Structured records</h3>
+        <p>An atomic fact with its metadata attached:</p>
+<pre class="code-block">{
+  <b>entity</b>:     "project-x",
+  <b>fact</b>:       "deploys via GitHub Actions, not Jenkins",
+  <b>type</b>:       "semantic",
+  <b>source</b>:     "user message 2026-08-14T11:02Z",
+  <b>confidence</b>: 0.94,
+  <b>valid_from</b>: "2026-08-14",
+  <b>valid_to</b>:   null,
+  <b>scope</b>:      "project",
+  <b>last_read</b>:  "2026-09-01"
+}</pre>
+        <p>This is much closer to what production memory looks like, and every field earns its place. We will use <code>valid_from</code>/<code>valid_to</code> in <a href="#update">&sect;10</a>, <code>confidence</code> and <code>source</code> in <a href="#governance">&sect;17</a>, <code>scope</code> for isolation, and <code>last_read</code> for forgetting policy.</p>
+
+        <h3>Vector memory</h3>
+        <p>Embed each memory, \(m_i \mapsto e_i \in \mathbb{R}^d\), retrieve by cosine similarity. Excellent for semantic association: it will find the memory about &ldquo;authentication scopes&rdquo; when you ask about &ldquo;permission errors,&rdquo; which no keyword index would. Weak at exactly three things, all of which matter for agents: exact temporal ordering, relational updates, and contradiction. An embedding of &ldquo;the user lives in Hyderabad&rdquo; and an embedding of &ldquo;the user lives in Bangalore&rdquo; sit right next to each other in the space. Similarity cannot tell you which one is <em>current</em>; it can only tell you they are about the same thing.</p>
+
+        <h3>Graph memory</h3>
+        <p>Entities as nodes, relations as edges, with time on the edges:</p>
+<pre class="code-block">(user) ──works_on──&gt; (Project A) ──uses──&gt; (PostgreSQL)
+                          │
+                     deploys_via  [valid 2026-08-14 &rarr; ∞]
+                          ↓
+                  (GitHub Actions)</pre>
+        <p>Zep is the clearest worked example of this design. Its core is Graphiti, a temporally-aware knowledge-graph engine that integrates both unstructured conversational data and structured business data while preserving historical relationships &mdash; the graph is organised into an episode subgraph holding raw non-lossy input, a semantic entity subgraph extracted from it, and a community subgraph above that. Mem0 explores both a straightforward extracted-memory pipeline and a graph variant for relational structure.</p>
+        <p>The honest assessment: graphs buy you multi-hop relational queries and clean temporal invalidation, and they cost you an extraction step that can itself be wrong, plus meaningfully more write-time latency and complexity. The published comparisons between graph and vector memory are mostly run by the authors of the graph systems on benchmarks of their own selection, which is not a criticism of anyone's integrity but is a reason to run your own evaluation before committing.</p>
+
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Representation trade-offs</caption>
+          <thead>
+            <tr><th>Representation</th><th>Fidelity</th><th>Retrievable by</th><th>Updatable</th><th>Token cost</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Transcript</th><td>Lossless</td><td>Scan only</td><td>No</td><td>Prohibitive</td></tr>
+            <tr><th scope="row">Chunks</th><td>High</td><td>Similarity</td><td>Coarse</td><td>High</td></tr>
+            <tr><th scope="row">Summaries</th><td>Lossy, purpose-bound</td><td>Similarity</td><td>Rewrite whole</td><td>Low</td></tr>
+            <tr><th scope="row">Atomic facts</th><td>Lossy, precise</td><td>Similarity, entity</td><td>Per fact</td><td>Very low</td></tr>
+            <tr><th scope="row">Structured records</th><td>Lossy + provenance</td><td>Similarity, filters, time</td><td>Per field</td><td>Very low</td></tr>
+            <tr><th scope="row">Vector store</th><td>Depends on unit</td><td>Semantic association</td><td>Delete + reinsert</td><td>Low</td></tr>
+            <tr><th scope="row">Temporal graph</th><td>Lossy + relational</td><td>Traversal, time, entity</td><td>Edge invalidation</td><td>Low, high write cost</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>In practice, serious systems use several of these at once: a transcript archive, a fact table with provenance, a vector index over both, and increasingly a graph for entity relations. The choice is not which representation but which <em>combination</em>, and how they stay consistent with each other.</p>
+      </section>
+
+      <section id="write">
+        <h2>The write problem</h2>
+        <p>Now the central claim of the article. Almost all popular material on this topic is about retrieval. Retrieval is the easier half.</p>
+
+        <div class="boxed-claim">Retrieval knows the query. Writing does not.</div>
+
+        <p>When you retrieve, you have the question in hand. You can embed it, expand it, filter on it, rerank against it. The objective is well posed. When you <em>write</em>, you must decide whether a piece of information will be useful for a query that has not been asked yet, drawn from a distribution you do not know. That is a fundamentally harder problem, and it is not hard because of engineering &mdash; it is hard because of information.</p>
+        <p>Write it out. The value of storing memory \(m\) is its expected marginal contribution across the unknown future query distribution, minus what it costs to carry:</p>
+        <p>\[ V(m) \;=\; \mathbb{E}_{q \sim \mathcal{Q}}\Big[\, P\big(m \in R(M, q)\big)\cdot \Delta\big(m \mid C_q\big) \,\Big] \;-\; \lambda\,\ell(m) \;-\; \gamma\,D(m) \]</p>
+        <p>where \(D(m)\) is the dilution cost &mdash; the damage \(m\) does when it is retrieved for a query it should not have matched. Store when \(V(m) > 0\).</p>
+        <p>Every term here is a problem. \(\mathcal{Q}\) is unknown and non-stationary: users change what they ask about. \(P(m \in R)\) depends on the retriever you have not finished building. \(\Delta\) depends on what else will be in context at that future moment. And \(D(m)\) is the term everyone forgets, which is why naive systems accumulate memories that are individually harmless and collectively toxic.</p>
+        <p>So write policies are heuristic by necessity. The useful move is to decompose the heuristic into signals you can actually estimate at write time:</p>
+
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Signals a write policy can actually observe</caption>
+          <thead><tr><th>Signal</th><th>Question it answers</th><th>Cheap proxy</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Salience</th><td>Will this plausibly come up again?</td><td>Does it name a durable entity (user, project, system)?</td></tr>
+            <tr><th scope="row">Novelty</th><td>Do we already know this?</td><td>Max similarity to existing memories below a threshold</td></tr>
+            <tr><th scope="row">Stability</th><td>How long will it stay true?</td><td>Class of fact: identity &gt; preference &gt; project state &gt; session state</td></tr>
+            <tr><th scope="row">Confidence</th><td>How sure are we it is true now?</td><td>Provenance class &mdash; user-stated &gt; tool-verified &gt; model-inferred</td></tr>
+            <tr><th scope="row">Task utility</th><td>Did it actually help?</td><td>Outcome of the episode it came from &mdash; an evaluator signal</td></tr>
+            <tr><th scope="row">Privacy</th><td>Should this be stored at all?</td><td>Secret detection, PII class, explicit user instruction</td></tr>
+            <tr><th scope="row">Scope</th><td>Who should see it?</td><td>Session / project / user / organisation</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>The <em>task utility</em> row is the one that separates good systems from bad ones, and it is the one with the strongest empirical support. Xiong and colleagues studied exactly this &mdash; the effect of memory addition and deletion policies on long-term agent performance &mdash; and advocated a framework combining <strong>selective addition</strong> with a <strong>combined deletion</strong> policy, reporting roughly a 10% absolute average gain over baseline policies across three agents on three tasks, and validating it further under task distribution shift and constrained memory size. The mechanism is simple: gate writes on whether the episode actually succeeded, judged by an evaluator, rather than storing everything the agent did.</p>
+
+        <h3>A worked triage</h3>
+        <p>Consider an ordinary five minutes of conversation and what a sane policy does with each line.</p>
+
+        <div class="article-panel" data-fig="fig-triage">
+          <p class="figure-lede">Figure 8 &middot; Write triage &mdash; what survives contact with a policy</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="triage-policy">Write policy</label>
+              <div class="lab-toggles" id="triage-policy" role="group" aria-label="Write policy">
+                <button type="button" data-policy="all" aria-pressed="false">Store everything</button>
+                <button type="button" data-policy="salient" aria-pressed="false">Salience only</button>
+                <button type="button" data-policy="full" aria-pressed="true">Full policy</button>
+              </div>
+            </div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+
+        <p>Two rows in that figure deserve comment. The joke &mdash; &ldquo;my favourite pizza today is pepperoni&hellip; actually I hate pepperoni, I was kidding&rdquo; &mdash; is the canonical example of why a write policy cannot be a single-message classifier. The correct behaviour requires reading the retraction, which arrives after the write decision would naively have been made. Real systems handle this by deferring extraction to session end, or by allowing later messages to invalidate earlier writes, which is the same mechanism as the update problem in the next section.</p>
+        <p>And the credential: <em>never persist</em> is not a heuristic, it is a hard rule. A memory store is a durable, replicated, retrievable, model-readable artifact. Anything that goes into it should be assumed to come back out in a context window somewhere, at some point, in front of someone.</p>
+      </section>
+
+      <section id="update">
+        <h2>Update is not append</h2>
+        <p>Here is the smallest possible bug that breaks a memory system. Suppose the store contains:</p>
+<pre class="code-block">m₁  user lives in Hyderabad</pre>
+        <p>and later the user says they have moved. An append-only system now contains:</p>
+<pre class="code-block">m₁  user lives in Hyderabad
+m₂  user lives in Bangalore</pre>
+        <p>Both are semantically similar to the query &ldquo;where does the user live?&rdquo; &mdash; in fact they are nearly identical in embedding space, since they differ by one token in the same syntactic slot. Retrieval returns both. The model must now guess. It will often guess by recency-in-context or by ordering, neither of which is a fact about the world.</p>
+        <p>The fix is to stop storing facts and start storing <em>assertions with validity intervals</em>:</p>
+        <p>\[ m \;=\; \big(\text{fact},\; t_{\text{start}},\; t_{\text{end}}\big) \]</p>
+<pre class="code-block">m₁  lives_in(user, Hyderabad)   valid [2023-06-01 &rarr; 2026-08-31]
+m₂  lives_in(user, Bangalore)   valid [2026-09-01 &rarr; ∞      ]</pre>
+        <p>Now &ldquo;where does the user live&rdquo; is answerable (filter on \(t_{\text{end}} = \infty\)) and &ldquo;where did they live last year&rdquo; is also answerable, which the naive delete-and-replace design would have destroyed. This is the same insight as bitemporal modelling in databases, and it is worth being explicit that there are genuinely <em>two</em> clocks: when the fact was true in the world, and when the system learned it. They come apart constantly &mdash; a user tells you in September about a move that happened in July &mdash; and conflating them produces a memory that cannot answer &ldquo;what did we believe at the time we made that decision?&rdquo;</p>
+
+        <div class="article-panel" data-fig="fig-temporal">
+          <p class="figure-lede">Figure 9 &middot; Append, replace, or supersede</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+
+        <p>So the memory store needs a proper operation set, not just <code>insert</code>:</p>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Memory operations</caption>
+          <thead><tr><th>Operation</th><th>When</th><th>Effect on history</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">ADD</th><td>Genuinely new information</td><td>Preserved</td></tr>
+            <tr><th scope="row">UPDATE</th><td>Same assertion, corrected value or confidence</td><td>Old value retained as prior version</td></tr>
+            <tr><th scope="row">SUPERSEDE</th><td>World changed; old fact was true then</td><td>Old fact closed with <code>valid_to</code>, still queryable</td></tr>
+            <tr><th scope="row">MERGE</th><td>Two records describe one thing</td><td>Union of provenance, single surviving record</td></tr>
+            <tr><th scope="row">INVALIDATE</th><td>Old fact was never true &mdash; it was an error</td><td>Marked wrong, not merely expired</td></tr>
+            <tr><th scope="row">DELETE</th><td>User request, policy, or garbage collection</td><td>Removed &mdash; must be genuinely removable</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The distinction between SUPERSEDE and INVALIDATE matters more than it looks. &ldquo;They moved&rdquo; and &ldquo;we were wrong&rdquo; have different consequences for everything downstream that was decided using the old value. One is a change in the world; the other is a defect in the memory, and it should probably trigger a review of whatever else came from the same source.</p>
+        <p>LongMemEval is the benchmark that made this concrete for the field. It evaluates five long-term memory abilities of chat assistants &mdash; information extraction, multi-session reasoning, temporal reasoning, knowledge updates, and abstention &mdash; across 500 curated questions embedded in scalable chat histories, and reported commercial assistants and long-context models dropping around 30% in accuracy on retaining information across sustained interaction. Note that <em>knowledge updates</em> and <em>temporal reasoning</em> are two of the five: the field's own benchmark says update is not a footnote.</p>
+      </section>
+
+      <section id="forgetting">
+        <h2>Forgetting is a feature</h2>
+        <p>The default design has no deletion. Memories accumulate: \(|M_t| \to \infty\). This feels safe. It is not.</p>
+        <p>Let me give you the cleanest argument I know, because it is short and it is quantitative.</p>
+
+        <h3>The 1/&lambda;t law</h3>
+        <p>Model an append-only store. New facts arrive at rate \(a\) per unit time. Each fact stays true for an exponentially distributed duration with rate \(\lambda\) &mdash; that is, facts go stale at a constant hazard. At time \(t\), the store holds</p>
+        <p>\[ N(t) \;=\; a\,t \qquad \text{records} \]</p>
+        <p>of which the number still true is</p>
+        <p>\[ N_{\text{true}}(t) \;=\; a \int_0^t e^{-\lambda s}\,\mathrm{d}s \;=\; \frac{a}{\lambda}\Big(1 - e^{-\lambda t}\Big) \;\xrightarrow[t \to \infty]{}\; \frac{a}{\lambda}. \]</p>
+        <p>The number of true facts <em>saturates</em>. The number of records does not. So the fraction of your memory that is currently true is</p>
+        <p>\[ \boxed{\;\rho(t) \;=\; \frac{N_{\text{true}}(t)}{N(t)} \;=\; \frac{1 - e^{-\lambda t}}{\lambda t} \;\approx\; \frac{1}{\lambda t}\quad (\lambda t \gg 1)\;} \]</p>
+        <p>An append-only memory's truth density decays as \(1/t\). Not asymptotically-fine, not eventually-stable &mdash; it goes to zero. After ten fact-lifetimes, roughly one record in ten is current. After a hundred, one in a hundred. Retrieval will keep returning \(k\) items and most of them will be archaeology.</p>
+        <p>The assumptions are strong and worth naming: a constant arrival rate, a single staleness hazard for all facts, and no correlation between staleness and retrievability. Real memories have wildly heterogeneous half-lives &mdash; a person's name is effectively permanent, their current sprint is stale in two weeks &mdash; which is precisely the argument for per-fact stability estimates and expiry, rather than one global policy. The heterogeneity changes the constant; it does not change the direction.</p>
+
+        <div class="article-panel" data-fig="fig-forgetting">
+          <p class="figure-lede">Figure 10 &middot; Truth density under append-only vs. managed memory</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="forget-lambda">Staleness rate &lambda; (per 100 steps)</label>
+              <input type="range" id="forget-lambda" min="2" max="40" step="1" value="12" />
+              <output for="forget-lambda" id="forget-lambda-out">0.12</output>
+            </div>
+            <div class="lab-field">
+              <label for="forget-recall">Deletion recall (fraction of stale facts caught)</label>
+              <input type="range" id="forget-recall" min="0" max="100" step="5" value="70" />
+              <output for="forget-recall" id="forget-recall-out">70%</output>
+            </div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 9</span>
+          </div>
+        </div>
+        <p class="fig-note">Curves are computed live from the closed-form model above with the slider values; they are a model of the mechanism, not measurements from a deployed system.</p>
+
+        <h3>The second argument: precision at fixed k</h3>
+        <p>Even if nothing went stale, growth alone hurts. Retrieval returns a fixed \(k\). Suppose relevant memories score \(\mathcal{N}(\mu_r, \sigma^2)\) and irrelevant ones \(\mathcal{N}(\mu_i, \sigma^2)\) with \(\mu_r > \mu_i\). The expected number of irrelevant memories scoring above a given threshold is proportional to the store size \(n\). Hold \(k\) fixed and grow \(n\): the number of distractors competing for those \(k\) slots grows linearly, while the number of genuinely relevant items does not. Precision@k falls even with a perfect, unchanging world. Scale is itself a source of noise.</p>
+
+        <h3>So: a deletion policy</h3>
+        <p>\[ P\big(\text{delete} \mid m,\, t,\, s\big) \]</p>
+        <p>driven by age, access frequency, supersession, explicit expiry, confidence decay, redundancy against newer records, and &mdash; non-negotiably &mdash; user deletion requests. The Xiong et al. study is again the empirical anchor here: they combine selective addition with a deletion policy specifically to mitigate error propagation and misaligned experience replay, and validate the necessity under memory-size constraints. Which gives the section its slogan:</p>
+
+        <div class="boxed-claim">Bad memory is worse than no memory</div>
+
+        <p>An agent with no memory of a past incident asks. An agent with a wrong memory of it acts.</p>
+      </section>
+
+      <section id="retrieval">
+        <h2>Which memory comes back</h2>
+        <p>Now the half everyone starts with. The simplest retrieval score is cosine similarity in embedding space:</p>
+        <p>\[ s_{\text{sem}}(m, q) \;=\; \cos\!\big(e_q,\, e_m\big) \]</p>
+        <p>and it is a genuinely good signal &mdash; but it is exactly one signal, and it answers exactly one question: <em>is this memory about the same topic as the query?</em> Several other questions matter as much.</p>
+        <p>Generative Agents' retrieval function is the canonical multi-signal design: it combines <strong>relevance</strong> (embedding similarity), <strong>recency</strong> (exponential decay since last access), and <strong>importance</strong> (a model-assigned score for how significant the memory is), and ranks by their weighted sum. Generalising:</p>
+        <p>\[ S(m \mid q,\, t) \;=\; \alpha\,R_{\text{sem}} \;+\; \beta\,R_{\text{rec}} \;+\; \gamma\,R_{\text{imp}} \;+\; \delta\,R_{\text{task}} \;+\; \eta\,R_{\text{temp}} \]</p>
+
+        <h3>Why a weighted sum, of all things?</h3>
+        <p>It looks like an arbitrary engineering hack, and it is usually presented as one. It is not. Suppose you want \(P(\text{useful} \mid \text{features})\) and you are willing to treat the features as conditionally independent given usefulness. Then by Bayes,</p>
+        <p>\[ \log \frac{P(\text{useful} \mid f_1..f_k)}{P(\lnot\text{useful} \mid f_1..f_k)} \;=\; \log\frac{P(\text{useful})}{P(\lnot\text{useful})} \;+\; \sum_j \log \frac{P(f_j \mid \text{useful})}{P(f_j \mid \lnot\text{useful})} \]</p>
+        <p>&mdash; a constant plus a <em>sum of per-feature log-likelihood ratios</em>. The weighted sum is the naive-Bayes posterior log-odds, and the weights \(\alpha, \beta, \gamma, \ldots\) are calibration constants for each feature's discriminative power. That reframing is useful in three ways: it tells you the features should be roughly independent (recency and last-access-time are not, so do not include both), it tells you the right way to fit the weights is against a labelled set of &ldquo;was this memory actually useful,&rdquo; and it tells you the score is a log-odds, so it is meaningful to threshold it rather than always taking top-\(k\).</p>
+        <p>That last point is underrated. <em>Always</em> returning \(k\) memories means that when nothing relevant exists, you return \(k\) irrelevant ones. A calibrated threshold lets the system return nothing &mdash; which is the retrieval-side prerequisite for abstention, one of LongMemEval's five abilities.</p>
+
+        <div class="article-panel" data-fig="fig-ranking">
+          <p class="figure-lede">Figure 11 &middot; Retrieval scoring lab &mdash; re-rank the same eight memories</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="rank-alpha">&alpha; &mdash; semantic relevance</label>
+              <input type="range" id="rank-alpha" min="0" max="100" step="5" value="60" />
+              <output for="rank-alpha" id="rank-alpha-out">0.60</output>
+            </div>
+            <div class="lab-field">
+              <label for="rank-beta">&beta; &mdash; recency</label>
+              <input type="range" id="rank-beta" min="0" max="100" step="5" value="25" />
+              <output for="rank-beta" id="rank-beta-out">0.25</output>
+            </div>
+            <div class="lab-field">
+              <label for="rank-gamma">&gamma; &mdash; importance</label>
+              <input type="range" id="rank-gamma" min="0" max="100" step="5" value="30" />
+              <output for="rank-gamma" id="rank-gamma-out">0.30</output>
+            </div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 8</span>
+          </div>
+        </div>
+        <p class="fig-note">Feature values for the eight memories are hand-authored to illustrate how the weights trade off; the ranking is computed live from your slider settings.</p>
+
+        <h3>The query is itself a decision</h3>
+        <p>Here is a failure mode that no amount of retriever tuning fixes. The user says:</p>
+<pre class="code-block">"can we do it like last time?"</pre>
+        <p>Embed that literally and search. You will retrieve memories about the phrase <em>last time</em>. You will retrieve nothing useful, because the semantic content of the query is almost entirely absent from its surface form &mdash; it lives in the conversation state.</p>
+        <p>What the agent actually needs to ask memory is something like:</p>
+<pre class="code-block"><i>resolved memory query</i>
+<b>task</b>      deployment of service `auth-gateway`
+<b>need</b>      the procedure used for the last successful
+          deploy of this repo to the staging environment
+<b>filters</b>   entity=auth-gateway, env=staging,
+          outcome=success, type=procedural
+<b>order by</b>  recency</pre>
+        <p>So retrieval takes a preceding step:</p>
+        <p>\[ q_{\text{mem}} \;=\; f\big(q_{\text{user}},\; s_t,\; \text{goal}\big) \]</p>
+        <p>and \(f\) is not a string transformation &mdash; it is a decision the agent makes, often with a model call, using working memory to resolve references, infer the implicit entity, and choose filters. Framed properly, <strong>querying memory is an action in the agent's action space</strong>, on the same footing as calling a tool. Which means it can be planned, it can be retried with a different formulation, and it can be evaluated on its own.</p>
+        <p>This is also where hybrid retrieval earns its keep. The resolved query above has a semantic part (&ldquo;deployment procedure&rdquo;), an exact-match part (repository name), a metadata filter (environment, outcome), a temporal constraint (most recent), and potentially a graph traversal (what does this service depend on). No single index does all five. Production memory retrieval is a small query planner, not an embedding lookup.</p>
+      </section>
+
+      <section id="hierarchy">
+        <h2>The memory hierarchy</h2>
+        <p>Computer architecture solved a structurally identical problem fifty years ago, and the analogy is not decorative &mdash; it is the actual design.</p>
+        <p>A CPU has a small, fast, expensive store and a large, slow, cheap one, and the operating system creates the illusion of a large fast store by moving data between them on demand. An agent has a small, expensive context window and a large, cheap external store, and the memory system creates the illusion of a large context by moving information between them on demand.</p>
+        <p>MemGPT makes this explicit. It proposes <em>virtual context management</em>, drawing directly on hierarchical memory in operating systems, and gives the model functions to page information between a limited main context and larger external context &mdash; including a system-generated memory-pressure alert that prompts the model to write things out before the window fills. The model manages its own memory through tool calls, and control flow between model and system is mediated by interrupts. It is an operating system for a context window, and the framing has held up.</p>
+
+        <div class="article-panel" data-fig="fig-hierarchy">
+          <p class="figure-lede">Figure 12 &middot; Paging between tiers under memory pressure</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+
+        <p>The tiers, and what actually lives in each:</p>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>An agent memory hierarchy</caption>
+          <thead><tr><th>Tier</th><th>Contents</th><th>Size</th><th>Access cost</th><th>Analogue</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Current context</th><td>Instructions, tools, plan, recent turns, retrieved memories</td><td>10&sup3;&ndash;10&#8309; tokens</td><td>Free at read, paid at prefill</td><td>Registers + L1</td></tr>
+            <tr><th scope="row">Session state</th><td>Rolling summary, scratchpad, open questions</td><td>10&#8308; tokens</td><td>One string concat</td><td>RAM</td></tr>
+            <tr><th scope="row">Long-term store</th><td>Facts, episodes, skills, entity graph</td><td>10&#8310;&ndash;10&#8313; tokens</td><td>Retrieval call</td><td>SSD</td></tr>
+            <tr><th scope="row">Archive</th><td>Raw transcripts, logs, artifacts</td><td>Unbounded</td><td>Explicit search</td><td>Cold storage</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <p>Two design consequences follow from taking the analogy seriously. First, <strong>keep the archive</strong>. It is cheap, and it is the only tier from which you can re-derive the others when your extraction policy improves &mdash; the equivalent of keeping raw data so you can re-run the pipeline. Zep's design has exactly this property: the episode subgraph is a non-lossy store from which semantic entities and relations are extracted, so the extraction can be redone. Second, <strong>the eviction policy is where the intelligence is</strong>, exactly as it is in a cache. Choosing what to page out is choosing what the agent will find hard to think about next.</p>
+      </section>
+
+      <section id="construction">
+        <h2>Constructing the context</h2>
+        <p>Retrieval hands you thirty candidate memories. The budget fits eight. Selection was <a href="#allocation">&sect;4</a>. What remains is <em>layout</em> &mdash; and because utilisation depends on position, layout is not cosmetic.</p>
+
+        <h3>Ordering</h3>
+        <p>A defensible default, and the reasoning behind each choice:</p>
+<pre class="code-block"><b>1</b>  system + policy          <i>stable &rarr; prefix-cacheable, and instructions</i>
+                            <i>at the head are the best-attended region</i>
+<b>2</b>  tool definitions        <i>stable within a session</i>
+<b>3</b>  durable user/project    <i>changes rarely; safe to cache</i>
+   facts
+<b>4</b>  current goal + plan     <i>the thing everything else serves</i>
+<b>5</b>  retrieved memories      <i>clearly delimited, marked as memory</i>
+<b>6</b>  recent conversation     <i>volatile</i>
+<b>7</b>  latest tool output      <i>most volatile</i>
+<b>8</b>  current user message    <i>the other best-attended region</i></pre>
+        <p>Two forces are being balanced here and it is worth separating them, because they occasionally conflict.</p>
+        <p>The <strong>caching force</strong> says: order by volatility, most stable first. Any token before the first change is a prefix-cache hit; any token after it must be recomputed. Putting a volatile timestamp in the system prompt invalidates the entire cache on every call, which is a surprisingly common and expensive bug.</p>
+        <p>The <strong>attention force</strong> says: put what matters at the ends. Instructions at the head, the immediate request at the tail, and everything that is merely context in between. This is a direct engineering consequence of the position-effect literature: if the middle is where utilisation dips, do not put load-bearing information there.</p>
+        <p>They agree more often than they conflict, because stable things (policy) are usually also the things you want at the head. Where they conflict &mdash; a critical retrieved memory that would sit in the middle &mdash; the standard remedy is to <em>restate</em>: put the memory in its natural slot and repeat the one line that matters near the query. Restating a 15-token fact to buy better utilisation is an excellent trade.</p>
+
+        <h3>Marking provenance in the prompt</h3>
+        <p>Retrieved memories should never be spliced into the conversation as though the model said them. They should be delimited, attributed, and dated:</p>
+<pre class="code-block">&lt;memories retrieved="3" as_of="2026-09-05"&gt;
+  [user, stated 2026-08-14, confidence high]
+    prefers long-form technical writing
+  [tool-verified 2026-09-01, confidence high]
+    project-x deploys via GitHub Actions
+  [inferred 2026-08-30, confidence LOW &mdash; verify before acting]
+    the staging cluster may still be on the old runner image
+&lt;/memories&gt;</pre>
+        <p>This costs a handful of tokens per memory and buys three things. The model can weight a low-confidence inference differently from a user's direct statement. It can cite where a claim came from when the user asks. And it can notice when a memory is stale relative to the current date, which it cannot do if you strip the timestamps.</p>
+
+        <h3>Compression, and its bill</h3>
+        <p>When the candidate context exceeds the budget, \(L(C) > B\), there are four moves, in increasing order of information loss:</p>
+        <ol>
+          <li><strong>Drop.</strong> Remove low-marginal-value items. Zero distortion on what remains &mdash; you simply do not have it. Always try this first; it is the only lossless option in the sense that nothing surviving is corrupted.</li>
+          <li><strong>Extract.</strong> Replace a document with the facts from it that bear on the current task. Very high compression, distortion concentrated in what you failed to anticipate.</li>
+          <li><strong>Summarise.</strong> Rewrite a span more briefly. This is the compaction step every long-running agent needs, and it is where subtle corruption enters: a summary that says &ldquo;the tests passed&rdquo; when three passed and one was skipped is not detectably wrong from inside the context.</li>
+          <li><strong>Token-level compression.</strong> LLMLingua's approach: use a small language model to score tokens and drop the ones that carry least information, with a budget controller allocating different compression ratios to different parts of the prompt and an iterative token-level pass that accounts for interdependence between what is kept. It reports up to 20&times; compression with limited loss on its evaluation suite; LongLLMLingua extends it to long-context settings and targets position bias explicitly. The compressed prompt is often unreadable to humans while remaining usable by the model, which is a strange and instructive fact about where redundancy sits in natural language.</li>
+        </ol>
+        <p>The thing to internalise is that all four are <em>codecs with unmeasured distortion</em>. You would never ship an image pipeline without looking at the output. Compression steps in agents routinely ship without any measurement of what they destroyed. If your agent has a compaction step, it needs a test: run a set of questions answerable from the pre-compaction context and check they are still answerable after. That single test catches an enormous class of long-horizon failures where the agent &ldquo;forgets&rdquo; a constraint it was told 200 turns ago &mdash; not because the context overflowed, but because a summariser decided the constraint was not important.</p>
+      </section>
+
+      <section id="rag">
+        <h2>Memory, RAG, and weights</h2>
+        <p>Three ways to make knowledge available to a model, constantly confused with each other because two of them share infrastructure.</p>
+
+        <h3>Memory is not RAG</h3>
+        <p>They can run on the same vector database. They solve different problems.</p>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Retrieval-augmented generation vs. agent memory</caption>
+          <thead><tr><th></th><th>RAG</th><th>Agent memory</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Source of content</th><td>Pre-existing documents</td><td>The agent's own interactions and outcomes</td></tr>
+            <tr><th scope="row">Written during operation?</th><td>Usually not</td><td>Continuously</td></tr>
+            <tr><th scope="row">Corpus changes?</th><td>Slowly, out of band</td><td>Every step</td></tr>
+            <tr><th scope="row">Facts get superseded?</th><td>Rarely modelled</td><td>Required</td></tr>
+            <tr><th scope="row">Temporal reasoning</th><td>Sometimes</td><td>Critical</td></tr>
+            <tr><th scope="row">Personalisation</th><td>Not inherent</td><td>Usually the point</td></tr>
+            <tr><th scope="row">Stores failures?</th><td>No</td><td>Yes &mdash; often the most valuable records</td></tr>
+            <tr><th scope="row">Procedural content</th><td>Rare</td><td>Central</td></tr>
+            <tr><th scope="row">Forgetting</th><td>Largely irrelevant</td><td>Load-bearing</td></tr>
+            <tr><th scope="row">Feedback loop</th><td>Open &mdash; corpus is exogenous</td><td>Closed &mdash; the agent writes what it later reads</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The one-line version:</p>
+        <div class="callout callout--key">
+          <p class="callout-kicker">The distinction</p>
+          <p><strong>RAG asks:</strong> what external knowledge is relevant to this question?<br /><strong>Memory asks:</strong> what from my own history should influence what I do now?</p>
+        </div>
+        <p>The last row of the table is the one with real consequences. RAG's corpus is exogenous: it does not degrade because the retriever is bad. Memory's corpus is endogenous. A bad agent writes a bad store which makes it worse. That closed loop is the subject of the next section.</p>
+
+        <h3>Memory is not fine-tuning</h3>
+        <p>Suppose the agent discovers that a particular API requires a <code>region</code> parameter. Two ways to make that stick.</p>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Learning in weights vs. learning in context</caption>
+          <thead><tr><th></th><th>Weight update</th><th>Memory write</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Latency to effect</th><td>Hours to days</td><td>Immediate</td></tr>
+            <tr><th scope="row">Reversible?</th><td>Only by retraining or unlearning</td><td>Delete the record</td></tr>
+            <tr><th scope="row">Attributable?</th><td>No</td><td>Yes &mdash; source, time, confidence</td></tr>
+            <tr><th scope="row">Per-user?</th><td>Requires a model per user</td><td>Natural</td></tr>
+            <tr><th scope="row">Inference cost</th><td>Free &mdash; it is in \(\theta\)</td><td>Retrieval + tokens, every time</td></tr>
+            <tr><th scope="row">Generalisation</th><td>Can transfer to related cases</td><td>Only where retrieval fires</td></tr>
+            <tr><th scope="row">Auditability</th><td>Very hard</td><td>It is a row you can read</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>That last-but-one row is the honest limitation of the memory approach and it does not get said enough. A weight update generalises: the model may apply the pattern to a case that shares no surface features with the one it learned from. A memory write does not generalise at all &mdash; it applies exactly where the retriever fires and nowhere else. Reflection is the partial remedy, since a reflection is a deliberately generalised memory, but a written generalisation only covers the cases the writer thought of.</p>
+        <p>Reflexion is the cleanest existence proof that the memory route works at all: it reinforces language agents not by updating weights but through linguistic feedback, keeping reflective text in an episodic buffer to improve decisions on subsequent trials, and reports substantial improvements across sequential decision-making, coding, and reasoning tasks. Voyager's growing skill library is the procedural counterpart. Both change behaviour durably. Neither touches \(\theta\).</p>
+
+        <div class="boxed-claim">learning in weights &nbsp;vs.&nbsp; learning in context</div>
+
+        <p>They are complements, not competitors. Weight updates are how you install a capability; memory is how you install a fact, a preference, or a specific procedure. Using either for the other's job is the mistake.</p>
+      </section>
+
+      <section id="poison">
+        <h2>When memory poisons itself</h2>
+        <p>The closed loop is the reason agent memory has failure modes that document retrieval simply does not have. The agent writes what it later reads. If the write policy is not discriminating, errors do not average out &mdash; they compound.</p>
+        <p>The empirical anchor is Xiong and colleagues' study of memory management. They report that LLM agents exhibit an <strong>experience-following</strong> property: when a task input is highly similar to the input stored in a retrieved memory record, the agent's output tends to be highly similar to that record's output. This is exactly the behaviour you want when the record is good. It is exactly the behaviour that destroys you when it is not, and the paper names the two resulting challenges directly &mdash; <em>error propagation</em>, where inaccuracies in past experiences compound and degrade future performance, and <em>misaligned experience replay</em>, where seemingly correct executions provide limited or misleading value as experiences.</p>
+
+        <h3>A toy model of the compounding</h3>
+        <p>Let me make the mechanism quantitative, with the caveat stated up front: this is a <em>model of the mechanism</em>, chosen for transparency, not a fit to anyone's measurements.</p>
+        <p>Let \(\varepsilon_0\) be the agent's error rate with no memory. Let \(\phi \in [0,1]\) be the experience-following coefficient &mdash; the probability that the agent's output mirrors a retrieved record rather than being reasoned afresh. Let the write gate accept a <em>correct</em> episode with probability \(\beta\) and an <em>incorrect</em> one with probability \(\alpha\), and define the gate's leakage ratio</p>
+        <p>\[ \rho \;=\; \frac{\alpha}{\beta}. \]</p>
+        <p>\(\rho = 1\) is no gate at all &mdash; store everything. \(\rho < 1\) is a gate that filters errors better than chance. \(\rho > 1\) is an inverted gate that preferentially stores mistakes, which sounds absurd until you notice that a gate rewarding <em>confident</em> outputs is exactly that on tasks where the model is confidently wrong.</p>
+        <p>In steady state, the fraction of stored records that are wrong is</p>
+        <p>\[ w(e) \;=\; \frac{\alpha e}{\alpha e + \beta(1-e)} \;=\; \frac{\rho\,e}{\rho\,e + 1 - e}, \]</p>
+        <p>and the agent's error rate is a mixture of following memory and reasoning fresh:</p>
+        <p>\[ e \;=\; \phi\, w(e) \;+\; (1-\phi)\,\varepsilon_0. \]</p>
+        <p>Solve the fixed point. Writing \(k = \rho - 1\) and \(c = (1-\phi)\varepsilon_0\), it is a quadratic, and the relevant root is</p>
+        <p>\[ e^\star \;=\; \frac{-(1 - \phi\rho - ck) \;+\; \sqrt{(1 - \phi\rho - ck)^2 + 4kc}}{2k}, \qquad k \ne 0, \]</p>
+        <p>with \(e^\star = \varepsilon_0\) exactly at \(\rho = 1\).</p>
+        <p>Three readings fall out, and they are the whole design lesson:</p>
+        <ul>
+          <li><strong>No gate is neutral, not safe.</strong> At \(\rho = 1\) the error rate is unchanged at \(\varepsilon_0\), no matter how large \(\phi\) is. Storing everything buys you nothing on accuracy &mdash; you pay the storage and dilution cost for a wash.</li>
+          <li><strong>A discriminating gate compounds downward.</strong> With \(\varepsilon_0 = 0.15\), \(\phi = 0.9\), a gate at \(\rho = 0.25\) drives \(e^\star\) to roughly 0.02. The agent gets substantially better than its own base rate, because it is following a store that is cleaner than its own outputs.</li>
+          <li><strong>Following amplifies whatever it is fed.</strong> The same \(\phi = 0.9\) with an inverted gate at \(\rho = 4\) drives \(e^\star\) to roughly 0.89. High experience-following is not a virtue or a vice; it is a gain term. It multiplies the quality of your write policy in both directions.</li>
+        </ul>
+        <p>Which is a clean restatement of why selective addition matters more than any retrieval improvement: \(\phi\) is a property of the model you were given, and \(\rho\) is a property of the system you built.</p>
+
+        <div class="article-panel" data-fig="fig-poison">
+          <p class="figure-lede">Figure 13 &middot; Error rate at the fixed point, as a function of gate quality</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="lab-controls">
+            <div class="lab-field">
+              <label for="poison-phi">&phi; &mdash; experience-following</label>
+              <input type="range" id="poison-phi" min="0" max="100" step="5" value="80" />
+              <output for="poison-phi" id="poison-phi-out">0.80</output>
+            </div>
+            <div class="lab-field">
+              <label for="poison-eps">&epsilon;&#8320; &mdash; base error rate</label>
+              <input type="range" id="poison-eps" min="2" max="45" step="1" value="15" />
+              <output for="poison-eps" id="poison-eps-out">0.15</output>
+            </div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 9</span>
+          </div>
+        </div>
+        <p class="fig-note">Curves computed live from the fixed-point equation above. This is a transparent toy model of the compounding mechanism, chosen because every term is interpretable; it is not a reproduction of published measurements.</p>
+
+        <h3>The full catalogue</h3>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Memory failure modes</caption>
+          <thead><tr><th>Failure</th><th>Mechanism</th><th>Countermeasure</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Hallucination laundering</th><td>Model generates a claim, system stores it as a fact, later retrieval treats it as evidence</td><td>Provenance class; never store model speculation at the same confidence as user statements</td></tr>
+            <tr><th scope="row">Error propagation</th><td>A wrong solution is retrieved as precedent for a similar task</td><td>Outcome-gated writes; delete records whose episodes failed</td></tr>
+            <tr><th scope="row">Misaligned replay</th><td>A correct-looking record transfers badly to a superficially similar task</td><td>Store the conditions under which the record applies, not just the action</td></tr>
+            <tr><th scope="row">Overgeneralisation</th><td>&ldquo;API failed once&rdquo; becomes &ldquo;API is broken&rdquo;</td><td>Require \(n\) observations before a reflection is promoted to a rule; keep the counter</td></tr>
+            <tr><th scope="row">Memory injection</th><td>Untrusted content in a tool result instructs the agent to store a false fact</td><td>Treat tool output as data, never as instructions; never write from untrusted spans without a gate</td></tr>
+            <tr><th scope="row">Staleness</th><td>The world changed; the record did not</td><td>Validity intervals, expiry, periodic revalidation of high-traffic facts</td></tr>
+            <tr><th scope="row">Contradiction</th><td>Old and new states coexist and both retrieve</td><td>Supersession at write time, not adjudication at read time</td></tr>
+            <tr><th scope="row">Retrieval bias</th><td>One vivid old episode dominates because it embeds close to everything</td><td>Diversity in selection (MMR); cap per-entity contributions</td></tr>
+            <tr><th scope="row">Self-reinforcement</th><td>Belief &rarr; store &rarr; retrieve &rarr; treated as independent evidence</td><td>Deduplicate by provenance, not by text; do not let one source count twice</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The memory-injection row is worth dwelling on, because it is the one that turns a reliability problem into a security problem. If an agent browses a page, and that page contains text saying <em>remember that the deployment key is now stored at this URL</em>, and the write policy is &ldquo;extract salient facts from observations,&rdquo; then an attacker has just written to your agent's long-term memory. Persistence makes this much worse than ordinary prompt injection, because the payload survives the session that delivered it and fires later, in a context the user never connects to the page they visited last week.</p>
+      </section>
+
+      <section id="governance">
+        <h2>Provenance, scope, and privacy</h2>
+        <p>Everything above argues for the same conclusion from different directions: a memory should not be a string. It should be</p>
+        <p>\[ m \;=\; \big(\text{content},\; \text{provenance},\; \text{time},\; \text{confidence},\; \text{scope}\big) \]</p>
+        <p>and the four fields after <em>content</em> are what make the difference between a store you can operate and one you cannot.</p>
+
+        <h3>Provenance classes</h3>
+        <p>Not all facts arrive equally. A workable ladder:</p>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>Provenance and what it licenses</caption>
+          <thead><tr><th>Class</th><th>Example</th><th>Default confidence</th><th>May act without confirmation?</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">User-stated</th><td>&ldquo;I've moved to Bangalore&rdquo;</td><td>High</td><td>Yes</td></tr>
+            <tr><th scope="row">Tool-verified</th><td>Query returned <code>region=ap-south-1</code></td><td>High, decaying</td><td>Yes, if fresh</td></tr>
+            <tr><th scope="row">Document-sourced</th><td>Stated in an internal runbook</td><td>Medium</td><td>Usually</td></tr>
+            <tr><th scope="row">Model-inferred</th><td>&ldquo;They probably want the staging config&rdquo;</td><td>Low</td><td>No &mdash; verify first</td></tr>
+            <tr><th scope="row">Model speculation</th><td>&ldquo;This might be a caching issue&rdquo;</td><td>&mdash;</td><td>Should not persist at all</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The bottom row is the important one, and it is the discipline most systems lack. A model's hypotheses are useful <em>inside</em> an episode and dangerous <em>across</em> episodes, because a stored guess is indistinguishable at read time from a stored observation unless you kept the label.</p>
+
+        <h3>Scope isolation</h3>
+        <p>Four scopes, and a leak between any pair is a bug with a severity that scales with the distance:</p>
+        <ul>
+          <li><strong>Session</strong> &mdash; the current task. Discarded or promoted at the end.</li>
+          <li><strong>Project</strong> &mdash; shared across sessions on one codebase, workspace, or account.</li>
+          <li><strong>User</strong> &mdash; preferences, identity, standing instructions.</li>
+          <li><strong>Organisation</strong> &mdash; shared conventions and runbooks across users.</li>
+        </ul>
+        <p>Scope is not a metadata nicety, it is an access-control boundary and should be enforced at the retrieval layer as a hard filter, not as a ranking signal. A memory that surfaces one user's information in another user's session is not a relevance error; it is an incident. Design the retriever so that scope is applied before scoring and cannot be outranked.</p>
+
+        <h3>Deletion has to be real</h3>
+        <p>If a user asks the agent to forget something, that must mean removed from the store, removed from the vector index, removed from the graph, removed from any derived summary that quoted it, and absent from future contexts. Derived artifacts are the part teams miss: deleting the source fact while a rolling summary still contains it means the agent keeps saying the thing it was told to forget, from a copy nobody indexed. Any consolidation step needs to record which source records it drew on, precisely so that deletion can chase the derivation.</p>
+      </section>
+
+      <section id="evaluation">
+        <h2>How do you know it works?</h2>
+        <p>The naive evaluation is &ldquo;did it remember my name.&rdquo; That measures one of the easiest of the abilities that matter, and passing it tells you almost nothing.</p>
+        <p>Two benchmarks have done the useful work of enumerating what should be measured. LongMemEval defines five core long-term memory abilities for chat assistants &mdash; information extraction, multi-session reasoning, temporal reasoning, knowledge updates, and abstention &mdash; and breaks the design space into indexing, retrieval, and reading stages. MemoryAgentBench comes at it from memory science and identifies four core competencies for memory agents: accurate retrieval, test-time learning, long-range understanding, and selective forgetting. Its methodological contribution is arguably as important as its taxonomy: it converts long-context datasets into genuinely incremental multi-turn form, because real agents accumulate information over turns rather than receiving it in one block, and it reports that current methods fall short of mastering all four competencies.</p>
+        <p>The two lists overlap and disagree in instructive ways. LongMemEval cares about <em>abstention</em>; MemoryAgentBench cares about <em>selective forgetting</em>. Both are about the system's willingness to not do something, which is the capability that naive evaluation never touches.</p>
+
+        <h3>An evaluation taxonomy you can build against</h3>
+        <div class="table-scroll">
+        <table class="data-table">
+          <caption>What to measure, and what a failure means</caption>
+          <thead><tr><th>Axis</th><th>Metric</th><th>What failure looks like</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Recall</th><td>Recall@k of the memories needed to answer</td><td>The right record exists and never comes back</td></tr>
+            <tr><th scope="row">Precision</th><td>Fraction of retrieved context that was used</td><td>Budget spent on distractors</td></tr>
+            <tr><th scope="row">Temporal correctness</th><td>Accuracy on &ldquo;what is true <em>now</em>&rdquo; after an update</td><td>Confidently reports a superseded fact</td></tr>
+            <tr><th scope="row">Update</th><td>Does a later fact correctly supersede an earlier one</td><td>Both retrieve; model picks arbitrarily</td></tr>
+            <tr><th scope="row">Abstention</th><td>Rate of correct &ldquo;I don't have that&rdquo;</td><td>Confabulates from a near-miss memory</td></tr>
+            <tr><th scope="row">Selective forgetting</th><td>Deleted content stays gone, including in derived text</td><td>Fact returns via a summary</td></tr>
+            <tr><th scope="row">Task success</th><td>End-to-end outcome with memory vs. without</td><td>Memory works, task does not improve</td></tr>
+            <tr><th scope="row">Efficiency</th><td>Write latency, retrieval latency, tokens/step, cost/task</td><td>Correct but unaffordable</td></tr>
+            <tr><th scope="row">Robustness</th><td>Behaviour under contradictory, stale, adversarial, or absent memory</td><td>Degrades ungracefully or silently</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h3>The evaluation that actually matters: causality</h3>
+        <p>Suppose your agent-with-memory scores 90% and your agent-without scores 78%. Did memory cause the difference? Not necessarily &mdash; the memory-enabled configuration usually differs in more than one way, and the model may have known some answers regardless.</p>
+        <p>The fix is an ablation ladder. Run the same task set under five conditions and read the gaps between them, because each gap has a distinct interpretation:</p>
+        <ol>
+          <li><strong>No memory.</strong> The floor. Whatever the model can do from parametric knowledge plus the current turn.</li>
+          <li><strong>Random memories.</strong> Same token budget, same format, irrelevant content. The gap from (1) to (2) measures pure <em>distraction damage</em>, and it is often negative &mdash; which is the single most useful number in the ladder, because it prices the cost of a bad retrieval.</li>
+          <li><strong>Retrieved memories.</strong> Your actual system.</li>
+          <li><strong>Oracle memories.</strong> The gold set, hand-labelled, in the same format and budget. The gap from (3) to (4) is your <em>retrieval headroom</em>: how much is left on the table by the retriever, as opposed to by the writer or the reader.</li>
+          <li><strong>Full history.</strong> Everything in context, budget permitting. If (5) beats (4), your memory representation is destroying information that the raw history preserved &mdash; a write problem, not a read problem. If (4) beats (5), you have direct evidence that curation beats capacity.</li>
+        </ol>
+        <p>Decompose the total as</p>
+        <p>\[ \underbrace{A_4 - A_1}_{\text{value of the right memories}} \;=\; \underbrace{(A_3 - A_1)}_{\text{delivered lift}} \;+\; \underbrace{(A_4 - A_3)}_{\text{retrieval headroom}} \]</p>
+        <p>and separately track \(A_2 - A_1\), the distraction cost, and \(A_5 - A_4\), the compression loss. Four numbers, four different teams' worth of work localised.</p>
+
+        <div class="article-panel" data-fig="fig-ablation">
+          <p class="figure-lede">Figure 14 &middot; The ablation ladder &mdash; localising where the lift comes from</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 8</span>
+          </div>
+        </div>
+        <p class="fig-note">Bar heights are an illustrative pattern showing how the five conditions relate and what each gap localises. They are not measurements; the point is the shape of the decomposition, and your own numbers will differ.</p>
+
+        <p>One more control worth running, because it is cheap and it catches a whole class of self-deception: <strong>did the model actually use the retrieved memory, or did it already know?</strong> Take the questions your system answers correctly with memory, and re-ask them with memory removed but everything else identical. The ones it still gets right were never memory wins.</p>
+      </section>
+
+      <section id="architecture">
+        <h2>The whole machine</h2>
+        <p>Assembling everything into one picture. Nothing here is new at this point &mdash; every box has been argued for &mdash; but seeing the data flow end to end makes the dependencies concrete, and in particular makes clear how few of the boxes a vector database occupies.</p>
+
+        <div class="article-panel" data-fig="fig-architecture">
+          <p class="figure-lede">Figure 15 &middot; A complete agent memory architecture, assembled</p>
+          <div class="animation-stage" aria-live="polite">
+            <div class="fig-svg"></div>
+            <div class="stage-caption"></div>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+        </div>
+
+        <p>If you were building this from nothing, a defensible order of construction &mdash; each step earning its complexity from a failure you have actually observed &mdash; would be:</p>
+        <ol>
+          <li>Keep the raw transcript archive. Cheap, and everything else can be re-derived from it.</li>
+          <li>Add session-level compaction with an explicit test that post-compaction context still answers pre-compaction questions.</li>
+          <li>Add fact extraction with provenance, timestamps, and scope. Store structured records, not strings.</li>
+          <li>Add supersession. The moment you have two facts about one slot, you need validity intervals.</li>
+          <li>Add outcome-gated writes. This is the highest-leverage single change, per the memory-management literature.</li>
+          <li>Add multi-signal retrieval with a calibrated threshold, so the system can return nothing.</li>
+          <li>Add deletion and expiry, driven by supersession, age, and access.</li>
+          <li>Add consolidation and reflection &mdash; episodes into rules, rules into procedures.</li>
+          <li>Add a graph layer only when you have a concrete multi-hop relational query that your fact table cannot answer.</li>
+        </ol>
+        <p>Most systems that struggle have done step 9 and skipped steps 3 through 7.</p>
+      </section>
+
+      <section id="open">
+        <h2>What is still open</h2>
+        <p>It would be dishonest to end a first-principles article with a solved problem. Several of the load-bearing questions here are genuinely unsettled, and I would rather name them than paper over them.</p>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open &mdash; the write objective</p>
+          <p>There is no principled solution to \(V(m)\) from <a href="#write">&sect;9</a>, because it requires a distribution over future queries that nobody has. Every deployed write policy is a hand-built heuristic or a model asked to guess. Whether this can be <em>learned</em> &mdash; from downstream task outcomes, closing the loop between write decisions and eventual utility &mdash; is an active question and, in my view, the most valuable open problem in this space.</p>
+        </div>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open &mdash; does the taxonomy carve at the joints?</p>
+          <p>Episodic / semantic / procedural / reflective is borrowed vocabulary that happens to be useful. There is no evidence that these are the natural categories <em>for an artificial agent</em>, as opposed to the natural categories for describing human memory. A decomposition by write trigger, expected lifetime, or scope might serve better.</p>
+        </div>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open &mdash; graph vs. vector</p>
+          <p>Graph memory has clear theoretical advantages for relational and temporal queries. Whether those advantages survive the extraction step's error rate, at what corpus size they start paying for their write cost, and how much of the reported gain is attributable to the graph rather than to the better-structured extraction pipeline that accompanies it &mdash; all of this is under-determined by the current evidence, most of which comes from system authors evaluating their own designs on benchmarks they selected.</p>
+        </div>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open &mdash; how far does in-context learning go?</p>
+          <p>Voyager and Reflexion demonstrate durable behavioural improvement with frozen weights. Nobody knows the ceiling. Are there capabilities that <em>cannot</em> be installed by any amount of external memory, and if so, what characterises them? The intuition is that memory installs facts and procedures while weights install representations, but that is a conjecture with a fuzzy boundary, not a result.</p>
+        </div>
+
+        <div class="callout callout--open">
+          <p class="callout-kicker">Open &mdash; measurement</p>
+          <p>The benchmarks are two years old and already disagree about what the core competencies are. Almost all of them evaluate conversational memory; very little evaluates procedural memory, which is arguably the category that matters most for agents doing real work. Nobody has a good benchmark for &ldquo;did the agent get better at this repository over six months.&rdquo;</p>
+        </div>
+
+        <h3>The two sentences</h3>
+        <p>If the article compresses to anything, it compresses to this.</p>
+        <div class="boxed-claim">Good agent memory &nbsp;&ne;&nbsp; store everything</div>
+        <div class="boxed-claim">remember selectively &middot; organise &middot; update &middot; forget<br />retrieve appropriately &middot; construct the right context</div>
+        <p>The context window is a channel with a fixed width and a non-uniform response. The history is unbounded. Everything interesting is the codec in between &mdash; and the hardest part of the codec is not the decoder that fetches, but the encoder that decides, without knowing what will be asked, what is worth keeping.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Foundational agent memory architectures</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.03442" target="_blank" rel="noopener noreferrer">Generative Agents: Interactive Simulacra of Human Behavior</a> &middot; Park, O'Brien, Cai, Morris, Liang, Bernstein, 2023 &mdash; memory stream, retrieval by relevance / recency / importance, and periodic reflection.</li>
+            <li><a href="https://arxiv.org/abs/2303.11366" target="_blank" rel="noopener noreferrer">Reflexion: Language Agents with Verbal Reinforcement Learning</a> &middot; Shinn, Cassano, Berman, Gopinath, Narasimhan, Yao, 2023 &mdash; reinforcement through linguistic feedback held in an episodic buffer, with no weight updates.</li>
+            <li><a href="https://arxiv.org/abs/2305.16291" target="_blank" rel="noopener noreferrer">Voyager: An Open-Ended Embodied Agent with Large Language Models</a> &middot; Wang, Xie, Jiang, Mandlekar, Xiao, Zhu, Fan, Anandkumar, 2023 &mdash; procedural memory as an ever-growing library of executable skills.</li>
+            <li><a href="https://arxiv.org/abs/2310.08560" target="_blank" rel="noopener noreferrer">MemGPT: Towards LLMs as Operating Systems</a> &middot; Packer, Wooders, Lin, Fang, Patil, Stoica, Gonzalez, 2023 &mdash; virtual context management and a hierarchical memory analogous to OS memory tiers.</li>
+            <li><a href="https://arxiv.org/abs/2309.02427" target="_blank" rel="noopener noreferrer">Cognitive Architectures for Language Agents</a> &middot; Sumers, Yao, Narasimhan, Griffiths, 2023 &mdash; the framework that maps working / episodic / semantic / procedural memory onto language agents.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Memory systems and representations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2502.12110" target="_blank" rel="noopener noreferrer">A-MEM: Agentic Memory for LLM Agents</a> &middot; Xu, Liang, Mei, Gao, Tan, Zhang, 2025 &mdash; Zettelkasten-inspired notes with dynamic linking and evolving memory representations.</li>
+            <li><a href="https://arxiv.org/abs/2501.13956" target="_blank" rel="noopener noreferrer">Zep: A Temporal Knowledge Graph Architecture for Agent Memory</a> &middot; Rasmussen, Paliychuk, Beauvais, Ryan, Chalef, 2025 &mdash; Graphiti's episode / semantic-entity / community subgraphs with temporal edge validity.</li>
+            <li><a href="https://arxiv.org/abs/2504.19413" target="_blank" rel="noopener noreferrer">Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory</a> &middot; Chhikara, Khant, Aryan, Singh, Yadav, 2025 &mdash; extraction, consolidation, and retrieval as a practical memory layer, including a graph variant.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Memory management and its failure modes</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2505.16067" target="_blank" rel="noopener noreferrer">How Memory Management Impacts LLM Agents: An Empirical Study of Experience-Following Behavior</a> &middot; Xiong, Lin, Xie, He, Liu, Tang, Lakkaraju, Xiang, 2025 &mdash; experience-following, error propagation, misaligned experience replay, and the case for selective addition plus combined deletion.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Evaluating memory</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2410.10813" target="_blank" rel="noopener noreferrer">LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory</a> &middot; Wu, Wang, Yu, Zhang, Chang, Yu, 2024 &mdash; information extraction, multi-session reasoning, temporal reasoning, knowledge updates, and abstention.</li>
+            <li><a href="https://arxiv.org/abs/2507.05257" target="_blank" rel="noopener noreferrer">Evaluating Memory in LLM Agents via Incremental Multi-Turn Interactions (MemoryAgentBench)</a> &middot; Hu, Wang, McAuley, 2025 &mdash; accurate retrieval, test-time learning, long-range understanding, and selective forgetting, evaluated incrementally.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Context length, position, and compression</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener noreferrer">Lost in the Middle: How Language Models Use Long Contexts</a> &middot; Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, Liang, 2023 (TACL 2024) &mdash; position-dependent utilisation in long contexts.</li>
+            <li><a href="https://arxiv.org/abs/2310.05736" target="_blank" rel="noopener noreferrer">LLMLingua: Compressing Prompts for Accelerated Inference of Large Language Models</a> &middot; Jiang, Wu, Lin, Yang, Qiu, 2023 &mdash; budget controller, iterative token-level compression, distribution alignment.</li>
+            <li><a href="https://arxiv.org/abs/2310.06839" target="_blank" rel="noopener noreferrer">LongLLMLingua: Accelerating and Enhancing LLMs in Long Context Scenarios via Prompt Compression</a> &middot; Jiang, Wu, Luo, Li, Lin, Yang, Qiu, 2023 &mdash; compression targeting cost, position bias, and key-information density together.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Practitioner guidance</h3>
+          <ul>
+            <li><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" target="_blank" rel="noopener noreferrer">Effective context engineering for AI agents</a> &middot; Anthropic, 2025 &mdash; context as a finite attention budget; curating tokens rather than writing prompts.</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Companion articles on this site</h3>
+          <ul>
+            <li><a href="../teaching-llms-to-use-tools/">Teaching LLMs to Use Tools</a> &mdash; the agent loop, what a tool call actually is, and the compounding-failure arithmetic that motivates procedural memory.</li>
+            <li><a href="../serving-playbook/">The Serving Playbook</a> &mdash; prefix caching, prefill cost, and why context ordering has a bill attached.</li>
+            <li><a href="../attention-from-first-principles/">Attention, From First Principles</a> &mdash; where the quadratic term in &sect;5 comes from.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>What Should an Agent Remember? Memory and Context Engineering for LLM Agents</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/">https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026agentmemory,
+  author       = {Srinivasan, Anirudh},
+  title        = {What Should an Agent Remember? Memory and Context Engineering for LLM Agents},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/what-should-an-agent-remember/},
+  note         = {Published September 5, 2026; updated September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; What Should an Agent Remember?</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script src="figures.js"></script>
+    <script src="figures2.js"></script>
+    <script src="figures3.js"></script>
+  </body>
+</html>

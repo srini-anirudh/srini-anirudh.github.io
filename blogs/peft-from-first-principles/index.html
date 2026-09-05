@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/peft-from-first-principles/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Fine-Tuning Without Updating Everything — PEFT From First Principles" />
+    <meta property="og:description" content="A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/peft-from-first-principles/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/peft-from-first-principles/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fine-Tuning Without Updating Everything — PEFT From First Principles" />
+    <meta name="twitter:description" content="A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/peft-from-first-principles/preview.png" />
+    <title>Fine-Tuning Without Updating Everything — PEFT From First Principles | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/peft-from-first-principles/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/peft-from-first-principles/" },
+        "headline": "Fine-Tuning Without Updating Everything — PEFT From First Principles",
+        "description": "A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them.",
+        "image": "https://srini-anirudh.github.io/blogs/peft-from-first-principles/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["Parameter-efficient fine-tuning", "LoRA", "QLoRA", "DoRA", "Low-rank adaptation", "Quantization", "Adapters", "Vision-language models"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---- article-specific additions ---- */
+      .article-content a { color: var(--ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+      .lede { font-size: 21px; line-height: 1.6; }
+      .lede::first-letter { float: left; margin: 6px 10px 0 0; font: 800 62px/0.72 var(--display); }
+
+      .panel-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin: -4px 0 14px; }
+      .panel-head h4 { margin: 0; color: #f4f8fa; font: 700 15px/1.2 var(--display); letter-spacing: -0.01em; }
+      .panel-head span { color: #7f8c95; font: 10.5px/1.4 var(--mono); letter-spacing: 0.13em; text-transform: uppercase; }
+      .animation-stage { min-height: 40px; }
+      .animation-stage svg { display: block; width: 100%; height: auto; min-width: 480px; }
+      .figcap { margin: 10px 0 30px; color: var(--muted); font: 14px/1.55 var(--mono); }
+      .figcap b { color: var(--ink-soft); font-weight: 600; }
+
+      .eq { margin: 24px 0; padding: 0 4px; overflow-x: auto; text-align: center; font-size: 20px; line-height: 1.9; }
+      .eq .v { font-style: italic; }
+      .eq .op { padding: 0 0.28em; }
+      .eq .note { display: block; margin-top: 6px; color: var(--muted); font: 12px/1.5 var(--mono); }
+      .frac { display: inline-block; margin: 0 0.18em; vertical-align: -0.55em; text-align: center; }
+      .frac > span { display: block; padding: 0 5px; }
+      .frac > span:first-child { border-bottom: 1px solid currentColor; }
+      .sm { font-size: 0.78em; }
+
+      .callout { margin: 28px 0; padding: 18px 20px; background: var(--paper-bright); border-left: 3px solid var(--ink); }
+      .callout h4 { margin: 0 0 8px; color: var(--muted); font: 600 11px/1.3 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .callout p:last-child { margin-bottom: 0; }
+      .callout--open { border-left-color: #b4762c; }
+      .callout--intuition { border-left-color: #1f7a5c; }
+
+      .tablewrap { margin: 26px 0; overflow-x: auto; }
+      table.data { width: 100%; border-collapse: collapse; font: 14px/1.5 var(--mono); }
+      table.data caption { margin-bottom: 8px; color: var(--muted); font: 12px/1.5 var(--mono); text-align: left; }
+      table.data th, table.data td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--rule); }
+      table.data th:first-child, table.data td:first-child { text-align: left; }
+      table.data thead th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--ink-soft); }
+      table.data tbody tr.hi td { background: rgba(31, 122, 92, 0.09); font-weight: 600; }
+
+      .article-content ul.plain { margin: 0 0 20px; padding-left: 1.15em; }
+      .article-content ul.plain li { margin: 0 0 9px; }
+      .article-content ol.plain { margin: 0 0 20px; padding-left: 1.35em; }
+      .article-content ol.plain li { margin: 0 0 9px; }
+      code.inline { padding: 1px 4px; background: rgba(20, 23, 26, 0.06); font: 0.86em var(--mono); }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .animation-status { width: 100%; margin-left: 0; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article peft-from-first-principles-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide &middot; Adaptation</p>
+        <h1 class="article-title">Fine-Tuning Without Updating Everything</h1>
+        <p class="article-subtitle">Parameter-efficient fine-tuning from first principles: what the adaptation delta really is, why a rank-8 matrix can stand in for 175 billion numbers, and where that story quietly breaks.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>LoRA</span><span>QLoRA</span><span>DoRA</span><span>Quantization</span><span>Adapters</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>46 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-ledger">The ledger nobody reads</a></li>
+          <li><a href="#the-delta">Fine-tuning is learning a delta</a></li>
+          <li><a href="#low-dimensional">Why the delta might be small</a></li>
+          <li><a href="#rank">Rank, from first principles</a></li>
+          <li><a href="#lora">LoRA</a></li>
+          <li><a href="#alpha">Scaling, initialization, and the &alpha;/r question</a></li>
+          <li><a href="#which-matrices">Which matrices, and how much rank each</a></li>
+          <li><a href="#merging">Merging, swapping, serving</a></li>
+          <li><a href="#qlora">QLoRA: training through a compressed model</a></li>
+          <li><a href="#dora">DoRA: magnitude and direction</a></li>
+          <li><a href="#family">The wider family</a></li>
+          <li><a href="#tradeoff">PEFT versus full fine-tuning</a></li>
+          <li><a href="#vlms">PEFT in vision-language models</a></li>
+          <li><a href="#when-not">When not to use LoRA</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-ledger">
+        <h2>The ledger nobody reads</h2>
+        <p class="lede">Every conversation about parameter-efficient fine-tuning starts in the wrong place. It starts with "LoRA is cheaper." That is true but it explains nothing, because it does not say <em>which</em> cost went away, and until you know that, you cannot predict when the trick will fail. So before any low-rank matrices, here is the accounting.</p>
+
+        <p>Take a 7B-parameter model and fine-tune it the usual way: bf16 weights, AdamW, mixed precision. Count the bytes per parameter that have to live in GPU memory simultaneously.</p>
+
+        <ul class="plain">
+          <li><b>Weights</b> — 2 bytes (bf16).</li>
+          <li><b>Gradients</b> — 2 bytes, one per weight, produced by the backward pass.</li>
+          <li><b>Master weights</b> — 4 bytes, an fp32 copy so that tiny updates are not annihilated by bf16's ~8 bits of mantissa.</li>
+          <li><b>Adam first moment <span class="v">m</span></b> — 4 bytes.</li>
+          <li><b>Adam second moment <span class="v">v</span></b> — 4 bytes.</li>
+        </ul>
+
+        <p>Sixteen bytes per parameter. For 7B that is 112&nbsp;GB before a single activation is stored, before any parallelism overhead, before the KV of a long sequence. An 80&nbsp;GB H100 cannot hold it. The model itself — the thing you actually care about — is 14 of those 112 gigabytes. <strong>Seven-eighths of the memory is scaffolding for the optimizer.</strong></p>
+
+        <p>That ratio is the whole story. Full fine-tuning is expensive not because models are big, but because the machinery of <em>changing</em> a number is roughly seven times heavier than the number itself. If you could arrange for the vast majority of parameters to never change, all seven-eighths would evaporate and you would be left carrying the model as dead weight — read-only, cheap, shardable.</p>
+
+        <p>There is a second ledger, and in production it hurts more. A fine-tuned model is a full copy. Hosting fifty customer-specific variants of a 70B model means fifty times 140&nbsp;GB of checkpoints, fifty cold starts, fifty things to version. The LoRA paper opens with exactly this complaint about GPT-3: <cite>deploying independent instances of fine-tuned models, each with 175B parameters, is prohibitively expensive.</cite> The storage bill, not the training bill, is what made the problem urgent.</p>
+
+        <div class="article-panel" role="group" aria-label="Animated memory ledger comparing full fine-tuning, LoRA and QLoRA for a 7-billion-parameter model">
+          <div class="panel-head"><h4>Where the memory actually goes</h4><span>Figure 1 &middot; 7B model, AdamW</span></div>
+          <div class="animation-stage" data-fig="ledger" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the memory ledger figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 1.</b> The optimizer-state stack for a 7B model, built up byte by byte, then dismantled by freezing and by quantization. Bar heights are exact arithmetic from bytes-per-parameter; activation memory is shown as a representative band because it depends on batch, sequence length and recomputation policy, not on the method. The final column is the QLoRA regime and is previewed here; it is derived in <a href="#qlora">&sect;&thinsp;QLoRA</a>.</p>
+
+        <p>If you want the full picture of what a training step is spending — the activation stashes, the recomputation trade, the all-reduce — that is the subject of <a href="../inside-a-training-step/">Inside a Training Step</a> and <a href="../parallelism-playbook/">The Parallelism Playbook</a>. This article is about the one lever those posts do not pull: making almost every parameter read-only.</p>
+      </section>
+
+      <section id="the-delta">
+        <h2>Fine-tuning is learning a delta</h2>
+
+        <p>Write down what fine-tuning does to a single weight matrix. You start from a pretrained <span class="v">W</span> and you end somewhere else:</p>
+
+        <div class="eq"><span class="v">W</span>&thinsp;&prime; <span class="op">=</span> <span class="v">W</span> <span class="op">+</span> &Delta;<span class="v">W</span><span class="note">the entire content of fine-tuning, for one layer</span></div>
+
+        <p>This is not a modelling assumption. It is a tautology — any final weight matrix can be written as the initial one plus a difference. But writing it this way changes what question you ask. Instead of "what should the weights be," you ask "what is the <em>change</em> made of."</p>
+
+        <p>For a <span class="v">d</span><sub>out</sub>&nbsp;&times;&nbsp;<span class="v">d</span><sub>in</sub> matrix, full fine-tuning lets &Delta;<span class="v">W</span> be an arbitrary element of <span class="sm">&#8477;</span><sup><span class="v">d</span><sub>out</sub>&times;<span class="v">d</span><sub>in</sub></sup>. It has as many degrees of freedom as the weight matrix itself. Every parameter-efficient method is an answer to one question:</p>
+
+        <div class="callout">
+          <h4>The question</h4>
+          <p>What structure can we impose on &Delta;<span class="v">W</span> such that (a) it is describable by far fewer than <span class="v">d</span><sub>out</sub><span class="v">d</span><sub>in</sub> numbers, and (b) the restricted family still contains a &Delta;<span class="v">W</span> good enough for the task?</p>
+        </div>
+
+        <p>Different answers give different methods. &Delta;<span class="v">W</span> is <em>sparse</em> gives diff-pruning and BitFit. &Delta;<span class="v">W</span> is <em>diagonal</em>, or a rescaling of activations, gives IA³. &Delta;<span class="v">W</span> is <em>low-rank</em> gives LoRA. Some methods do not touch <span class="v">W</span> at all and instead change what flows through it — that is prompt and prefix tuning, which we will fold into the same picture later.</p>
+
+        <h3>An analogy that survives contact with the math</h3>
+
+        <p>Imagine a spreadsheet of salaries: one row per employee, one column per pay component. Suppose the company gives everyone a raise. The naive way to record it is a second spreadsheet of the same size — every cell gets its own number. That is full fine-tuning.</p>
+
+        <p>But most real raises are not arbitrary. A common one is "each department gets a multiplier, each pay component gets a weight, and the raise in a cell is the product." That is a <em>rank-one</em> change: instead of <span class="v">d</span><sub>out</sub>&nbsp;&times;&nbsp;<span class="v">d</span><sub>in</sub> numbers you store <span class="v">d</span><sub>out</sub>&nbsp;+&nbsp;<span class="v">d</span><sub>in</sub>. Allow <span class="v">r</span> such patterns superimposed and you have a rank-<span class="v">r</span> change: <span class="v">r</span>(<span class="v">d</span><sub>out</sub>&nbsp;+&nbsp;<span class="v">d</span><sub>in</sub>) numbers.</p>
+
+        <p>The compression is not free — the family of rank-<span class="v">r</span> changes is a thin sliver of all possible changes. The bet is that whatever "adapting to a task" means, it looks more like a handful of superimposed patterns than like arbitrary noise. That bet needs evidence, so let us go find some.</p>
+      </section>
+
+      <section id="low-dimensional">
+        <h2>Why the delta might be small</h2>
+
+        <p>Two results from before LoRA existed set up the whole argument.</p>
+
+        <p><a href="https://arxiv.org/abs/1804.08838" target="_blank" rel="noopener noreferrer">Li et al. (2018)</a> asked how many <em>effective</em> dimensions an optimization problem has. They took a network with <span class="v">D</span> parameters and refused to train it in <span class="sm">&#8477;</span><sup><span class="v">D</span></sup>. Instead they fixed a random projection <span class="v">P</span> from a small space <span class="sm">&#8477;</span><sup><span class="v">d</span></sup> into <span class="sm">&#8477;</span><sup><span class="v">D</span></sup> and trained only <span class="v">z</span>:</p>
+
+        <div class="eq">&theta; <span class="op">=</span> &theta;<sub>0</sub> <span class="op">+</span> <span class="v">P</span><span class="v">z</span>,<span class="op">&nbsp;</span> <span class="v">z</span> &isin; <span class="sm">&#8477;</span><sup><span class="v">d</span></sup>, <span class="op">&nbsp;</span><span class="v">d</span> &#8810; <span class="v">D</span><span class="note">the "intrinsic dimension" probe: sweep d upward until performance saturates</span></div>
+
+        <p>The smallest <span class="v">d</span> that reaches, say, 90% of full-training performance is the <em>intrinsic dimension</em> of the objective. It was consistently far smaller than <span class="v">D</span>.</p>
+
+        <p><a href="https://arxiv.org/abs/2012.13255" target="_blank" rel="noopener noreferrer">Aghajanyan, Zettlemoyer and Gupta (2020)</a> ran that probe on pretrained language models and got a striking number: <cite>by optimizing only 200 trainable parameters randomly projected back into the full space, we can tune a RoBERTa model to achieve 90% of the full parameter model performance</cite> on MRPC. Two hundred numbers. They also found that intrinsic dimension <em>shrinks</em> with better and longer pretraining — a larger, better-trained model is easier to steer, not harder.</p>
+
+        <p>The interpretation matters and it is easy to overstate. This is not evidence that the fine-tuning solution is simple. It is evidence that the <em>set of acceptable solutions</em> is large and sprawling enough that a random low-dimensional slice through weight space intersects it. Pretraining does not leave the model at a needle-point optimum; it leaves it inside a broad basin whose floor is wide in most directions. Fine-tuning is a short walk across that floor, not a climb to a new peak.</p>
+
+        <div class="callout callout--intuition">
+          <h4>Intuition</h4>
+          <p>A pretrained model is not a locked machine that must be rebuilt. It is a machine with a very large number of latent behaviours already wired in, most of them suppressed. Fine-tuning mostly re-weights which of them fire. That is why a handful of directions is enough to move it, and it is also why PEFT struggles precisely when the target behaviour is <em>not</em> already latent — a point we return to in <a href="#tradeoff">&sect;&thinsp;PEFT versus full fine-tuning</a>.</p>
+        </div>
+
+        <p>LoRA takes one further step, and it is a step of faith rather than of proof. Low intrinsic dimension says &Delta;<span class="v">W</span> lives near <em>some</em> low-dimensional manifold. LoRA asserts that a good choice of manifold is <em>low matrix rank</em>, per weight matrix. The paper is candid that this is a hypothesis: <cite>we hypothesize the updates to the weights also have a low intrinsic rank during adaptation.</cite></p>
+
+        <div class="callout callout--open">
+          <h4>Left open</h4>
+          <p>Whether adaptation is "really" low-rank is contested, and the evidence points both ways. The LoRA paper found rank&nbsp;1 sufficient on some GPT-3 tasks. <a href="https://arxiv.org/abs/2405.09673" target="_blank" rel="noopener noreferrer">Biderman et al. (2024)</a> found that full fine-tuning learns perturbations with rank 10–100&times; larger than typical LoRA configurations. <a href="https://arxiv.org/abs/2312.03732" target="_blank" rel="noopener noreferrer">Kalajdzievski (2023)</a> argues that part of the apparent sufficiency of tiny ranks is an artefact of LoRA's own &alpha;/<span class="v">r</span> scaling, which throttles learning as rank grows. All three can be true at once: easy tasks are genuinely low-rank, hard tasks are not, and the default scaling hides the difference. This article will not resolve it, and you should be suspicious of anyone who claims to.</p>
+        </div>
+      </section>
+
+      <section id="rank">
+        <h2>Rank, from first principles</h2>
+
+        <p>Rank gets taught as "the number of linearly independent rows," which is correct and useless. Here is the version that makes LoRA obvious.</p>
+
+        <p>A matrix <span class="v">M</span> &isin; <span class="sm">&#8477;</span><sup><span class="v">m</span>&times;<span class="v">n</span></sup> is a map from <span class="sm">&#8477;</span><sup><span class="v">n</span></sup> to <span class="sm">&#8477;</span><sup><span class="v">m</span></sup>. Its rank is the dimension of the image: how many independent directions the output can actually occupy, no matter what you feed in. A rank-<span class="v">r</span> matrix, whatever its shape, only ever produces outputs inside an <span class="v">r</span>-dimensional subspace, and it only ever <em>looks at</em> an <span class="v">r</span>-dimensional subspace of its input. Everything else it annihilates.</p>
+
+        <p>Every rank-<span class="v">r</span> matrix factors through <span class="sm">&#8477;</span><sup><span class="v">r</span></sup>. That is the entire content of the LoRA parameterization:</p>
+
+        <div class="eq">&Delta;<span class="v">W</span> <span class="op">=</span> <span class="v">B</span><span class="v">A</span>,<span class="op">&nbsp;</span> <span class="v">A</span> &isin; <span class="sm">&#8477;</span><sup><span class="v">r</span>&times;<span class="v">d</span><sub class="sm">in</sub></sup>, <span class="op">&nbsp;</span><span class="v">B</span> &isin; <span class="sm">&#8477;</span><sup><span class="v">d</span><sub class="sm">out</sub>&times;<span class="v">r</span></sup><span class="note">A reads r numbers out of the input; B writes them into the output</span></div>
+
+        <p>Read the factorization as a two-step protocol. <span class="v">A</span><span class="v">x</span> asks <span class="v">r</span> questions about the input — "how much of pattern 1 is present, how much of pattern 2" — and discards everything else. <span class="v">B</span> takes those <span class="v">r</span> answers and adds a corresponding mixture of <span class="v">r</span> output patterns to the residual stream. The rank is literally the number of wires in a bottleneck soldered in parallel to a frozen circuit.</p>
+
+        <h3>The parameter arithmetic</h3>
+
+        <div class="eq">params(&Delta;<span class="v">W</span>) <span class="op">=</span> <span class="v">r</span>(<span class="v">d</span><sub class="sm">out</sub> <span class="op">+</span> <span class="v">d</span><sub class="sm">in</sub>) <span class="op">&nbsp;vs&nbsp;</span> <span class="v">d</span><sub class="sm">out</sub><span class="v">d</span><sub class="sm">in</sub></div>
+
+        <p>For a square <span class="v">d</span>&nbsp;&times;&nbsp;<span class="v">d</span> matrix the ratio is 2<span class="v">r</span>/<span class="v">d</span>. With <span class="v">d</span>&nbsp;=&nbsp;4096 and <span class="v">r</span>&nbsp;=&nbsp;8 that is 0.39%. The break-even point — where a low-rank factorization stops saving anything — is <span class="v">r</span>&nbsp;=&nbsp;<span class="v">d</span>/2. If you find yourself reaching for rank 2048 on a 4096-wide model, you have not chosen a cheap method; you have chosen an expensive one with extra steps.</p>
+
+        <h3>Which rank-<span class="v">r</span> matrix is best?</h3>
+
+        <p>There is a clean answer for approximating a matrix you already have. Write the singular value decomposition <span class="v">M</span>&nbsp;=&nbsp;<span class="v">U</span>&Sigma;<span class="v">V</span><sup>&#8868;</sup>, with singular values &sigma;<sub>1</sub>&nbsp;&ge;&nbsp;&sigma;<sub>2</sub>&nbsp;&ge;&nbsp;&hellip; The Eckart–Young theorem says the best rank-<span class="v">r</span> approximation in Frobenius norm is the truncation that keeps the top <span class="v">r</span> singular triplets, and the error it leaves behind is exactly the tail of the spectrum:</p>
+
+        <div class="eq">&#8214;<span class="v">M</span> <span class="op">&minus;</span> <span class="v">M</span><sub class="sm">r</sub>&#8214;<sub class="sm">F</sub> <span class="op">=</span> <span style="font-size:1.35em; vertical-align:-0.12em">&radic;</span><span style="border-top:1px solid currentColor; padding:0 3px">&sum;<sub class="sm">i&gt;r</sub> &sigma;<sub class="sm">i</sub><sup class="sm">2</sup></span><span class="note">how well a matrix compresses is written in its singular value spectrum</span></div>
+
+        <p>So "is this matrix low-rank?" is really "does its spectrum decay fast?" A spectrum that plunges means a handful of patterns carry everything. A flat spectrum means every direction matters equally and no truncation is safe. Figure 2 makes this tangible: watch the reconstruction and the spectrum at the same time and you will never again need to be told what rank means.</p>
+
+        <div class="article-panel" role="group" aria-label="Animated low-rank reconstruction of a matrix alongside its singular value spectrum">
+          <div class="panel-head"><h4>Rank-<span class="v">r</span> truncation, and the spectrum that predicts it</h4><span>Figure 2 &middot; interactive</span></div>
+          <div class="animation-stage" data-fig="svd" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the rank truncation figure">
+            <button type="button" data-action="previous" aria-label="Decrease rank by one">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Increase rank by one">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <button type="button" data-mode="fast" aria-label="Show a fast-decaying spectrum" aria-pressed="true">Fast decay</button>
+            <button type="button" data-mode="slow" aria-label="Show a slow-decaying spectrum" aria-pressed="false">Slow decay</button>
+            <span class="animation-status">Rank 01 / 24</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 2.</b> A 24&times;24 matrix rebuilt one singular triplet at a time. Left: the running rank-<span class="v">r</span> reconstruction. Centre: the residual, on the same colour scale. Right: the spectrum, with kept components lit and the discarded tail dimmed; the number under it is the exact Eckart–Young error. Toggle <em>Slow decay</em> to see a matrix that refuses to compress — the residual stays loud until <span class="v">r</span> is nearly full. The matrices are synthetic, generated in-page from a fixed seed so the arithmetic is exact rather than illustrative.</p>
+
+        <p>Two lessons carry forward. First, rank is a property of the <em>spectrum</em>, not of the size — a 4096&times;4096 matrix can be rank 3. Second, and this is the part people skip: LoRA does not truncate a &Delta;<span class="v">W</span> it already has. It never computes the full update. It constrains the search to the rank-<span class="v">r</span> manifold from step one and lets gradient descent find the best point on it. Those are different problems, and the second has no Eckart–Young guarantee attached. Whether SGD on the factored form finds the optimal rank-<span class="v">r</span> update is an empirical question, not a theorem.</p>
+      </section>
+
+      <section id="lora">
+        <h2>LoRA</h2>
+
+        <p>The method is three lines. Freeze <span class="v">W</span>. Add a parallel low-rank branch. Scale it.</p>
+
+        <div class="eq"><span class="v">h</span> <span class="op">=</span> <span class="v">W</span><span class="v">x</span> <span class="op">+</span> <span class="frac"><span>&alpha;</span><span><span class="v">r</span></span></span> <span class="v">B</span><span class="v">A</span><span class="v">x</span>,<span class="op">&nbsp;&nbsp;</span> <span class="v">A</span> &sim; <span class="sm">&#119977;</span>(0, &sigma;<sup class="sm">2</sup>),<span class="op">&nbsp;&nbsp;</span> <span class="v">B</span> <span class="op">=</span> 0<span class="note">frozen W, trainable A and B, scalar α/r</span></div>
+
+        <p>Note that <span class="v">W</span> and <span class="v">B</span><span class="v">A</span> see the <em>same</em> input and their outputs are summed coordinate-wise. The branch is parallel, not sequential. That single design choice is the reason LoRA has no inference cost and adapters do, and we will come back to it.</p>
+
+        <h3>Why <span class="v">B</span>&nbsp;=&nbsp;0 and <span class="v">A</span> random</h3>
+
+        <p>There are four ways to initialize a product of two matrices and only one of them is right.</p>
+
+        <ul class="plain">
+          <li><b>Both random.</b> Then &Delta;<span class="v">W</span>&nbsp;&ne;&nbsp;0 at step zero. You begin by injecting noise into a model that was expensively trained not to have any. Loss spikes, and the first phase of fine-tuning is spent undoing the damage.</li>
+          <li><b>Both zero.</b> Then &Delta;<span class="v">W</span>&nbsp;=&nbsp;0, which is what we want, but look at the gradients below: both are proportional to the other matrix. Zero times zero stays zero forever. The branch is dead on arrival.</li>
+          <li><b><span class="v">A</span>&nbsp;=&nbsp;0, <span class="v">B</span> random.</b> Works, by symmetry, and some implementations do it. It changes which matrix moves first.</li>
+          <li><b><span class="v">B</span>&nbsp;=&nbsp;0, <span class="v">A</span> random.</b> The standard choice. &Delta;<span class="v">W</span>&nbsp;=&nbsp;0 at initialization, so the adapted model is <em>exactly</em> the pretrained model — a strict function-preserving start — and the gradient path is alive.</li>
+        </ul>
+
+        <p>This "identity at initialization" principle is not unique to LoRA. Houlsby's adapters use near-identity initialization for the same reason. Flamingo's cross-attention layers are gated by a <code class="inline">tanh</code> whose gate starts at zero. Whenever you bolt something onto a pretrained network, you want it to be invisible on the first forward pass.</p>
+
+        <h3>The backward pass, written out</h3>
+
+        <p>Let <span class="v">s</span>&nbsp;=&nbsp;&alpha;/<span class="v">r</span> and let <span class="v">g</span>&nbsp;=&nbsp;&part;<span class="sm">&#8466;</span>/&part;<span class="v">h</span> be the gradient arriving at the layer output. Then:</p>
+
+        <div class="eq">&part;<span class="sm">&#8466;</span>/&part;<span class="v">B</span> <span class="op">=</span> <span class="v">s</span> &middot; <span class="v">g</span>(<span class="v">A</span><span class="v">x</span>)<sup>&#8868;</sup><span class="op">&nbsp;&nbsp;&nbsp;</span> &part;<span class="sm">&#8466;</span>/&part;<span class="v">A</span> <span class="op">=</span> <span class="v">s</span> &middot; <span class="v">B</span><sup>&#8868;</sup><span class="v">g</span><span class="v">x</span><sup>&#8868;</sup><span class="op">&nbsp;&nbsp;&nbsp;</span> &part;<span class="sm">&#8466;</span>/&part;<span class="v">x</span> <span class="op">=</span> <span class="v">W</span><sup>&#8868;</sup><span class="v">g</span> <span class="op">+</span> <span class="v">s</span> &middot; <span class="v">A</span><sup>&#8868;</sup><span class="v">B</span><sup>&#8868;</sup><span class="v">g</span></div>
+
+        <p>Three things fall out of these expressions that are worth sitting with.</p>
+
+        <p><b>On the very first step, only <span class="v">B</span> moves.</b> With <span class="v">B</span>&nbsp;=&nbsp;0, the gradient of <span class="v">A</span> is exactly zero. <span class="v">B</span> takes the first step; only then does <span class="v">A</span> receive signal. LoRA training has a brief asymmetric warm-up baked into its initialization, and it is one of the reasons the two matrices behave differently throughout training — which is the observation <a href="https://arxiv.org/abs/2402.12354" target="_blank" rel="noopener noreferrer">LoRA+</a> later turned into a method.</p>
+
+        <p><b>The gradient still flows all the way down.</b> &part;<span class="sm">&#8466;</span>/&part;<span class="v">x</span> contains <span class="v">W</span><sup>&#8868;</sup><span class="v">g</span>. Freezing a weight does not let you skip its backward pass; you still need the full chain rule down to the earliest adapted layer. LoRA saves optimizer memory, not backward compute. If you adapt only the top eight layers you genuinely can truncate the backward pass — but nobody does that, because it works badly.</p>
+
+        <p><b>Some activation stashes disappear.</b> For a frozen linear layer with no adapter, the backward pass needs <span class="v">W</span> to compute &part;<span class="sm">&#8466;</span>/&part;<span class="v">x</span>, but it never needs <span class="v">x</span>, because there is no &part;<span class="sm">&#8466;</span>/&part;<span class="v">W</span> to compute. Autograd can drop that input activation entirely. Adapted layers must still stash <span class="v">x</span>, since &part;<span class="sm">&#8466;</span>/&part;<span class="v">A</span> depends on it. So adapting <em>every</em> linear layer gives back most of that saving — a small, real, rarely-mentioned cost of "target all modules."</p>
+
+        <div class="article-panel" role="group" aria-label="Cinematic walkthrough of the LoRA forward pass, backward pass, and merge">
+          <div class="panel-head"><h4>The LoRA data path, forward and backward</h4><span>Figure 3 &middot; 14 stages</span></div>
+          <div class="animation-stage" data-fig="lora" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the LoRA data path figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 14</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 3.</b> The camera follows a single activation vector through a frozen projection and its parallel rank-<span class="v">r</span> bypass, then reverses to follow the gradient back. Stages 8–11 zoom into the two weight gradients; stage 12 shows what the optimizer actually has to hold; stages 13–14 fold the branch back into the frozen matrix for deployment.</p>
+
+        <h3>What this buys, in numbers</h3>
+
+        <p>On GPT-3 175B the original paper reports the two savings separately, and they are different sizes. Training VRAM went from 1.2&nbsp;TB to 350&nbsp;GB — a factor of about 3.4, because the frozen weights are still there and still 350&nbsp;GB. The checkpoint went from 350&nbsp;GB to 35&nbsp;MB — a factor of 10,000 — because the frozen weights are not <em>part of</em> the checkpoint at all. Throughput improved by about 25%. That is a modest speedup, and it is the honest one: you have removed the optimizer update for 99.99% of parameters, not the matrix multiplies.</p>
+
+        <p>Figure 4 lets you turn the dials yourself on a Llama-2-7B-shaped model.</p>
+
+        <div class="article-panel" role="group" aria-label="Interactive explorer of LoRA parameter counts, checkpoint size and training memory as rank varies">
+          <div class="panel-head"><h4>Rank, parameter count, memory</h4><span>Figure 4 &middot; interactive</span></div>
+          <div class="animation-stage" data-fig="budget" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the rank budget explorer">
+            <button type="button" data-action="previous" aria-label="Previous rank">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next rank">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <button type="button" data-mode="qv" aria-label="Target query and value projections only" aria-pressed="false">Q,V only</button>
+            <button type="button" data-mode="attn" aria-label="Target all attention projections" aria-pressed="false">All attention</button>
+            <button type="button" data-mode="all" aria-label="Target all linear layers" aria-pressed="true">All linear</button>
+            <span class="animation-status">Rank 01 / 10</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 4.</b> Exact parameter arithmetic for Llama-2-7B geometry (<span class="v">d</span>&nbsp;=&nbsp;4096, 32 layers, SwiGLU MLP with hidden width 11008, 6.74&nbsp;B parameters total). Rank sweeps 1&nbsp;&rarr;&nbsp;512; the dashed line marks the point where the adapters cost more than the weights they are adapting. Training-memory figures assume 16 bytes per trainable parameter (fp32 master, <span class="v">m</span>, <span class="v">v</span>, gradient) and 2 bytes per frozen parameter, and exclude activations.</p>
+      </section>
+
+      <section id="alpha">
+        <h2>Scaling, initialization, and the &alpha;/<span class="v">r</span> question</h2>
+
+        <p>The factor &alpha;/<span class="v">r</span> looks like an afterthought. It is the most consequential hyperparameter in the method and the least understood.</p>
+
+        <h3>What the scaling is for</h3>
+
+        <p>Consider what happens to <span class="v">B</span><span class="v">A</span><span class="v">x</span> as you increase <span class="v">r</span> with a fixed per-entry initialization scale for <span class="v">A</span>. The product sums <span class="v">r</span> rank-one contributions. More terms, larger typical magnitude. Without compensation, doubling the rank changes the effective size of the update, and every learning rate you had tuned is now wrong.</p>
+
+        <p>Dividing by <span class="v">r</span> is the crude fix. The paper is explicit about its purpose — <cite>this scaling helps to reduce the need to retune hyperparameters when we vary r</cite> — and equally explicit that &alpha; is not really a separate knob: <cite>tuning α is roughly the same as tuning the learning rate.</cite> In practice people fix &alpha; and vary <span class="v">r</span>, which silently changes the effective step size for the adapter, which is exactly the trap.</p>
+
+        <h3>The rank-stabilization correction</h3>
+
+        <p><a href="https://arxiv.org/abs/2312.03732" target="_blank" rel="noopener noreferrer">Kalajdzievski (2023)</a> did the large-<span class="v">r</span> analysis properly. Asking that neither the forward activations nor the backward gradients through the adapter blow up or vanish as <span class="v">r</span> grows gives a different exponent:</p>
+
+        <div class="eq">&gamma;<sub class="sm">r</sub> <span class="op">=</span> <span class="frac"><span>&alpha;</span><span><span class="v">r</span></span></span> <span class="op">&nbsp;&rarr;&nbsp;</span> &gamma;<sub class="sm">r</sub> <span class="op">=</span> <span class="frac"><span>&alpha;</span><span>&radic;<span style="border-top:1px solid currentColor"><span class="v">r</span></span></span></span><span class="note">rsLoRA: the scaling that keeps adapter gradients Θ(1) in rank</span></div>
+
+        <p>The consequence is uncomfortable. Under &alpha;/<span class="v">r</span>, the gradient reaching the adapter shrinks as rank grows, so higher-rank runs learn more slowly and converge to roughly the same loss as low-rank ones. That is precisely the empirical pattern everyone cited as evidence that "rank doesn't matter beyond 8." Under &alpha;/&radic;<span class="v">r</span>, larger ranks keep improving. As the rsLoRA write-up puts it, the conventional scaling <cite>slows learning for ranks outside this very small rank regime</cite>, which has fostered a misconception about how low-dimensional adaptation really is.</p>
+
+        <div class="callout callout--open">
+          <h4>Left open</h4>
+          <p>How much of the "low rank is enough" folklore is a real property of adaptation and how much is a measurement artefact of the default scaling is still unsettled. If you are running a rank sweep to decide anything, run it with <code class="inline">use_rslora=True</code>, or you are sweeping two variables at once.</p>
+        </div>
+
+        <h3>Asymmetric learning rates</h3>
+
+        <p><a href="https://arxiv.org/abs/2402.12354" target="_blank" rel="noopener noreferrer">LoRA+</a> makes a related width argument: because <span class="v">A</span> maps from width <span class="v">d</span> into width <span class="v">r</span> and <span class="v">B</span> maps back out, giving them the same learning rate is not scale-correct for large <span class="v">d</span>. Using a fixed ratio &eta;<sub><span class="v">B</span></sub>/&eta;<sub><span class="v">A</span></sub>&nbsp;&gg;&nbsp;1 recovers efficient feature learning, and the reported gains are 1–2 points with up to a 2&times; speedup at identical cost. This is the same asymmetry the backward-pass equations already hinted at.</p>
+
+        <h3>Smarter initialization</h3>
+
+        <p>Random-plus-zero is the default, not the optimum. <a href="https://arxiv.org/abs/2404.02948" target="_blank" rel="noopener noreferrer">PiSSA</a> initializes <span class="v">A</span> and <span class="v">B</span> from the <em>principal</em> singular components of <span class="v">W</span> itself and freezes the residual, so the trainable subspace starts aligned with the directions the pretrained weight already considers important. MiLoRA does the opposite, using the <em>minor</em> components, on the theory that the important directions should be left alone. Both beat random initialization on their own benchmarks, which is a good reminder that "which subspace" is a real design choice and not a detail.</p>
+
+        <h3>The defaults that actually work</h3>
+
+        <ul class="plain">
+          <li>&alpha;&nbsp;=&nbsp;2<span class="v">r</span> is the most defensible default; it is what Biderman et al. recommend after a systematic sweep.</li>
+          <li>Turn on rank-stabilized scaling if you intend to use <span class="v">r</span>&nbsp;&gt;&nbsp;32.</li>
+          <li>LoRA learning rates live around 1e-4 to 5e-4 — roughly 10–50&times; higher than full fine-tuning, because the adapter starts at zero and has to travel.</li>
+          <li>Dropout on the adapter helps small models and stops helping around 30B; QLoRA used 0.1 up to 13B and 0.05 above.</li>
+        </ul>
+      </section>
+
+      <section id="which-matrices">
+        <h2>Which matrices, and how much rank each</h2>
+
+        <p>A transformer block has seven linear maps worth adapting: <span class="v">W</span><sub>q</sub>, <span class="v">W</span><sub>k</sub>, <span class="v">W</span><sub>v</sub>, <span class="v">W</span><sub>o</sub> in attention, and gate / up / down in the MLP. They are not equally sized and they are not equally useful.</p>
+
+        <h3>Where the parameters live</h3>
+
+        <p>For Llama-2-7B geometry, per layer: attention holds 4<span class="v">d</span><sup>2</sup>&nbsp;=&nbsp;67.1&nbsp;M parameters and the SwiGLU MLP holds 3&nbsp;&times;&nbsp;<span class="v">d</span>&nbsp;&times;&nbsp;11008&nbsp;=&nbsp;135.3&nbsp;M. <strong>Two-thirds of the adaptable weight mass is in the MLP.</strong> Any argument that stops at the attention projections is ignoring most of the model. This is not an accident of one architecture — the 4&times;-ish MLP expansion has been standard since the original transformer.</p>
+
+        <h3>The original ablation, and what it actually said</h3>
+
+        <p>The LoRA paper ran a clean experiment: fix a budget of 18&nbsp;M trainable parameters on GPT-3 175B across all 96 layers, then spend it different ways. Because the budget is fixed, adapting more matrix types means a lower rank each.</p>
+
+        <div class="tablewrap">
+          <table class="data">
+            <caption>Fixed 18&nbsp;M-parameter budget on GPT-3 175B, attention projections only. Reproduced from Hu et al. (2021), Table 5.</caption>
+            <thead>
+              <tr><th>Adapted</th><th>Rank <span class="v">r</span></th><th>WikiSQL acc.</th><th>MultiNLI acc.</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="v">W</span><sub>q</sub></td><td>8</td><td>70.4</td><td>91.0</td></tr>
+              <tr><td><span class="v">W</span><sub>k</sub></td><td>8</td><td>70.0</td><td>90.8</td></tr>
+              <tr><td><span class="v">W</span><sub>v</sub></td><td>8</td><td>73.0</td><td>91.0</td></tr>
+              <tr><td><span class="v">W</span><sub>o</sub></td><td>8</td><td>73.2</td><td>91.3</td></tr>
+              <tr><td><span class="v">W</span><sub>q</sub>, <span class="v">W</span><sub>k</sub></td><td>4</td><td>71.4</td><td>91.3</td></tr>
+              <tr class="hi"><td><span class="v">W</span><sub>q</sub>, <span class="v">W</span><sub>v</sub></td><td>4</td><td>73.7</td><td>91.3</td></tr>
+              <tr class="hi"><td><span class="v">W</span><sub>q</sub>, <span class="v">W</span><sub>k</sub>, <span class="v">W</span><sub>v</sub>, <span class="v">W</span><sub>o</sub></td><td>2</td><td>73.7</td><td>91.7</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>Read the columns, not the winner. Rank 2 across four matrices beats rank 8 on one. The paper's own conclusion: <cite>it is preferable to adapt more weight matrices than adapting a single type of weights with a larger rank.</cite> Spread the budget thin and wide.</p>
+
+        <p>There is a second, subtler reading. <span class="v">W</span><sub>k</sub> is the weakest place to spend. That is not mysterious: queries and keys enter attention only through the bilinear form <span class="v">q</span><sup>&#8868;</sup><span class="v">k</span>, so a perturbation of <span class="v">W</span><sub>q</sub> and a perturbation of <span class="v">W</span><sub>k</sub> have overlapping effects, and adapting both spends budget twice on one degree of freedom. <span class="v">W</span><sub>v</sub> and <span class="v">W</span><sub>o</sub>, by contrast, sit on the value path and directly determine what gets written back into the residual stream.</p>
+
+        <p>Modern practice has moved past the table. QLoRA targets <cite>all linear layers of the base model</cite>; Biderman et al. recommend the same after finding that restricting to attention consistently underperforms. The 2021 result was about spending a <em>tiny</em> budget well. Once the budget is large enough to include the MLP, include the MLP.</p>
+
+        <div class="article-panel" role="group" aria-label="Animated tour of a transformer block showing where LoRA adapters attach and how a fixed budget performs">
+          <div class="panel-head"><h4>Where to attach the adapters</h4><span>Figure 5 &middot; 11 stages</span></div>
+          <div class="animation-stage" data-fig="placement" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the adapter placement figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 11</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 5.</b> A transformer block with the seven adaptable projections, sized by parameter count. The camera walks the fixed-18&nbsp;M-budget ablation from Hu et al. (2021) Table 5 — those accuracy bars are the published values, not illustrations — then pans to the MLP to show the two-thirds of weight mass that the 2021 study excluded by design.</p>
+
+        <h3>Should every matrix get the same rank?</h3>
+
+        <p>Uniform rank is a convenience, not a principle. <a href="https://arxiv.org/abs/2303.10512" target="_blank" rel="noopener noreferrer">AdaLoRA</a> makes the allocation adaptive by parameterizing the update in SVD form, &Delta;<span class="v">W</span>&nbsp;=&nbsp;<span class="v">P</span>&Lambda;<span class="v">Q</span>, and pruning singular triplets with low importance scores during training. The parameterization is the clever part: pruning a diagonal entry of &Lambda; costs one number and needs no re-factorization, so you can reallocate rank continuously without ever running an exact SVD.</p>
+
+        <p>In practice AdaLoRA's gains show up mainly in <em>low</em>-budget regimes, which makes sense — allocation only matters when the budget binds. If you can afford rank 64 everywhere, allocate uniformly and spend your time on data instead.</p>
+      </section>
+
+      <section id="merging">
+        <h2>Merging, swapping, serving</h2>
+
+        <p>Because the branch is parallel and linear, the deployed model can absorb it exactly:</p>
+
+        <div class="eq"><span class="v">W</span>&thinsp;&prime; <span class="op">=</span> <span class="v">W</span> <span class="op">+</span> <span class="frac"><span>&alpha;</span><span><span class="v">r</span></span></span><span class="v">B</span><span class="v">A</span><span class="note">one matrix add, done once, and the adapter ceases to exist at inference</span></div>
+
+        <p>This is the property adapters cannot have. A bottleneck adapter is applied <em>after</em> the sublayer, so its computation is sequential — an extra pair of small matrix multiplies that cannot be fused away and that the GPU cannot hide behind other work. The LoRA paper measured it on GPT-2 medium: at batch size 1 and sequence length 128, the Houlsby adapter added 30.3% to forward latency and the leaner variant added 20.7%, while LoRA added nothing by construction. At batch 32 and sequence 512 the penalty nearly vanishes, because now there is enough parallel work to saturate the hardware. <strong>Adapter latency is an online-serving problem, not a training problem.</strong> If your batches are large, the objection evaporates.</p>
+
+        <h3>Unmerging and its hazards</h3>
+
+        <p>Merging is reversible: subtract to get <span class="v">W</span> back, add a different adapter, and you have hot-swapped tasks with one matrix operation. Two cautions.</p>
+
+        <p>First, precision. Merge and unmerge in bf16 repeatedly and rounding error accumulates in <span class="v">W</span>; the base you recover is not the base you started with. Keep an authoritative copy, or do the arithmetic in fp32.</p>
+
+        <p>Second, quantization. Merging a bf16 adapter into an NF4 base is lossy in a way that is easy to miss: you must dequantize, add, and re-quantize, and the re-quantization error can be comparable to the update you just added. The usual answers are to merge into a full-precision base and quantize afterwards, or to keep the adapter unmerged at inference and pay the small parallel-branch cost.</p>
+
+        <h3>Many adapters, one base</h3>
+
+        <p>The deployment story that made LoRA an industry default is not single-task fine-tuning; it is <em>fleets</em>. One 70B base in VRAM, hundreds of 40&nbsp;MB adapters in host memory, and a router. Because the adapters are unmerged, a single batch can contain requests for different tasks: the base matmul is a normal GEMM over the whole batch, and the low-rank branch is a grouped operation over per-request adapters. <a href="https://arxiv.org/abs/2311.03285" target="_blank" rel="noopener noreferrer">S-LoRA</a> works this problem properly, with a unified paged memory pool shared between adapter weights of differing ranks and KV-cache blocks of differing lengths, plus custom kernels for the heterogeneous batching — reporting thousands of concurrent adapters on a single GPU. The memory-management ideas there are close cousins of the ones in <a href="../serving-playbook/">The Serving Playbook</a>.</p>
+
+        <div class="article-panel" role="group" aria-label="Animation showing adapter merging, task switching, and batched multi-adapter serving">
+          <div class="panel-head"><h4>Merge, swap, and serve a fleet</h4><span>Figure 6 &middot; 10 stages</span></div>
+          <div class="animation-stage" data-fig="merge" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the merging and serving figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 6.</b> Left half: the parallel branch folded into the frozen matrix, then unfolded and replaced with a different task's adapter. Right half: the unmerged regime, where one base GEMM serves a mixed batch and each request's low-rank branch is gathered separately. The latency bars at stage 5 are the measured GPT-2-medium numbers from Hu et al. (2021), Table 1.</p>
+
+        <h3>Composing adapters</h3>
+
+        <p>Adding two adapters' deltas — <span class="v">W</span>&nbsp;+&nbsp;&Delta;<sub>1</sub>&nbsp;+&nbsp;&Delta;<sub>2</sub> — sometimes composes their behaviours and sometimes produces something worse than either. There is no guarantee: the two low-rank subspaces were found independently and nothing made them orthogonal. Weighted merging, orthogonality constraints and learned routing over adapter libraries are all active work, and none of it is settled enough to be a default. If you need two behaviours reliably, the boring answer — train one adapter on the union of both datasets — remains the strongest baseline.</p>
+      </section>
+
+      <section id="qlora">
+        <h2>QLoRA: training through a compressed model</h2>
+
+        <p>LoRA leaves you carrying the frozen weights at 2 bytes each. For a 65B model that is 130&nbsp;GB — still two GPUs. The next question writes itself: <em>if the base never changes, why store it at full precision at all?</em></p>
+
+        <p><a href="https://arxiv.org/abs/2305.14314" target="_blank" rel="noopener noreferrer">QLoRA</a> answers it, and the headline is that a 65B model becomes finetunable on a single 48&nbsp;GB GPU while <cite>preserving full 16-bit finetuning task performance</cite>. Three ingredients, each solving a distinct problem.</p>
+
+        <h3>Quantization, from first principles</h3>
+
+        <p>A <span class="v">b</span>-bit quantization scheme is a codebook of 2<sup><span class="v">b</span></sup> real values plus a rule for assigning each weight to one of them. The design question is: <em>where should the codewords go?</em></p>
+
+        <p>Uniform integer quantization spaces them evenly across [&minus;absmax, absmax]. That is optimal if the weights are uniformly distributed. They are not. Neural network weights are approximately zero-centred Gaussian, so most of the probability mass sits in a narrow band around zero while the range is set by rare outliers. Uniform bins therefore spend most of their 16 codewords in the tails, where there are almost no weights, and leave the crowded centre coarsely resolved. You are allocating precision inversely to demand.</p>
+
+        <p>The fix is old and clean. <em>Quantile quantization</em> places bin boundaries at the quantiles of the data distribution, so each bin receives equal probability mass. Equal mass per code means the discrete code has maximum entropy, which is the information-theoretic definition of not wasting bits.</p>
+
+        <p>NF4 — 4-bit NormalFloat — is quantile quantization for a standard normal, with two engineering touches: the levels are normalized so the codebook spans [&minus;1,&nbsp;1], and the split between negative and positive levels is made asymmetric so that <strong>zero is exactly representable</strong>. Exact zero matters more than it sounds; padding, masks and genuinely-zero weights should not acquire a small bias. QLoRA's claim is that this is <cite>information theoretically optimal for normally distributed weights</cite>, and empirically NF4 beats both FP4 and INT4.</p>
+
+        <p>To use a distribution-matched codebook you must first put the weights on that distribution's scale. QLoRA normalizes <em>blockwise</em>: split the tensor into blocks of 64, divide each block by its own absmax, quantize the normalized values. Blocking is what makes it robust — a single outlier weight can only corrupt the resolution of its own 64 neighbours instead of the entire tensor. That matters because large-model activations and weights genuinely do contain systematic outliers, which is the same phenomenon that forced mixed-precision decomposition in LLM.int8().</p>
+
+        <div class="article-panel" role="group" aria-label="Animated comparison of uniform 4-bit and normal-float 4-bit quantization over a Gaussian weight distribution">
+          <div class="panel-head"><h4>Where to put sixteen codewords</h4><span>Figure 7 &middot; 12 stages</span></div>
+          <div class="animation-stage" data-fig="quant" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the quantization figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 7.</b> A Gaussian weight distribution with 16 codewords placed two ways. The quantile levels are computed in the page from an inverse-normal approximation rather than quoted, so the geometry is real; the published NF4 codebook is constructed this way with a small asymmetry that makes zero exact. Stages 7–9 zoom into a single 64-weight block to show why blockwise absmax normalization contains outlier damage; stages 10–12 build the bit ledger for double quantization.</p>
+
+        <h3>Double quantization: quantizing the quantizers</h3>
+
+        <p>Blockwise scaling has a cost that is easy to overlook. One fp32 absmax constant per 64 weights is 32/64&nbsp;=&nbsp;<strong>0.5 extra bits per parameter</strong> — on top of a 4-bit payload, a 12.5% overhead. So QLoRA quantizes the constants too: the absmax values are themselves 8-bit quantized in blocks of 256, with a second-level fp32 constant per block of blocks.</p>
+
+        <div class="eq">0.5 <span class="op">&rarr;</span> <span class="frac"><span>8</span><span>64</span></span> <span class="op">+</span> <span class="frac"><span>32</span><span>64 &middot; 256</span></span> <span class="op">&asymp;</span> 0.127 <span class="op">&nbsp;</span>bits/param<span class="note">a saving of ≈0.37 bits/param, exactly as reported in the paper</span></div>
+
+        <p>Effective storage becomes about 4.127 bits per parameter. For a 6.74&nbsp;B model that is 3.48&nbsp;GB instead of 13.5&nbsp;GB. The paper reports that double quantization costs nothing in accuracy, which is the expected outcome — you are compressing a second-order statistic, not the signal.</p>
+
+        <h3>The gradient path</h3>
+
+        <p>Here is the part that confuses people. NF4 is a <em>storage</em> format, not a compute format. The forward pass dequantizes each weight block to bf16 just before its matrix multiply and throws the result away afterwards. So:</p>
+
+        <div class="eq"><span class="v">Y</span> <span class="op">=</span> <span class="v">X</span> &middot; dequant(<span class="v">c</span><sub class="sm">1</sub>, <span class="v">c</span><sub class="sm">2</sub>, <span class="v">W</span><sup class="sm">NF4</sup>) <span class="op">+</span> <span class="v">s</span> &middot; <span class="v">X</span><span class="v">A</span><sup>&#8868;</sup><span class="v">B</span><sup>&#8868;</sup><span class="note">gradients flow through the dequantized weights, but only into A and B</span></div>
+
+        <p>The base receives no gradient, so its quantization error is never re-introduced or accumulated. It is a <em>fixed, deterministic</em> perturbation of the frozen function. And crucially, the adapter is trained on top of the already-quantized model — so whatever the quantization broke, gradient descent has the whole run to compensate for it. This is the most plausible reading of why 4-bit inference on an unmodified model degrades measurably while 4-bit adapter fine-tuning does not; the paper poses exactly this question and answers it empirically, finding that NF4 with double quantization matches bf16.</p>
+
+        <p>The costs are real and rarely stated: you pay a dequantization kernel on every forward and every recomputation, so QLoRA is <em>slower per step</em> than bf16 LoRA. You are trading time for memory. Trading in the other direction — spending memory to save time — is the subject of <a href="../how-to-find-what-is-slowing-your-model/">How to Find What Is Slowing Your Model</a>.</p>
+
+        <h3>Paged optimizers</h3>
+
+        <p>The last ingredient is unglamorous plumbing. With gradient checkpointing and long sequences, memory usage is spiky: most of the time you are fine, and then one recomputation boundary asks for a few extra gigabytes and the process dies. Paged optimizers put the optimizer state in NVIDIA unified memory so those pages can be evicted to CPU during a spike and paged back afterwards, turning a hard OOM into a slowdown. It is the same idea as OS virtual memory, applied to the one allocation that can tolerate the latency.</p>
+      </section>
+
+      <section id="dora">
+        <h2>DoRA: magnitude and direction</h2>
+
+        <p><a href="https://arxiv.org/abs/2402.09353" target="_blank" rel="noopener noreferrer">DoRA</a> begins with a diagnostic rather than a method. If LoRA and full fine-tuning reach different quality, they must be moving weights differently. How?</p>
+
+        <p>Decompose each weight matrix into a per-column magnitude and a unit-norm direction:</p>
+
+        <div class="eq"><span class="v">W</span> <span class="op">=</span> <span class="v">m</span> <span class="frac"><span><span class="v">V</span></span><span>&#8214;<span class="v">V</span>&#8214;<sub class="sm">c</sub></span></span>,<span class="op">&nbsp;&nbsp;</span> <span class="v">m</span> &isin; <span class="sm">&#8477;</span><sup>1&times;<span class="v">k</span></sup><span class="note">‖·‖_c is the column-wise norm; every column of V/‖V‖_c is a unit vector</span></div>
+
+        <p>Every column of a weight matrix is now "a direction, times a loudness." Track how much each changes over a fine-tuning run — call them &Delta;<span class="v">D</span> and &Delta;<span class="v">M</span> — and plot one against the other. The paper's finding is a difference in <em>sign</em>: across checkpoints, full fine-tuning shows a negative relationship between magnitude change and direction change, while LoRA shows a positive one. LoRA turns the two knobs together; full fine-tuning trades them off, and in particular can make substantial direction changes with only slight magnitude changes.</p>
+
+        <p>Why would that be? Because in <span class="v">W</span>&nbsp;+&nbsp;<span class="v">B</span><span class="v">A</span>, magnitude and direction are not separate parameters. Adding a vector to a column changes both, coupled by geometry. To rotate a column without lengthening it, the low-rank update must produce a component almost perpendicular to the existing column of exactly the right size — and it has only <span class="v">r</span> degrees of freedom to arrange that for every column simultaneously. Full fine-tuning has <span class="v">d</span><sub>out</sub> free numbers per column and no such constraint.</p>
+
+        <p>DoRA's fix is to give the magnitude back its own parameter:</p>
+
+        <div class="eq"><span class="v">W</span>&thinsp;&prime; <span class="op">=</span> <span class="v">m</span> <span class="frac"><span><span class="v">W</span><sub class="sm">0</sub> <span class="op">+</span> <span class="v">B</span><span class="v">A</span></span><span>&#8214;<span class="v">W</span><sub class="sm">0</sub> <span class="op">+</span> <span class="v">B</span><span class="v">A</span>&#8214;<sub class="sm">c</sub></span></span><span class="note">m trainable, initialized to ‖W₀‖_c; BA is ordinary LoRA</span></div>
+
+        <p>The normalization strips whatever length change the low-rank update happened to cause, and <span class="v">m</span> — one number per output column, a rounding error in the parameter budget — sets the length explicitly. The rank is now spent purely on <em>direction</em>, which is what it was scarce for.</p>
+
+        <div class="callout callout--intuition">
+          <h4>Intuition</h4>
+          <p>A steering wheel and an accelerator. LoRA gives you one lever that turns and accelerates together, so every turn costs you speed. DoRA splits them. The number of extra parameters is negligible; what changes is that the low-rank budget no longer has to be partly spent undoing an unwanted side effect.</p>
+        </div>
+
+        <div class="article-panel" role="group" aria-label="Animated geometric comparison of LoRA and DoRA weight updates in magnitude-direction coordinates">
+          <div class="panel-head"><h4>Coupled versus decoupled updates</h4><span>Figure 8 &middot; 11 stages</span></div>
+          <div class="animation-stage" data-fig="dora" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the DoRA figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 11</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 8.</b> Left: a single weight column in 2-D, updated additively (length and angle move together) and then in DoRA's parameterization (normalize, then rescale). Right: the &Delta;<span class="v">D</span>–&Delta;<span class="v">M</span> scatter that motivated the method. <b>The scatter is a schematic reproduction of the sign structure reported in Liu et al. (2024) Figure 1 — the slopes and clustering are drawn to match the published qualitative pattern, not the published values.</b></p>
+
+        <p>Practicalities. DoRA merges to a single matrix at deployment, so inference cost is unchanged. Training cost is not: the denominator depends on <span class="v">B</span><span class="v">A</span>, so column norms must be recomputed every step and differentiated through. It is supported in Hugging Face PEFT behind <code class="inline">use_dora=True</code>, and the reported gains are consistent but modest — reliably better than LoRA at equal rank on commonsense reasoning, visual instruction tuning and image/video-text tasks, which is a meaningful result precisely because it is unglamorous.</p>
+      </section>
+
+      <section id="family">
+        <h2>The wider family</h2>
+
+        <p>LoRA won, but it did not arrive first and it is not the only shape. It helps to see the whole family sorted by <em>what they modify</em>.</p>
+
+        <h3>Additive modules: adapters</h3>
+
+        <p><a href="https://arxiv.org/abs/1902.00751" target="_blank" rel="noopener noreferrer">Houlsby et al. (2019)</a> inserted small bottleneck MLPs after each sublayer:</p>
+
+        <div class="eq">Adapter(<span class="v">h</span>) <span class="op">=</span> <span class="v">h</span> <span class="op">+</span> <span class="v">W</span><sub class="sm">up</sub> &sigma;(<span class="v">W</span><sub class="sm">down</sub><span class="v">h</span>)<span class="op">&nbsp;&nbsp;</span> <span class="v">W</span><sub class="sm">down</sub> &isin; <span class="sm">&#8477;</span><sup><span class="v">r</span>&times;<span class="v">d</span></sup>, <span class="v">W</span><sub class="sm">up</sub> &isin; <span class="sm">&#8477;</span><sup><span class="v">d</span>&times;<span class="v">r</span></sup></div>
+
+        <p>Same bottleneck, same near-identity initialization, one crucial difference: the residual is around the adapter, so the computation is <em>sequential</em>. On GLUE they came within 0.4% of full fine-tuning while training 3.6% of parameters — an excellent result that was, in 2019, mostly about storage. The sequential form is why they cannot be merged and why they cost online latency.</p>
+
+        <h3>Input-space methods: prefix and prompt tuning</h3>
+
+        <p>A different move entirely: leave every weight alone and change what the model attends to.</p>
+
+        <p><b>Prefix tuning</b> (<a href="https://arxiv.org/abs/2101.00190" target="_blank" rel="noopener noreferrer">Li &amp; Liang, 2021</a>) prepends <span class="v">p</span> trainable key/value vectors to the attention of <em>every</em> layer. Every token can attend to this virtual context; nothing in it comes from the input. Parameters: 2<span class="v">L</span><span class="v">p</span><span class="v">d</span>. Training is notoriously finicky and typically needs a reparameterizing MLP to be stable.</p>
+
+        <p><b>Prompt tuning</b> (<a href="https://arxiv.org/abs/2104.08691" target="_blank" rel="noopener noreferrer">Lester et al., 2021</a>) is the minimal version: <span class="v">p</span> trainable embeddings at the input layer only. Parameters: <span class="v">p</span><span class="v">d</span> — tens of thousands. The paper's title is the finding: it is <em>the power of scale</em>. At small model sizes prompt tuning is far behind full fine-tuning; the gap closes as models grow toward 10B. Continuous prompts are gradient-descent's version of prompt engineering, and like prompt engineering they work better on stronger models.</p>
+
+        <p>Both share a structural cost the LoRA paper called out: the prefix consumes sequence length, so it competes with the actual task input for context.</p>
+
+        <h3>Rescaling: IA³</h3>
+
+        <p><a href="https://arxiv.org/abs/2205.05638" target="_blank" rel="noopener noreferrer">IA³</a> learns three vectors per block and multiplies them elementwise into the keys, the values, and the MLP's intermediate activations:</p>
+
+        <div class="eq">softmax<span style="font-size:1.2em">(</span><span class="v">Q</span>(<span class="v">l</span><sub class="sm">k</sub> &odot; <span class="v">K</span>)<sup>&#8868;</sup>/&radic;<span style="border-top:1px solid currentColor"><span class="v">d</span></span><span style="font-size:1.2em">)</span>(<span class="v">l</span><sub class="sm">v</sub> &odot; <span class="v">V</span>),<span class="op">&nbsp;&nbsp;</span> (<span class="v">l</span><sub class="sm">ff</sub> &odot; &gamma;(<span class="v">W</span><sub class="sm">1</sub><span class="v">x</span>))<span class="v">W</span><sub class="sm">2</sub></div>
+
+        <p>This is &Delta;<span class="v">W</span> constrained to be a <em>diagonal</em> rescaling — the most extreme structural restriction in common use, and it merges cleanly into the adjacent weight matrix because scaling rows of <span class="v">K</span> is the same as scaling rows of <span class="v">W</span><sub>k</sub>. On the T-Few benchmark it beat in-context learning at a fraction of the inference cost, which was the paper's actual point.</p>
+
+        <h3>Selective: BitFit</h3>
+
+        <p><a href="https://arxiv.org/abs/2106.10199" target="_blank" rel="noopener noreferrer">BitFit</a> trains only the bias vectors — under 0.1% of parameters for BERT, and competitive with full fine-tuning on small-to-medium data. Its interest today is mostly conceptual: the authors argue the result supports the view that <cite>finetuning is mainly about exposing knowledge induced by language-modeling training, rather than learning new task-specific linguistic knowledge</cite>, which is the same claim the intrinsic-dimension literature makes from the other direction. Note the architectural catch: Llama-style models have no biases in their linear layers at all, so BitFit is simply inapplicable to most current LLMs.</p>
+
+        <h3>One frame for all of them</h3>
+
+        <p><a href="https://arxiv.org/abs/2110.04366" target="_blank" rel="noopener noreferrer">He et al. (2022)</a> showed these are not seven unrelated tricks. Every one of them computes a modification &Delta;<span class="v">h</span> to some hidden state and differs along three axes: the <em>function</em> that produces &Delta;<span class="v">h</span> (low-rank, bottleneck MLP, attention over learned vectors, elementwise scale), the <em>insertion form</em> (parallel or sequential), and the <em>composition</em> (add, gate, or multiply). Prefix tuning, read through this lens, turns out to be a gated additive modification of the attention output — structurally an adapter wearing a costume.</p>
+
+        <div class="article-panel" role="group" aria-label="Animated taxonomy morphing one transformer block through eight parameter-efficient fine-tuning methods">
+          <div class="panel-head"><h4>Eight ways to change a frozen model</h4><span>Figure 9 &middot; 10 stages</span></div>
+          <div class="animation-stage" data-fig="family" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the PEFT taxonomy figure">
+            <button type="button" data-action="previous" aria-label="Previous method">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next method">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 9.</b> The same block, re-marked for each method: what is frozen, what is trainable, and where the modification enters. Parameter counts are computed in-page from Llama-2-7B geometry with the stated hyperparameters (adapter bottleneck 64, prefix and prompt length 32, LoRA rank 8 on all linear layers) and are exact for those settings. The merge/latency badge records whether the method can be folded into the frozen weights.</p>
+      </section>
+
+      <section id="tradeoff">
+        <h2>PEFT versus full fine-tuning</h2>
+
+        <p>For three years the community answer was "LoRA matches full fine-tuning." The careful studies say something more interesting and more useful.</p>
+
+        <h3>Learns less</h3>
+
+        <p><a href="https://arxiv.org/abs/2405.09673" target="_blank" rel="noopener noreferrer">Biderman et al. (2024)</a> compared the two on Llama-2-7B across programming and mathematics, in both instruction-tuning (~100K pairs) and continued-pretraining (~20B tokens) regimes. In standard low-rank settings LoRA substantially underperformed. On code continued pretraining the best LoRA configuration at 20B tokens roughly matched full fine-tuning at 4B tokens — a 5&times; sample-efficiency gap. On instruction tuning LoRA could close the gap, but only at rank 256, far above the 8–64 that everyone actually runs.</p>
+
+        <p>They also measured the mechanism: full fine-tuning learns perturbations with rank 10–100&times; greater than typical LoRA configurations. Whether that <em>causes</em> the gap or merely accompanies it is not settled, but it is the most direct evidence available that the low-rank hypothesis is a real constraint on hard tasks rather than a free lunch.</p>
+
+        <h3>Forgets less</h3>
+
+        <p>The same study found the mirror image. Measuring source-domain ability (HellaSwag, ARC-Challenge, WinoGrande) after training on a target domain, LoRA degraded less. On code continued pretraining at 20B tokens, full fine-tuning scored 0.545 on that average while LoRA at rank 256 scored 0.617; on code instruction tuning, 0.414 versus 0.509 for LoRA at rank 64. LoRA also preserved base-model behaviour better than weight decay or dropout did, and maintained more diverse generations.</p>
+
+        <p>So there is a frontier, not a winner: rank buys target-domain performance and spends source-domain retention. Where you want to sit depends entirely on whether "the model got worse at everything else" is a bug or an irrelevance for your deployment.</p>
+
+        <h3>The solutions are not the same shape</h3>
+
+        <p><a href="https://arxiv.org/abs/2410.21228" target="_blank" rel="noopener noreferrer">Shuttleworth et al. (2024)</a> looked at the resulting weight matrices spectrally and found something sharper. LoRA-tuned matrices acquire what they call <em>intruder dimensions</em>: high-ranking singular vectors that are approximately orthogonal to every singular vector of the pretrained matrix. Fully fine-tuned matrices almost never contain them — full fine-tuning makes small adjustments to the directions that were already there. The count is rank-dependent and vanishes again at very high rank, where LoRA stops behaving low-rank at all.</p>
+
+        <p>The causal experiment is the interesting bit: scaling down the singular values associated with intruder dimensions after training improves modelling of the pretraining distribution with minimal cost to the downstream task, which is direct evidence that these directions carry the forgetting. And the effect compounds under sequential fine-tuning, which is bad news for anyone stacking adapters over time.</p>
+
+        <div class="article-panel" role="group" aria-label="Animated learning versus forgetting frontier comparing LoRA ranks against full fine-tuning">
+          <div class="panel-head"><h4>The learning–forgetting frontier</h4><span>Figure 10 &middot; 9 stages</span></div>
+          <div class="animation-stage" data-fig="frontier" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the frontier figure">
+            <button type="button" data-action="previous" aria-label="Previous stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 09</span>
+          </div>
+        </div>
+        <p class="figcap"><b>Figure 10.</b> The trade-off as a frontier. The four labelled source-domain retention values (full fine-tuning and LoRA, code CPT and code IFT) are the published numbers from Biderman et al. (2024); <b>the target-domain axis and the curve joining the rank points are schematic</b>, drawn to show the shape of the trade-off rather than to reproduce measurements. Stage 7 overlays the spectral picture from Shuttleworth et al. (2024) and is likewise a qualitative illustration.</p>
+
+        <div class="callout callout--open">
+          <h4>Left open</h4>
+          <p>Subsequent work has argued that the learning–forgetting comparison is sensitive to the learning rate chosen for each method, and that some of the gap narrows when both are swept properly rather than fixed at their individually optimal values. The direction of the effect is robust across studies; the magnitude is not. Treat "LoRA forgets less" as a well-supported tendency, not a constant of nature.</p>
+        </div>
+
+        <h3>The rule that actually predicts</h3>
+
+        <p>Every result above points the same way. PEFT works when the target behaviour is a <em>re-weighting</em> of capabilities the base model already has — format, tone, task framing, domain vocabulary it has already seen, tool syntax. PEFT struggles when you are adding capability the base model does not possess — a new language, a genuinely unfamiliar formalism, twenty billion tokens of a distribution it never saw. Ask which of those you are doing before you pick a method, and the method mostly picks itself.</p>
+
+        <p>Worth noting for completeness: LoRA is not fundamentally less expressive. The original paper observes that applying LoRA to every matrix with <span class="v">r</span> equal to the full rank recovers the expressiveness of full fine-tuning, and <a href="https://arxiv.org/abs/2310.17513" target="_blank" rel="noopener noreferrer">Zeng and Lee (2024)</a> give conditions under which a sufficiently deep low-rank-adapted network can represent any target model. The constraint is a budget, not a wall.</p>
+      </section>
+
+      <section id="vlms">
+        <h2>PEFT in vision-language models</h2>
+
+        <p>Everything above was written about a transformer stack. VLMs are where the ideas get interesting, because a VLM is not one model — it is a frozen vision tower, a small connector, and a language model, and each of the three wants a different treatment.</p>
+
+        <h3>The standard recipe is already PEFT</h3>
+
+        <p>LLaVA-1.5's two stages look like this. Stage 1 freezes both the CLIP vision encoder and the language model and trains <em>only</em> the two-layer MLP projector on 558K image–text pairs. Stage 2 keeps the vision encoder frozen and trains the projector plus the language model on a 665K instruction mixture.</p>
+
+        <p>Stage 1 is selective PEFT by any definition: over 99% of parameters are frozen and the trainable module is a handful of megabytes. Nobody calls it that, because the framing was "modality alignment" rather than "efficiency," but the mechanics are identical — a small trainable bridge between frozen towers. BLIP-2's Q-Former is the same idea with a heavier bridge; Flamingo's gated cross-attention layers are the same idea implemented as adapters interleaved into a frozen language model, complete with a <code class="inline">tanh</code> gate initialized to zero so the augmented model starts exactly equal to the original. The identity-at-init principle from <a href="#lora">&sect;&thinsp;LoRA</a> shows up independently everywhere.</p>
+
+        <h3>Where LoRA goes, and where it must not</h3>
+
+        <p>The LoRA variant of stage 2 replaces full language-model training with adapters and keeps the projector fully trainable. That asymmetry is the important design decision and it follows directly from the theory:</p>
+
+        <ul class="plain">
+          <li><b>The language model is being adjusted.</b> It already knows how to write; you are re-weighting behaviours it has. Low-rank is the right constraint, and it protects the text-only abilities you would otherwise burn.</li>
+          <li><b>The projector is being <em>created</em>.</b> It is learning a map that does not exist yet, from vision-encoder feature space into token-embedding space. There is no pretrained function to perturb, so "small update to a good initialization" is not a meaningful description of the problem. Train it fully. It is small enough that this costs nothing.</li>
+          <li><b>The vision tower stays frozen</b> unless the domain has genuinely shifted — documents, medical imaging, remote sensing, anything CLIP's pretraining did not cover. Then LoRA on the ViT is the usual first move, at low rank, before considering unfreezing.</li>
+        </ul>
+
+        <p>Ranks in VLM adaptation run higher than in text: <span class="v">r</span>&nbsp;=&nbsp;128 with &alpha;&nbsp;=&nbsp;256 is a common working configuration, and a differential learning rate for the projector (around 2e-5) versus the adapters (1e-4 to 2e-4) is standard. That is not superstition; it reflects the two-jobs-at-once structure above.</p>
+
+        <h3>Two hazards specific to VLMs</h3>
+
+        <p>First, the memory arithmetic changes. A single image at 336px through CLIP ViT-L/14 becomes 576 tokens, and tiling schemes multiply that. Sequence length — and therefore <em>activation</em> memory — dominates in a way it does not for text fine-tuning. LoRA removes optimizer state; it does not remove activations. On a VLM run you can find yourself with a comfortable weight budget and an OOM anyway, and the fix is gradient checkpointing and sequence packing, not a lower rank.</p>
+
+        <p>Second, an adapter cannot repair a broken interface. If the vision tower's resolution, patch grid or normalization does not match what the projector expects, no amount of low-rank adaptation downstream will fix it — you will get a model that trains to a plausible loss and answers image questions from language priors. Check the interface before you tune it.</p>
+      </section>
+
+      <section id="when-not">
+        <h2>When not to use LoRA</h2>
+
+        <p>The useful version of this section is a set of triggers, not a disclaimer.</p>
+
+        <ol class="plain">
+          <li><b>You are adding knowledge, not adjusting behaviour.</b> New language, new formalism, a domain the base model has genuinely never seen. Biderman's continued-pretraining results are unambiguous here: low-rank is sample-inefficient exactly when the distribution shift is large.</li>
+          <li><b>You are training on more than a few billion tokens.</b> The gap widens with data. If you can afford the tokens you can usually afford the optimizer states.</li>
+          <li><b>You need to change the embedding table or tokenizer.</b> Adding vocabulary means new rows, which are new parameters, not low-rank perturbations of old ones. Train the embeddings.</li>
+          <li><b>Your bottleneck is step time, not memory.</b> LoRA's speedup is modest and QLoRA is actively slower per step. If you have the memory, full fine-tuning at the same wall-clock budget will usually learn more.</li>
+          <li><b>Your rank is drifting above <span class="v">d</span>/2.</b> At that point the factorization stores more numbers than the matrix it is approximating. Either the task needs full fine-tuning or your scaling is wrong — check <a href="#alpha">&sect;&thinsp;Scaling</a> before you conclude the former.</li>
+          <li><b>You are stacking adapters sequentially over months.</b> Intruder dimensions accumulate under sequential fine-tuning, and the retention advantage erodes. Periodically retrain from the base on the union of your data.</li>
+          <li><b>The problem is not a fine-tuning problem.</b> A retrieval system, a better prompt, or a few well-chosen examples solves a surprising fraction of what people reach for LoRA to fix, at a fraction of the operational cost. Fine-tuning changes behaviour; it is a poor way to install facts.</li>
+        </ol>
+
+        <h3>A default that works</h3>
+
+        <p>If you want one configuration to start from and adjust only when something forces you to: <strong>LoRA on all linear layers, rank 16, &alpha;&nbsp;=&nbsp;32, rank-stabilized scaling on, dropout 0.05, learning rate 2e-4 with a warmup, and the base in bf16 if it fits and NF4 if it does not.</strong> Then sweep rank, and only rank, and watch both the target metric and one held-out source-domain benchmark. If the target metric is still climbing at rank 128, you have learned something important — probably that you should not be using LoRA for this.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>The low-rank hypothesis and its foundations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1804.08838" target="_blank" rel="noopener noreferrer">Measuring the Intrinsic Dimension of Objective Landscapes</a> &middot; Li, Farkhoor, Liu &amp; Yosinski, 2018</li>
+            <li><a href="https://arxiv.org/abs/2012.13255" target="_blank" rel="noopener noreferrer">Intrinsic Dimensionality Explains the Effectiveness of Language Model Fine-Tuning</a> &middot; Aghajanyan, Zettlemoyer &amp; Gupta, 2020</li>
+            <li><a href="https://arxiv.org/abs/2310.17513" target="_blank" rel="noopener noreferrer">The Expressive Power of Low-Rank Adaptation</a> &middot; Zeng &amp; Lee, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>LoRA, its scaling and its variants</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener noreferrer">LoRA: Low-Rank Adaptation of Large Language Models</a> &middot; Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang &amp; Chen, 2021</li>
+            <li><a href="https://arxiv.org/abs/2312.03732" target="_blank" rel="noopener noreferrer">A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA</a> &middot; Kalajdzievski, 2023</li>
+            <li><a href="https://arxiv.org/abs/2402.12354" target="_blank" rel="noopener noreferrer">LoRA+: Efficient Low Rank Adaptation of Large Models</a> &middot; Hayou, Ghosh &amp; Yu, 2024</li>
+            <li><a href="https://arxiv.org/abs/2303.10512" target="_blank" rel="noopener noreferrer">Adaptive Budget Allocation for Parameter-Efficient Fine-Tuning (AdaLoRA)</a> &middot; Zhang, Chen, Bukharin, He, Cheng, Chen &amp; Zhao, 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.02948" target="_blank" rel="noopener noreferrer">PiSSA: Principal Singular Values and Singular Vectors Adaptation of Large Language Models</a> &middot; Meng, Wang &amp; Zhang, 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.09044" target="_blank" rel="noopener noreferrer">MiLoRA: Harnessing Minor Singular Components for Parameter-Efficient LLM Finetuning</a> &middot; Wang, Xiao, Li, Wang, Chen &amp; Chen, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Quantized fine-tuning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2305.14314" target="_blank" rel="noopener noreferrer">QLoRA: Efficient Finetuning of Quantized LLMs</a> &middot; Dettmers, Pagnoni, Holtzman &amp; Zettlemoyer, 2023</li>
+            <li><a href="https://arxiv.org/abs/2208.07339" target="_blank" rel="noopener noreferrer">LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale</a> &middot; Dettmers, Lewis, Belkada &amp; Zettlemoyer, 2022</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Weight decomposition</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2402.09353" target="_blank" rel="noopener noreferrer">DoRA: Weight-Decomposed Low-Rank Adaptation</a> &middot; Liu, Wang, Yin, Molchanov, Wang, Cheng &amp; Chen, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>The wider PEFT family</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1902.00751" target="_blank" rel="noopener noreferrer">Parameter-Efficient Transfer Learning for NLP</a> &middot; Houlsby, Giurgiu, Jastrzebski, Morrone, de Laroussilhe, Gesmundo, Attariyan &amp; Gelly, 2019</li>
+            <li><a href="https://arxiv.org/abs/2101.00190" target="_blank" rel="noopener noreferrer">Prefix-Tuning: Optimizing Continuous Prompts for Generation</a> &middot; Li &amp; Liang, 2021</li>
+            <li><a href="https://arxiv.org/abs/2104.08691" target="_blank" rel="noopener noreferrer">The Power of Scale for Parameter-Efficient Prompt Tuning</a> &middot; Lester, Al-Rfou &amp; Constant, 2021</li>
+            <li><a href="https://arxiv.org/abs/2205.05638" target="_blank" rel="noopener noreferrer">Few-Shot Parameter-Efficient Fine-Tuning is Better and Cheaper than In-Context Learning</a> &middot; Liu, Tam, Muqeeth, Mohta, Huang, Bansal &amp; Raffel, 2022</li>
+            <li><a href="https://arxiv.org/abs/2106.10199" target="_blank" rel="noopener noreferrer">BitFit: Simple Parameter-efficient Fine-tuning for Transformer-based Masked Language-models</a> &middot; Ben Zaken, Ravfogel &amp; Goldberg, 2021</li>
+            <li><a href="https://arxiv.org/abs/2110.04366" target="_blank" rel="noopener noreferrer">Towards a Unified View of Parameter-Efficient Transfer Learning</a> &middot; He, Zhou, Ma, Berg-Kirkpatrick &amp; Neubig, 2022</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>What PEFT does and does not do</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2405.09673" target="_blank" rel="noopener noreferrer">LoRA Learns Less and Forgets Less</a> &middot; Biderman, Portes, Gonzalez Ortiz, Paul, Greengard, Jennings, King, Havens, Chiley, Frankle, Blakeney &amp; Cunningham, 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.21228" target="_blank" rel="noopener noreferrer">LoRA vs Full Fine-tuning: An Illusion of Equivalence</a> &middot; Shuttleworth, Andreas, Torralba &amp; Sharma, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Serving many adapters</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2311.03285" target="_blank" rel="noopener noreferrer">S-LoRA: Serving Thousands of Concurrent LoRA Adapters</a> &middot; Sheng, Cao, Li, Hooper, Lee, Yang, Chou, Zhu, Zheng, Keutzer, Gonzalez &amp; Stoica, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Vision-language adaptation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">Visual Instruction Tuning (LLaVA)</a> &middot; Liu, Li, Wu &amp; Lee, 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.03744" target="_blank" rel="noopener noreferrer">Improved Baselines with Visual Instruction Tuning (LLaVA-1.5)</a> &middot; Liu, Li, Li &amp; Lee, 2023</li>
+            <li><a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener noreferrer">Flamingo: a Visual Language Model for Few-Shot Learning</a> &middot; Alayrac et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2301.12597" target="_blank" rel="noopener noreferrer">BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models</a> &middot; Li, Li, Savarese &amp; Hoi, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Implementations</h3>
+          <ul>
+            <li><a href="https://github.com/huggingface/peft" target="_blank" rel="noopener noreferrer">huggingface/peft</a> &middot; LoRA, DoRA, rsLoRA, AdaLoRA, IA³, prefix and prompt tuning in one library</li>
+            <li><a href="https://github.com/microsoft/LoRA" target="_blank" rel="noopener noreferrer">microsoft/LoRA</a> &middot; the original reference implementation</li>
+            <li><a href="https://github.com/artidoro/qlora" target="_blank" rel="noopener noreferrer">artidoro/qlora</a> &middot; NF4, double quantization and paged optimizers</li>
+            <li><a href="https://github.com/NVlabs/DoRA" target="_blank" rel="noopener noreferrer">NVlabs/DoRA</a> &middot; official weight-decomposed implementation</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Fine-Tuning Without Updating Everything &mdash; PEFT From First Principles</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/peft-from-first-principles/">https://srini-anirudh.github.io/blogs/peft-from-first-principles/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026peft,
+  author       = {Srinivasan, Anirudh},
+  title        = {Fine-Tuning Without Updating Everything: PEFT From First Principles},
+  year         = {2026},
+  month        = {sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/peft-from-first-principles/},
+  note         = {Published September 5, 2026; updated September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Fine-Tuning Without Updating Everything &mdash; PEFT From First Principles</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+    (function () {
+      "use strict";
+
+      /* ------------------------------------------------------------------ *
+       *  Shared palette, math and SVG helpers
+       * ------------------------------------------------------------------ */
+      var P = {
+        ink: "#e4eaee", dim: "#93a0a8", faint: "#5d6a73", line: "#2b343d",
+        deep: "#161c22", bg: "#0f1317", green: "#3fd1a0", blue: "#5ab2e8",
+        amber: "#f2b451", rose: "#e8697d", violet: "#b98bdb", steel: "#42505b"
+      };
+      var MONO = "'IBM Plex Mono', 'DejaVu Sans Mono', 'DejaVu Sans', ui-monospace, monospace";
+      var SERIF = "Newsreader, Georgia, serif";
+      var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function arr(list, pos) {
+        var i = Math.floor(pos), f = pos - i;
+        if (i >= list.length - 1) return list[list.length - 1];
+        return lerp(list[i], list[i + 1], ease(f));
+      }
+      function box(list, pos) {
+        var i = Math.floor(pos), f = ease(pos - i);
+        if (i >= list.length - 1) return list[list.length - 1].slice();
+        var a = list[i], b = list[i + 1];
+        return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), lerp(a[2], b[2], f), lerp(a[3], b[3], f)];
+      }
+      function pick(list, pos) { return list[clamp(Math.round(pos), 0, list.length - 1)]; }
+      function hex(c) { return [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]; }
+      function mix(a, b, t) {
+        var A = hex(a), B = hex(b), o = "#";
+        for (var i = 0; i < 3; i++) { var v = Math.round(A[i] + (B[i] - A[i]) * clamp(t, 0, 1)).toString(16); o += v.length < 2 ? "0" + v : v; }
+        return o;
+      }
+      function n1(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+      function n2(x) { return (Math.round(x * 100) / 100).toFixed(2); }
+      function pnum(n) {
+        if (n >= 1e9) return (n / 1e9).toFixed(2) + " B";
+        if (n >= 1e6) return (n / 1e6).toFixed(2) + " M";
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + " K";
+        return String(Math.round(n));
+      }
+      function seeded(s) { var x = s >>> 0; return function () { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+      function gauss(r) { var u = 0, v = 0; while (u === 0) u = r(); while (v === 0) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+      function AT(o) {
+        var s = "";
+        for (var k in o) { if (o[k] === undefined || o[k] === null || o[k] === "") continue; s += " " + k + '="' + o[k] + '"'; }
+        return s;
+      }
+      function R(x, y, w, h, o) {
+        o = o || {};
+        return "<rect" + AT({ x: n2(x), y: n2(y), width: n2(Math.max(0, w)), height: n2(Math.max(0, h)), fill: o.f || "none", stroke: o.st, "stroke-width": o.sw, rx: o.rx, opacity: o.o, "stroke-dasharray": o.sd }) + "/>";
+      }
+      var SUBM = { "\u2091": "q", "\u1d63": "r", "\u2096": "k", "\u2092": "o", "\u1d65": "v", "\u209c": "t", "\u2099": "n", "\u1d64": "u", "\u1d62": "i", "\u2080": "0", "\u2081": "1", "\u2082": "2" };
+      var SUPM = { "\u1d40": "T", "\u1d38": "L", "\u1d34": "H", "\u207b": "-", "\u00b2": "2", "\u00b3": "3", "\u2075": "5", "\u2076": "6", "\u2077": "7", "\u2078": "8", "\u2079": "9" };
+      var FXRE = /[\u2091\u1d63\u2096\u2092\u1d65\u209c\u2099\u1d64\u1d62\u2080\u2081\u2082]+|[\u1d40\u1d38\u1d34\u207b\u00b2\u00b3\u2075\u2076\u2077\u2078\u2079]+/g;
+      /* Latin sub/superscript code points are absent from IBM Plex Mono and from many
+         mobile fallback stacks, so render them as real tspans instead of raw glyphs. */
+      function fx(s) {
+        s = String(s);
+        if (s.indexOf("<") >= 0) return s;
+        FXRE.lastIndex = 0;
+        if (!FXRE.test(s)) return s;
+        FXRE.lastIndex = 0;
+        var out = "", last = 0, cur = 0, m, plain;
+        function shift(to, txt, sz) {
+          var d = to - cur; cur = to;
+          if (d === 0 && sz === 1) return txt;
+          return '<tspan dy="' + (d === 0 ? 0 : d.toFixed(3)) + 'em"' + (sz === 1 ? "" : ' font-size="72%"') + ">" + txt + "</tspan>";
+        }
+        while ((m = FXRE.exec(s))) {
+          plain = s.slice(last, m.index);
+          if (plain) out += shift(0, plain, 1);
+          var isSub = SUBM[m[0].charAt(0)] !== undefined, map = isSub ? SUBM : SUPM;
+          out += shift(isSub ? 0.24 : -0.36, m[0].replace(/[\s\S]/g, function (c) { return map[c] || c; }), 0.72);
+          last = m.index + m[0].length;
+        }
+        plain = s.slice(last);
+        if (plain) out += shift(0, plain, 1);
+        else if (cur !== 0) out += shift(0, " ", 1);
+        return out;
+      }
+      function T(x, y, s, o) {
+        o = o || {};
+        return "<text" + AT({
+          x: n2(x), y: n2(y), fill: o.f || P.ink, "font-family": o.serif ? SERIF : MONO,
+          "font-size": o.s || 11, "font-weight": o.w || 400, "text-anchor": o.a || "start",
+          opacity: o.o, "letter-spacing": o.ls, "font-style": o.i
+        }) + ">" + fx(s) + "</text>";
+      }
+      /* Captions must survive every camera move, so they are placed in viewBox-relative
+         coordinates and scaled with the zoom rather than pinned to the full-frame origin. */
+      function CAPT(vb, s, o) {
+        o = o || {};
+        var k = vb[2] / 960;
+        var y = o.bottom ? vb[1] + vb[3] - 12 * k : vb[1] + 26 * k;
+        return T(vb[0] + 16 * k, y, s, { s: (o.s || 13) * k, f: o.f || P.ink, w: 500 });
+      }
+      function L(x1, y1, x2, y2, o) {
+        o = o || {};
+        return "<line" + AT({ x1: n2(x1), y1: n2(y1), x2: n2(x2), y2: n2(y2), stroke: o.st || P.line, "stroke-width": o.sw || 1, opacity: o.o, "stroke-dasharray": o.sd, "stroke-linecap": o.cap }) + "/>";
+      }
+      function PTH(d, o) {
+        o = o || {};
+        return "<path" + AT({ d: d, fill: o.f || "none", stroke: o.st, "stroke-width": o.sw, opacity: o.o, "stroke-dasharray": o.sd, "stroke-linecap": o.cap, "stroke-linejoin": "round" }) + "/>";
+      }
+      function C(cx, cy, r, o) {
+        o = o || {};
+        return "<circle" + AT({ cx: n2(cx), cy: n2(cy), r: n2(Math.max(0, r)), fill: o.f || "none", stroke: o.st, "stroke-width": o.sw, opacity: o.o }) + "/>";
+      }
+      function G(x1, y1, x2, y2, o) {
+        o = o || {};
+        var col = o.st || P.dim, sw = o.sw || 1.4, op = o.o === undefined ? 1 : o.o;
+        var ang = Math.atan2(y2 - y1, x2 - x1), hl = o.hl || 7;
+        var s = L(x1, y1, x2, y2, { st: col, sw: sw, o: op, sd: o.sd, cap: "round" });
+        s += PTH("M" + n2(x2) + " " + n2(y2) + "L" + n2(x2 - hl * Math.cos(ang - 0.42)) + " " + n2(y2 - hl * Math.sin(ang - 0.42)) +
+          "L" + n2(x2 - hl * Math.cos(ang + 0.42)) + " " + n2(y2 - hl * Math.sin(ang + 0.42)) + "Z", { f: col, o: op });
+        return s;
+      }
+      function labelBox(x, y, w, h, title, sub, o) {
+        o = o || {};
+        var s = R(x, y, w, h, { f: o.f || P.deep, st: o.st || P.line, sw: o.sw || 1.2, o: o.o, sd: o.sd, rx: 2 });
+        s += T(x + w / 2, y + h / 2 + (sub ? -2 : 4), title, { a: "middle", s: o.ts || 12, w: 600, f: o.tf || P.ink, o: o.o });
+        if (sub) s += T(x + w / 2, y + h / 2 + 13, sub, { a: "middle", s: 9.5, f: o.sf || P.dim, o: o.o });
+        return s;
+      }
+      function caption(x, y, txt, o) {
+        o = o || {};
+        return T(x, y, txt, { s: o.s || 12.5, f: o.f || P.ink, o: o.o, w: o.w || 500 });
+      }
+
+      /* ------------------------------------------------------------------ *
+       *  Controller
+       * ------------------------------------------------------------------ */
+      var registry = {};
+      function register(key, spec) { registry[key] = spec; }
+
+      function mount(stage) {
+        var spec = registry[stage.getAttribute("data-fig")];
+        if (!spec) return;
+        var panel = stage.closest(".article-panel");
+        var controls = panel.querySelector(".animation-controls");
+        var statusEl = panel.querySelector(".animation-status");
+        var playBtn = controls.querySelector('[data-action="play-pause"]');
+        var st = {
+          pos: 0, target: 0, speed: 1, playing: !REDUCED, hold: 0,
+          mode: spec.mode0 || null, resumeAt: 0, pending: false, last: -999, visible: true, dirty: true
+        };
+        var TR = spec.trans || 820, DW = spec.dwell || 1500;
+
+        function draw() {
+          var out = spec.render(st.pos, st.mode, REDUCED);
+          var vb = REDUCED && spec.vbFull ? spec.vbFull : out.vb;
+          stage.innerHTML = '<svg viewBox="' + vb.map(n2).join(" ") + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="' +
+            (out.alt || spec.alt || "").replace(/"/g, "&quot;") + '" preserveAspectRatio="xMidYMid meet">' +
+            R(vb[0] - 40, vb[1] - 40, vb[2] + 80, vb[3] + 80, { f: P.bg }) + out.body + "</svg>";
+          var i = clamp(Math.round(st.pos), 0, spec.total - 1);
+          statusEl.textContent = (spec.status ? spec.status(i, spec.total, st.mode) : "Stage " + pad(i + 1) + " / " + pad(spec.total));
+        }
+        function pad(n) { return n < 10 ? "0" + n : String(n); }
+
+        function setPlaying(v) {
+          st.playing = v; st.pending = false;
+          playBtn.textContent = v ? "Pause" : "Play";
+          playBtn.setAttribute("aria-pressed", v ? "true" : "false");
+          playBtn.setAttribute("aria-label", v ? "Pause animation" : "Play animation");
+          if (v) st.hold = performance.now();
+        }
+        function nudge(d) {
+          var t = clamp(Math.round(st.target) + d, 0, spec.total - 1);
+          if (Math.abs(st.pos - st.target) > 0.5) { st.pos = st.target; }
+          st.target = t;
+          if (REDUCED) st.pos = t;
+          if (st.playing) { setPlaying(false); st.pending = true; st.resumeAt = performance.now() + 6000; }
+          st.dirty = true;
+        }
+
+        controls.addEventListener("click", function (e) {
+          var b = e.target.closest("button"); if (!b) return;
+          if (b.dataset.action === "previous") nudge(-1);
+          else if (b.dataset.action === "next") nudge(1);
+          else if (b.dataset.action === "play-pause") setPlaying(!st.playing);
+          else if (b.dataset.speed) {
+            st.speed = parseFloat(b.dataset.speed);
+            controls.querySelectorAll("[data-speed]").forEach(function (o) {
+              o.setAttribute("aria-pressed", parseFloat(o.dataset.speed) === st.speed ? "true" : "false");
+            });
+          } else if (b.dataset.mode) {
+            st.mode = b.dataset.mode; st.dirty = true;
+            controls.querySelectorAll("[data-mode]").forEach(function (o) {
+              o.setAttribute("aria-pressed", o.dataset.mode === st.mode ? "true" : "false");
+            });
+            if (st.playing) { setPlaying(false); st.pending = true; st.resumeAt = performance.now() + 6000; }
+          }
+        });
+
+        if (REDUCED) setPlaying(false);
+        if ("IntersectionObserver" in window) {
+          new IntersectionObserver(function (es) { st.visible = es[0].isIntersecting; }, { rootMargin: "160px" }).observe(panel);
+        }
+
+        var prev = performance.now();
+        function tick(now) {
+          var dt = Math.min(70, now - prev); prev = now;
+          if (st.pending && now >= st.resumeAt) setPlaying(true);
+          if (st.pos !== st.target) {
+            var dur = REDUCED ? 1 : TR / st.speed;
+            var dir = st.target > st.pos ? 1 : -1;
+            st.pos += (dt / dur) * dir;
+            if ((dir > 0 && st.pos >= st.target) || (dir < 0 && st.pos <= st.target)) {
+              st.pos = st.target; st.hold = now + DW / st.speed;
+            }
+            st.dirty = true;
+          } else if (st.playing && now >= st.hold) {
+            var nx = st.target + 1;
+            if (nx >= spec.total) { st.pos = 0; st.target = 0; st.hold = now + (DW * 1.5) / st.speed; st.dirty = true; }
+            else st.target = nx;
+          }
+          if (st.visible && (st.dirty || Math.abs(st.pos - st.last) > 0.0015)) {
+            st.last = st.pos; st.dirty = false; draw();
+          }
+          requestAnimationFrame(tick);
+        }
+        draw();
+        requestAnimationFrame(tick);
+      }
+
+      /* ================================================================== *
+       *  FIGURE 1 — the memory ledger
+       * ================================================================== */
+      (function () {
+        var Pn = 6.738e9;                 // Llama-2-7B parameter count
+        var LoRAp = 2498560 * 8;          // all-linear rank 8, 32 layers
+        var W16 = Pn * 2 / 1e9;           // 13.48 GB
+        var Wq4 = Pn * 4.127 / 8 / 1e9;   // 3.48 GB
+        var Tst = LoRAp * 4 / 1e9;        // 0.08 GB per state tensor
+        var ACT = 15;
+        var S = {
+          w: [0, W16, W16, W16, W16, W16, W16, W16, W16, Wq4, Wq4, Wq4],
+          g: [0, 0, W16, W16, W16, W16, W16, Tst, Tst, Tst, Tst, Tst],
+          m32: [0, 0, 0, W16 * 2, W16 * 2, W16 * 2, W16 * 2, Tst, Tst, Tst, Tst, Tst],
+          am: [0, 0, 0, 0, W16 * 2, W16 * 2, W16 * 2, Tst, Tst, Tst, Tst, Tst],
+          av: [0, 0, 0, 0, 0, W16 * 2, W16 * 2, Tst, Tst, Tst, Tst, Tst],
+          act: [0, 0, 0, 0, 0, 0, ACT, ACT, ACT, ACT, 0, 0],
+          tri: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+          ck: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+          lim: [0, 0, 0, 0, 0.5, 1, 1, 1, 1, 0.6, 0.3, 0.2]
+        };
+        var VB = [[0, 0, 960, 420], [0, 0, 960, 420], [0, 0, 960, 420], [0, 0, 960, 420], [0, 0, 960, 420], [0, 0, 960, 420],
+        [0, 0, 960, 420], [0, 0, 960, 420], [232, 246, 480, 210], [232, 246, 480, 210], [0, 0, 960, 420], [0, 0, 960, 420]];
+        var CAP = [
+          "A 6.74-billion-parameter model, and an empty budget.",
+          "Weights in bf16: 2 bytes per parameter.",
+          "Gradients: one bf16 number per weight. The bill has doubled.",
+          "An fp32 master copy, so that small updates survive rounding.",
+          "Adam's first moment. We have now crossed a single H100.",
+          "Adam's second moment. 16 bytes per parameter, total.",
+          "Plus activations. Seven-eighths of this is optimizer scaffolding.",
+          "Freeze everything but a rank-8 adapter on all linear layers.",
+          "Zoomed in: the entire trainable state is 320 MB.",
+          "Quantize the frozen base to NF4 — 4.127 bits per parameter.",
+          "The three regimes side by side, activations excluded.",
+          "And the artefact you actually ship: 13.5 GB versus 40 MB."
+        ];
+        var ALT = CAP;
+        var Y0 = 372, TOP = 44, MAXG = 130, PX = (Y0 - TOP) / MAXG;
+
+        function seg(x, w, base, h, col, label, op) {
+          if (h <= 0.004) return "";
+          var y = Y0 - (base + h) * PX, hh = h * PX, s = "";
+          s += R(x, y, w, hh, { f: col, o: 0.86 * op, rx: 1 });
+          s += R(x, y, w, hh, { st: mix(col, "#ffffff", 0.25), sw: 0.8, o: 0.55 * op });
+          if (hh > 13 && label) s += T(x + 9, y + hh / 2 + 4, label, { s: 10.5, f: "#08100e", w: 600, o: op });
+          return s;
+        }
+
+        function render(pos) {
+          var w = arr(S.w, pos), g = arr(S.g, pos), m32 = arr(S.m32, pos), am = arr(S.am, pos), av = arr(S.av, pos);
+          var ac = arr(S.act, pos), tri = arr(S.tri, pos), ck = arr(S.ck, pos), lim = arr(S.lim, pos);
+          var single = 1 - tri, b = "", i;
+
+          for (i = 0; i <= MAXG; i += 20) {
+            var yy = Y0 - i * PX;
+            b += L(96, yy, 900, yy, { st: P.line, sw: 1, o: 0.55 });
+            b += T(88, yy + 4, i + "", { a: "end", s: 10, f: P.faint });
+          }
+          b += T(88, Y0 - MAXG * PX - 12, "GB", { a: "end", s: 9.5, f: P.faint, ls: "0.1em" });
+          b += L(96, Y0, 900, Y0, { st: P.steel, sw: 1.4 });
+
+          if (lim > 0.02) {
+            var yl = Y0 - 80 * PX;
+            b += L(96, yl, 900, yl, { st: P.rose, sw: 1.3, sd: "7 5", o: lim });
+            b += T(900, yl - 7, "80 GB — one H100", { a: "end", s: 10.5, f: P.rose, o: lim, w: 600 });
+          }
+
+          if (single > 0.02) {
+            var x = 330, bw = 150, base = 0;
+            b += seg(x, bw, base, w, P.blue, "weights", single); base += w;
+            b += seg(x, bw, base, g, P.violet, "gradients", single); base += g;
+            b += seg(x, bw, base, m32, P.amber, "fp32 master", single); base += m32;
+            b += seg(x, bw, base, am, P.green, "Adam m", single); base += am;
+            b += seg(x, bw, base, av, mix(P.green, P.blue, 0.55), "Adam v", single); base += av;
+            if (ac > 0.01) {
+              var ya = Y0 - (base + ac) * PX;
+              b += R(x, ya, bw, ac * PX, { f: P.steel, o: 0.5 * single, rx: 1, st: P.steel, sw: 0.8, sd: "4 3" });
+              b += T(x + 9, ya + ac * PX / 2 + 4, "activations", { s: 10.5, f: P.ink, o: 0.85 * single });
+              base += ac;
+            }
+            b += T(x + bw + 18, Y0 - base * PX + 5, n1(base) + " GB", { s: 19, w: 600, f: P.ink, o: single });
+            b += T(x + bw / 2, Y0 + 22, "resident training memory", { a: "middle", s: 10, f: P.faint, o: single });
+          }
+
+          if (tri > 0.02) {
+            var cols = [
+              { n: "Full fine-tune", v: [W16, W16, W16 * 2, W16 * 2, W16 * 2], t: 16 },
+              { n: "LoRA r=8", v: [W16, Tst, Tst, Tst, Tst], t: 0 },
+              { n: "QLoRA r=8", v: [Wq4, Tst, Tst, Tst, Tst], t: 0 }
+            ];
+            var colr = [P.blue, P.violet, P.amber, P.green, mix(P.green, P.blue, 0.55)];
+            for (i = 0; i < 3; i++) {
+              var cx = 200 + i * 235, cw = 120, bb = 0, tot = 0, j;
+              for (j = 0; j < 5; j++) { b += seg(cx, cw, bb, cols[i].v[j], colr[j], "", tri); bb += cols[i].v[j]; tot += cols[i].v[j]; }
+              b += T(cx + cw / 2, Y0 - tot * PX - 12, n1(tot) + " GB", { a: "middle", s: 16, w: 600, f: P.ink, o: tri });
+              b += T(cx + cw / 2, Y0 + 20, cols[i].n, { a: "middle", s: 11, f: P.dim, o: tri, w: 600 });
+              if (i > 0) b += T(cx + cw / 2, Y0 + 36, (107.84 / tot).toFixed(1) + "\u00d7 smaller", { a: "middle", s: 10, f: P.green, o: tri });
+            }
+          }
+
+          if (ck > 0.02) {
+            b += R(560, 60, 340, 130, { f: P.deep, st: P.green, sw: 1.2, o: ck, rx: 2 });
+            b += T(580, 86, "WHAT YOU SHIP PER TASK", { s: 10, f: P.green, ls: "0.14em", w: 600, o: ck });
+            b += T(580, 118, "full fine-tune", { s: 12, f: P.dim, o: ck });
+            b += T(880, 118, "13.48 GB", { s: 14, a: "end", f: P.ink, w: 600, o: ck });
+            b += T(580, 146, "LoRA adapter", { s: 12, f: P.dim, o: ck });
+            b += T(880, 146, "40 MB", { s: 14, a: "end", f: P.green, w: 600, o: ck });
+            b += T(580, 172, "337\u00d7 smaller \u00b7 hundreds fit in host RAM", { s: 10.5, f: P.faint, o: ck });
+          }
+
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "Memory ledger, stage " + (Math.round(pos) + 1) + ": " + pick(ALT, pos) };
+        }
+        register("ledger", {
+          total: 12, dwell: 1750, render: render, vbFull: [0, 0, 960, 420],
+          alt: "Stacked memory ledger for fine-tuning a 7B model"
+        });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 2 — rank-r truncation and the spectrum
+       * ================================================================== */
+      (function () {
+        var N = 24;
+        function orthobasis(seed) {
+          var r = seeded(seed), V = [], i, j, k;
+          for (i = 0; i < N; i++) {
+            var v = []; for (j = 0; j < N; j++) v.push(gauss(r));
+            for (k = 0; k < i; k++) { var d = 0; for (j = 0; j < N; j++) d += v[j] * V[k][j]; for (j = 0; j < N; j++) v[j] -= d * V[k][j]; }
+            var nn = 0; for (j = 0; j < N; j++) nn += v[j] * v[j]; nn = Math.sqrt(nn);
+            for (j = 0; j < N; j++) v[j] /= nn;
+            V.push(v);
+          }
+          return V;
+        }
+        function build(sig, seedU, seedV) {
+          var U = orthobasis(seedU), V = orthobasis(seedV), recon = [], cur = [], i, j, k;
+          for (i = 0; i < N; i++) { cur.push(new Array(N).fill(0)); }
+          for (k = 0; k < N; k++) {
+            for (i = 0; i < N; i++) for (j = 0; j < N; j++) cur[i][j] += sig[k] * U[k][i] * V[k][j];
+            var snap = []; for (i = 0; i < N; i++) snap.push(cur[i].slice());
+            recon.push(snap);
+          }
+          var full = recon[N - 1], mx = 0;
+          for (i = 0; i < N; i++) for (j = 0; j < N; j++) mx = Math.max(mx, Math.abs(full[i][j]));
+          var err = []; for (k = 1; k <= N; k++) { var s = 0; for (i = k; i < N; i++) s += sig[i] * sig[i]; err.push(Math.sqrt(s)); }
+          var fn = 0; for (i = 0; i < N; i++) fn += sig[i] * sig[i]; fn = Math.sqrt(fn);
+          return { sig: sig, recon: recon, full: full, mx: mx, err: err, fn: fn };
+        }
+        var sigFast = [], sigSlow = [], i;
+        for (i = 0; i < N; i++) { sigFast.push(10 * Math.exp(-0.40 * i)); sigSlow.push(10 / (1 + 0.16 * i)); }
+        var DATA = { fast: build(sigFast, 7, 13), slow: build(sigSlow, 7, 13) };
+
+        var CELL = 8, MX0 = 44, MY0 = 60, MX1 = 268, SPX = 512, SPW = 400, SPY = 270;   /* SPY clears the 192px grids, which end at 252 */
+        /* A gentle push-in only: this figure's motion is the rank sweep itself, and any
+           real crop loses either the residual panel or the spectrum's tail label. */
+        var VBfull = [0, 0, 960, 300], VBzoom = [16, 40, 928, 290];
+
+        function heat(v, mx) {
+          var t = clamp(v / mx, -1, 1);
+          return t >= 0 ? mix(P.bg, P.amber, Math.pow(t, 0.62)) : mix(P.bg, P.blue, Math.pow(-t, 0.62));
+        }
+        function grid(x0, y0, M, mx, op) {
+          var s = "", i, j;
+          for (i = 0; i < N; i++) for (j = 0; j < N; j++) {
+            s += R(x0 + j * CELL, y0 + i * CELL, CELL - 0.6, CELL - 0.6, { f: heat(M[i][j], mx), o: op });
+          }
+          s += R(x0 - 1.5, y0 - 1.5, N * CELL + 2, N * CELL + 2, { st: P.line, sw: 1, o: op });
+          return s;
+        }
+
+        function render(pos, mode) {
+          var D = DATA[mode || "fast"], k = Math.floor(pos), f = ease(pos - k);
+          var A = D.recon[clamp(k, 0, N - 1)], B = D.recon[clamp(k + 1, 0, N - 1)];
+          var M = [], Res = [], i, j;
+          for (i = 0; i < N; i++) { M.push([]); Res.push([]); for (j = 0; j < N; j++) { var v = lerp(A[i][j], B[i][j], f); M[i].push(v); Res[i].push(D.full[i][j] - v); } }
+          var rr = pos + 1, err = lerp(D.err[clamp(k, 0, N - 1)], D.err[clamp(k + 1, 0, N - 1)], f);
+          var b = "";
+
+          b += T(MX0, 40, "rank-r reconstruction", { s: 11, f: P.dim, ls: "0.05em" });
+          b += grid(MX0, MY0, M, D.mx, 1);
+          b += T(MX1, 40, "residual (same scale)", { s: 11, f: P.dim, ls: "0.05em" });
+          b += grid(MX1, MY0, Res, D.mx, 1);
+
+          b += T(SPX, 40, "singular value spectrum", { s: 11, f: P.dim, ls: "0.05em" });
+          var bw = SPW / N, top = 72, hgt = 150, mxs = D.sig[0];
+          b += L(SPX, top + hgt, SPX + SPW, top + hgt, { st: P.steel, sw: 1.2 });
+          for (i = 0; i < N; i++) {
+            var h = (D.sig[i] / mxs) * hgt, kept = clamp(rr - i, 0, 1);
+            b += R(SPX + i * bw + 1, top + hgt - h, bw - 2.4, h, { f: mix(P.steel, P.green, kept), o: 0.35 + 0.65 * kept });
+          }
+          var px = SPX + clamp(rr, 0, N) * bw;
+          b += L(px, top - 8, px, top + hgt + 8, { st: P.amber, sw: 1.6 });
+          b += T(px + 6, top - 12, "r = " + Math.round(rr), { s: 12, f: P.amber, w: 600 });
+          b += T(SPX, top + hgt + 20, "kept", { s: 10, f: P.green });
+          b += T(SPX + SPW, top + hgt + 20, "discarded tail", { s: 10, f: P.faint, a: "end" });
+
+          var kr = Math.round(rr);
+          b += T(MX0, SPY, "\u2016M \u2212 M\u1d63\u2016F  =  " + n2(err) + "   (" + (100 * err / D.fn).toFixed(1) + "% of \u2016M\u2016F)", { s: 12.5, f: P.ink, w: 500 });
+          b += T(MX0, SPY + 20, "stored numbers:  r(24+24) = " + (48 * kr) + "   vs   24\u00d724 = 576" +
+            (48 * kr < 576 ? "   \u2192 " + (100 * 48 * kr / 576).toFixed(0) + "%" : "   \u2192 no saving"), { s: 12, f: 48 * kr < 576 ? P.green : P.rose });
+          b += T(SPX, SPY + 20, (mode === "slow" ? "slow decay \u2014 the residual stays loud" : "fast decay \u2014 a few components carry the matrix"),
+            { s: 11.5, f: P.dim, i: "italic" });
+
+          return { vb: box([VBzoom, VBzoom, VBfull, VBfull], Math.min(pos, 3)),
+            body: b, alt: "Rank " + kr + " reconstruction, Frobenius error " + n2(err) };
+        }
+        register("svd", {
+          total: N, dwell: 620, trans: 520, mode0: "fast", render: render, vbFull: VBfull,
+          status: function (i, t, m) { return "Rank " + (i + 1 < 10 ? "0" : "") + (i + 1) + " / " + t + " \u00b7 " + (m === "slow" ? "slow decay" : "fast decay"); },
+          alt: "Low-rank reconstruction of a matrix and its singular value spectrum"
+        });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 3 — the LoRA data path
+       * ================================================================== */
+      (function () {
+        var VBf = [0, 0, 960, 420];
+        var VB = [VBf, [118, 58, 480, 210], VBf, [96, 236, 480, 210], [96, 236, 480, 210], [330, 232, 480, 210],
+          VBf, VBf, VBf, [330, 232, 480, 210], [96, 236, 480, 210], VBf, VBf, VBf];
+        var CAP = [
+          "A frozen projection. One input vector in, one output vector out.",
+          "W holds d\u00d7d = 16.8 M parameters. None of them will move.",
+          "Bolt a second path across it \u2014 the same input, a separate route.",
+          "A compresses the input to r numbers. Everything else is discarded.",
+          "r wires. The entire task-specific update passes through here.",
+          "B expands those r numbers back into the output space.",
+          "Scale by \u03b1/r and add. h = Wx + (\u03b1/r)BAx.",
+          "At initialization B = 0, so \u0394W = 0 and the model is untouched.",
+          "Backward. A gradient arrives at the layer output.",
+          "\u2202L/\u2202B = s\u00b7g(Ax)\u1d40 \u2014 the only weight gradient that gets stored.",
+          "\u2202L/\u2202A = s\u00b7B\u1d40gx\u1d40 \u2014 exactly zero on step one, because B = 0.",
+          "\u2202L/\u2202x still runs through W\u1d40. Freezing does not skip the backward pass.",
+          "Optimizer state lives only on A and B: 65.5 K numbers, not 16.8 M.",
+          "At deployment, fold the branch in. W\u2032 = W + (\u03b1/r)BA. No extra latency."
+        ];
+        function vec(x, y, n, cell, col, op, lbl) {
+          var s = "", i;
+          for (i = 0; i < n; i++) s += R(x, y + i * cell, cell * 1.6, cell - 1.4, { f: col, o: op * (0.45 + 0.5 * ((i * 37) % 11) / 11), rx: 1 });
+          s += R(x - 1.5, y - 1.5, cell * 1.6 + 3, n * cell + 1.5, { st: P.line, sw: 1, o: op });
+          if (lbl) s += T(x + cell * 0.8, y + n * cell + 15, lbl, { a: "middle", s: 10, f: P.dim, o: op });
+          return s;
+        }
+        function render(pos) {
+          var k = Math.round(pos), b = "";
+          var branch = clamp((pos - 1.4) / 1.0, 0, 1);
+          var aOn = clamp((pos - 2.4) / 0.8, 0, 1), wireOn = clamp((pos - 3.3) / 0.8, 0, 1), bOn = clamp((pos - 4.4) / 0.8, 0, 1);
+          var sumOn = clamp((pos - 5.4) / 0.8, 0, 1), zeroOn = (k === 7) ? 1 : clamp(1 - Math.abs(pos - 7) / 0.9, 0, 1);
+          var bwd = clamp((pos - 7.5) / 0.8, 0, 1), mrg = clamp((pos - 12.4) / 0.8, 0, 1);
+          var fwd = 1 - bwd;
+
+          b += vec(60, 132, 9, 18, P.blue, 1, "x");
+          b += G(102, 200, 148, 200, { st: mix(P.dim, P.blue, 0.4), o: 0.9 });
+
+          var wCol = k === 1 ? P.blue : P.steel;
+          b += labelBox(150 - mrg * 0, 92, 190 * (1 - 0) , 190, mrg > 0.5 ? "W \u2032 = W + sBA" : "W  (frozen)", mrg > 0.5 ? "merged, still 16.8 M" : "d\u2092\u1d64\u209c \u00d7 d\u1d62\u2099  =  16.8 M", { st: mix(P.line, wCol, 0.7), f: P.deep, ts: 13 });
+          b += T(345, 108, "\uD83D\uDD12", { s: 15, o: mrg > 0.5 ? 0 : 0.8 });
+          if (k === 1) b += R(148, 90, 194, 194, { st: P.blue, sw: 1.6, sd: "5 4" });
+
+          b += G(342, 187, 668, 187, { st: mix(P.dim, P.blue, 0.3), o: 0.9 * fwd + 0.25 });
+
+          if (branch > 0.02) {
+            b += PTH("M102 210 C130 210 128 330 160 330", { st: mix(P.line, P.green, aOn), sw: 1.4, o: branch, sd: aOn > 0.5 ? "" : "4 4" });
+            b += labelBox(166, 302, 104, 60, "A", "r \u00d7 d\u1d62\u2099", { st: mix(P.line, P.green, aOn), o: branch, ts: 14, tf: mix(P.ink, P.green, aOn) });
+            var wc = mix(P.line, P.amber, wireOn), i;
+            for (i = 0; i < 8; i++) {
+              var yy = 316 + i * 4.2;
+              b += L(272, yy, 404, yy, { st: wc, sw: 1.5, o: branch * (0.35 + 0.65 * wireOn) });
+            }
+            if (wireOn > 0.4) b += T(338, 296, "r = 8", { a: "middle", s: 11, f: P.amber, w: 600, o: wireOn });
+            b += labelBox(406, 292, 104, 80, "B", "d\u2092\u1d64\u209c \u00d7 r", { st: mix(P.line, P.green, bOn), o: branch, ts: 14, tf: mix(P.ink, P.green, bOn) });
+            b += PTH("M512 332 C580 332 620 240 660 205", { st: mix(P.line, P.green, sumOn), sw: 1.4, o: branch * (1 - zeroOn * 0.75) });
+            if (sumOn > 0.3) b += T(560, 300, "\u00d7 \u03b1/r", { s: 12, f: P.green, w: 600, o: sumOn });
+          }
+
+          b += C(680, 195, 20, { f: P.deep, st: sumOn > 0.4 ? P.green : P.line, sw: 1.3 });
+          b += T(680, 201, "+", { a: "middle", s: 20, f: sumOn > 0.4 ? P.green : P.dim, w: 600 });
+          b += G(702, 195, 758, 195, { st: P.dim, o: 0.9 });
+          b += vec(768, 132, 9, 18, sumOn > 0.4 ? P.green : P.blue, 1, "h");
+
+          if (zeroOn > 0.05) {
+            b += R(400, 250, 300, 34, { f: P.deep, st: P.amber, sw: 1.2, o: zeroOn, rx: 2 });
+            b += T(414, 272, "B = 0  \u21d2  \u0394W = 0  \u21d2  h = Wx exactly", { s: 12, f: P.amber, o: zeroOn, w: 600 });
+          }
+
+          if (bwd > 0.02 && mrg < 0.5) {
+            b += G(758, 232, 704, 232, { st: P.rose, o: bwd, sw: 1.6 });
+            b += T(766, 236, "g = \u2202L/\u2202h", { s: 11.5, f: P.rose, o: bwd });
+            b += G(660, 232, 350, 232, { st: P.rose, o: bwd * 0.85, sw: 1.4, sd: "6 4" });
+            b += G(658, 350, 520, 350, { st: P.rose, o: bwd * 0.85, sw: 1.4, sd: "6 4" });
+            if (k === 9) { b += R(404, 290, 108, 84, { st: P.rose, sw: 1.8, sd: "5 4" }); b += T(406, 388, "\u2202L/\u2202B = s\u00b7g(Ax)\u1d40", { s: 12, f: P.rose, w: 600 }); }
+            if (k === 10) {
+              b += R(164, 300, 108, 64, { st: P.rose, sw: 1.8, sd: "5 4" });
+              b += T(150, 388, "\u2202L/\u2202A = s\u00b7B\u1d40gx\u1d40  \u2014  zero while B = 0", { s: 12, f: P.rose, w: 600 });
+            }
+            if (k === 11) {
+              b += R(148, 90, 194, 194, { st: P.rose, sw: 1.6, sd: "5 4" });
+              b += T(150, 390, "\u2202L/\u2202x = W\u1d40g + s\u00b7A\u1d40B\u1d40g", { s: 12, f: P.rose, w: 600 });
+              b += T(150, 406, "the chain rule still traverses every frozen layer", { s: 10.5, f: P.dim });
+            }
+          }
+
+          if (k === 12) {
+            var bars = [["frozen W  \u00b7  no optimizer state", 16.78e6, P.steel, 0],
+            ["A + B  \u00b7  fp32 master, m, v, grad", 65536, P.green, 65536 * 16]];
+            b += R(560, 60, 360, 108, { f: P.deep, st: P.green, sw: 1.2, rx: 2 });
+            b += T(578, 84, "OPTIMIZER STATE, PER MATRIX", { s: 10, f: P.green, ls: "0.13em", w: 600 });
+            b += T(578, 110, "16.78 M frozen weights", { s: 12, f: P.dim });
+            b += T(902, 110, "0 bytes", { s: 13, a: "end", f: P.ink, w: 600 });
+            b += T(578, 138, "65.5 K adapter weights", { s: 12, f: P.dim });
+            b += T(902, 138, "1.05 MB", { s: 13, a: "end", f: P.green, w: 600 });
+            b += T(578, 158, "d = 4096, r = 8, \u03b1 = 16", { s: 10, f: P.faint });
+          }
+          if (mrg > 0.3) {
+            b += R(560, 60, 360, 76, { f: P.deep, st: P.green, sw: 1.2, rx: 2, o: mrg });
+            b += T(578, 86, "MERGED FOR INFERENCE", { s: 10, f: P.green, ls: "0.13em", w: 600, o: mrg });
+            b += T(578, 112, "one matrix, one GEMM, zero added latency", { s: 12, f: P.ink, o: mrg });
+          }
+
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "LoRA data path, stage " + (k + 1) + ": " + pick(CAP, pos) };
+        }
+        register("lora", { total: 14, dwell: 1900, render: render, vbFull: VBf, alt: "LoRA forward and backward pass walkthrough" });
+      })();
+
+      window.__peftKit = {
+        P: P, MONO: MONO, SERIF: SERIF, REDUCED: REDUCED,
+        clamp: clamp, lerp: lerp, ease: ease, arr: arr, box: box, pick: pick,
+        mix: mix, n1: n1, n2: n2, pnum: pnum, seeded: seeded, gauss: gauss,
+        AT: AT, R: R, T: T, L: L, PTH: PTH, C: C, G: G, labelBox: labelBox,
+        register: register, mount: mount, registry: registry, CAPT: CAPT, fx: fx
+      };
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var K = window.__peftKit;
+      var P = K.P, R = K.R, T = K.T, L = K.L, PTH = K.PTH, C = K.C, G = K.G, LB = K.labelBox;
+      var clamp = K.clamp, lerp = K.lerp, ease = K.ease, arr = K.arr, box = K.box, pick = K.pick;
+      var mix = K.mix, n1 = K.n1, n2 = K.n2, pnum = K.pnum, seeded = K.seeded, gauss = K.gauss;
+      var register = K.register, CAPT = K.CAPT;
+      function band(pos, lo, hi) { return clamp(Math.min(pos - lo + 0.65, hi - pos + 0.65) / 0.65, 0, 1); }
+      function ramp(pos, a, b) { return clamp((pos - a) / (b - a), 0, 1); }
+
+      /* ================================================================== *
+       *  FIGURE 4 — rank / parameter / memory explorer
+       * ================================================================== */
+      (function () {
+        var TOTAL = 6.738e9, LAYERS = 32, D = 4096, FF = 11008;
+        var PERL = { qv: 2 * (D + D), attn: 4 * (D + D), all: 4 * (D + D) + 2 * (D + FF) + (FF + D) };
+        var NAME = { qv: "W\u2091, W\u1d65 only", attn: "all four attention projections", all: "all seven linear layers" };
+        var VBf = [0, 0, 960, 380];
+        /* No camera zoom here: every crop that framed the bars nicely also hid the
+           parameter and memory readouts, which are the point of the figure. */
+        var VB = [VBf, VBf, VBf, VBf, VBf, VBf, VBf, VBf, VBf, VBf];
+        var LX = 92, LW = 806, LO = 4, LH = 10;   // log axis: 1e4 .. 1e10
+        function lx(v) { return LX + clamp((Math.log(v) / Math.LN10 - LO) / (LH - LO), 0, 1) * LW; }
+
+        function render(pos, mode) {
+          mode = mode || "all";
+          var per = PERL[mode] * LAYERS, r = Math.pow(2, pos), rk = Math.round(Math.pow(2, Math.round(pos)));
+          var tr = per * r, pct = 100 * tr / TOTAL, ck = tr * 2 / 1e6, be = TOTAL / per;
+          var loraMem = (TOTAL * 2 + tr * 16) / 1e9, fullMem = TOTAL * 16 / 1e9;
+          var b = "", i;
+
+          b += T(44, 26, "Llama-2-7B geometry \u00b7 " + NAME[mode] + " \u00b7 rank " + rk, { s: 13, f: P.ink, w: 500 });
+
+          var cols = [
+            ["trainable parameters", pnum(tr), pct.toFixed(2) + "% of 6.74 B", P.green],
+            ["adapter checkpoint", (ck < 1000 ? ck.toFixed(1) + " MB" : (ck / 1000).toFixed(2) + " GB"), "bf16, one file per task", P.blue],
+            ["training memory", n1(loraMem) + " GB", "vs " + n1(fullMem) + " GB full fine-tune", P.amber]
+          ];
+          for (i = 0; i < 3; i++) {
+            var cx = 44 + i * 306;
+            b += R(cx, 46, 284, 74, { f: P.deep, st: P.line, sw: 1, rx: 2 });
+            b += T(cx + 14, 66, cols[i][0].toUpperCase(), { s: 9.5, f: P.faint, ls: "0.13em", w: 600 });
+            b += T(cx + 14, 94, cols[i][1], { s: 21, f: cols[i][3], w: 600 });
+            b += T(cx + 14, 111, cols[i][2], { s: 10, f: P.dim });
+          }
+
+          b += T(44, 158, "parameters, log scale", { s: 10.5, f: P.faint, ls: "0.08em" });
+          b += L(LX, 186, LX + LW, 186, { st: P.steel, sw: 1.2 });
+          for (i = LO; i <= LH; i++) {
+            var xx = lx(Math.pow(10, i));
+            b += L(xx, 182, xx, 190, { st: P.steel, sw: 1 });
+            b += T(xx, 204, "10" + ["\u2074", "\u2075", "\u2076", "\u2077", "\u2078", "\u2079", "\u00b9\u2070"][i - LO], { a: "middle", s: 9.5, f: P.faint });
+          }
+          var xb = lx(TOTAL), xa = lx(tr), xe = lx(be * per);
+          b += R(LX, 172, xb - LX, 10, { f: P.steel, o: 0.55, rx: 1 });
+          b += T(xb, 166, "base model, 6.74 B", { a: "end", s: 10, f: P.dim });
+          b += R(LX, 172, xa - LX, 10, { f: P.green, o: 0.9, rx: 1 });
+          b += C(xa, 177, 6, { f: P.green });
+          b += L(xa, 130, xa, 172, { st: P.green, sw: 1.1, sd: "3 3", o: 0.6 });
+          b += L(xe, 168, xe, 196, { st: P.rose, sw: 1.3, sd: "5 4" });
+          b += T(xe - 6, 148, "break-even at r \u2248 " + Math.round(be), { a: "end", s: 10, f: P.rose });
+
+          b += T(44, 240, "resident training memory, GB (activations excluded)", { s: 10.5, f: P.faint, ls: "0.08em" });
+          var mx0 = 200, mw = 700, msc = mw / 120;
+          var rows = [["full fine-tune", fullMem, P.rose], ["LoRA / frozen base", loraMem, P.green], ["\u2514 adapter states only", tr * 16 / 1e9, P.amber]];
+          for (i = 0; i < 3; i++) {
+            var yy = 258 + i * 30;
+            b += T(mx0 - 12, yy + 13, rows[i][0], { a: "end", s: 11, f: P.dim });
+            b += R(mx0, yy, Math.max(1.5, rows[i][1] * msc), 18, { f: rows[i][2], o: 0.85, rx: 1 });
+            b += T(mx0 + Math.max(1.5, rows[i][1] * msc) + 10, yy + 13, n1(rows[i][1]) + " GB", { s: 11.5, f: rows[i][2], w: 600 });
+          }
+          b += L(mx0 + 80 * msc, 250, mx0 + 80 * msc, 348, { st: P.rose, sw: 1.1, sd: "6 4", o: 0.7 });
+          b += T(mx0 + 80 * msc + 6, 350, "80 GB", { s: 9.5, f: P.rose, o: 0.8 });
+
+          var ax = 92, aw = 806;
+          b += L(ax, 372, ax + aw, 372, { st: P.line, sw: 1 });
+          for (i = 0; i <= 9; i++) {
+            var tx = ax + (i / 9) * aw, on = Math.abs(pos - i) < 0.5;
+            b += L(tx, 368, tx, 376, { st: on ? P.amber : P.steel, sw: on ? 1.6 : 1 });
+            b += T(tx, 390, String(Math.pow(2, i)), { a: "middle", s: 9.5, f: on ? P.amber : P.faint, w: on ? 600 : 400 });
+          }
+          b += C(ax + (pos / 9) * aw, 372, 5, { f: P.amber });
+          b += T(44, 376, "rank", { s: 10, f: P.faint, a: "end" });
+
+          return { vb: box(VB, pos), body: b, alt: "Rank " + rk + ", " + pnum(tr) + " trainable parameters, " + pct.toFixed(2) + " percent of the model" };
+        }
+        register("budget", {
+          total: 10, dwell: 1500, mode0: "all", render: render, vbFull: VBf,
+          status: function (i, t) { return "Rank " + String(Math.pow(2, i)).padStart(3, "0") + " \u00b7 step " + (i + 1) + " / " + t; },
+          alt: "Interactive explorer of LoRA parameter count and memory versus rank"
+        });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 5 — where to attach the adapters
+       * ================================================================== */
+      (function () {
+        /* Gentle push-ins only: the tight bar-chart crop hid the row labels naming which
+           projections each result used, which is the entire content of the table. */
+        var VBf = [0, 0, 960, 420], VBblk = [0, 40, 869, 380], VBbar = [270, 50, 686, 300];
+        var VB = [VBblk, VBblk, VBf, VBbar, VBbar, VBbar, VBbar, VBbar, VBbar, VBbar, VBf];
+        var MATS = [
+          { n: "W\u2092", p: 16.78, g: 0 }, { n: "W\u1d65", p: 16.78, g: 0 },
+          { n: "W\u2096", p: 16.78, g: 0 }, { n: "W\u2091", p: 16.78, g: 0 },
+          { n: "down", p: 45.09, g: 1 }, { n: "up", p: 45.09, g: 1 }, { n: "gate", p: 45.09, g: 1 }
+        ];
+        var ABL = [
+          { lbl: "W\u2091  \u00b7  r = 8", v: 70.4, m: 91.0, on: [3] },
+          { lbl: "W\u2096  \u00b7  r = 8", v: 70.0, m: 90.8, on: [2] },
+          { lbl: "W\u1d65  \u00b7  r = 8", v: 73.0, m: 91.0, on: [1] },
+          { lbl: "W\u2092  \u00b7  r = 8", v: 73.2, m: 91.3, on: [0] },
+          { lbl: "W\u2091, W\u2096  \u00b7  r = 4", v: 71.4, m: 91.3, on: [2, 3] },
+          { lbl: "W\u2091, W\u1d65  \u00b7  r = 4", v: 73.7, m: 91.3, on: [1, 3] },
+          { lbl: "all attention  \u00b7  r = 2", v: 73.7, m: 91.7, on: [0, 1, 2, 3] }
+        ];
+        var CAP = [
+          "Seven adaptable projections, drawn to scale by parameter count.",
+          "Two-thirds of the weight mass sits in the MLP, not in attention.",
+          "Hu et al. fixed an 18 M budget on GPT-3 and spent it seven ways.",
+          "Everything on the query projection: the weakest single choice but one.",
+          "Keys are weaker still \u2014 q and k only ever meet as q\u1d40k.",
+          "Values do better. This path writes directly into the residual stream.",
+          "The output projection, likewise on the value path.",
+          "Splitting between q and k spends the budget twice on one degree of freedom.",
+          "q and v at half the rank each beats either alone at full rank.",
+          "All four at rank 2 ties the best pair \u2014 and wins on MultiNLI.",
+          "Modern practice: all seven, higher rank, because the budget no longer binds."
+        ];
+        function render(pos) {
+          var k = Math.round(pos), b = "", i, j;
+          var lit = [0, 0, 0, 0, 0, 0, 0];
+          if (k >= 3 && k <= 9) { var on = ABL[k - 3].on; for (i = 0; i < on.length; i++) lit[on[i]] = 1; }
+          if (k === 10) lit = [1, 1, 1, 1, 1, 1, 1];
+          if (k === 1) { lit = [0, 0, 0, 0, 1, 1, 1]; }
+
+          var y = 96, x = 62, w = 190;
+          b += T(x, 80, "one transformer block", { s: 10.5, f: P.faint, ls: "0.1em" });
+          for (i = 0; i < 7; i++) {
+            var h = MATS[i].p * 0.86, col = MATS[i].g ? P.violet : P.blue;
+            var alive = lit[i];
+            b += R(x, y, w, h, { f: mix(P.deep, col, 0.16 + 0.5 * alive), st: mix(P.line, P.green, alive), sw: 1 + alive * 0.8, rx: 2 });
+            b += T(x + 12, y + h / 2 + 4, MATS[i].n, { s: 11.5, f: alive ? P.green : P.ink, w: 600 });
+            b += T(x + w - 12, y + h / 2 + 4, MATS[i].p.toFixed(2) + " M", { s: 10, a: "end", f: P.dim });
+            if (alive) { b += C(x + w + 14, y + h / 2, 4.5, { f: P.green }); }
+            y += h + 7;
+          }
+          b += R(x - 12, 88, w + 24, 74, { st: P.blue, sw: 1, sd: "4 4", o: 0.5 });
+          b += T(x - 18, 126, "attn", { a: "end", s: 10, f: P.blue });
+          b += T(x - 18, 140, "67.1 M", { a: "end", s: 9.5, f: P.faint });
+          b += R(x - 12, 168, w + 24, 130, { st: P.violet, sw: 1, sd: "4 4", o: 0.5 + 0.5 * (k === 1) });
+          b += T(x - 18, 226, "MLP", { a: "end", s: 10, f: P.violet, w: k === 1 ? 700 : 400 });
+          b += T(x - 18, 240, "135.3 M", { a: "end", s: 9.5, f: k === 1 ? P.violet : P.faint });
+          if (k === 1) b += T(x - 18, 258, "= 67%", { a: "end", s: 11, f: P.violet, w: 700 });
+
+          var bx = 462, bw = 400, by = 90, pitch = 26;
+          var frame = ramp(pos, 1.4, 2.4);
+          b += T(bx, 74, "WikiSQL accuracy \u00b7 18 M trainable params \u00b7 GPT-3 175B", { s: 10, f: P.faint, ls: "0.05em", o: frame });
+          for (i = 0; i < 7; i++) {
+            var vis = clamp(pos - 2.35 - i * 1, 0, 1), yy = by + i * pitch;
+            if (k === 10) vis = 1;
+            var wv = ((ABL[i].v - 68) / 7) * bw, best = ABL[i].v > 73.5;
+            b += T(bx - 10, yy + 13, ABL[i].lbl, { a: "end", s: 10.5, f: vis > 0.5 ? P.ink : P.faint, o: frame });
+            b += R(bx, yy, wv * vis, 17, { f: best ? P.green : P.blue, o: 0.55 + 0.35 * vis, rx: 1 });
+            b += T(bx + wv * vis + 8, yy + 13, ABL[i].v.toFixed(1), { s: 11, f: best ? P.green : P.ink, w: 600, o: vis });
+            b += T(bx + bw + 36, yy + 13, "MNLI " + ABL[i].m.toFixed(1), { s: 9.5, f: P.faint, o: vis * 0.9, a: "end" });
+          }
+          b += L(bx, by - 6, bx, by + 7 * pitch - 4, { st: P.steel, sw: 1, o: frame });
+          b += T(bx, by + 7 * pitch + 12, "68.0", { s: 9, f: P.faint, a: "middle", o: frame });
+          b += T(bx + bw, by + 7 * pitch + 12, "75.0", { s: 9, f: P.faint, a: "middle", o: frame });
+
+          if (k === 10) {
+            b += R(462, 300, 436, 76, { f: P.deep, st: P.green, sw: 1.2, rx: 2 });
+            b += T(478, 324, "TARGET ALL LINEAR LAYERS", { s: 10, f: P.green, ls: "0.13em", w: 600 });
+            b += T(478, 348, "The 2021 table spent 18 M on attention alone.", { s: 11, f: P.ink });
+            b += T(478, 366, "Once you can afford the MLP, that is where the mass is.", { s: 11, f: P.dim });
+          }
+          b += CAPT(box(VB, pos), pick(CAP, pos), { bottom: pos > 2.4 ? 1 : 0 });   /* bottom-set once the chart title occupies the top-left */
+          return { vb: box(VB, pos), body: b, alt: "Adapter placement, stage " + (k + 1) + ": " + pick(CAP, pos) };
+        }
+        register("placement", { total: 11, dwell: 2000, render: render, vbFull: VBf, alt: "Transformer block showing where LoRA adapters attach" });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 6 — merge, swap, serve
+       * ================================================================== */
+      (function () {
+        /* Wide push-in: the 480-wide crop cut the adapter row and the request queue
+           clean off the bottom of the frame. */
+        var VBf = [0, 0, 960, 400], VBc = [72, 34, 816, 340];
+        var VB = [VBc, VBc, VBc, VBf, VBf, VBc, VBc, VBc, VBc, VBf];
+        var CAP = [
+          "Unmerged: the frozen matrix and its low-rank branch, summed.",
+          "Because the branch is parallel and linear, it can be absorbed.",
+          "One matrix. One GEMM. The adapter has ceased to exist.",
+          "A bottleneck adapter cannot do this \u2014 it sits in series.",
+          "Measured on GPT-2 medium. The penalty is an online-serving penalty.",
+          "Task switching: subtract one delta, add another.",
+          "Repeat that in bf16 and the base you recover drifts from the base you had.",
+          "The deployment that matters: one base, hundreds of adapters.",
+          "One batch, several tasks. The base GEMM is shared; the branches are gathered.",
+          "S-LoRA pages adapter weights and KV blocks from one unified pool."
+        ];
+        function scene(pos, a) {
+          if (a < 0.02) return "";
+          var b = "", i;
+          var mrg = ramp(pos, 0.4, 1.7), sw = ramp(pos, 4.4, 5.4), drift = ramp(pos, 5.5, 6);
+          var bx = 330, by = 92, bw = 130, bh = 116;
+          b += G(258, 150, bx - 6, 150, { st: P.dim, o: a });
+          b += LB(bx, by, bw, bh, mrg > 0.6 ? "W \u2032" : "W", mrg > 0.6 ? "merged" : "frozen", { st: mix(P.line, P.green, mrg), o: a });
+          var ax = lerp(320, bx + 18, mrg), ay = lerp(226, by + 40, mrg), sc = 1 - 0.72 * mrg;
+          if (mrg < 0.98) {
+            b += PTH("M258 168 C290 168 292 236 " + n2(ax) + " 236", { st: P.green, sw: 1.3, o: a * (1 - mrg) });
+            b += R(ax, ay, 44 * sc, 34 * sc, { f: P.deep, st: P.green, sw: 1.1, o: a * (1 - mrg * 0.4), rx: 2 });
+            b += T(ax + 22 * sc, ay + 21 * sc, "A", { a: "middle", s: 12 * sc, f: P.green, w: 600, o: a * (1 - mrg * 0.4) });
+            b += R(ax + 58 * sc, ay, 44 * sc, 34 * sc, { f: P.deep, st: P.green, sw: 1.1, o: a * (1 - mrg * 0.4), rx: 2 });
+            b += T(ax + 80 * sc, ay + 21 * sc, "B", { a: "middle", s: 12 * sc, f: P.green, w: 600, o: a * (1 - mrg * 0.4) });
+            b += PTH("M" + n2(ax + 104 * sc) + " 236 C" + n2(ax + 150) + " 236 " + n2(bx + 150) + " 176 " + n2(bx + 176) + " 158",
+              { st: P.green, sw: 1.3, o: a * (1 - mrg) });
+          }
+          b += G(bx + bw + 4, 150, 640, 150, { st: P.dim, o: a });
+          b += T(258, 138, "x", { a: "end", s: 12, f: P.blue, o: a });
+          b += T(650, 154, "h", { s: 12, f: P.blue, o: a });
+          if (mrg > 0.7) b += T(bx + bw / 2, by + bh + 22, "W \u2032 = W + (\u03b1/r) BA", { a: "middle", s: 12, f: P.green, w: 600, o: a * mrg });
+          if (sw > 0.05) {
+            var chips = [["task A", P.green], ["task B", P.amber], ["task C", P.violet]];
+            for (i = 0; i < 3; i++) {
+              var act = (i === 1) ? sw : 0.35;
+              b += R(300 + i * 66, 252, 58, 24, { f: P.deep, st: mix(P.line, chips[i][1], act), sw: 1 + act, rx: 2, o: a * sw });
+              b += T(329 + i * 66, 268, chips[i][0], { a: "middle", s: 9.5, f: mix(P.dim, chips[i][1], act), o: a * sw });
+            }
+            b += T(330, 292, "\u2212\u0394\u2081 then +\u0394\u2082 \u00b7 one matrix add per swap", { s: 10.5, f: P.dim, o: a * sw });
+          }
+          if (drift > 0.05) {
+            b += R(300, 88, 320, 26, { f: P.deep, st: P.rose, sw: 1.1, rx: 2, o: a * drift });
+            b += T(312, 106, "bf16 merge \u2194 unmerge accumulates rounding error", { s: 10.5, f: P.rose, o: a * drift });   /* clear of the stage caption */
+          }
+          return b;
+        }
+        function latency(a) {
+          if (a < 0.02) return "";
+          var b = "", i, j;
+          var groups = [
+            { t: "batch 1 \u00b7 seq 128 \u00b7 online", ref: 19.8, v: [["fine-tune / LoRA", 19.8, 0], ["Adapter\u1d38", 23.9, 20.7], ["Adapter\u1d34", 25.8, 30.3]] },
+            { t: "batch 32 \u00b7 seq 512 \u00b7 offline", ref: 1449.4, v: [["fine-tune / LoRA", 1449.4, 0], ["Adapter\u1d38", 1482.0, 2.2], ["Adapter\u1d34", 1492.2, 3.0]] }
+          ];
+          for (i = 0; i < 2; i++) {
+            var gx = 90 + i * 460;
+            b += T(gx, 118, groups[i].t, { s: 10.5, f: P.faint, ls: "0.05em", o: a });
+            for (j = 0; j < 3; j++) {
+              var yy = 140 + j * 42, rel = groups[i].v[j][1] / groups[i].ref, wv = (rel - 1) * 900 + 120;
+              b += T(gx, yy - 6, groups[i].v[j][0], { s: 10.5, f: j === 0 ? P.green : P.rose, o: a });
+              b += R(gx, yy, Math.min(330, wv), 16, { f: j === 0 ? P.green : P.rose, o: a * 0.8, rx: 1 });
+              b += T(gx + Math.min(330, wv) + 8, yy + 13, groups[i].v[j][1] + " ms" + (groups[i].v[j][2] ? "  (+" + groups[i].v[j][2] + "%)" : ""),
+                { s: 10.5, f: P.ink, o: a });
+            }
+          }
+          b += T(90, 300, "Sequential adapters cost latency only where there is no parallel work to hide behind.", { s: 12, f: P.ink, o: a });
+          b += T(90, 320, "Hu et al. (2021), Table 1 \u00b7 GPT-2 medium, Quadro RTX8000, 100-trial mean.", { s: 10, f: P.faint, o: a });
+          return b;
+        }
+        function serving(pos, a) {
+          if (a < 0.02) return "";
+          var b = "", i, cols = [P.green, P.amber, P.violet, P.blue];
+          var bt = ramp(pos, 7.4, 8.2), pg = ramp(pos, 8.4, 9);
+          b += LB(400, 84, 150, 60, "base model", "70 B \u00b7 in VRAM", { st: P.steel, o: a });
+          for (i = 0; i < 6; i++) {
+            b += R(258 + i * 26, 170, 20, 20, { f: mix(P.deep, cols[i % 4], 0.75), st: P.line, sw: 0.8, o: a * (1 - bt * 0.5), rx: 2 });
+          }
+          b += T(258, 208, "adapters in host RAM \u00b7 40 MB each \u00b7 thousands of them", { s: 10.5, f: P.dim, o: a });
+          if (bt > 0.05) {
+            for (i = 0; i < 4; i++) {
+              var yy = 232 + i * 22;
+              b += R(258, yy, 100, 17, { f: P.steel, o: a * bt * 0.55, rx: 1 });
+              b += T(266, yy + 13, "request " + (i + 1), { s: 9.5, f: P.ink, o: a * bt });
+              b += G(362, yy + 9, 400, yy + 9, { st: P.faint, o: a * bt, hl: 5 });
+              b += R(404, yy, 18, 17, { f: cols[i], o: a * bt * 0.9, rx: 2 });
+            }
+            b += T(430, 250, "one GEMM over the whole batch", { s: 10.5, f: P.green, o: a * bt });
+            b += T(430, 268, "+ a gathered low-rank branch per request", { s: 10.5, f: P.amber, o: a * bt });
+            b += T(430, 292, "merging is impossible here \u2014 and that is the point", { s: 10.5, f: P.dim, i: "italic", o: a * bt });
+          }
+          if (pg > 0.05) {
+            b += R(600, 168, 300, 78, { f: P.deep, st: P.blue, sw: 1.2, rx: 2, o: a * pg });
+            b += T(616, 190, "UNIFIED PAGED POOL", { s: 9.5, f: P.blue, ls: "0.13em", w: 600, o: a * pg });
+            b += T(616, 212, "adapter weights of mixed rank", { s: 10.5, f: P.ink, o: a * pg });
+            b += T(616, 230, "+ KV blocks of mixed length", { s: 10.5, f: P.ink, o: a * pg });
+          }
+          return b;
+        }
+        function render(pos) {
+          var b = "", aA = Math.max(band(pos, 0, 2), band(pos, 5, 6)), aB = band(pos, 3, 4), aC = band(pos, 7, 9);
+          b += scene(pos, aA); b += latency(aB); b += serving(pos, aC);
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "Merging and serving, stage " + (Math.round(pos) + 1) + ": " + pick(CAP, pos) };
+        }
+        register("merge", { total: 10, dwell: 1900, render: render, vbFull: VBf, alt: "Adapter merging, task switching and multi-adapter serving" });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 7 — where to put sixteen codewords
+       * ================================================================== */
+      (function () {
+        var GN = 1601, GLO = -4.2, GHI = 4.2, dx = (GHI - GLO) / (GN - 1);
+        var gx = [], pdf = [], cdf = [], acc = 0, i, j;
+        for (i = 0; i < GN; i++) {
+          var x = GLO + i * dx; gx.push(x);
+          pdf.push(Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI));
+        }
+        for (i = 0; i < GN; i++) { acc += pdf[i] * dx; cdf.push(acc); }
+        for (i = 0; i < GN; i++) cdf[i] /= acc;
+        function quant(p) {
+          var lo = 0, hi = GN - 1;
+          while (hi - lo > 1) { var m = (lo + hi) >> 1; if (cdf[m] < p) lo = m; else hi = m; }
+          return gx[lo];
+        }
+        var RANGE = 3.5;
+        var UNI = [], QLV = [], qmax = quant((15 + 0.5) / 16);
+        for (i = 0; i < 16; i++) {
+          UNI.push(-RANGE + 2 * RANGE * i / 15);
+          QLV.push(quant((i + 0.5) / 16) * (RANGE / qmax));
+        }
+        function nearest(lv, x) { var b = 0, d = 1e9, k; for (k = 0; k < lv.length; k++) { var e = Math.abs(x - lv[k]); if (e < d) { d = e; b = k; } } return d; }
+        function meanErr(lv) { var s = 0, m = 0, k; for (k = 0; k < GN; k++) { s += nearest(lv, gx[k]) * pdf[k] * dx; m += pdf[k] * dx; } return s / m; }
+        function massPer(lv) {
+          var edges = [-Infinity], k;
+          for (k = 0; k < lv.length - 1; k++) edges.push((lv[k] + lv[k + 1]) / 2);
+          edges.push(Infinity);
+          var out = [];
+          for (k = 0; k < lv.length; k++) {
+            var lo = edges[k] === -Infinity ? 0 : cdf[Math.max(0, Math.min(GN - 1, Math.round((edges[k] - GLO) / dx)))];
+            var hi = edges[k + 1] === Infinity ? 1 : cdf[Math.max(0, Math.min(GN - 1, Math.round((edges[k + 1] - GLO) / dx)))];
+            out.push(Math.max(0, hi - lo));
+          }
+          return out;
+        }
+        var EU = meanErr(UNI), EQ = meanErr(QLV), MU = massPer(UNI), MQ = massPer(QLV);
+        var blkR = seeded(20260905), BLK = [], BLK2 = [];
+        for (i = 0; i < 64; i++) { var v = gauss(blkR); BLK.push(clamp(v, -3.4, 3.4)); }
+        BLK2 = BLK.slice(); BLK2[37] = 8.4;
+
+        var VBf = [0, 0, 960, 380], VBz = [230, 80, 480, 190];
+        var VB = [VBf, VBf, VBf, VBf, VBf, VBf, VBf, VBz, VBz, VBf, VBf, VBf];
+        var CAP = [
+          "Weights are approximately Gaussian: crowded at zero, sparse in the tails.",
+          "Sixteen evenly spaced codewords \u2014 4-bit integer quantization.",
+          "The outermost bins hold almost no weight. Those codes are wasted.",
+          "Slide the codewords to the quantiles instead. Watch the bins equalize.",
+          "Equal probability mass per code. That is a maximum-entropy code.",
+          "Expected error under a Gaussian, computed on this page.",
+          "One catch: a symmetric quantile grid has no exact zero.",
+          "Normalize per block of 64 weights by that block's own absmax.",
+          "One outlier now damages 64 neighbours instead of the whole tensor.",
+          "The bit ledger: 4 bits of payload plus the scaling constants.",
+          "Double quantization: quantize the constants too.",
+          "4.127 bits per parameter. 6.74 B weights fit in 3.48 GB."
+        ];
+        function px(v) { return 88 + (v + RANGE) / (2 * RANGE) * 784; }
+        function render(pos) {
+          var k = Math.round(pos), b = "", i;
+          var aA = band(pos, 0, 6), aB = band(pos, 7, 8), aC = band(pos, 9, 11);
+          var t = clamp((pos - 2.5) / 1.0, 0, 1), et = ease(t);
+          var lv = [], mass = [];
+          for (i = 0; i < 16; i++) { lv.push(lerp(UNI[i], QLV[i], et)); }
+          mass = massPer(lv);
+
+          if (aA > 0.02) {
+            var base = 236, hmax = 148, d, seg = "M";
+            for (i = 0; i < GN; i += 8) {
+              seg += (i === 0 ? "" : "L") + n2(px(gx[i])) + " " + n2(base - pdf[i] / 0.3989 * hmax);
+            }
+            b += PTH(seg, { st: P.blue, sw: 1.6, o: aA * 0.9 });
+            b += PTH(seg + "L" + n2(px(RANGE)) + " " + base + "L" + n2(px(-RANGE)) + " " + base + "Z", { f: P.blue, o: aA * 0.10 });
+            b += L(px(-RANGE), base, px(RANGE), base, { st: P.steel, sw: 1.2, o: aA });
+            b += T(px(-RANGE), base + 18, "\u2212absmax", { a: "middle", s: 9.5, f: P.faint, o: aA });
+            b += T(px(RANGE), base + 18, "+absmax", { a: "middle", s: 9.5, f: P.faint, o: aA });
+            b += T(px(0), base + 18, "0", { a: "middle", s: 9.5, f: P.faint, o: aA });
+            var show = ramp(pos, 0.4, 1.2);
+            for (i = 0; i < 16; i++) {
+              var xx = px(lv[i]), col = mix(P.amber, P.green, et);
+              b += L(xx, base, xx, base - 156, { st: col, sw: 1.2, o: aA * show * 0.75 });
+              b += C(xx, base, 3.4, { f: col, o: aA * show });
+              var mh = mass[i] * 560;
+              b += R(xx - 9, base + 30, 18, mh, { f: col, o: aA * show * 0.75, rx: 1 });
+              if (k === 2 && (i === 0 || i === 15)) {
+                b += C(xx, base + 30 + mh + 12, 9, { st: P.rose, sw: 1.3, o: aA });
+              }
+            }
+            b += T(88, base + 46, "mass", { a: "end", s: 9.5, f: P.faint, o: aA * show });
+            b += T(88, base + 60, "per code", { a: "end", s: 9.5, f: P.faint, o: aA * show });
+            if (k === 2) b += T(px(0), base + 118, "these two codes carry almost nothing", { a: "middle", s: 11, f: P.rose, o: aA });
+            if (k >= 4 && k <= 5) b += T(px(0), base + 118, "every code now carries 1/16 of the mass", { a: "middle", s: 11, f: P.green, o: aA });
+            if (k === 5) {
+              b += R(600, 44, 320, 74, { f: P.deep, st: P.green, sw: 1.2, rx: 2, o: aA });
+              b += T(616, 66, "MEAN |w \u2212 Q(w)| UNDER N(0,1)", { s: 9.5, f: P.green, ls: "0.12em", w: 600, o: aA });
+              b += T(616, 90, "uniform int4", { s: 11, f: P.dim, o: aA });
+              b += T(904, 90, n2(EU * 1000) + " \u00d710\u207b\u00b3", { s: 12, a: "end", f: P.ink, w: 600, o: aA });
+              b += T(616, 110, "quantile (NF-style)", { s: 11, f: P.dim, o: aA });
+              b += T(904, 110, n2(EQ * 1000) + " \u00d710\u207b\u00b3", { s: 12, a: "end", f: P.green, w: 600, o: aA });
+            }
+            if (k === 6) {
+              b += L(px(0), 60, px(0), base, { st: P.rose, sw: 1.4, sd: "5 4", o: aA });
+              b += T(px(0) + 10, 74, "no codeword sits exactly here", { s: 11, f: P.rose, o: aA });
+              b += T(px(0) + 10, 92, "NF4 uses 8 negative and 9 positive levels", { s: 10.5, f: P.dim, o: aA });
+              b += T(px(0) + 10, 108, "built from two quantile ranges that share zero", { s: 10.5, f: P.dim, o: aA });
+            }
+          }
+
+          if (aB > 0.02) {
+            var arrx = 262, cell = 26, out = (k >= 8) ? 1 : 0, src = out ? BLK2 : BLK;
+            var amax = 0; for (i = 0; i < 64; i++) amax = Math.max(amax, Math.abs(src[i]));
+            for (i = 0; i < 64; i++) {
+              var r0 = Math.floor(i / 16), c0 = i % 16, v = src[i] / amax;
+              var col2 = v >= 0 ? mix(P.bg, P.amber, Math.pow(Math.abs(v), 0.6)) : mix(P.bg, P.blue, Math.pow(Math.abs(v), 0.6));
+              b += R(arrx + c0 * cell, 130 + r0 * cell, cell - 2, cell - 2, { f: col2, o: aB, st: (out && i === 37) ? P.rose : "", sw: 1.6 });
+            }
+            b += T(arrx, 118, "one block of 64 weights, normalized by its own absmax", { s: 11, f: P.dim, o: aB });
+            if (out) {
+              b += T(arrx, 262, "absmax jumps to " + n1(amax) + "\u03c3 \u2014 the other 63 collapse into the centre codes", { s: 11, f: P.rose, o: aB });
+              b += T(arrx, 280, "with one absmax for the whole tensor, every block would suffer", { s: 10.5, f: P.dim, o: aB });
+            } else {
+              b += T(arrx, 262, "one fp32 constant per 64 weights", { s: 11, f: P.green, o: aB });
+            }
+          }
+
+          if (aC > 0.02) {
+            var rows = [
+              ["NF4 payload", 4.0, P.green, 1],
+              ["fp32 absmax, 1 per 64", 0.5, P.rose, ramp(pos, 8.6, 9.4)],
+              ["\u2192 int8 absmax, 1 per 64", 0.125, P.amber, ramp(pos, 9.6, 10.4)],
+              ["\u2192 fp32, 1 per 256 blocks", 0.00195, P.blue, ramp(pos, 9.6, 10.4)]
+            ];
+            var sx = 300, sc = 118;
+            b += T(sx, 92, "bits per parameter", { s: 10.5, f: P.faint, ls: "0.08em", o: aC });
+            for (i = 0; i < 4; i++) {
+              var yy = 112 + i * 34, vis = rows[i][3] * aC;
+              if (i === 1) vis *= lerp(1, 0.26, ramp(pos, 9.6, 10.4));
+              b += T(sx - 12, yy + 14, rows[i][0], { a: "end", s: 10.5, f: P.dim, o: vis });
+              b += R(sx, yy, Math.max(1.5, rows[i][1] * sc), 18, { f: rows[i][2], o: vis * 0.85, rx: 1 });
+              b += T(sx + Math.max(1.5, rows[i][1] * sc) + 8, yy + 14, rows[i][1] === 0.00195 ? "0.002" : rows[i][1].toFixed(3).replace(/0+$/, "").replace(/\.$/, ".0"), { s: 10.5, f: rows[i][2], w: 600, o: vis });
+            }
+            var dq = ramp(pos, 9.6, 10.4), tot = ramp(pos, 10.5, 11);
+            b += L(sx, 258, sx + 560, 258, { st: P.steel, sw: 1, o: aC });
+            b += T(sx - 12, 282, "total", { a: "end", s: 12, f: P.ink, w: 600, o: aC });
+            b += T(sx, 282, lerp(4.5, 4.127, dq).toFixed(3) + " bits / parameter", { s: 16, f: P.green, w: 600, o: aC });
+            if (tot > 0.4) {
+              b += T(sx, 314, "6.74 B parameters \u00d7 4.127 bits  =  3.48 GB", { s: 13, f: P.ink, o: tot });
+              b += T(sx, 336, "the same weights in bf16:  13.48 GB", { s: 11.5, f: P.dim, o: tot });
+            }
+          }
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "Quantization, stage " + (k + 1) + ": " + pick(CAP, pos) };
+        }
+        register("quant", { total: 12, dwell: 1900, render: render, vbFull: VBf, alt: "Uniform versus quantile 4-bit quantization of a Gaussian weight distribution" });
+      })();
+    })();
+    </script>
+    <script>
+    (function () {
+      "use strict";
+      var K = window.__peftKit;
+      var P = K.P, R = K.R, T = K.T, L = K.L, PTH = K.PTH, C = K.C, G = K.G, LB = K.labelBox;
+      var clamp = K.clamp, lerp = K.lerp, ease = K.ease, box = K.box, pick = K.pick;
+      var mix = K.mix, n1 = K.n1, n2 = K.n2, pnum = K.pnum, seeded = K.seeded, gauss = K.gauss;
+      var register = K.register, CAPT = K.CAPT;
+      function band(pos, lo, hi) { return clamp(Math.min(pos - lo + 0.65, hi - pos + 0.65) / 0.65, 0, 1); }
+      function ramp(pos, a, b) { return clamp((pos - a) / (b - a), 0, 1); }
+
+      /* ================================================================== *
+       *  FIGURE 8 — coupled versus decoupled updates
+       * ================================================================== */
+      (function () {
+        /* Both cameras are gentle push-ins rather than tight crops: every tighter framing
+           tried here clipped either the unit circle or the scatter's axis labels. */
+        var VBf = [0, 0, 960, 380], VBl = [60, 40, 758, 300], VBr = [330, 40, 758, 300];
+        var VB = [VBf, VBl, VBl, VBl, VBl, VBl, VBf, VBr, VBr, VBr, VBf];
+        var CAP = [
+          "Take a single column of a weight matrix and look at it geometrically.",
+          "It is a direction on the unit circle, times a length. m and V/\u2016V\u2016.",
+          "An additive low-rank update moves the tip. Length and angle both change.",
+          "To rotate without stretching, \u0394 must be tangent and exactly sized \u2014 for every column at once.",
+          "DoRA normalizes W\u2080 + BA first, putting the tip back on the circle.",
+          "Then a separate learned scalar sets the length.",
+          "Direction and magnitude are now independent parameters.",
+          "The diagnostic: change in direction against change in magnitude.",
+          "Full fine-tuning traces a negative relationship across checkpoints.",
+          "LoRA traces a positive one \u2014 it turns both knobs together.",
+          "DoRA recovers the full-fine-tuning pattern at LoRA's parameter cost."
+        ];
+        var OX = 236, OY = 226, SC = 96;
+        var w0 = [0.80, -0.58], len0 = 1.32;
+        var dlt = [0.30, -0.44];
+        function pt(v, s) { return [OX + v[0] * s, OY + v[1] * s]; }
+        var sr = seeded(4242), SC1 = [], SC2 = [], SC3 = [], i;
+        for (i = 0; i < 26; i++) {
+          var t = i / 25;
+          SC1.push([0.10 + 0.80 * t + gauss(sr) * 0.045, 0.78 - 0.62 * t + gauss(sr) * 0.055]);          // FT: negative
+          SC2.push([0.12 + 0.72 * t + gauss(sr) * 0.045, 0.16 + 0.66 * t + gauss(sr) * 0.055]);          // LoRA: positive
+          SC3.push([0.14 + 0.76 * t + gauss(sr) * 0.045, 0.72 - 0.56 * t + gauss(sr) * 0.055]);          // DoRA: negative
+        }
+        var PX0 = 590, PY0 = 84, PW = 316, PH = 178;
+        function sp(p) { return [PX0 + clamp(p[0], 0, 1) * PW, PY0 + PH - clamp(p[1], 0, 1) * PH]; }
+        function cloud(set, col, a, lbl) {
+          if (a < 0.02) return "";
+          var s = "", i, sx = 0, sy = 0;
+          for (i = 0; i < set.length; i++) { var q = sp(set[i]); s += C(q[0], q[1], 3.1, { f: col, o: a * 0.82 }); sx += set[i][0]; sy += set[i][1]; }
+          var a1 = sp(set[0]), a2 = sp(set[set.length - 1]);
+          s += L(a1[0], a1[1], a2[0], a2[1], { st: col, sw: 1.4, o: a * 0.75, sd: "6 4" });
+          s += T(a2[0] + 8, a2[1] + 4, lbl, { s: 10.5, f: col, w: 600, o: a });
+          return s;
+        }
+
+        function render(pos) {
+          var k = Math.round(pos), b = "";
+          var aL = band(pos, 0, 6), aR = band(pos, 7, 10);
+
+          if (aL > 0.02) {
+            b += C(OX, OY, SC, { st: P.line, sw: 1.1, o: aL * 0.8, f: "none" });
+            b += L(OX - 150, OY, OX + 210, OY, { st: P.line, sw: 1, o: aL * 0.6 });
+            b += L(OX, OY + 60, OX, OY - 190, { st: P.line, sw: 1, o: aL * 0.6 });
+            b += T(OX + 96 * 0.72, OY + 20, "unit circle", { s: 9.5, f: P.faint, o: aL * 0.8 });
+
+            var wtip = pt([w0[0] * len0, w0[1] * len0], SC);
+            b += G(OX, OY, wtip[0], wtip[1], { st: P.blue, sw: 2.1, o: aL });
+            b += T(wtip[0] + 8, wtip[1] - 6, "W\u2080 column", { s: 11, f: P.blue, w: 600, o: aL });
+            if (k >= 1) {
+              var u = pt(w0, SC);
+              b += C(u[0], u[1], 4.4, { f: P.blue, o: aL });
+              b += L(OX, OY, u[0], u[1], { st: P.blue, sw: 1, sd: "3 3", o: aL * 0.7 });
+              b += T(u[0] - 60, u[1] - 10, "direction", { s: 10, f: P.dim, o: aL });
+              b += T(OX + 12, OY - 116, "m = " + n2(len0), { s: 11, f: P.blue, o: aL });
+            }
+
+            var addT = ramp(pos, 1.4, 2.2);
+            if (addT > 0.02) {
+              var w1 = [w0[0] * len0 + dlt[0] * addT, w0[1] * len0 + dlt[1] * addT];
+              var t1 = pt(w1, SC), t0 = pt([w0[0] * len0, w0[1] * len0], SC);
+              b += G(t0[0], t0[1], t1[0], t1[1], { st: P.amber, sw: 1.8, o: aL * addT });
+              b += T(t0[0] + (t1[0] - t0[0]) / 2 + 8, t0[1] + (t1[1] - t0[1]) / 2 - 6, "BA", { s: 11, f: P.amber, w: 600, o: aL * addT });
+              var nl = Math.sqrt(w1[0] * w1[0] + w1[1] * w1[1]);
+              b += G(OX, OY, t1[0], t1[1], { st: P.rose, sw: 1.6, o: aL * addT * (k <= 3 ? 1 : 0.35) });
+              if (k === 2) {
+                b += T(OX + 120, OY - 152, "\u2016W\u2080+BA\u2016 = " + n2(nl) + "   (was " + n2(len0) + ")", { s: 11, f: P.rose, o: aL });
+                b += T(OX + 120, OY - 136, "angle moved too \u2014 you cannot ask for one without the other", { s: 10, f: P.dim, o: aL });
+              }
+              if (k === 3) {
+                var tang = [-w0[1], w0[0]], tp = pt([w0[0] * len0 + tang[0] * 0.34, w0[1] * len0 + tang[1] * 0.34], SC);
+                b += G(t0[0], t0[1], tp[0], tp[1], { st: P.green, sw: 1.6, o: aL, sd: "4 3" });
+                b += T(tp[0] - 8, tp[1] + 18, "the tangent you would need", { a: "end", s: 10, f: P.green, o: aL });
+              }
+              var nrm = ramp(pos, 3.4, 4.3), scl = ramp(pos, 4.4, 5.3);
+              if (nrm > 0.02) {
+                var un = [w1[0] / nl, w1[1] / nl];
+                var mm = lerp(1, 1.62, scl);
+                var t2 = pt([un[0] * lerp(nl, mm, nrm), un[1] * lerp(nl, mm, nrm)], SC);
+                b += G(OX, OY, t2[0], t2[1], { st: P.green, sw: 2.2, o: aL * nrm });
+                b += C(t2[0], t2[1], 4.2, { f: P.green, o: aL * nrm });
+                if (k === 4) b += T(OX + 120, OY - 152, "normalize \u2192 back on the circle, direction preserved", { s: 11, f: P.green, o: aL });
+                if (k >= 5) b += T(OX + 120, OY - 152, "\u00d7 m = " + n2(1.62) + "   \u2014 chosen independently", { s: 11, f: P.green, o: aL });
+              }
+            }
+            if (k === 6) {
+              b += R(OX - 150, OY + 46, 400, 52, { f: P.deep, st: P.green, sw: 1.1, rx: 2, o: aL });
+              b += T(OX - 136, OY + 68, "W\u2032 = m (W\u2080 + BA) / \u2016W\u2080 + BA\u2016c", { s: 13, f: P.green, w: 600, o: aL });
+              b += T(OX - 136, OY + 88, "rank buys direction; one scalar per column buys length", { s: 10.5, f: P.dim, o: aL });
+            }
+          }
+
+          if (aR > 0.02) {
+            b += R(PX0, PY0, PW, PH, { st: P.line, sw: 1, o: aR });
+            b += T(PX0, PY0 - 12, "\u0394 magnitude  vs  \u0394 direction, across training checkpoints", { s: 10.5, f: P.faint, o: aR });
+            b += T(PX0 + PW / 2, PY0 + PH + 20, "\u0394 direction  \u2192", { a: "middle", s: 10.5, f: P.dim, o: aR });
+            b += T(PX0 - 10, PY0 + PH / 2, "\u0394 magnitude", { a: "end", s: 10.5, f: P.dim, o: aR });
+            b += cloud(SC1, P.blue, aR * ramp(pos, 7.4, 8.2), "full FT");
+            b += cloud(SC2, P.amber, aR * ramp(pos, 8.4, 9.2), "LoRA");
+            b += cloud(SC3, P.green, aR * ramp(pos, 9.4, 10.0), "DoRA");
+            b += T(PX0, PY0 + PH + 38, "Schematic: sign structure after Liu et al. (2024) Fig. 1, not measured values.",
+              { s: 9.5, f: P.faint, i: "italic", o: aR });
+          }
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "DoRA, stage " + (k + 1) + ": " + pick(CAP, pos) };
+        }
+        register("dora", { total: 11, dwell: 1900, render: render, vbFull: VBf, alt: "Geometric comparison of LoRA and DoRA weight updates" });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 9 — eight ways to change a frozen model
+       * ================================================================== */
+      (function () {
+        var D = 4096, FF = 11008, LY = 32, TOT = 6.738e9;
+        var Padap = 2 * LY * (2 * D * 64 + 64 + D);
+        var Ppre = 2 * LY * 32 * D;
+        var Pprompt = 32 * D;
+        var Pia3 = LY * (D + D + FF);
+        var Plora = 2498560 * 8;
+        var Pdora = Plora + LY * (4 * D + 2 * FF + D);
+        var M = [
+          { n: "Frozen base", p: 0, note: "nothing trainable \u2014 the starting point", merge: "\u2014", cls: "" },
+          { n: "Full fine-tuning", p: TOT, note: "every weight moves; 16 bytes each in the optimizer", merge: "n/a", cls: "full" },
+          { n: "BitFit", p: 0, note: "bias vectors only \u2014 and Llama-style blocks have none", merge: "yes", cls: "bias" },
+          { n: "Adapters (Houlsby)", p: Padap, note: "bottleneck 64, two per block, in series with the residual", merge: "no \u00b7 adds latency", cls: "adap" },
+          { n: "Prefix tuning", p: Ppre, note: "32 trainable key/value pairs at every layer", merge: "no \u00b7 costs context", cls: "pre" },
+          { n: "Prompt tuning", p: Pprompt, note: "32 trainable embeddings, input layer only", merge: "no \u00b7 costs context", cls: "prm" },
+          { n: "IA\u00b3", p: Pia3, note: "elementwise rescaling of K, V and the MLP interior", merge: "yes", cls: "ia3" },
+          { n: "LoRA  r = 8", p: Plora, note: "rank-8 parallel branch on all seven linear layers", merge: "yes", cls: "lora" },
+          { n: "DoRA  r = 8", p: Pdora, note: "LoRA plus one magnitude scalar per output column", merge: "yes", cls: "dora" },
+          { n: "All of them, to scale", p: -1, note: "trainable parameters on a log axis, Llama-2-7B geometry", merge: "", cls: "sum" }
+        ];
+        var VBf = [0, 0, 960, 400];
+        /* Push-ins are wide enough to keep the readout row in shot; tighter crops on the
+           sublayer, the attention block and the input hid the parameter counts. */
+        var VB = [VBf, VBf, VBf, [150, 58, 792, 330], [86, 58, 792, 330], [4, 58, 792, 330], VBf, VBf, VBf, VBf];
+
+        function render(pos) {
+          var k = Math.round(pos), m = M[clamp(k, 0, 9)], b = "", i;
+          var cls = m.cls, sum = band(pos, 9, 9);
+          var on = function (c) { return cls === c ? 1 : 0; };
+          var lit = (cls === "full") ? 1 : 0;
+
+          b += G(48, 200, 138, 200, { st: P.blue, o: 0.9 });
+          b += T(48, 186, "x", { s: 11, f: P.blue });
+          if (cls === "prm" || cls === "pre") {
+            for (i = 0; i < 4; i++) b += R(56 + i * 14, 212, 11, 22, { f: P.green, o: 0.85, rx: 1 });
+            b += T(56, 250, cls === "prm" ? "32 soft prompt vectors" : "prefix (all layers)", { s: 10, f: P.green });
+          }
+          var attnLit = (cls === "full" || cls === "lora" || cls === "dora") ? 1 : 0;
+          b += R(150, 95, 280, 160, { f: P.deep, st: P.line, sw: 1.1, rx: 2 });
+          b += T(160, 114, "self-attention", { s: 10, f: P.faint, ls: "0.1em" });
+          var qn = ["W\u2091", "W\u2096", "W\u1d65", "W\u2092"], pq = [[170, 124], [295, 124], [170, 170], [295, 170]];
+          for (i = 0; i < 4; i++) {
+            var lt = attnLit || (cls === "ia3" && i >= 1 && i <= 2 ? 0.6 : 0);
+            b += R(pq[i][0], pq[i][1], 110, 32, { f: mix(P.deep, P.blue, 0.2), st: mix(P.line, P.green, lt), sw: 1 + lt, rx: 2 });
+            b += T(pq[i][0] + 55, pq[i][1] + 21, qn[i], { a: "middle", s: 12, f: lt ? P.green : P.ink, w: 600 });
+            if ((cls === "lora" || cls === "dora")) {
+              b += PTH("M" + (pq[i][0] + 4) + " " + (pq[i][1] + 36) + "q10 8 24 0", { st: P.green, sw: 1.6 });
+              b += T(pq[i][0] + 46, pq[i][1] + 48, cls === "dora" ? "BA + m" : "BA", { s: 8.5, f: P.green });
+            }
+            if (cls === "bias") b += C(pq[i][0] + 100, pq[i][1] + 6, 3, { f: P.green });
+          }
+          if (cls === "ia3") {
+            b += T(170, 224, "l\u2096 \u2299 K   and   l\u1d65 \u2299 V", { s: 11.5, f: P.green, w: 600 });
+          } else {
+            b += T(170, 224, "softmax(QK\u1d40/\u221ad) V", { s: 11, f: P.faint });
+          }
+          if (cls === "pre") {
+            for (i = 0; i < 3; i++) b += R(392 + 0, 124 + i * 14, 28, 11, { f: P.green, o: 0.85, rx: 1 });
+            b += T(392, 178, "+p KV", { s: 9, f: P.green });
+          }
+
+          b += C(462, 200, 15, { f: P.deep, st: P.line, sw: 1.2 });
+          b += T(462, 206, "+", { a: "middle", s: 16, f: P.dim });
+          if (cls === "adap") {
+            b += R(440, 262, 84, 34, { f: P.deep, st: P.green, sw: 1.4, rx: 2 });
+            b += T(482, 284, "adapter", { a: "middle", s: 10.5, f: P.green, w: 600 });
+            b += G(462, 240, 462, 260, { st: P.green, hl: 5 });
+          }
+
+          var mlpLit = (cls === "full" || cls === "lora" || cls === "dora") ? 1 : 0;
+          b += R(520, 95, 280, 160, { f: P.deep, st: P.line, sw: 1.1, rx: 2 });
+          b += T(530, 114, "MLP", { s: 10, f: P.faint, ls: "0.1em" });
+          var mn = ["gate", "up", "down"], pm = [[535, 124], [660, 124], [597, 176]];
+          for (i = 0; i < 3; i++) {
+            var lm = mlpLit || (cls === "ia3" && i === 2 ? 0.6 : 0);
+            b += R(pm[i][0], pm[i][1], 106, 32, { f: mix(P.deep, P.violet, 0.2), st: mix(P.line, P.green, lm), sw: 1 + lm, rx: 2 });
+            b += T(pm[i][0] + 53, pm[i][1] + 21, mn[i], { a: "middle", s: 11.5, f: lm ? P.green : P.ink, w: 600 });
+            if (cls === "lora" || cls === "dora") { b += PTH("M" + (pm[i][0] + 4) + " " + (pm[i][1] + 36) + "q10 8 24 0", { st: P.green, sw: 1.6 }); }
+            if (cls === "bias") b += C(pm[i][0] + 96, pm[i][1] + 6, 3, { f: P.green });
+          }
+          if (cls === "ia3") b += T(597, 232, "l_ff \u2299 \u03b3(W\u2081x)", { a: "middle", s: 11.5, f: P.green, w: 600 });
+          b += C(832, 200, 15, { f: P.deep, st: P.line, sw: 1.2 });
+          b += T(832, 206, "+", { a: "middle", s: 16, f: P.dim });
+          if (cls === "adap") {
+            b += R(810, 262, 84, 34, { f: P.deep, st: P.green, sw: 1.4, rx: 2 });
+            b += T(852, 284, "adapter", { a: "middle", s: 10.5, f: P.green, w: 600 });
+            b += G(832, 240, 832, 260, { st: P.green, hl: 5 });
+          }
+          b += G(848, 200, 908, 200, { st: P.blue, o: 0.9 });
+          if (cls === "full") b += R(146, 91, 660, 168, { st: P.green, sw: 1.6, sd: "6 4" });
+
+          if (sum < 0.4) {
+            b += R(44, 312, 872, 72, { f: P.deep, st: P.line, sw: 1, rx: 2 });
+            b += T(60, 338, m.n, { s: 16, f: P.ink, w: 700 });
+            b += T(60, 360, m.note, { s: 11.5, f: P.dim });
+            if (m.p > 0) {
+              b += T(900, 338, pnum(m.p), { a: "end", s: 18, f: P.green, w: 700 });
+              b += T(900, 358, (100 * m.p / TOT).toFixed(4).replace(/0+$/, "") + "% of 6.74 B", { a: "end", s: 10.5, f: P.dim });
+            } else if (cls === "bias") {
+              b += T(900, 338, "n/a", { a: "end", s: 18, f: P.rose, w: 700 });
+              b += T(900, 358, "<0.1% on BERT; no biases in Llama", { a: "end", s: 10.5, f: P.dim });
+            }
+            if (m.merge) b += T(660, 338, "merge: " + m.merge, { a: "end", s: 11, f: m.merge.indexOf("yes") === 0 ? P.green : P.rose, w: 600 });
+          } else {
+            b += R(44, 296, 872, 92, { f: P.deep, st: P.line, sw: 1, rx: 2, o: sum });
+            var items = [["prompt", Pprompt, P.violet], ["IA\u00b3", Pia3, P.amber], ["prefix", Ppre, P.blue],
+            ["LoRA r=8", Plora, P.green], ["DoRA r=8", Pdora, P.green], ["adapters", Padap, P.rose], ["full FT", TOT, P.rose]];
+            var x0 = 130, ww = 700;
+            for (i = 0; i < items.length; i++) {
+              var lx = x0 + (Math.log(items[i][1]) / Math.LN10 - 4.5) / (10 - 4.5) * ww;
+              /* Three staggered label rows: LoRA, DoRA and adapters sit within a
+                 quarter of a decade of one another and collide on a single row. */
+              var ly = 324 - (i % 3) * 15, vy = 356 + (i % 3) * 13;
+              b += L(lx, 340, lx, ly + 4, { st: items[i][2], sw: 0.8, o: sum * 0.45 });
+              b += C(lx, 340, 5, { f: items[i][2], o: sum });
+              b += T(lx, ly, items[i][0], { a: "middle", s: 9.5, f: items[i][2], o: sum });
+              b += T(lx, vy, pnum(items[i][1]), { a: "middle", s: 9, f: P.faint, o: sum });
+            }
+            b += L(x0, 340, x0 + ww, 340, { st: P.steel, sw: 1, o: sum });
+            b += T(60, 344, "log\u2081\u2080", { a: "end", s: 10, f: P.faint, o: sum });
+          }
+          b += CAPT(box(VB, pos), m.n === "Frozen base" ? "Start here: every weight is read-only." : m.n + " \u2014 " + m.note);
+          return { vb: box(VB, pos), body: b, alt: m.n + ": " + m.note };
+        }
+        register("family", {
+          total: 10, dwell: 2100, render: render, vbFull: VBf,
+          status: function (i, t) { return "Method " + (i + 1 < 10 ? "0" : "") + (i + 1) + " / " + t + " \u00b7 " + M[i].n; },
+          alt: "Transformer block re-marked for eight parameter-efficient fine-tuning methods"
+        });
+      })();
+
+      /* ================================================================== *
+       *  FIGURE 10 — the learning-forgetting frontier
+       * ================================================================== */
+      (function () {
+        /* Wide push-ins: tighter framings clipped the y-axis tick labels and the
+           axis descriptors that say what 'retention' is being measured. */
+        var VBf = [0, 0, 960, 380], VBp = [56, 30, 758, 300], VBr = [300, 40, 758, 300];
+        var VB = [VBf, VBp, VBp, VBp, VBp, VBp, VBf, VBr, VBf];
+        var CAP = [
+          "Two axes that fine-tuning trades against each other.",
+          "Full fine-tuning: strongest on the target domain, weakest retention.",
+          "Rank 16 barely disturbs the base model \u2014 and barely learns the domain.",
+          "Rank 64 moves along the frontier.",
+          "Rank 256 nearly closes the target gap and still retains more.",
+          "There is no winner here. There is a frontier and a choice.",
+          "The instruction-tuning regime sits lower, and the gap is wider.",
+          "Spectrally, the two solutions are not the same object.",
+          "Rank buys target performance and spends source-domain retention."
+        ];
+        var PXa = 130, PXb = 620, PYa = 70, PYb = 300, RLO = 0.38, RHI = 0.70;
+        function px(v) { return PXa + v * (PXb - PXa); }
+        function py(r) { return PYb - (r - RLO) / (RHI - RLO) * (PYb - PYa); }
+        var CPT = [
+          { n: "LoRA r=16", x: 0.30, y: 0.680, real: 0, col: P.green },
+          { n: "LoRA r=64", x: 0.52, y: 0.652, real: 0, col: P.green },
+          { n: "LoRA r=256", x: 0.74, y: 0.617, real: 1, col: P.green },
+          { n: "full fine-tune", x: 0.95, y: 0.545, real: 1, col: P.rose }
+        ];
+        var IFT = [
+          { n: "LoRA r=64 (IFT)", x: 0.80, y: 0.509, real: 1, col: P.amber },
+          { n: "full fine-tune (IFT)", x: 0.93, y: 0.414, real: 1, col: P.rose }
+        ];
+        function dot(p, a, showLbl) {
+          if (a < 0.02) return "";
+          var X = px(p.x), Y = py(p.y), s = "";
+          if (p.real) { s += C(X, Y, 6.2, { f: p.col, o: a }); }
+          else { s += C(X, Y, 6.2, { st: p.col, sw: 1.8, o: a, f: P.bg }); }
+          if (showLbl) {
+            s += T(X + 11, Y - 4, p.n, { s: 10.5, f: p.col, w: 600, o: a });
+            s += T(X + 11, Y + 10, (p.real ? "retention " + p.y.toFixed(3) : "schematic"), { s: 9.5, f: p.real ? P.dim : P.faint, o: a });
+          }
+          return s;
+        }
+        function render(pos) {
+          var k = Math.round(pos), b = "", i;
+          var IL = clamp(RLO, 0, 1);
+          b += R(PXa, PYa, PXb - PXa, PYb - PYa, { st: P.line, sw: 1 });
+          for (i = 0; i <= 6; i++) {
+            var rv = RLO + i * (RHI - RLO) / 6, yy = py(rv);
+            b += L(PXa, yy, PXb, yy, { st: P.line, sw: 1, o: 0.35 });
+            b += T(PXa - 10, yy + 4, rv.toFixed(2), { a: "end", s: 9.5, f: P.faint });
+          }
+          /* Right-anchored so they never run into the stage caption at top left. */
+          b += T(PXb, PYa - 30, "source-domain retention", { a: "end", s: 10.5, f: P.dim });
+          b += T(PXb, PYa - 16, "HellaSwag / ARC-C / WinoGrande mean", { a: "end", s: 9.5, f: P.faint });
+          b += T((PXa + PXb) / 2, PYb + 26, "target-domain performance  \u2192  (schematic axis)", { a: "middle", s: 10.5, f: P.dim });
+
+          for (i = 0; i < 4; i++) b += dot(CPT[i], ramp(pos, 0.6 + (3 - i) * 1, 1.4 + (3 - i) * 1), Math.abs(pos - (1 + (3 - i))) < 0.8 || k >= 5);
+          var cv = ramp(pos, 4.5, 5.3);
+          if (cv > 0.02) {
+            var d = "M";
+            for (i = 0; i < 4; i++) d += (i ? "L" : "") + n2(px(CPT[i].x)) + " " + n2(py(CPT[i].y));
+            b += PTH(d, { st: P.green, sw: 1.5, o: cv * 0.7, sd: "5 4" });
+            b += T(px(0.42), py(0.60), "increasing rank \u2192", { s: 10.5, f: P.green, o: cv, i: "italic" });
+          }
+          var ift = ramp(pos, 5.5, 6.3);
+          for (i = 0; i < 2; i++) b += dot(IFT[i], ift, ift > 0.5);
+          if (ift > 0.3) {
+            b += PTH("M" + n2(px(IFT[0].x)) + " " + n2(py(IFT[0].y)) + "L" + n2(px(IFT[1].x)) + " " + n2(py(IFT[1].y)),
+              { st: P.amber, sw: 1.4, o: ift * 0.6, sd: "5 4" });
+            b += T(PXa + 10, py(0.45), "instruction tuning on code \u2014 both retain less", { s: 10.5, f: P.amber, o: ift });
+          }
+
+          /* Faded out again by the summary stage, where it would sit on top of the
+             right-hand point labels. */
+          var sp = ramp(pos, 6.5, 7.3) * (1 - ramp(pos, 7.6, 8.2));
+          if (sp > 0.02) {
+            b += R(660, 74, 268, 208, { f: P.deep, st: P.line, sw: 1, rx: 2, o: sp });
+            b += T(676, 96, "SINGULAR DIRECTIONS", { s: 9.5, f: P.faint, ls: "0.13em", w: 600, o: sp });
+            for (i = 0; i < 6; i++) {
+              b += L(690, 118 + i * 13, 690 + 110 - i * 12, 118 + i * 13, { st: P.blue, sw: 3.4, o: sp * 0.85, cap: "round" });
+            }
+            b += T(676, 214, "pretrained directions", { s: 10, f: P.blue, o: sp });
+            b += T(676, 230, "full FT: adjusts these", { s: 10, f: P.ink, o: sp });
+            b += L(824, 132, 824, 200, { st: P.rose, sw: 3.4, o: sp, cap: "round" });
+            b += T(824, 114, "intruder", { a: "middle", s: 10, f: P.rose, o: sp });
+            b += T(824, 126, "dimension", { a: "middle", s: 10, f: P.rose, o: sp });
+            b += T(676, 258, "LoRA adds a high-ranking direction almost", { s: 9.5, f: P.dim, o: sp });
+            b += T(676, 272, "orthogonal to all of them. Scaling it down", { s: 9.5, f: P.dim, o: sp });
+          }
+          if (k === 8) {
+            b += R(130, 316, 700, 50, { f: P.deep, st: P.green, sw: 1.2, rx: 2 });
+            b += T(146, 340, "Pick the point on the frontier your deployment needs \u2014 not the one a benchmark table won.", { s: 12, f: P.ink });
+            b += T(146, 358, "Filled dots are published values (Biderman et al. 2024). Hollow dots and the x-axis are schematic.", { s: 10, f: P.faint });
+          }
+          b += CAPT(box(VB, pos), pick(CAP, pos));
+          return { vb: box(VB, pos), body: b, alt: "Learning-forgetting frontier, stage " + (k + 1) + ": " + pick(CAP, pos) };
+        }
+        register("frontier", { total: 9, dwell: 2000, render: render, vbFull: VBf, alt: "Learning versus forgetting frontier for LoRA ranks and full fine-tuning" });
+      })();
+
+      /* ------------------------------------------------------------------ */
+      var stages = document.querySelectorAll(".animation-stage[data-fig]");
+      for (var i = 0; i < stages.length; i++) K.mount(stages[i]);
+    })();
+    </script>
+    <script src="../../assets/js/blogs.js"></script>
+  </body>
+</html>
