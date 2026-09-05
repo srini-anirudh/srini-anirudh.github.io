@@ -1,5 +1,5 @@
 /* ============================================================
-   What Should an Agent Remember? — figure engine + figures 1–5
+   Memory Is More Than Context — figure engine + figures 1–5
    Pure SVG, regenerated per frame. No dependencies.
    ============================================================ */
 (function () {

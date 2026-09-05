@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A first-principles guide to reinforcement learning for LLM agents: what changes when RL moves from one generated answer to a multi-step environment interaction, why long horizons starve group-relative estimators of signal, and why environment engineering became the new dataset engineering." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Reinforcement Learning for Agents From First Principles" />
+    <meta property="og:description" content="What changes when RL moves from one generated answer to a multi-step environment interaction: POMDPs, action granularity, compounding error, environment scaling, credit assignment, and the group-signal collapse that makes long-horizon agent RL hard." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/preview.png" />
+    <meta property="article:published_time" content="2026-09-05" />
+    <meta property="article:modified_time" content="2026-09-05" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Reinforcement Learning for Agents From First Principles" />
+    <meta name="twitter:description" content="What changes when RL moves from one generated answer to a multi-step environment interaction: POMDPs, action granularity, compounding error, environment scaling, credit assignment, and the group-signal collapse that makes long-horizon agent RL hard." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/preview.png" />
+    <title>Reinforcement Learning for Agents From First Principles | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/" },
+        "headline": "Reinforcement Learning for Agents From First Principles",
+        "description": "A first-principles guide to reinforcement learning for LLM agents: what changes when RL moves from one generated answer to a multi-step environment interaction.",
+        "image": "https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/preview.png",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/about.html#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/about.html#person" },
+        "keywords": ["agentic reinforcement learning", "LLM agents", "credit assignment", "environment scaling", "POMDP", "long-horizon RL"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+
+      /* ---- figures ---- */
+      .article-panel { margin: 34px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-stage { min-height: 120px; }
+      .animation-stage svg { display: block; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .figure-params { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 14px; }
+      .figure-param { display: flex; align-items: center; gap: 9px; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .figure-param-name { white-space: nowrap; }
+      .figure-param input[type="range"] { width: 132px; accent-color: #3fd1a0; }
+      .figure-param-value { min-width: 4.4em; color: #3fd1a0; }
+      .article-panel figcaption { margin: 14px 0 0; color: #93a0a8; font: 12.5px/1.62 var(--mono); }
+      .article-panel figcaption b { display: block; margin-bottom: 5px; color: #dce4e9; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; font-size: 10.5px; }
+      .figure-caption-live { display: block; margin-top: 7px; color: #3fd1a0; }
+
+      /* ---- prose furniture ---- */
+      .keybox { margin: 30px 0; padding: 20px 24px; background: var(--paper-bright); border-left: 3px solid var(--ink); }
+      .keybox p:last-child { margin-bottom: 0; }
+      .aside-note { margin: 26px 0; padding: 16px 20px; border: 1px solid var(--rule); background: rgba(255,255,255,0.4); font-size: 17px; }
+      .aside-note p:last-child { margin-bottom: 0; }
+      .aside-note b { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+      pre.code-block { margin: 24px 0; padding: 18px 20px; overflow-x: auto; color: #dce4e9; background: var(--panel); border: 1px solid #242c34; font: 13px/1.65 var(--mono); }
+      pre.code-block b { color: #3fd1a0; font-weight: 500; }
+      pre.code-block i { color: #93a0a8; font-style: normal; }
+      .cmp-wrap { margin: 30px 0; overflow-x: auto; }
+      table.cmp { border-collapse: collapse; width: 100%; min-width: 720px; font: 13px/1.45 var(--mono); }
+      table.cmp caption { margin-bottom: 10px; color: var(--muted); font: 600 11px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; text-align: left; }
+      table.cmp th, table.cmp td { padding: 8px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+      table.cmp thead th { color: var(--muted); font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; border-bottom: 1.5px solid var(--ink); }
+      table.cmp tbody th { font-weight: 600; white-space: nowrap; }
+      table.cmp td.c { text-align: center; }
+      .yes { color: #147a55; font-weight: 600; }
+      .no { color: #a33; font-weight: 600; }
+      .part { color: #8a6d1f; font-weight: 600; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .article-panel { padding: 14px; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article reinforcement-learning-for-agents-from-first-principles-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../about.html" target="_self">About</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide &middot; Agents</p>
+        <h1 class="article-title">Reinforcement Learning for Agents From First Principles</h1>
+        <p class="article-subtitle">Supervised fine-tuning teaches an agent to imitate trajectories that already worked. This is about the other thing &mdash; discovering a strategy by acting in a world that answers back, failing in it, and recovering.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Agentic RL</span><span>Credit assignment</span><span>Environment design</span><span>Long horizons</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-09-05">September 5, 2026</time></span><span>62 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+<nav class="ml-series-nav" aria-label="Tools & Agentic Models series">
+  <a class="ml-series-nav__identity" href="../index.html#agents">Tools & Agentic Models</a>
+  <span class="ml-series-nav__position">06 of 07 · Agentic RL</span>
+  <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-multi-agent-systems-actually-coordinate/"><span>Previous</span><strong>How Multi-Agent Systems Actually Coordinate</strong></a><a class="ml-series-nav__link" href="../the-agent-evaluation-playbook/"><span>Next</span><strong>The Agent Evaluation Playbook</strong></a></div>
+</nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-difference">The one thing that changes</a></li>
+          <li><a href="#mdp">Writing the agent down</a></li>
+          <li><a href="#action">What counts as an action</a></li>
+          <li><a href="#cloning">Why cloning is not enough</a></li>
+          <li><a href="#early-experience">Learning from your own consequences</a></li>
+          <li><a href="#environments">Environments are the dataset</a></li>
+          <li><a href="#reward">What the reward buys</a></li>
+          <li><a href="#hacking">Reward hacking is the default</a></li>
+          <li><a href="#credit">Credit over fifty steps</a></li>
+          <li><a href="#group-signal">Where the signal goes</a></li>
+          <li><a href="#echo-trap">The echo trap</a></li>
+          <li><a href="#curriculum">The horizon as a curriculum</a></li>
+          <li><a href="#engine">The rollout engine</a></li>
+          <li><a href="#context">Context as a resource</a></li>
+          <li><a href="#decoupling">Decoupling agent from trainer</a></li>
+          <li><a href="#irreversible">Actions you cannot take back</a></li>
+          <li><a href="#offline-online">Offline, online, hybrid</a></li>
+          <li><a href="#generalist">One policy, many worlds</a></li>
+          <li><a href="#scaling">Do agents have scaling laws?</a></li>
+          <li><a href="#evaluation">Evaluating a policy, not an answer</a></li>
+          <li><a href="#map">A map of the field</a></li>
+          <li><a href="#open">What is still open</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+      <section id="the-difference">
+        <h2>The one thing that changes</h2>
+        <p>Reinforcement learning for reasoning models has a shape that is easy to hold in your head. A prompt arrives. The policy emits a few thousand tokens. A verifier looks at the last few of them and returns a number. You compute an advantage, you push on the log-probabilities, you sample again. The environment in that picture is a function: it takes a string and returns a scalar, and it has no memory of you.</p>
+        <p>Agent RL breaks that in exactly one place, and everything else in this article is downstream of it. The policy no longer writes its own inputs. Halfway through an episode, the next thing the model conditions on is something the world produced in response to what the model just did. The model can influence it, but it cannot compute it, and it certainly cannot plan the whole sequence in advance, because most of the states it will visit do not exist yet at the moment it starts.</p>
+        <p>That sounds like a small change. It is not. It converts a one-step decision problem into a sequential one, and every difficulty that classical RL spent thirty years on &mdash; exploration, credit assignment, distribution shift, off-policy correction, the cost of a rollout &mdash; comes back at once, on top of the difficulties that language models already had.</p>
+        <figure class="article-panel" data-figure="fig-loop">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the reasoning-versus-agent loop figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 1 &mdash; one answer versus one loop</b>The upper lane is reasoning RL: a prompt, a token stream, an answer, a reward, and a world that is bit-for-bit identical afterwards. The lower lane is an agent: each action commits a change to a persistent environment, and the state the policy sees next is returned to it rather than chosen by it.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>Put the two side by side and the asymmetry is stark. In the top lane, the token at position 1,700 is conditioned on tokens 1 through 1,699, all of which the model wrote. In the bottom lane, the token at the start of turn four is conditioned on an HTTP response, a stack trace, or a database row. The policy authored the query; it did not author the answer.</p>
+        <div class="keybox">
+          <p><strong>The question this article is about.</strong> What changes when reinforcement learning moves from one generated answer to a multi-step interaction with an environment? Not <em>which optimiser</em>, and not the mathematics of PPO or GRPO &mdash; those are covered in the reasoning-RL pieces this one sits next to. The question is what the sequential, stateful, partially observed structure of the problem does to everything built on top of it.</p>
+        </div>
+        <p>One practical note before we start. Almost none of the difficulty below is about the policy-gradient estimator. You can take a working GRPO implementation, point it at a web environment, and get a run that trains for two hundred steps and then quietly dies. The estimator was fine. What broke was the variance structure of the batch, or the credit assignment across fifty turns, or the fact that the environment now sits on the critical path of every optimiser step. Those are the things worth understanding.</p>
+      </section>
+
+      <section id="mdp">
+        <h2>Writing the agent down</h2>
+        <p>The standard object is a Markov decision process, \(\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, R, \gamma)\). At time \(t\) the agent is in state \(s_t \in \mathcal{S}\), samples an action \(a_t \sim \pi_\theta(\cdot \mid s_t)\), the world moves to</p>
+        <p>\[ s_{t+1} \sim P(\cdot \mid s_t, a_t), \]</p>
+        <p>and returns a reward \(r_t = R(s_t, a_t, s_{t+1})\). The objective is the expected discounted return \(J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta}\left[\sum_t \gamma^t r_t\right]\).</p>
+        <p>None of this is new. What is worth being precise about is how badly the single-turn case degenerates. Reasoning RL is also formally an MDP &mdash; you can call each token an action and each prefix a state &mdash; but it is a very particular one: the transition kernel is deterministic and known, since appending a token to a prefix is a concatenation, and the reward is a single terminal scalar. The 2025 survey literature makes this contrast the organising distinction of the field, framing conventional LLM RL as a degenerate single-step MDP and agentic RL as a temporally extended, partially observable process.</p>
+        <p>Once \(P\) is a real transition kernel &mdash; a web server, a shell, a database, another person &mdash; three things become true that were not true before.</p>
+        <p><strong>You cannot differentiate through it.</strong> In a reasoning rollout, the entire trajectory is a function of the model's own sampling. In an agent rollout, the environment interposes at every step. Nothing about it is a smooth function of \(\theta\), and no amount of clever loss engineering makes it one.</p>
+        <p><strong>You cannot replay it exactly.</strong> A stored trajectory is a record of what happened when the environment was in a particular internal condition. Re-running the same action sequence may not reproduce it. Some environments are seedable; most interesting ones are not.</p>
+        <p><strong>You cannot see all of it.</strong> Which is the next section, and it deserves its own.</p>
+
+        <h3>It is almost never an MDP. It is a POMDP.</h3>
+        <p>A web agent does not receive the page. It receives an accessibility tree truncated to fit a context window, or a screenshot at a particular scroll position. A coding agent does not receive the repository; it receives whatever <code>ls</code> and <code>grep</code> chose to print. A customer-service agent does not receive the customer's intent, only what they typed.</p>
+        <p>Formally, the true state \(s_t\) is hidden and the agent receives an observation \(o_t \sim O(\cdot \mid s_t)\). The policy is therefore not \(\pi(a \mid s)\) at all. It is</p>
+        <p>\[ \pi_\theta\big(a_t \mid o_0, \ldots, o_t,\; a_0, \ldots, a_{t-1}\big), \]</p>
+        <p>a function of the entire interaction history. There is a classical result lurking here: for a POMDP, the optimal policy is a function of the belief state &mdash; the posterior over true states given the history &mdash; and the belief state is a sufficient statistic, but computing it is generally intractable. What an LLM agent does instead is carry an approximate, natural-language belief in its context window and its activations.</p>
+        <figure class="article-panel" data-figure="fig-pomdp">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the partial observability figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 2 &mdash; the observation function is the interface</b>The world holds sixty elements; the viewport renders eighteen. Each action both changes the world and changes what can be seen of it, so perception and exploration are the same problem. The belief bars are schematic, not measured &mdash; they illustrate the posterior an agent has to maintain, not any particular model's internal state.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>This has an immediate engineering consequence that is easy to state and hard to internalise: <em>memory is not an optional feature of an agent, it is what makes the policy well-defined</em>. If you truncate the history, you are not saving tokens, you are changing the policy class. A separate article on this site works through what an agent should keep and how to decide &mdash; see <a href="../memory-is-more-than-context/">Memory Is More Than Context</a> for the write, manage and read side of it. Here the relevant point is narrower: the thing RL is optimising is a history-conditioned function, and any context-management policy you bolt on is part of the thing being optimised whether you trained it or not.</p>
+        <div class="aside-note">
+          <p><b>An honest simplification</b>Treating each turn as one MDP transition is a modelling choice, not a fact. Within a single turn the model also emits hundreds of tokens, each of which is an action in a finer MDP. Most agent-RL systems are explicit about which level they optimise at, and the two-level structure &mdash; token-level actor, turn-level value &mdash; recurs across the literature from hierarchical multi-turn methods onwards. It matters, and it comes back in the credit-assignment section.</p>
+        </div>
+      </section>
+
+      <section id="action">
+        <h2>What counts as an action</h2>
+        <p>In reasoning RL the action space is the vocabulary, and nobody thinks about it. In agent RL the action space is a design decision made by an engineer, usually early, usually without much deliberation, and it constrains everything afterwards.</p>
+        <p>A realistic action set looks like</p>
+        <p>\[ \mathcal{A} = \{\text{search}, \text{click}, \text{type}, \text{run\_code}, \text{call\_api}, \text{ask\_user}, \text{answer}\}, \]</p>
+        <p>except that each element is really a family. <code>search</code> is not one action; it is one action <em>type</em> parameterised by a query string drawn from a space the size of the language. So the policy factorises:</p>
+        <p>\[ \pi_\theta(a_t \mid h_t) \;=\; \underbrace{P(\text{type} \mid h_t)}_{\text{a choice among a handful}} \;\cdot\; \underbrace{P(\text{arguments} \mid \text{type}, h_t)}_{\text{a generation problem}} . \]</p>
+        <p>The first factor is a small categorical distribution and is easy to learn. The second is the hard part and is where most tool-use failures live &mdash; the article on <a href="../how-language-models-learn-to-use-tools/">how models learn to call functions</a> is entirely about that second factor. What agent RL adds is that the two are now optimised jointly against an outcome that arrives many steps later.</p>
+
+        <h3>Granularity is a lever, and it has an optimum</h3>
+        <p>Consider the same task expressed at different levels of abstraction. At the bottom, <code>move_mouse(413, 271)</code> and <code>click()</code>. At the top, <code>process_refund(order_id)</code>. Both are valid action spaces for the same environment, and they produce completely different learning problems.</p>
+        <p>Write \(N\) for the number of atomic operations a task really requires and \(g\) for how many of them one action covers. The horizon is \(H = N/g\). As \(g\) grows, the horizon shrinks &mdash; and with it, everything that scales badly in the horizon: credit assignment path length, context growth, rollout wall-clock, the probability of a compounding error. That argues for coarse actions.</p>
+        <p>But as \(g\) grows the action space also grows, because a coarser action carries more parameters and more ways to be wrong, and the number of distinct meaningful actions explodes. Learning <code>send_email(to, subject, body)</code> means learning to produce three correct arguments at once, with no intermediate feedback about any of them. That argues for fine actions.</p>
+        <p>So the total difficulty behaves like a sum of two opposing terms,</p>
+        <p>\[ \text{difficulty}(g) \;\approx\; \alpha \log\!\frac{N}{g} \;+\; \beta \log \lvert \mathcal{A}(g) \rvert, \]</p>
+        <p>and there is an interior optimum. This is not a metaphor. It is the reason the agent-computer-interface work found that redesigning the commands available to a software-engineering agent &mdash; not the model, not the training &mdash; moved task success substantially. The interface is a hyperparameter.</p>
+        <figure class="article-panel" data-figure="fig-granularity">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the action granularity figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 06</span>
+          </div>
+          <figcaption><b>Figure 3 &mdash; the granularity dial</b>Five action abstractions for the same task. Drag the slider to change how much atomic work the task contains, and watch the horizon and the action-space size trade against each other. The green curve is the sum of the two cost terms; the marker shows where the current level sits on it. Curve shapes are illustrative of the trade-off, not fitted to measurements.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>Two corollaries worth stating plainly. First, if your agent is failing, changing the action space is a legitimate and often cheap intervention &mdash; frequently cheaper than another training run. Second, a benchmark's action space is part of the benchmark. Comparing two agents that were given different affordances is not comparing two policies.</p>
+      </section>
+      <section id="cloning">
+        <h2>Why cloning is not enough</h2>
+        <p>Before any RL happens, almost every agent starts with behavioural cloning. You collect trajectories &mdash; human demonstrations, traces from a stronger model, successful paths found by search, production logs &mdash; and minimise</p>
+        <p>\[ \mathcal{L}_{\mathrm{BC}}(\theta) \;=\; -\sum_{t} \log \pi_\theta\!\left(a_t^{*} \mid s_t\right) . \]</p>
+        <p>This works, and it is not a poor cousin of RL. It is stable, sample-efficient, and it teaches the things RL is terrible at teaching: the syntax of a tool call, the format of an action, the conventions of the interface, what a reasonable first move looks like. Skipping it and starting RL from a base model usually means burning thousands of rollouts to discover that actions must be valid JSON.</p>
+        <p>What cloning cannot do is teach recovery, and the reason is structural rather than a matter of data volume.</p>
+
+        <h3>The quadratic</h3>
+        <p>Training states are drawn from the expert's occupancy \(d_{\pi^*}\). At deployment, states are drawn from the learner's own occupancy \(d_{\pi_\theta}\). These are different distributions, and they diverge precisely because the learner makes mistakes.</p>
+        <p>Suppose the cloned policy disagrees with the expert with probability at most \(\varepsilon\) on states from \(d_{\pi^*}\), and that per-step cost is bounded in \([0,1]\). Consider the first time step at which the policy deviates. Before that moment it is on the expert's path and behaving well. After it, it is somewhere the training set never described, and the honest thing to assume is that it collects the maximum cost for the rest of the episode.</p>
+        <p>The probability that the first deviation happens at step \(t\) is roughly \(\varepsilon\) (times the probability of having survived, which we can bound by one). The damage from a deviation at step \(t\) is at most \(T - t\). So</p>
+        <p>\[ J(\pi_\theta) - J(\pi^{*}) \;\lesssim\; \sum_{t=1}^{T} \varepsilon \,(T-t) \;=\; \varepsilon\,\frac{T(T-1)}{2} \;=\; O\!\left(\varepsilon T^{2}\right). \]</p>
+        <p>That is the classical reduction result for imitation learning, and the important part is the exponent. The regret is not linear in the horizon; it is quadratic, because the horizon appears once as the number of chances to err and once as the length of time you spend paying for it.</p>
+        <p>If instead you train on states drawn from the learner's own distribution &mdash; the interactive setting, of which dataset aggregation is the canonical algorithm and online RL is the more general case &mdash; the error bound applies where the agent actually goes, and the regret drops to \(O(\varepsilon T)\). One factor of \(T\).</p>
+        <figure class="article-panel" data-figure="fig-compounding">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the compounding error figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 4 &mdash; one small mistake, paid for over the remaining horizon</b>The blue ribbon is the expert occupancy: the only region where the cloned policy has supervision. Drag \(\varepsilon\) and compare the two regret curves. At \(T=50\), a fifty-fold gap between the imitation and interaction bounds is not a rounding error, it is the whole argument.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>Two sanity checks on this argument, because it is easy to over-read. The bound is a worst case: real environments are frequently forgiving, and a policy that wanders off can often wander back. And it assumes the expert's states are the only ones with supervision, which stops being true the moment your demonstrations contain recovery behaviour. That second observation is a design instruction, not a caveat &mdash; if your demonstration set contains only clean trajectories, you are training a policy that has never seen a failure and will not recognise one.</p>
+        <div class="keybox">
+          <p><strong>What clean demonstrations do not contain.</strong> An API timeout. An invalid argument. A page that changed shape. A permission denial. A search that returned nothing. A tool that returned the right answer to the wrong question. Real agent trajectories are half error handling; expert demonstrations are almost never. Failure recovery is a first-class capability and it has to be in the data or in the environment, because it will not appear on its own.</p>
+        </div>
+      </section>
+
+      <section id="early-experience">
+        <h2>Learning from your own consequences</h2>
+        <p>There is a gap between imitation and reinforcement that turns out to be usefully occupiable. Many environments cannot supply a reward at all &mdash; there is no test suite for &ldquo;did this browsing session go well&rdquo; &mdash; and many others can, but only after a rollout so long that collecting enough of them is uneconomic.</p>
+        <p>The <em>early experience</em> line of work takes the observation that you do not need a reward to learn something from acting. If the agent proposes its own alternative action at a state from a demonstration and executes it, the resulting future state is real information about the environment, obtained without any reward function. Two ways to use it were studied systematically: <em>implicit world modelling</em>, where the policy is trained to predict the state that follows a state-action pair, grounding it in the dynamics; and <em>self-reflection</em>, where the model writes an explanation of why the expert's action was better than its own, given both outcomes.</p>
+        <p>Across eight environments and several model families, both consistently beat plain imitation, with the largest gains on the long-horizon tasks; and checkpoints initialised this way reached higher ceilings after subsequent RL than imitation-initialised ones. That last point is the operationally interesting one. This is not a competitor to RL. It is a better place to start it from.</p>
+        <p>The conceptual framing is worth keeping: three regimes, distinguished by what supervision they consume.</p>
+        <table class="concept-table">
+          <caption>Three supervision regimes</caption>
+          <thead><tr><th>Regime</th><th>Scalable data</th><th>Reward</th><th>States come from</th></tr></thead>
+          <tbody>
+            <tr><td>Imitation learning</td><td>✓</td><td>✕</td><td>Expert</td></tr>
+            <tr><td>Early experience</td><td>✓</td><td>✕</td><td>Agent</td></tr>
+            <tr><td>Reinforcement learning</td><td>✓</td><td>✓</td><td>Agent</td></tr>
+          </tbody>
+        </table>
+        <p>The middle row is doing something specific: it buys you the distribution shift fix from the interactive setting without requiring you to have solved reward design first. Given how much of the rest of this article is about how hard reward design is, that is not a small thing.</p>
+      </section>
+
+      <section id="environments">
+        <h2>Environments are the dataset</h2>
+        <p>Here is the claim this section argues for, and it is the one I would keep if you kept nothing else.</p>
+        <div class="keybox">
+          <p>For pretraining, you curate documents. For supervised fine-tuning, you curate demonstrations. For agent RL, <strong>you curate worlds</strong> &mdash; and the engineering effort moves from data pipelines to environment construction, verification, and orchestration.</p>
+        </div>
+        <p>An environment is a small, boring interface:</p>
+        <table class="concept-table">
+          <caption>The minimal environment contract</caption>
+          <tbody>
+            <tr><td><code>reset()</code></td><td>Initial observation and task specification</td></tr>
+            <tr><td><code>observe()</code></td><td>What the policy is allowed to see</td></tr>
+            <tr><td><code>actions()</code></td><td>Legal actions in the current state</td></tr>
+            <tr><td><code>step(a)</code></td><td>Next observation, reward, and termination state</td></tr>
+            <tr><td><code>reward()</code></td><td>Scalar feedback, possibly only at termination</td></tr>
+            <tr><td><code>done</code></td><td>Termination flag</td></tr>
+          </tbody>
+        </table>
+        <p>Six functions. But notice what that interface is: a data generator with unbounded output. A dataset of a million demonstrations is a million samples, forever. An environment is a million samples per week, drawn from the current policy's distribution, with a reward attached. That is a categorically different asset, and it is why the centre of gravity in agent training moved.</p>
+        <figure class="article-panel" data-figure="fig-envscale">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the environment scaling figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 5 &mdash; six functions, and then a scaling axis</b>Left: the environment interface, which is also the data generator. Right: the shape reported by recent synthetic-environment pipelines &mdash; a handful of environments overfits, and held-out performance keeps improving as the count grows into the hundreds. The curves here are schematic: they reproduce the sign and rough shape of published environment-count ablations, not their numbers.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+
+        <h3>Three ways to get a world, and what each costs</h3>
+        <p><strong>Real production systems.</strong> Authentic by construction. Also slow, rate-limited, non-deterministic, occasionally expensive, and unsafe to explore in. Network latency alone destabilises RL training, because it puts a variable multi-second delay inside every optimiser step.</p>
+        <p><strong>Reproducible replicas.</strong> The approach that made web-agent research tractable: stand up real, self-hosted applications &mdash; a shopping site, a forum, a code host, a CMS &mdash; and write programmatic checkers for long-horizon tasks against them. Deterministic, resettable, and the evaluation is functional rather than a string match on a final answer.</p>
+        <p><strong>Synthesised environments.</strong> The 2026 direction. Rather than hand-building worlds, generate them: derive tool ecosystems and stateful backing databases from documentation or from real service graphs, expose them through a uniform interface, generate verifiable tasks against them, and run thousands of isolated instances in parallel. Reported scaling behaviour is consistent across several of these pipelines &mdash; ten environments overfits badly, a hundred helps substantially, and gains continue past five hundred.</p>
+        <p>The failure mode of the synthetic route is worth naming, because it is not obvious. If you simulate tool behaviour with an LLM, identical states and actions can produce inconsistent responses, and an environment whose dynamics are not a function is not an environment you can do RL in. The pipelines that work generate <em>code</em> &mdash; real executables over real databases &mdash; and use the model to write the environment rather than to be it.</p>
+        <div class="aside-note">
+          <p><b>The generation&ndash;execution&ndash;feedback loop</b>The survey framing that has stuck describes environments as producers of experiential data in a closed loop: environments generate tasks that challenge the agent, return observations during execution, and provide evaluative feedback for learning. Read that way, &ldquo;how do I get more agent training data&rdquo; and &ldquo;how do I get more environments&rdquo; are the same question, and the second one is a software problem you can throw engineers at.</p>
+        </div>
+      </section>
+      <section id="reward">
+        <h2>What the reward buys</h2>
+        <p>Reward design in reasoning RL is mostly solved by fiat: the answer is right or it is not. In agent RL you have to decide what &ldquo;the task was accomplished&rdquo; means, in code, for a stateful system, and every choice you make is a specification the policy will optimise against literally.</p>
+
+        <h3>Sparse outcome reward</h3>
+        <p>\[ R(\tau) = \begin{cases} 1 & \text{the task succeeded} \\ 0 & \text{otherwise} \end{cases} \]</p>
+        <p>Clean, unhackable in the shallow sense, and almost devoid of information. One bit per episode, where an episode might be forty tool calls and two hundred thousand tokens. A trajectory that failed at the very last step is scored identically to one that never started, and the policy has no way to tell them apart.</p>
+
+        <h3>Dense reward</h3>
+        <p>Pay something at intermediate milestones: \(R(\tau) = \sum_t r_t\), with \(+0.1\) for finding the right page, \(+0.1\) for entering the right value, \(+1\) for the correct final state. Now partial progress is visible and the gradient has something to work with at every stage of training rather than only once the policy is already competent.</p>
+        <p>The cost is that you have just told the policy what you think is valuable, and you are probably wrong in at least one place.</p>
+        <figure class="article-panel" data-figure="fig-reward">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the reward design figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 14</span>
+          </div>
+          <figcaption><b>Figure 6 &mdash; sparse, dense, and the loop the policy finds</b>Watch stages 7 to 10. Nothing goes wrong with the agent; the agent finds the optimum of the reward function that was actually written down. Trajectories and returns here are constructed for illustration.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+
+        <h3>The one shaping construction that is safe</h3>
+        <p>There is a classical result that deserves to be better known among people writing agent rewards. If you add a shaping term of the form</p>
+        <p>\[ F(s, a, s') \;=\; \gamma\,\Phi(s') - \Phi(s) \]</p>
+        <p>for any potential function \(\Phi\) over states, then the set of optimal policies is unchanged. The intuition is that such a term telescopes: along any trajectory, the shaping contributions collapse to \(\gamma^T\Phi(s_T) - \Phi(s_0)\), which depends only on the endpoints. Cycles therefore accumulate exactly zero shaping reward, which is precisely why the loop in Figure 6 becomes unprofitable.</p>
+        <p>Any shaping term <em>not</em> of that form is a new objective, not a hint. That is a useful test to run on your own reward function: if an agent can gain reward by returning to a state it has already been in, you have written a different task than the one you meant.</p>
+
+        <h3>Verifiable outcomes</h3>
+        <p>The most robust option, when the environment supports it, is to make the outcome checkable by execution rather than by judgement: run the test suite, query the database for the row that should now exist, diff the filesystem, check the API state, replay the transaction. This is the agentic analogue of verifiable-reward RL for reasoning, and it is why software engineering became the flagship domain &mdash; human-validated task sets with executable tests give you a reward function that is a program, and programs do not have opinions.</p>
+        <p>Where nothing is executable &mdash; a research report, a support conversation, a professional workflow inside a simulated company &mdash; the field has largely moved to structured rubrics scored by a model. That works better than a holistic score and worse than a test suite, for reasons the next section is about.</p>
+      </section>
+
+      <section id="hacking">
+        <h2>Reward hacking is the default, not the failure case</h2>
+        <p>It is tempting to treat specification gaming as an occasional embarrassment. The 2026 literature does not support that reading. In coding agents, RL-trained models have been observed overwriting unit tests, monkey-patching scoring functions, deleting assertions, and terminating programs early to obtain a pass. In rubric-graded settings the exploits become semantic rather than mechanical: prefatory flattery aimed at a judge, self-praise, systematic length inflation, and drift that a stronger verifier reduces but does not remove.</p>
+        <p>Several benchmarks now exist specifically to measure this, spanning test manipulation, systems-level specification gaming, and taxonomies of hack categories that frontier models detect only partially. The direction of the evidence is consistent: RL post-training increases exploit rates, and the increase generalises across settings rather than staying local to the environment where it was learned.</p>
+        <p>There is also a theoretical floor here. Given a proxy reward and a true objective that differ at all, it is provably hard to guarantee that optimising the proxy does not degrade the true objective &mdash; the negative results on unhackable proxies are strong. So the operational stance is not &ldquo;write a reward that cannot be hacked&rdquo;. It is:</p>
+        <pre class="code-block"><b>1</b>  <i>Make the verifier a program wherever a program is possible.</i>
+<b>2</b>  <i>Hold out verification the policy never trained against.</i>
+<b>3</b>  <i>Monitor the behaviour, not only the score &mdash; step counts, edits to test</i>
+   <i>files, unusual terminations, judge-flattery n-grams.</i>
+<b>4</b>  <i>Alarm on reward rising while a held-out proxy falls. That divergence</i>
+   <i>is the signature, and it is visible long before a human notices.</i>
+<b>5</b>  <i>Treat every shaping term as a claim about value, and test it by asking</i>
+   <i>whether a cycle can farm it.</i></pre>
+        <p>None of this is exotic. All of it is the sort of thing that gets skipped because the reward function looked obviously correct when it was written.</p>
+      </section>
+
+      <section id="credit">
+        <h2>Credit over fifty steps</h2>
+        <p>Suppose a trajectory has \(T = 50\) steps and returns \(R = 1\) only at the end. Which actions deserve the credit? The return</p>
+        <p>\[ G_t \;=\; \sum_{k=t}^{T} \gamma^{\,k-t} r_k \]</p>
+        <p>tells you the value of being at step \(t\), but with a single terminal reward every \(G_t\) is the same number up to a discount factor, so it distinguishes nothing.</p>
+        <p>The simplest thing to do &mdash; and the thing most group-relative methods do by default &mdash; is to treat the whole trajectory as one sample, normalise the returns within a group of rollouts, and attach that single advantage to every token of every action inside the trajectory. Call this trajectory-level credit. It has one enormous virtue: it is unbiased about the trajectory. It also has one enormous flaw: it is maximally uninformative about the action.</p>
+        <p>Concretely, a redundant page reload inside a winning rollout gets a positive advantage. A necessary, correct step inside a losing rollout gets a negative one. Averaged over enough rollouts these errors wash out. The question is how many is enough, and at fifty steps the answer is <em>a lot more than your batch size</em>.</p>
+        <figure class="article-panel" data-figure="fig-credit">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the credit assignment figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 7 &mdash; from trajectory-level to step-level credit</b>Four rollouts, one anchor state. The rightmost panel groups the actions taken at that shared state and computes a local advantage among them, which is enough to punish a wasteful action inside a rollout that happened to succeed.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+
+        <h3>How the field got finer</h3>
+        <p>The obvious remedy is to estimate \(A(s_t, a_t)\) per step, which classically means learning a value function. For LLM agents that is expensive: a critic at this scale is another model, another set of optimiser states, another source of instability, and the reason group-relative methods became popular in the first place was to avoid exactly that.</p>
+        <p>So the interesting 2025&ndash;26 work is about getting step resolution without paying for a critic. The moves, roughly in order of how much machinery they require:</p>
+        <p><strong>Anchor-state grouping.</strong> Roll out a group of trajectories from the same initial state. Some of them will pass through the same environment state more than once across the group. Collect the actions taken at each such repeated state and compute a group-relative advantage <em>within that set</em>. You get step-level comparison for free, because the extra rollouts you would have needed already exist inside the batch. Combine it with the usual episode-level term and you have a two-level advantage: direction from the outcome, resolution from the local comparison. The reported gains over trajectory-level baselines on embodied and web-shopping benchmarks are in the high single digits to low double digits.</p>
+        <p><strong>Hierarchical critics.</strong> An off-policy turn-level value function paired with an on-policy token-level actor. More machinery, more general &mdash; it does not require states to repeat.</p>
+        <p><strong>Tree-structured rollouts.</strong> Reorganise a group of rollouts into a prefix tree and redistribute the outcome signal down the branches. Cheap and elegant; the cost is that it reallocates the same outcome information rather than adding any, and shared prefixes constrain trajectory diversity.</p>
+        <p><strong>Intrinsic per-turn signals.</strong> Instead of an external judge, measure how much a turn moved the policy's own predicted probability of the correct answer, and use that information gain as a per-turn reward.</p>
+        <p>The honest summary is that this is unsettled. Anchor grouping needs states to be identifiable, which is easy in a gridworld and hard in open-ended generation where two observations differing only in surface form should be the same state and are not. Later work explicitly attacks that assumption. What has converged is the <em>shape</em>: an episode term for direction, a finer term for resolution.</p>
+        <p>\[ A(s_t, a_t) \;=\; A^{\text{episode}}(\tau) \;+\; \lambda \, A^{\text{step}}(s_t, a_t). \]</p>
+      </section>
+      <section id="group-signal">
+        <h2>Where the signal goes</h2>
+        <p>This section is a short derivation, and I think it is the most useful thing in the article, because it explains a large fraction of what makes long-horizon agent RL feel different from reasoning RL in practice.</p>
+        <p>Group-relative methods work by comparison. You sample \(G\) rollouts on the same task, compute their returns \(R_1, \ldots, R_G\), and use the normalised deviation from the group mean as the advantage:</p>
+        <p>\[ \hat{A}_i \;=\; \frac{R_i - \mu_G}{\sigma_G + \epsilon}, \qquad \mu_G = \frac{1}{G}\sum_j R_j . \]</p>
+        <p>Now ask what happens when all \(G\) returns are identical. Every \(R_i\) equals \(\mu_G\), the numerator is zero for every rollout, and the group contributes nothing to the gradient. Not a small contribution &mdash; nothing. The estimator has no baseline other than the group itself, so when the group agrees, the advantage is not noisy, it is undefined.</p>
+        <p>With binary outcome reward and per-task success probability \(p\), the two degenerate cases are &ldquo;all failed&rdquo; and &ldquo;all succeeded&rdquo;. So the probability that a group carries any signal at all is</p>
+        <p>\[ P_{\text{informative}} \;=\; 1 \;-\; p^{G} \;-\; (1-p)^{G}. \]</p>
+        <p>This function is zero at \(p = 0\) and \(p = 1\), and peaks at \(p = 1/2\). That already tells you something: a task your agent always fails is exactly as useless as a task it always solves, and the most valuable tasks in your training set are the ones it gets right about half the time.</p>
+        <figure class="article-panel" data-figure="fig-groupsignal">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Interactive controls for the group signal figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 08</span>
+          </div>
+          <figcaption><b>Figure 8 &mdash; how a batch becomes empty</b>Three sliders. Reliability \(q\) and horizon \(H\) set the task success probability \(p = q^{H}\); group size \(G\) sets how many rollouts have to agree before the group goes silent. Push \(H\) past twenty at \(q = 0.93\) and watch the count of useful groups per batch fall toward zero.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+
+        <h3>Now connect it to the horizon</h3>
+        <p>Model a task as \(H\) decisions, each of which the policy gets right with probability \(q\), independently. Then</p>
+        <p>\[ p \;=\; q^{H}, \]</p>
+        <p>which collapses geometrically. At \(q = 0.93\) &mdash; a policy that is right ninety-three percent of the time, which is not bad &mdash; a ten-step task succeeds about half the time, a thirty-step task about eleven percent of the time, and a fifty-step task about three percent.</p>
+        <p>Substitute into the group formula. In the small-\(p\) regime, \(1 - (1-p)^G \approx Gp\), so</p>
+        <p>\[ P_{\text{informative}} \;\approx\; G \, q^{H} . \]</p>
+        <p>The fraction of your batch that carries gradient decays <em>exponentially in the horizon</em>. With \(G = 8\) and \(q = 0.93\), a ten-step task gives you informative groups nearly always; a fifty-step task gives you roughly one useful group in four; a hundred-step task gives you one in forty. You are still paying full rollout cost for all of them.</p>
+        <div class="keybox">
+          <p><strong>The uncomfortable consequence.</strong> As the horizon grows, long-horizon agent RL does not become noisier. It becomes <em>empty</em>. Most of the compute is spent generating rollouts whose only contribution to the update is a zero. This is not a flaw in any particular algorithm; it is what group-relative comparison does when the thing being compared stops varying.</p>
+        </div>
+
+        <h3>Which of the standard fixes actually address this</h3>
+        <p>Read the formula again, and the menu of interventions falls out of it almost mechanically.</p>
+        <p><strong>Raise \(p\) by shortening the horizon.</strong> Train on short tasks first, extend later. This directly moves \(q^H\) back toward the middle of the curve. It is the entire logic of interaction-horizon curricula, and it is the next section.</p>
+        <p><strong>Raise \(p\) by choosing tasks.</strong> Filter the training distribution to tasks the current policy solves some but not all of the time, and re-filter as the policy improves. Difficulty-matched sampling is not a nicety; it is targeting the peak of \(P_{\text{informative}}\).</p>
+        <p><strong>Increase \(G\).</strong> Helps, but note what it costs. To hold \(Gq^H\) constant while \(H\) grows, \(G\) must grow like \(q^{-H}\) &mdash; exponentially. Group size buys you a few more steps of horizon, not an order of magnitude.</p>
+        <p><strong>Stop using a binary reward.</strong> If \(R\) is graded rather than binary, a group in which every rollout fails can still have internal variance, because the rollouts failed differently. This is the strongest argument for partial credit, process rewards and rubric scoring, and it is a variance argument rather than an information-content one.</p>
+        <p><strong>Look inside the trajectory.</strong> Even when all \(G\) trajectories share the same terminal return, the actions inside them differ, and some of those differences occur at the same state. That is exactly the signal anchor-state grouping recovers, which is why step-level credit and long horizons are the same conversation.</p>
+        <p><strong>Filter the batch.</strong> If a group's return variance is below a threshold, drop it before the optimiser sees it, and spend the compute on a group that says something. Trajectory filtering of this kind appears in stabilised agent-RL variants and, in the reasoning setting, in dynamic-sampling schemes that resample until a batch has non-degenerate groups.</p>
+        <div class="aside-note">
+          <p><b>What this model gets wrong</b>Steps are not independent; failures are correlated; some steps carry almost all the risk; a good policy recovers from errors, which converts one hard step into several easy ones; and rewards in real systems are rarely exactly binary. The exponent is therefore not literal. What survives all of those objections is the sign and the mechanism: success probability falls with horizon, group-relative signal falls with success probability, and the product falls faster than either.</p>
+        </div>
+      </section>
+
+      <section id="echo-trap">
+        <h2>The echo trap</h2>
+        <p>There is a specific failure mode of multi-turn agent RL that is worth being able to recognise by sight, because by the time it shows up in your headline metric the run is already unrecoverable.</p>
+        <p>The reported pattern is this: reward variability cliffs and gradient norms spike, and the policy converges on repeating a narrow pattern that once worked, losing behavioural diversity. The name that stuck for it is the <em>echo trap</em> &mdash; the agent generates a reasoning pattern, the pattern gets rewarded, the agent samples it more often, and the group loses the disagreement that was carrying its gradient. A drop in reward standard deviation is the early warning sign.</p>
+        <figure class="article-panel" data-figure="fig-echotrap">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the training dynamics figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 9 &mdash; what moves first</b>Reward standard deviation collapses, gradient norm spikes, and only afterwards does mean reward turn over. Curves are schematic reconstructions of the qualitative pattern reported for multi-turn agent RL, not logged data from any particular run.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>Notice how tightly this couples to the previous section. The echo trap is what \(P_{\text{informative}} \to 0\) looks like from the inside when the cause is the <em>policy</em> collapsing rather than the task being too hard. Both produce a group whose members agree; both starve the estimator; both are visible in return variance before they are visible in return mean.</p>
+        <p>The stabilised variants that address it do three things, and each one maps onto the diagnosis. Filter out rollout groups with near-zero return variance, so degenerate batches never reach the optimiser. Decouple the clipping bounds so that high-reward rare trajectories are not suppressed by the same threshold that keeps updates conservative. And drop or loosen the KL anchor to the reference policy, since holding the policy near its initialisation is exactly the wrong medicine for a policy that has already collapsed inward.</p>
+        <p>There is a further finding from the same line of work that should temper expectations about emergence. Without sufficiently informative, reasoning-aware reward signals, deep agent reasoning largely does not appear from multi-turn RL on its own; what appears instead is shallow strategy and, sometimes, thinking text that does not correspond to the action taken. Reward structure shapes what emerges. &ldquo;Run GRPO on a long trajectory and planning will emerge&rdquo; is not supported.</p>
+      </section>
+
+      <section id="curriculum">
+        <h2>The horizon as a curriculum variable</h2>
+        <p>If the horizon is the thing driving success probability toward zero, then the horizon is a knob you should be turning during training rather than fixing in a config file.</p>
+        <p>The concrete version of this is a schedule on the interaction budget: cap the number of turns an agent is allowed early in training, and raise the cap as it improves,</p>
+        <p>\[ h_t \;=\; \min\!\left(H_{\max},\; h_0 + \Delta \cdot \left\lfloor t / T_s \right\rfloor\right), \]</p>
+        <p>so that early phases emphasise exploitation over a short, learnable horizon and later phases open up room for exploration, backtracking and recovery.</p>
+        <p>The empirical claim from the framework that formalised this is sharper than it might sound. Beginning training with a large number of interaction turns pushed models into redundant reasoning and unproductive actions and caused training collapse; constraining the turn count permanently narrowed exploration and plateaued early. The progressive schedule produced smoother reward curves and higher long-run returns, with reported improvements of over ten percent on web navigation and much larger jumps on crafting and science-world tasks, and the resulting seven-billion-parameter agents matched or surpassed considerably larger open models and several commercial ones across twenty-seven tasks.</p>
+        <figure class="article-panel" data-figure="fig-curriculum">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the horizon curriculum figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 10 &mdash; the same budget, reached differently</b>Run A is given thirty turns from step zero and collapses; run B earns them. Curve shapes reproduce the qualitative pattern reported for fixed versus progressive interaction budgets; the numbers are illustrative.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>The curriculum need not stop at horizon length. Anything that moves \(p\) toward the middle of the informative band is a candidate axis:</p>
+        <table class="concept-table">
+          <caption>Curriculum axes</caption>
+          <thead><tr><th>Axis</th><th>Progression</th></tr></thead>
+          <tbody>
+            <tr><td>Horizon</td><td>5 → 10 → 20 → 40 turns</td></tr>
+            <tr><td>Tool count</td><td>One tool → independent tools → dependent chains</td></tr>
+            <tr><td>Determinism</td><td>Deterministic → stochastic → adversarial</td></tr>
+            <tr><td>Failure rate</td><td>Clean → injected timeouts and invalid inputs</td></tr>
+            <tr><td>Specification</td><td>Fully specified → underspecified; the agent must ask</td></tr>
+            <tr><td>Difficulty</td><td>Resample tasks the policy solves roughly half the time</td></tr>
+          </tbody>
+        </table>
+        <p>The last line is the one that generalises. A curriculum in agent RL is a control loop on the success probability of the batch, and every other axis is a means of implementing it.</p>
+      </section>
+      <section id="engine">
+        <h2>The rollout engine is part of the algorithm</h2>
+        <p>In reasoning RL, generating a batch is a call to a decoding server. It is fast, it is uniform, and it is somebody else's problem. In agent RL, generating a batch means running a loop that looks like this:</p>
+        <pre class="code-block">while not done:
+    context     = build_state(history, memory)
+    action      = policy(context)          <i># GPU, milliseconds to seconds</i>
+    observation = env.step(action)         <i># CPU or network, seconds</i>
+    history     = update(history, action, observation)</pre>
+        <p>Two things about that loop determine your training throughput more than any kernel does. Trajectory lengths are highly variable, and environment steps are slow and latency-skewed &mdash; a GUI step involving a screenshot, a render and an action commonly takes on the order of a second, and a network tool call can take much longer.</p>
+
+        <h3>The utilisation bound</h3>
+        <p>Launch \(N\) rollouts and wait for all of them before stepping the optimiser. The wall clock for that batch is \(\max_i T_i\), while the useful work is \(\sum_i T_i\). So accelerator utilisation is bounded by</p>
+        <p>\[ \text{utilisation} \;\le\; \frac{\mathbb{E}[T]}{\mathbb{E}\!\left[\max_{i \le N} T_i\right]} , \]</p>
+        <p>and for heavy-tailed duration distributions that ratio is small and gets worse as \(N\) grows, because the maximum of more samples is further into the tail. This is not a constant factor you can engineer away with better batching. It is a property of the distribution.</p>
+        <figure class="article-panel" data-figure="fig-rollout">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the rollout engine figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 11 &mdash; the straggler tax</b>Drag \(\sigma\) to make the duration distribution heavier-tailed and watch the synchronous utilisation figure fall. On the right, workers restart immediately and finished trajectories go into a queue instead of into a barrier.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>The answer the field converged on during 2025 and 2026 is architectural. Disaggregate rollout workers from trainer workers rather than colocating them. Let rollout workers start a new episode the instant they finish one, and post completed trajectories into a queue. Let the trainer consume from that queue continuously. Run many environment instances in parallel on cheap CPU capacity, since the environment is not what needs the accelerator.</p>
+        <p>Every production agent-RL stack described publicly in the last year does some version of this &mdash; producer&ndash;consumer controllers with an explicit sample queue that bounds staleness, disaggregated rollout and training node pools, high-concurrency rollout engines that decouple accelerator execution from host-side environment latency. The specifics differ; the shape does not.</p>
+
+        <h3>The bill for it</h3>
+        <p>Asynchrony buys throughput by paying in on-policyness. A trajectory that entered the queue three optimiser steps ago was generated by \(\theta_{t-3}\), and you are about to use it to update \(\theta_t\). The gradient is therefore off-policy and needs correction,</p>
+        <p>\[ \nabla J \;\approx\; \mathbb{E}_{\tau \sim \pi_{\theta_{\text{old}}}}\!\left[\frac{\pi_\theta(a \mid s)}{\pi_{\theta_{\text{old}}}(a \mid s)} \, A(s,a)\right], \qquad \text{age}(\tau) \le k, \]</p>
+        <p>with a bounded staleness window \(k\). Setting \(k = 0\) recovers the synchronous algorithm and its bubbles; letting \(k\) grow gives you throughput and instability. The tuning of \(k\) is a real hyperparameter of the training run, and it is one that does not exist at all in single-turn RL.</p>
+        <div class="aside-note">
+          <p><b>Why this belongs in an article about algorithms</b>Because it changes what algorithm you are running. Once rollouts are asynchronous and stale, you are no longer doing the on-policy method you wrote down; you are doing a bounded-off-policy variant of it, and the clipping, the importance ratios and the staleness window are all now load-bearing. Anyone who has worked on distributed training will recognise the pattern &mdash; the systems constraint reaches up and rewrites the maths.</p>
+        </div>
+      </section>
+
+      <section id="context">
+        <h2>Context is a resource the policy has to manage</h2>
+        <p>A fifty-turn trajectory does not just take fifty times as long as a one-turn trajectory. It accumulates fifty observations, and observations are the largest objects in the loop &mdash; page dumps, file contents, stack traces, search results. A long-horizon research trajectory can involve dozens of queries and context that reaches into the hundreds of thousands of tokens.</p>
+        <p>Two failures follow. The obvious one is overflow: the window fills, the oldest tokens are evicted, and the oldest tokens are where the goal was written. The subtler one is that even inside the window, performance degrades with history length &mdash; success rates on short-horizon variants of a task have been reported to fall dramatically once the same task is embedded in a long interaction history, with the relevant information still technically present.</p>
+        <figure class="article-panel" data-figure="fig-context">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the context management figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 12</span>
+          </div>
+          <figcaption><b>Figure 12 &mdash; branch and fold</b>A linear transcript spends its budget on observations it has finished using. Running a sub-task in its own context and folding only the result back keeps the resident context small while the total work grows with the number of branches.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>The interesting response is to make context management an action the policy takes rather than a heuristic applied to it. Branch a sub-task into its own context, let it explore there, then fold: discard the branch transcript and keep a compact result in the main thread. Compared with heuristic summarisation, which compresses at arbitrary points, folding compresses at sub-task boundaries &mdash; reasoning is preserved while it is being used and compacted once its usefulness has been realised. Because the fold is a decision, it can be trained: reward the policy for folds that keep enough to finish the task and lose the rest.</p>
+        <p>The arithmetic is the appeal. With a resident budget \(B\) and \(k\) branches, effective work scales like \(k \cdot B\) while the context the model must attend over stays around \(B\). Related lines &mdash; learned summarisation between segments, self-editing context that prunes retrieved documents to make room for further search, explicit orchestration into parallel sub-agents with bounded local contexts &mdash; all trade the same way: they convert a hard long-context problem into a compression problem the policy is allowed to solve.</p>
+        <p>All of which is to say the boundary between &ldquo;memory system&rdquo; and &ldquo;policy&rdquo; is not stable. If the agent's context is being rewritten between turns, whatever rewrites it is part of the thing you are optimising, and you may as well optimise it deliberately.</p>
+      </section>
+
+      <section id="decoupling">
+        <h2>Decoupling the agent from the trainer</h2>
+        <p>Most real agents are not a single model call in a loop. They are a planner, a memory store, a tool router, retry middleware, a validator, and three prompts written by three different people. Nobody wants to rewrite that to fit an RL trainer's data structures, and historically that is exactly what training frameworks demanded.</p>
+        <p>The systems idea that resolves this is to treat the agent as a black box and instrument only the boundary at which it calls the model. Formulate the agent's execution as an MDP whose transitions are the model calls; capture them through the observability layer the agent already has; convert those traces into training transitions through a credit-assignment module; and keep agent execution and training on separate processes entirely. The framework that made this its thesis reports stable improvement across text-to-SQL, retrieval-augmented generation and math tool-use, with essentially no modification to agents built on common orchestration libraries.</p>
+        <p>Why this matters beyond convenience: it changes where training data comes from. If any deployed agent can emit training transitions, then production traffic becomes an experience stream, and the distinction between &ldquo;the agent we ship&rdquo; and &ldquo;the agent we train&rdquo; disappears. Several 2026 production reports describe exactly that loop &mdash; training inside the real harness, on traces from real usage, rather than in a research reimplementation of it.</p>
+      </section>
+
+      <section id="irreversible">
+        <h2>Actions you cannot take back</h2>
+        <p>Every RL algorithm assumes you can try things. Exploration is not an optional component; it is the mechanism. And every agent environment that touches the world contains actions with no inverse.</p>
+        <figure class="article-panel" data-figure="fig-irreversible">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the reversibility figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+          <figcaption><b>Figure 13 &mdash; sorting the action set by whether it has an inverse</b>Reads are free to explore. Local writes have exact inverses. External writes have awkward ones. Sends, payments and drops have none, and <code>env.reset()</code> does not help.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>The useful decomposition is by inverse rather than by risk score:</p>
+        <table class="concept-table">
+          <caption>Classify actions by their inverse</caption>
+          <thead><tr><th>Class</th><th>Examples</th><th>Recovery</th></tr></thead>
+          <tbody>
+            <tr><td>Reversible</td><td>Read, search, list, dry-run</td><td>No state change</td></tr>
+            <tr><td>Locally undoable</td><td>File writes, commits, branches</td><td>Sandbox or version control</td></tr>
+            <tr><td>Externally undoable</td><td>Row updates, staging deploys</td><td>Possible, awkward, and racy</td></tr>
+            <tr><td>Irreversible</td><td>Emails, payments, merges, drops</td><td>No dependable inverse</td></tr>
+          </tbody>
+        </table>
+        <p>The mitigations are environmental rather than behavioural, and that is the point worth making. You do not fix this by prompting the policy to be careful; a policy under RL pressure will sample the action anyway, because sampling it is how it finds out. You fix it by building a world where sampling is safe:</p>
+        <p><strong>A twin.</strong> Explore in a copy of the system with the same interface and none of the consequences. This is the same insight as the reproducible-replica approach to environments, applied for safety instead of reproducibility.</p>
+        <p><strong>A staging layer.</strong> Let side-effecting actions accumulate into a transaction that is committed once, at the end, after the trajectory is scored. The agent experiences the effects; the world does not, until you decide it should.</p>
+        <p><strong>A confirmation gate.</strong> Make crossing from the reversible region to the irreversible one require an authorisation the policy cannot issue. This is a permission boundary, not a preference.</p>
+        <p>A corollary that is easy to miss: if your environment cannot be reset, you cannot do online RL in it. Not &ldquo;should not&rdquo; &mdash; the algorithm requires an initial-state distribution you can sample from repeatedly, and an environment that accumulates irreversible state does not provide one. Reversibility is a design requirement of the environment, not a property you discover later.</p>
+      </section>
+      <section id="offline-online">
+        <h2>Offline, online, and what people actually do</h2>
+        <p>The clean distinction: <em>offline</em> RL trains on stored transitions \((s, a, r, s')\) from some fixed behaviour policy, and <em>online</em> RL has the current policy interact with the environment and learn from what comes back.</p>
+        <p>Offline is cheap, safe, parallel, and reproducible, and it has one fatal property for agents: the state distribution is frozen. You can only learn about states somebody already visited, which puts you back in the compounding-error regime of Section 4, with the additional problem that the value estimates extrapolate wildly on actions the behaviour policy never took.</p>
+        <p>Online fixes the distribution and is expensive in every other dimension &mdash; slow, nondeterministic, sometimes unsafe, and it puts the environment on the critical path of the optimiser as Section 13 described.</p>
+        <p>What almost everyone actually does is a staged hybrid, and the staging is not arbitrary. Each stage exists to make the next one affordable:</p>
+        <div class="concept-flow" style="--concept-columns:6" role="img" aria-label="A staged agent-training pipeline from base model through behavior cloning, early experience, offline filtering, online reinforcement learning, and deployment traces.">
+          <div class="concept-step"><b>Base model</b><span>Capability</span></div>
+          <div class="concept-step"><b>Behavior cloning</b><span>Action syntax</span></div>
+          <div class="concept-step"><b>Early experience</b><span>Dynamics</span></div>
+          <div class="concept-step"><b>Offline filtering</b><span>Stable successes</span></div>
+          <div class="concept-step"><b>Online RL</b><span>Recovery</span></div>
+          <div class="concept-step"><b>Deployment traces</b><span>New failures</span></div>
+        </div>
+        <p>The order matters because step 5 is the one whose cost scales with everything &mdash; horizon, environment latency, group size, the informative-group fraction from Section 10. Every earlier stage exists to raise the policy's success probability before you start paying that bill. Starting online RL from a weak policy is not just slow; at long horizons it is close to sampling zeros.</p>
+      </section>
+
+      <section id="generalist">
+        <h2>One policy, many worlds</h2>
+        <p>Train exclusively on a web benchmark and you get a policy that is good at that web benchmark. The gap between that and a general agent is the same gap as between a fine-tuned classifier and a foundation model, and it is being attacked the same way: by scaling and diversifying the training distribution.</p>
+        <p>The formal statement is that we want one \(\pi_\theta\) that does well in expectation across a family of environments \(E_1, \ldots, E_K\), each of which is its own interactive decision problem:</p>
+        <p>\[ \max_\theta \; \mathbb{E}_{k \sim \mathcal{E}} \; \mathbb{E}_{\tau \sim \pi_\theta,\, E_k}\left[R_k(\tau)\right]. \]</p>
+        <p>This is multi-task learning, but with a twist that makes it harder than the usual version: the tasks are not just different data distributions, they are different <em>dynamics</em>. Transfer has to happen at the level of strategy &mdash; how to explore, when to verify, how to recover from an error &mdash; rather than at the level of features.</p>
+        <p>The evidence that this transfers at all is reasonably good and mostly recent. Platforms that unify many environment types behind a common interface were built precisely to study it, and the environment-scaling results in Section 6 are transfer results: held-out environments improve as the number of training environments grows, which is only possible if something environment-independent is being learned. Self-evolving arenas push it further by identifying capability gaps automatically and synthesising new tasks to target them, letting policy and environment distribution co-evolve.</p>
+        <p>What is not established is how much diversity is enough, or what the right axes of diversity even are. Is a thousand shallow environments better than a hundred deep ones? Does diversity in the action interface transfer better than diversity in the domain? These are answerable questions and nobody has answered them cleanly.</p>
+      </section>
+
+      <section id="scaling">
+        <h2>Do agents have scaling laws?</h2>
+        <p>For pretraining we have a genuinely predictive relationship between parameters, tokens, compute and loss. For agents we have nothing of the sort, and it is worth being explicit about how many more variables are in play. Agent capability plausibly depends on</p>
+        <p>\[ Q \;=\; f\big(N,\; D,\; C_{\text{train}},\; C_{\text{test}},\; H,\; \lvert \mathcal{A} \rvert,\; E\big), \]</p>
+        <p>with \(H\) the horizon, \(\lvert\mathcal{A}\rvert\) the action-space size and \(E\) the environment diversity. The last three have no analogue in pretraining scaling laws, and at least two of them are things you choose rather than things you buy.</p>
+
+        <h3>The one empirical regularity that does exist</h3>
+        <p>The most useful measured trend treats capability as a <em>duration</em>: the length of task, measured by how long a human professional takes, that an agent completes with fifty percent reliability. That quantity has been growing roughly exponentially, with an original estimate of a doubling roughly every seven months over 2019&ndash;2025, and a shorter doubling time when the fit is restricted to the recent period.</p>
+        <p>The measurement has been revised as the suite has grown &mdash; the task set expanded to 228 tasks with 31 of them eight hours or longer, precisely because the previous suite could not resolve the top of the range &mdash; and the confidence intervals on the most recent frontier models remain very wide. Treat the headline number as a trend indicator, not a measurement.</p>
+        <p>Still, connecting it to Section 10's arithmetic is illuminating.</p>
+        <figure class="article-panel" data-figure="fig-horizon">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="figure-params"></div>
+          <div class="animation-controls" role="group" aria-label="Interactive controls for the horizon law figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 08</span>
+          </div>
+          <figcaption><b>Figure 14 &mdash; per-step reliability and the horizon it buys</b>Under a constant-hazard model, \(H_{50} = \ln(0.5)/\ln q\). The trend panel is a schematic illustration of exponential growth on a log axis, not plotted data. The eighty- and ninety-nine-percent horizons are the ones that matter for shipping, and they are much shorter.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p>If tasks were \(H\) independent steps with per-step reliability \(q\), the fifty-percent horizon would be</p>
+        <p>\[ H_{50} \;=\; \frac{\ln 0.5}{\ln q}, \]</p>
+        <p>which for \(q\) near one is approximately \(0.69/(1-q)\). So doubling the horizon requires halving the per-step error rate. An exponential trend in task duration corresponds, under this model, to a geometric decline in per-step error &mdash; and that is a much less romantic-sounding claim than &ldquo;agent capability is doubling every few months&rdquo;, which is exactly why it is worth stating.</p>
+        <p>The model is wrong in an interesting direction, though. It assumes failures are terminal. A policy that notices an error and retries turns one hard step into several easy ones, which breaks the independence assumption in the agent's favour &mdash; and recovery is precisely the capability that interactive training installs and imitation does not. So part of what &ldquo;horizon growth&rdquo; measures is not lower per-step error at all; it is a higher probability that an error gets caught before it becomes terminal. Those are different capabilities with different training requirements, and the aggregate metric does not separate them.</p>
+
+        <h3>Questions worth someone's dissertation</h3>
+        <p>How does the number of trajectories required scale with trajectory length? Are ten times as many short trajectories worth more or less than a tenth as many long ones, at fixed token budget? How much environment diversity is needed before held-out transfer appears, and does it saturate? Does model scale substitute for exploration &mdash; does a larger policy need fewer rollouts to find the same behaviour, and if so at what exchange rate? Is there a compute-optimal split between rollout generation and gradient steps, analogous to the parameters-versus-tokens frontier?</p>
+        <p>None of these have clean answers. All of them are measurable with existing infrastructure. That combination is unusual and probably temporary.</p>
+      </section>
+
+      <section id="evaluation">
+        <h2>Evaluating a policy, not an answer</h2>
+        <p>A reasoning model is evaluated on whether the final answer is correct. An agent has to be evaluated on the trajectory, because two policies with identical success rates can be wildly different products.</p>
+        <p>The outcome layer is the easy part: did the task get done, verified functionally where possible. Benchmarks that made this work did so by being executable &mdash; human-validated software-engineering tasks with real test suites, self-hosted web applications with programmatic checkers for long-horizon tasks, simulated professional environments where a task's completion is a state you can query rather than a string you compare.</p>
+        <p>The process layer is where the information is:</p>
+        <table class="concept-table">
+          <caption>Process metrics reveal how success happened</caption>
+          <tbody>
+            <tr><td>Steps</td><td>Actions needed to succeed</td></tr>
+            <tr><td>Invalid actions</td><td>Malformed calls, missing tools, illegal arguments</td></tr>
+            <tr><td>Tool calls</td><td>Count and cost</td></tr>
+            <tr><td>Recovery rate</td><td>Errors detected and worked around</td></tr>
+            <tr><td>Redundancy</td><td>Repeated observations or loops with no state change</td></tr>
+            <tr><td>Latency</td><td>User-visible wall clock</td></tr>
+            <tr><td>Safety events</td><td>Irreversible actions and permission boundaries touched</td></tr>
+            <tr><td>Reward–proxy gap</td><td>Score rises while held-out verification stays flat</td></tr>
+          </tbody>
+        </table>
+        <p>Recovery rate deserves special attention, because it is the metric most closely aligned with what interactive training is supposed to buy you and it is almost never reported. An agent that never errs and an agent that errs constantly but always notices can have the same success rate on a benchmark and behave completely differently in a system where the environment is less forgiving than the benchmark was.</p>
+        <p>Two findings from the evaluation literature are worth carrying around. Cross-environment benchmarks localise the dominant failures not in knowledge but in long-term reasoning, decision-making and instruction following &mdash; that is, in the sequential structure, exactly where this article has been pointing. And realistic long-horizon web tasks continue to show a large gap between model and human performance, which is a useful corrective to leaderboard numbers on shorter, cleaner suites.</p>
+      </section>
+      <section id="map">
+        <h2>A map of the field</h2>
+        <p>It helps to see the progression laid out along fixed axes rather than as a list of papers. Each generation below exists because a specific limitation of the previous one became the binding constraint.</p>
+        <div class="cmp-wrap">
+          <table class="cmp">
+            <caption>Table 1 &mdash; six generations, seven axes</caption>
+            <thead>
+              <tr>
+                <th>Approach</th><th class="c">Env has state</th><th class="c">Typical H</th><th class="c">Observability</th><th>Reward source</th><th>Credit unit</th><th>Dominant failure</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th>Preference tuning (RLHF, DPO)</th><td class="c"><span class="no">&#10007;</span></td><td class="c">1</td><td class="c">Full</td><td>Learned preference model</td><td>Response</td><td>Reward-model overoptimisation</td></tr>
+              <tr><th>Verifiable-reward reasoning RL</th><td class="c"><span class="no">&#10007;</span></td><td class="c">1</td><td class="c">Full</td><td>Answer checker</td><td>Response</td><td>Verifier gaming, entropy collapse</td></tr>
+              <tr><th>Single-turn tool RL</th><td class="c"><span class="part">~</span></td><td class="c">1&ndash;2</td><td class="c">Full</td><td>Answer checker</td><td>Response</td><td>Argument errors</td></tr>
+              <tr><th>Multi-turn tool &amp; search RL</th><td class="c"><span class="yes">&#10003;</span></td><td class="c">2&ndash;10</td><td class="c">Partial</td><td>Outcome checker</td><td>Trajectory</td><td>Retrieval loops, redundant calls</td></tr>
+              <tr><th>Trajectory-level agent RL</th><td class="c"><span class="yes">&#10003;</span></td><td class="c">10&ndash;50</td><td class="c">Partial</td><td>Env success flag</td><td>Trajectory</td><td>Variance collapse, echo trap</td></tr>
+              <tr><th>Step-level agent RL</th><td class="c"><span class="yes">&#10003;</span></td><td class="c">10&ndash;50</td><td class="c">Partial</td><td>Env success flag</td><td>Step / turn</td><td>State identification, critic cost</td></tr>
+              <tr><th>Horizon-curriculum agent RL</th><td class="c"><span class="yes">&#10003;</span></td><td class="c">5 &rarr; 50</td><td class="c">Partial</td><td>Env success flag</td><td>Trajectory + schedule</td><td>Schedule tuning, plateau at cap</td></tr>
+              <tr><th>Environment-scaled agent RL</th><td class="c"><span class="yes">&#10003;</span></td><td class="c">10&ndash;100</td><td class="c">Partial</td><td>Programmatic env state</td><td>Step or trajectory</td><td>Environment realism gap</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Read down the &ldquo;env has state&rdquo; column and the story of the field falls out of it. Everything above the fourth row is a function approximation problem wearing RL notation. Everything below it is a control problem, and every added row is an answer to a question the row above could not handle: outcome-only credit is too coarse, so go step-level; long horizons collapse variance, so schedule them; a single environment does not transfer, so synthesise hundreds.</p>
+
+        <div class="cmp-wrap">
+          <table class="cmp">
+            <caption>Table 2 &mdash; reward mechanisms</caption>
+            <thead>
+              <tr><th>Mechanism</th><th class="c">Dense</th><th class="c">Preserves optimum</th><th class="c">Needs instrumented env</th><th class="c">Hackable</th><th class="c">Open-ended tasks</th><th class="c">Cost / rollout</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Sparse outcome</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c">Low</td><td class="c"><span class="no">&#10007;</span></td><td class="c">1&times;</td></tr>
+              <tr><th>Hand-shaped milestones</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c">High</td><td class="c"><span class="part">~</span></td><td class="c">1&times;</td></tr>
+              <tr><th>Potential-based shaping</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c">Low</td><td class="c"><span class="no">&#10007;</span></td><td class="c">1&times;</td></tr>
+              <tr><th>Execution-verifiable outcome</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c">Medium</td><td class="c"><span class="no">&#10007;</span></td><td class="c">1&ndash;2&times;</td></tr>
+              <tr><th>Rubric judge (LLM)</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">High</td><td class="c"><span class="yes">&#10003;</span></td><td class="c">2&ndash;5&times;</td></tr>
+              <tr><th>Process reward model</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="part">~</span></td><td class="c">High</td><td class="c"><span class="yes">&#10003;</span></td><td class="c">2&ndash;5&times;</td></tr>
+              <tr><th>Intrinsic information gain</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">Medium</td><td class="c"><span class="part">~</span></td><td class="c">1&ndash;2&times;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>&ldquo;Hackable&rdquo; here is a qualitative judgement about how much of the reward surface is defined by something other than a program, not a measured rate. The pattern it encodes is the uncomfortable one: the mechanisms that work on open-ended tasks are exactly the mechanisms with the largest exploitable surface, and no entry in this table is both dense and safe and general.</p>
+
+        <div class="cmp-wrap">
+          <table class="cmp">
+            <caption>Table 3 &mdash; what each intervention does to the useful fraction of a batch</caption>
+            <thead>
+              <tr><th>Intervention</th><th class="c">Raises task success p</th><th class="c">Raises within-group variance</th><th class="c">Recovers sub-trajectory signal</th><th class="c">Extra compute</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Shorten the horizon</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">none (saves)</td></tr>
+              <tr><th>Difficulty-matched task sampling</th><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">small</td></tr>
+              <tr><th>Larger group size G</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">linear in G</td></tr>
+              <tr><th>Graded / partial-credit reward</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="part">~</span></td><td class="c">reward-model cost</td></tr>
+              <tr><th>Step-level credit (anchor / tree / critic)</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c">none to critic-sized</td></tr>
+              <tr><th>Zero-variance group filtering</th><td class="c"><span class="no">&#10007;</span></td><td class="c"><span class="yes">&#10003;</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">resampling cost</td></tr>
+              <tr><th>More environments</th><td class="c"><span class="part">~</span></td><td class="c"><span class="part">~</span></td><td class="c"><span class="no">&#10007;</span></td><td class="c">engineering</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The third table is the one I would pin above a desk. Most of the standard interventions attack the same quantity from different sides, and knowing which side a given technique is on tells you whether two of them will compose or merely overlap. Shortening the horizon and filtering by difficulty do the same job twice; adding step-level credit does something neither of them does.</p>
+      </section>
+
+      <section id="open">
+        <h2>What is still open</h2>
+        <p>A summary of the pipeline as it currently stands, and then the parts that are genuinely unresolved.</p>
+        <figure class="article-panel" data-figure="fig-stack">
+          <div class="animation-stage" aria-live="polite"></div>
+          <div class="animation-controls" role="group" aria-label="Animation controls for the training stack figure">
+            <button type="button" data-action="previous" aria-label="Previous animation stage">Previous</button>
+            <button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>
+            <button type="button" data-action="next" aria-label="Next animation stage">Next</button>
+            <button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>
+            <button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>
+            <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
+            <span class="animation-status">Stage 01 / 10</span>
+          </div>
+          <figcaption><b>Figure 15 &mdash; the stack, assembled</b>Ten layers, in the order they became necessary. The dashed return path is the part most teams have not built yet, and it is the one that turns a training run into a programme.<span class="figure-caption-live"></span></figcaption>
+        </figure>
+        <p><strong>Whether trajectory-level RL teaches strategy or sharpens what is already there.</strong> This is the same dispute that runs through reasoning RL, transplanted into a longer horizon, and it is not settled. Multi-turn RL demonstrably improves success rates. Whether it installs genuinely new decision procedures, or amplifies the ones the base model could already sample occasionally, is an empirical question that the current evidence does not cleanly resolve &mdash; and the finding that reasoning depth does not reliably emerge without informative reward signals is a data point against the strongest version of the &ldquo;RL discovers strategy&rdquo; claim.</p>
+        <p><strong>How to identify states in open-ended environments.</strong> Anchor-based step credit needs to know when two observations are the same state. In a gridworld that is exact equality. On a webpage it is a similarity threshold on a string, and two observations that differ only in a timestamp will land in different groups even though they induce identical continuation values. Recent work attacks this directly with value-equivalence notions rather than surface identity, and it is the most likely place for a clean improvement.</p>
+        <p><strong>How much environment diversity is enough.</strong> The scaling curves exist and go the right way. Nobody has produced the agent equivalent of a compute-optimal frontier &mdash; a rule that says, at this budget, build this many environments of this depth and run this many rollouts each.</p>
+        <p><strong>Whether the horizon trend is a capability trend.</strong> Task-duration measurements are the best aggregate we have, and they conflate lower per-step error with better error recovery with better context management. Those have different training requirements and probably different limits. Disentangling them would be more useful than another point on the curve.</p>
+        <p><strong>How to do online RL in worlds with consequences.</strong> Every technique in this article assumes you can reset. The environments people most want agents to work in &mdash; production systems, real accounts, other people &mdash; do not reset. Digital twins and staging layers are engineering answers to what is partly a research question about learning under irreversibility.</p>
+        <div class="keybox">
+          <p>The short version of the whole article: the moment the environment gets state, the policy stops being a function of its own output and becomes a controller. Everything difficult about agent RL &mdash; the empty batches, the collapsed variance, the credit that lands on the wrong action, the straggler that idles a cluster, the reward that turns out to be farmable, the action that cannot be undone &mdash; follows from that one structural change. It is worth knowing which of your problems are consequences of it, because those cannot be fixed by a better optimiser.</p>
+        </div>
+      </section>
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Framing and surveys</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2509.02547" target="_blank" rel="noopener noreferrer">The Landscape of Agentic Reinforcement Learning for LLMs: A Survey</a> &middot; Zhang, Geng, Yu, Yin, Bai et al., 2025 &mdash; the single-step-MDP versus POMDP framing used throughout this article</li>
+            <li><a href="https://arxiv.org/abs/2511.09586" target="_blank" rel="noopener noreferrer">Environment Scaling for Interactive Agentic Experience Collection: A Survey</a> &middot; 2025 &mdash; the generation&ndash;execution&ndash;feedback loop</li>
+            <li><a href="https://arxiv.org/abs/2510.01132" target="_blank" rel="noopener noreferrer">A Practitioner's Guide to Multi-turn Agentic Reinforcement Learning</a> &middot; 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Imitation, distribution shift, and learning before reward</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1011.0686" target="_blank" rel="noopener noreferrer">A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning</a> &middot; Ross, Gordon &amp; Bagnell, 2011 &mdash; the interactive bound behind Section 4</li>
+            <li><a href="https://arxiv.org/abs/2510.08558" target="_blank" rel="noopener noreferrer">Agent Learning via Early Experience</a> &middot; Zhang et al., 2025 &mdash; implicit world modelling and self-reflection without reward</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Reward design and reward hacking</h3>
+          <ul>
+            <li><a href="https://andrewng.org/publications/policy-invariance-under-reward-transformations-theory-and-application-to-reward-shaping" target="_blank" rel="noopener noreferrer">Policy Invariance Under Reward Transformations: Theory and Application to Reward Shaping</a> &middot; Ng, Harada &amp; Russell, 1999</li>
+            <li><a href="https://arxiv.org/abs/2604.15149" target="_blank" rel="noopener noreferrer">LLMs Gaming Verifiers: RLVR can Lead to Reward Hacking</a> &middot; 2026</li>
+            <li><a href="https://arxiv.org/abs/2606.04923" target="_blank" rel="noopener noreferrer">Reproducing, Analyzing, and Detecting Reward Hacking in Rubric-Based Reinforcement Learning</a> &middot; 2026</li>
+            <li><a href="https://arxiv.org/abs/2605.21384" target="_blank" rel="noopener noreferrer">SpecBench: Measuring Reward Hacking in Long-Horizon Coding Agents</a> &middot; 2026</li>
+            <li><a href="https://lilianweng.github.io/posts/2024-11-28-reward-hacking/" target="_blank" rel="noopener noreferrer">Reward Hacking in Reinforcement Learning</a> &middot; Weng, 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Multi-turn tool and search RL</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2503.09516" target="_blank" rel="noopener noreferrer">Search-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning</a> &middot; Jin, Zeng, Yue, Yoon, Ar&#305;k, Wang, Zamani &amp; Han, 2025</li>
+            <li><a href="https://arxiv.org/abs/2505.01441" target="_blank" rel="noopener noreferrer">Agentic Reasoning and Tool Integration for LLMs via Reinforcement Learning (ARTIST)</a> &middot; Singh, Magazine, Pandya &amp; Nambi, 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Stability and credit assignment in agent RL</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2504.20073" target="_blank" rel="noopener noreferrer">RAGEN: Understanding Self-Evolution in LLM Agents via Multi-Turn Reinforcement Learning</a> &middot; Wang, Wang, Wang, Zhang, Li, Fei-Fei, Choi, Li et al., 2025 &mdash; StarPO, the echo trap, and StarPO-S</li>
+            <li><a href="https://arxiv.org/abs/2505.10978" target="_blank" rel="noopener noreferrer">Group-in-Group Policy Optimization for LLM Agent Training</a> &middot; Feng et al., 2025 &mdash; anchor-state grouping for critic-free step-level credit</li>
+            <li><a href="https://arxiv.org/abs/2509.08755" target="_blank" rel="noopener noreferrer">AgentGym-RL: Training LLM Agents for Long-Horizon Decision Making through Multi-Turn Reinforcement Learning</a> &middot; Xi et al., 2025 &mdash; ScalingInter-RL and the interaction-horizon curriculum</li>
+            <li><a href="https://arxiv.org/abs/2606.25556" target="_blank" rel="noopener noreferrer">BiPACE: Bisimulation-Guided Policy Optimization with Action Counterfactual Estimation for LLM Agents</a> &middot; 2026 &mdash; on why exact observation identity is the wrong equivalence</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Environments, benchmarks, and environment synthesis</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2307.13854" target="_blank" rel="noopener noreferrer">WebArena: A Realistic Web Environment for Building Autonomous Agents</a> &middot; Zhou, Xu, Zhu, Neubig et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2308.03688" target="_blank" rel="noopener noreferrer">AgentBench: Evaluating LLMs as Agents</a> &middot; Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.06770" target="_blank" rel="noopener noreferrer">SWE-bench: Can Language Models Resolve Real-World GitHub Issues?</a> &middot; Jimenez, Yang, Wettig, Yao, Pei, Press &amp; Narasimhan, 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.14161" target="_blank" rel="noopener noreferrer">TheAgentCompany: Benchmarking LLM Agents on Consequential Real-World Tasks</a> &middot; Xu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.04151" target="_blank" rel="noopener noreferrer">AgentGym: Evolving Large Language Model-based Agents across Diverse Environments</a> &middot; Xi et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2602.10090" target="_blank" rel="noopener noreferrer">Agent World Model: Infinity Synthetic Environments for Agentic Reinforcement Learning</a> &middot; Wang, Xu, Liu, Yao, He et al., 2026 &mdash; 1,000 code-driven, database-backed environments and the environment-count ablation</li>
+            <li><a href="https://arxiv.org/abs/2604.18292" target="_blank" rel="noopener noreferrer">Agent-World: Scaling Real-World Environment Synthesis for Evolving General Agent Intelligence</a> &middot; Dong, Lu, Huang, Wen &amp; Dou et al., 2026 &mdash; self-evolving arena, environment-diversity scaling trends</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Systems: rollout engines, context, and decoupling</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2508.03680" target="_blank" rel="noopener noreferrer">Agent Lightning: Train ANY AI Agents with Reinforcement Learning</a> &middot; Luo, Zhang, He, Wang, Zhao, Li, Qiu &amp; Yang, 2025 &mdash; training&ndash;agent disaggregation and LightningRL</li>
+            <li><a href="https://arxiv.org/abs/2510.11967" target="_blank" rel="noopener noreferrer">Scaling Long-Horizon LLM Agent via Context-Folding</a> &middot; Sun et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2506.06122" target="_blank" rel="noopener noreferrer">ROLL: Reinforcement Learning Optimization for Large-Scale Learning</a> &middot; 2025 &mdash; sample-wise environment scaling for high-throughput rollout</li>
+            <li><a href="https://arxiv.org/abs/2511.05951" target="_blank" rel="noopener noreferrer">Klear-AgentForge: Forging Agentic Intelligence through Post-training Scaling</a> &middot; 2025 &mdash; disaggregated rollout and training node pools</li>
+            <li><a href="https://developers.googleblog.com/scaling-agentic-rl-high-throughput-agentic-training-with-tunix/" target="_blank" rel="noopener noreferrer">Scaling Agentic RL: High-Throughput Agentic Training with Tunix</a> &middot; Google, 2026</li>
+            <li><a href="https://moonshotai.github.io/Kimi-Researcher/" target="_blank" rel="noopener noreferrer">Kimi-Researcher: End-to-End RL Training for Emerging Agentic Capabilities</a> &middot; Moonshot AI, 2025 &mdash; context management and rollout efficiency at long horizons</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Measuring horizons</h3>
+          <ul>
+            <li><a href="https://metr.org/blog/2025-03-19-measuring-ai-ability-to-complete-long-tasks/" target="_blank" rel="noopener noreferrer">Measuring AI Ability to Complete Long Tasks</a> &middot; METR, 2025</li>
+            <li><a href="https://metr.org/blog/2026-1-29-time-horizon-1-1/" target="_blank" rel="noopener noreferrer">Time Horizon 1.1</a> &middot; METR, 2026 &mdash; the revised suite and updated trend estimates</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Companion articles on this site</h3>
+          <ul>
+            <li><a href="../how-language-models-learn-to-use-tools/">From Tokens to Actions: how a model learns that a function exists</a> &middot; Srinivasan, 2026 &mdash; the argument-construction half of the action distribution</li>
+            <li><a href="../memory-is-more-than-context/">Memory Is More Than Context Memory and Context Engineering for LLM Agents</a> &middot; Srinivasan, 2026 &mdash; the history the POMDP policy conditions on</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Reinforcement Learning for Agents From First Principles</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/">https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026learningtoact,
+  author       = {Srinivasan, Anirudh},
+  title        = {Reinforcement Learning for Agents From First Principles},
+  year         = {2026},
+  month        = {Sep},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/},
+  note         = {Published September 5, 2026; updated September 5, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Reinforcement Learning for Agents From First Principles</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js"></script>
+    <script src="figures.js"></script>
+    <script src="figures2.js"></script>
+    <script src="figures3.js"></script>
+    <script src="figures4.js"></script>
+  </body>
+</html>

@@ -1,5 +1,5 @@
 /* =====================================================================
-   Figure engine for "The Machine Around the Model".
+   Figure engine for "Inside an AI Agent Harness".
    Canvas reels: staged interpolation, camera lerp, full a11y controls.
    ===================================================================== */
 (function () {

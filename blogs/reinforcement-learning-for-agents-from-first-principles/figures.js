@@ -1,4 +1,4 @@
-/* Learning to Act — figure engine.
+/* Reinforcement Learning for Agents From First Principles — figure engine.
    One controller drives every animated panel in the article. A figure
    registers a spec: { total, captions, render(t, p), controls, sub }
    where t is a continuous stage position (0 .. total-1) so that motion is
