@@ -1,3 +1,4 @@
+const blogShellScriptSource = document.currentScript?.src || "";
 const blogColorModeToggle = document.querySelector(".color-mode-toggle");
 window.__blogShellReady = true;
 document.documentElement.setAttribute("data-shell-ready", "true");
@@ -392,6 +393,159 @@ function loadScriptOnce(src) {
   });
 }
 
+function flashcardElement(tag, className, textContent) {
+  const element = document.createElement(tag);
+  if (className) element.className = className;
+  if (textContent !== undefined) element.textContent = textContent;
+  return element;
+}
+
+async function initializeBlogFlashcards() {
+  if (!document.body.classList.contains("blog-article")) return;
+
+  const pathParts = location.pathname.split("/").filter(Boolean);
+  const blogsIndex = pathParts.lastIndexOf("blogs");
+  const slug = blogsIndex >= 0 ? pathParts[blogsIndex + 1] : "";
+  const article = document.querySelector("main.article-content, main.article-wrap, main");
+  if (!slug || !article || !blogShellScriptSource) return;
+
+  try {
+    const dataUrl = new URL("blog-flashcards-data.js", blogShellScriptSource).href;
+    if (!window.BLOG_FLASHCARDS?.[slug]) await loadScriptOnce(dataUrl);
+  } catch (_error) {
+    return;
+  }
+
+  const deck = window.BLOG_FLASHCARDS?.[slug];
+  if (!deck || !Array.isArray(deck.cards) || !deck.cards.length) return;
+  const deckCards = [...deck.cards, ...(Array.isArray(deck.deepDive) ? deck.deepDive : [])];
+  const estimatedMinutes = Math.max(3, Math.ceil(deckCards.length * 0.65));
+
+  const switcher = flashcardElement("section", "article-view-switcher");
+  switcher.setAttribute("aria-label", "Choose a reading format");
+  const switcherInner = flashcardElement("div", "article-view-switcher__inner");
+  switcherInner.appendChild(flashcardElement("span", "article-view-switcher__label", "Read as"));
+  const controls = flashcardElement("div", "article-view-switcher__controls");
+  const articleButton = flashcardElement("button", "article-view-switcher__button", "Full article");
+  const cardsButton = flashcardElement("button", "article-view-switcher__button", "TL;DR flashcards");
+  articleButton.type = cardsButton.type = "button";
+  controls.append(articleButton, cardsButton);
+  switcherInner.appendChild(controls);
+  switcher.appendChild(switcherInner);
+
+  const panel = flashcardElement("section", "flashcard-deck");
+  panel.hidden = true;
+  panel.setAttribute("aria-labelledby", "flashcard-deck-title");
+
+  const hero = flashcardElement("header", "flashcard-deck__hero");
+  const heroCopy = flashcardElement("div", "flashcard-deck__hero-copy");
+  heroCopy.appendChild(flashcardElement("p", "flashcard-deck__eyebrow", `TL;DR · ${deckCards.length} questions · about ${estimatedMinutes} min`));
+  const title = flashcardElement("h2", "flashcard-deck__title", deck.title);
+  title.id = "flashcard-deck-title";
+  heroCopy.append(title, flashcardElement("p", "flashcard-deck__summary", deck.summary));
+
+  const heroVisual = flashcardElement("div", "flashcard-deck__visual");
+  const preview = document.createElement("img");
+  preview.dataset.src = new URL(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "./preview.png" : "./preview.gif", location.href).href;
+  preview.alt = `Visual summary for ${deck.title}`;
+  preview.loading = "lazy";
+  heroVisual.appendChild(preview);
+  hero.append(heroCopy, heroVisual);
+
+  const framework = flashcardElement("aside", "flashcard-framework");
+  framework.appendChild(flashcardElement("p", "flashcard-framework__eyebrow", "Mental framework"));
+  const frameworkFlow = flashcardElement("ol", "flashcard-framework__flow");
+  (deck.framework || []).forEach((step, index) => {
+    const item = flashcardElement("li", "flashcard-framework__step");
+    item.append(
+      flashcardElement("span", "flashcard-framework__number", String(index + 1).padStart(2, "0")),
+      flashcardElement("span", "flashcard-framework__text", step),
+    );
+    frameworkFlow.appendChild(item);
+  });
+  framework.append(frameworkFlow, flashcardElement("p", "flashcard-framework__takeaway", deck.takeaway));
+
+  const deckTools = flashcardElement("div", "flashcard-deck__tools");
+  deckTools.appendChild(flashcardElement("p", "flashcard-deck__hint", "Try answering before you reveal each card."));
+  const expandButton = flashcardElement("button", "flashcard-deck__expand", "Reveal all answers");
+  expandButton.type = "button";
+  deckTools.appendChild(expandButton);
+
+  const cardList = flashcardElement("ol", "flashcard-list");
+  const cardDetails = deckCards.map((card, index) => {
+    if (index === 0 || index === deck.cards.length) {
+      const divider = flashcardElement("li", "flashcard-list__divider", index === 0 ? "Core mental model" : "Deeper questions");
+      cardList.appendChild(divider);
+    }
+    const item = flashcardElement("li", "flashcard-list__item");
+    const details = flashcardElement("details", "flashcard");
+    const question = flashcardElement("summary", "flashcard__question");
+    question.append(
+      flashcardElement("span", "flashcard__number", String(index + 1).padStart(2, "0")),
+      flashcardElement("span", "flashcard__prompt", card[0]),
+      flashcardElement("span", "flashcard__reveal", "Reveal"),
+    );
+    const answer = flashcardElement("div", "flashcard__answer");
+    answer.appendChild(flashcardElement("p", "", card[1]));
+    if (card[2]) answer.appendChild(flashcardElement("p", "flashcard__lens", card[2]));
+    details.append(question, answer);
+    item.appendChild(details);
+    cardList.appendChild(item);
+    return details;
+  });
+
+  const finish = flashcardElement("div", "flashcard-deck__finish");
+  finish.appendChild(flashcardElement("p", "", "Ready for the derivations, evidence, and edge cases?"));
+  const fullArticleButton = flashcardElement("button", "flashcard-deck__read-full", "Read the full article");
+  fullArticleButton.type = "button";
+  finish.appendChild(fullArticleButton);
+
+  panel.append(hero, framework, deckTools, cardList, finish);
+  article.parentNode.insertBefore(switcher, article);
+  article.parentNode.insertBefore(panel, article);
+
+  function setMode(mode, updateUrl = true) {
+    const flashcards = mode === "flashcards";
+    document.documentElement.dataset.readingMode = flashcards ? "flashcards" : "article";
+    panel.hidden = !flashcards;
+    article.hidden = flashcards;
+    if (flashcards && !preview.hasAttribute("src")) preview.src = preview.dataset.src;
+    articleButton.classList.toggle("is-active", !flashcards);
+    cardsButton.classList.toggle("is-active", flashcards);
+    articleButton.setAttribute("aria-pressed", String(!flashcards));
+    cardsButton.setAttribute("aria-pressed", String(flashcards));
+    if (updateUrl) {
+      const url = new URL(location.href);
+      if (flashcards) url.searchParams.set("view", "flashcards");
+      else url.searchParams.delete("view");
+      history.replaceState({}, "", url);
+    }
+    window.dispatchEvent(new Event("resize"));
+  }
+
+  articleButton.addEventListener("click", () => setMode("article"));
+  cardsButton.addEventListener("click", () => setMode("flashcards"));
+  fullArticleButton.addEventListener("click", () => {
+    setMode("article");
+    article.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+  expandButton.addEventListener("click", () => {
+    const shouldOpen = cardDetails.some((details) => !details.open);
+    cardDetails.forEach((details) => { details.open = shouldOpen; });
+    expandButton.textContent = shouldOpen ? "Hide all answers" : "Reveal all answers";
+  });
+  cardDetails.forEach((details) => details.addEventListener("toggle", () => {
+    const allOpen = cardDetails.every((card) => card.open);
+    const allClosed = cardDetails.every((card) => !card.open);
+    if (allOpen) expandButton.textContent = "Hide all answers";
+    else if (allClosed) expandButton.textContent = "Reveal all answers";
+    else expandButton.textContent = "Reveal all answers";
+  }));
+
+  const initialMode = new URL(location.href).searchParams.get("view") === "flashcards" ? "flashcards" : "article";
+  setMode(initialMode, false);
+}
+
 async function initializeBlogMath() {
   if (!document.body.classList.contains("blog-article")) return;
 
@@ -427,6 +581,7 @@ async function initializeBlogMath() {
 }
 
 initializeBlogMath();
+initializeBlogFlashcards();
 
 function initializeDistillSideToc() {
   if (!document.body.classList.contains("blog-article")) return;
