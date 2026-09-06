@@ -174,9 +174,9 @@
             Senior Research Engineer · Vision-Language Models Team Lead
           </p>
           <p class="hero-lede">
-            I build multimodal and multilingual foundation models that can
-            <strong>read, parse, reason over, ground, reconstruct, and evaluate</strong>
-            real-world documents.
+            I build <strong>sovereign vision-language foundation models from scratch</strong> —
+            spanning data, pre-training, post-training, evaluation, and the ML systems
+            that make them scale.
           </p>
 
           <div class="topic-chips" aria-label="Research interests">
@@ -257,22 +257,6 @@
             </p>
           </article>
         </div>
-
-        <div class="capability-flow" aria-label="Document intelligence capability flow">
-          <div class="flow-origin">
-            <i class="fas fa-file-image"></i>
-            <span>Documents</span>
-          </div>
-          <div class="flow-line" aria-hidden="true"></div>
-          <div class="flow-actions">
-            <span>Read</span>
-            <span>Parse</span>
-            <span>Reason</span>
-            <span>Ground</span>
-            <span>Reconstruct</span>
-            <span>Evaluate</span>
-          </div>
-        </div>
       </section>
 
       <!-- PATRAM -->
@@ -283,53 +267,78 @@
             <h2>The Patram ecosystem.</h2>
           </div>
           <p>
-            A connected stack for document VLMs: models, specialist
-            capabilities, benchmarks, and the infrastructure underneath.
+            A family of sovereign document VLMs, agents, evaluation systems,
+            and infrastructure — from task-specialists to multi-task foundation models.
           </p>
         </div>
 
-        <div class="patram-map">
-          <div class="patram-core-node">
-            <span class="node-kicker">Foundation</span>
+        <div class="patram-map patram-stack" aria-label="Patram ecosystem">
+          <a class="patram-core-node" href="projects.html#patram" target="_self">
+            <span class="node-kicker">Sovereign Document AI</span>
             <strong>PATRAM</strong>
-            <span>Document VLMs</span>
+            <span>VLM ecosystem</span>
+          </a>
+
+          <div class="patram-branch branch-task-specific">
+            <div class="branch-label">
+              <i class="fas fa-crosshairs"></i>
+              Task-specific VLMs
+            </div>
+            <span><strong>Patram</strong><small>VQA</small></span>
+            <span><strong>Patram-Grounder</strong><small>Grounded VQA</small></span>
+            <span><strong>Patram-Layout</strong><small>Layout 2.0</small></span>
+            <span><strong>Patram-OCR</strong><small>OCR 3.0</small></span>
+            <span><strong>Patram-CoT</strong><small>Grounded CoT VQA</small></span>
           </div>
 
-          <div class="patram-branch branch-models">
-            <div class="branch-label">Models</div>
-            <span>Patram</span>
-            <span>e-vikrAI</span>
+          <div class="patram-branch branch-foundation">
+            <div class="branch-label">
+              <i class="fas fa-layer-group"></i>
+              Multi-task Foundation VLMs
+            </div>
+            <span><strong>Patram 1.5</strong></span>
+            <span><strong>Patram 2.0</strong></span>
           </div>
 
-          <div class="patram-branch branch-understanding">
-            <div class="branch-label">Understanding</div>
-            <span>Layout</span>
-            <span>Grounder</span>
-            <span>Parse</span>
+          <div class="patram-branch branch-agents">
+            <div class="branch-label">
+              <i class="fas fa-wand-magic-sparkles"></i>
+              Agents
+            </div>
+            <span><strong>PatramParse</strong></span>
+            <span><strong>PatramRAG</strong></span>
           </div>
 
-          <div class="patram-branch branch-evaluation">
-            <div class="branch-label">Evaluation</div>
-            <span>Patram-Bench</span>
-            <span>DarshinAI</span>
+          <div class="patram-branch branch-evals">
+            <div class="branch-label">
+              <i class="fas fa-chart-simple"></i>
+              Evals
+            </div>
+            <span><strong>PatramBench</strong></span>
+            <span><strong>Patram-Eval</strong></span>
+            <span><strong>DarshinAI</strong></span>
           </div>
 
-          <div class="patram-branch branch-systems">
-            <div class="branch-label">Infrastructure</div>
-            <span>Core</span>
-            <span>Ingest</span>
-            <span>FS</span>
-            <span>DB</span>
+          <div class="patram-branch branch-infra">
+            <div class="branch-label">
+              <i class="fas fa-server"></i>
+              Infrastructure
+            </div>
+            <span><strong>Patram-Core</strong></span>
+            <span><strong>Patram-Ingest</strong></span>
+            <span><strong>Patram-DB</strong></span>
+            <span><strong>Patram-FS</strong></span>
+            <span><strong>Patram-Infer</strong></span>
           </div>
         </div>
 
         <div class="patram-note">
           <i class="fas fa-arrow-turn-down"></i>
           <p>
-            The common thread: make document intelligence
-            <strong>multilingual, grounded, scalable, and actually deployable.</strong>
+            The common thread: build the <strong>models, agents, evals, and systems</strong>
+            needed for sovereign multimodal intelligence end-to-end.
           </p>
-          <a href="projects.html" target="_self">Explore projects →</a>
+          <a href="projects.html#patram" target="_self">Explore Patram →</a>
         </div>
       </section>
 
@@ -346,7 +355,7 @@
           </p>
         </div>
 
-        <div class="journey-line">
+        <div class="journey-line journey-line-five">
           <article class="journey-stop">
             <div class="journey-dot"></div>
             <div class="journey-label">IIT Hyderabad</div>
@@ -363,7 +372,17 @@
             <h3>Across the ML stack</h3>
             <p>
               Speech, quantum optimization, autonomous driving,
-              neuro-fuzzy learning, compilers, and neuromorphic AI.
+              neuromorphic AI, vision, motion, and compiler representations.
+            </p>
+          </article>
+
+          <article class="journey-stop">
+            <div class="journey-dot"></div>
+            <div class="journey-label">Hackathons</div>
+            <h3>Inter-IIT + build sprints</h3>
+            <p>
+              Bosch, ISRO, DevRev, MPhasis, and Milan — rapid prototyping,
+              competition ML, and a lot of late-night debugging.
             </p>
           </article>
 
@@ -382,8 +401,8 @@
             <div class="journey-label">Today</div>
             <h3>BharatGen</h3>
             <p>
-              Leading VLM work across models, data, training systems,
-              evaluation, and real-world document intelligence.
+              Building sovereign VLMs from scratch across data, training,
+              post-training, evaluation, inference, and deployment systems.
             </p>
           </article>
         </div>
@@ -398,8 +417,8 @@
             <span class="achievement-label">Research venues</span>
           </div>
           <div>
-            <span class="achievement-value">2× Silver</span>
-            <span class="achievement-label">Inter-IIT Tech Meet</span>
+            <span class="achievement-value">2× Silver · 1× Gold</span>
+            <span class="achievement-label">Inter-IIT + Milan competitions</span>
           </div>
         </div>
       </section>
@@ -412,55 +431,135 @@
             <h2>I like learning by building.</h2>
           </div>
           <p>
-            Before document VLMs became the center of my work, I spent time
-            testing ideas across very different research problems.
+            Before document VLMs became the center of my work, I explored
+            problems across speech, vision, quantum ML, neuromorphic AI,
+            compilers, motion, and rapid-build competitions.
           </p>
         </div>
 
+        <div class="exploration-subhead">
+          <span>Research explorations</span>
+          <a href="projects.html#undergrad-research" target="_self">View on Projects →</a>
+        </div>
+
         <div class="exploration-grid">
-          <a class="exploration-card" href="https://sites.google.com/iith.ac.in/ksrm/home">
+          <a class="exploration-card" href="projects.html#motiongpt-yoga" target="_self">
+            <i class="fas fa-person-running"></i>
+            <span class="exploration-domain">Motion · Generative AI</span>
+            <h3>MotionGPT for Yoga</h3>
+            <p>Motion-as-language modeling and training with in-house yoga MoCap data.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card" href="projects.html#neuromorphic-ai-survey" target="_self">
+            <i class="fas fa-brain"></i>
+            <span class="exploration-domain">Neuromorphic AI</span>
+            <h3>Neuromorphic AI Survey</h3>
+            <p>From Hebbian learning and Hopfield networks to SNNs and cellular neural networks.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card" href="projects.html#quantum-spherical-kmeans" target="_self">
+            <i class="fas fa-atom"></i>
+            <span class="exploration-domain">Quantum ML</span>
+            <h3>Quantum Spherical K-Means</h3>
+            <p>Qiskit-based spherical q-means applied to multi-depot vehicle routing.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card" href="projects.html#neuro-fuzzy-gmm" target="_self">
+            <i class="fas fa-circle-nodes"></i>
+            <span class="exploration-domain">Optimization · Clustering</span>
+            <h3>Neuro-Fuzzy GMMs</h3>
+            <p>ANN reformulations of EM and neuro-fuzzy clustering for Gaussian mixtures.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card" href="projects.html#robovox-spcup" target="_self">
             <i class="fas fa-wave-square"></i>
             <span class="exploration-domain">Speech</span>
             <h3>ROBOVOX</h3>
-            <p>Far-field speaker recognition under noisy real-world conditions.</p>
+            <p>Far-field speaker recognition for noisy robotic environments · IEEE SP Cup winner.</p>
+            <em>Open project →</em>
           </a>
 
-          <a class="exploration-card" href="https://people.iith.ac.in/mvp/">
-            <i class="fas fa-atom"></i>
-            <span class="exploration-domain">Quantum ML</span>
-            <h3>Vehicle Routing</h3>
-            <p>q-means, D-Wave CQM, and QUBO formulations for routing.</p>
-          </a>
-
-          <a class="exploration-card" href="https://people.iith.ac.in/ckm/">
+          <a class="exploration-card" href="projects.html#lidar-segmentation" target="_self">
             <i class="fas fa-car-side"></i>
-            <span class="exploration-domain">Perception</span>
-            <h3>Autonomous Driving</h3>
-            <p>LiDAR semantic segmentation pipelines for driving scenes.</p>
+            <span class="exploration-domain">3D Vision</span>
+            <h3>LiDAR Segmentation</h3>
+            <p>Semantic segmentation and upsampling pipelines for autonomous-driving point clouds.</p>
+            <em>Open project →</em>
           </a>
 
-          <a class="exploration-card" href="https://sites.google.com/view/kishalaymitra/home">
-            <i class="fas fa-circle-nodes"></i>
-            <span class="exploration-domain">Learning</span>
-            <h3>Neuro-fuzzy GMMs</h3>
-            <p>Clustering methods combining fuzzy and probabilistic views.</p>
+          <a class="exploration-card" href="projects.html#quantum-vrp" target="_self">
+            <i class="fas fa-route"></i>
+            <span class="exploration-domain">Quantum Optimization</span>
+            <h3>Quantum VRP</h3>
+            <p>D-Wave CQM and QUBO formulations for vehicle-routing problems and variants.</p>
+            <em>Open project →</em>
           </a>
 
-          <a class="exploration-card" href="https://people.iith.ac.in/ramakrishna/">
+          <a class="exploration-card" href="projects.html#single-image-hdr" target="_self">
+            <i class="fas fa-camera-retro"></i>
+            <span class="exploration-domain">Computer Vision</span>
+            <h3>Single-Image HDR</h3>
+            <p>Three-stage CNN reconstruction for clipping, non-linearity, and quantization reversal.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card" href="projects.html#ir2vec-robustness" target="_self">
             <i class="fas fa-code"></i>
-            <span class="exploration-domain">Compilers</span>
+            <span class="exploration-domain">Compilers · Robustness</span>
             <h3>IR2Vec Robustness</h3>
-            <p>Adversarial robustness for learned compiler representations.</p>
+            <p>Adversarial training and program-level attacks for learned compiler representations.</p>
+            <em>Open project →</em>
+          </a>
+        </div>
+
+        <div class="exploration-subhead hackathon-subhead">
+          <span>Hackathons & competitions</span>
+          <a href="projects.html#club-projects" target="_self">View on Projects →</a>
+        </div>
+
+        <div class="exploration-grid hackathon-grid">
+          <a class="exploration-card competition-card" href="projects.html#devrev-ai-agent" target="_self">
+            <i class="fas fa-robot"></i>
+            <span class="exploration-domain">Inter-IIT Tech Meet 12.0</span>
+            <h3>DevRev · Agent 007</h3>
+            <p>Tool-selecting LLM agent with retrieval, ranking, and open-model generation.</p>
+            <em>Open project →</em>
           </a>
 
-          <a
-            class="exploration-card"
-            href="https://sites.google.com/view/spinalcordmovementlabs/about-pi"
-          >
-            <i class="fas fa-brain"></i>
-            <span class="exploration-domain">Neuromorphic AI</span>
-            <h3>Motion + Spikes</h3>
-            <p>Neuromorphic systems and MotionGPT-style movement modeling.</p>
+          <a class="exploration-card competition-card" href="projects.html#mphasis-quantum" target="_self">
+            <i class="fas fa-plane"></i>
+            <span class="exploration-domain">Inter-IIT Tech Meet 12.0</span>
+            <h3>MPhasis · Quantum</h3>
+            <p>D-Wave DQM business-rules engine for airline schedule-change optimization.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card competition-card" href="projects.html#isro-moon-mapping" target="_self">
+            <i class="fas fa-moon"></i>
+            <span class="exploration-domain">Silver · Inter-IIT 11.0</span>
+            <h3>ISRO · Moon Mapping</h3>
+            <p>GAN-based super-resolution for Chandrayaan TMC-2 imagery and lunar-atlas generation.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card competition-card" href="projects.html#bosch-age-gender" target="_self">
+            <i class="fas fa-user-group"></i>
+            <span class="exploration-domain">Silver · Inter-IIT 10.0</span>
+            <h3>Bosch · Age & Gender</h3>
+            <p>Age and gender estimation from low-resolution surveillance feeds.</p>
+            <em>Open project →</em>
+          </a>
+
+          <a class="exploration-card competition-card" href="projects.html#milan-movie-review" target="_self">
+            <i class="fas fa-trophy"></i>
+            <span class="exploration-domain">Gold · Milan</span>
+            <h3>Movie Review System</h3>
+            <p>Full-stack movie platform with opinion summarization and sentiment-based review clustering.</p>
+            <em>Open project →</em>
           </a>
         </div>
 

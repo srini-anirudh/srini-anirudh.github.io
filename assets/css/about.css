@@ -402,138 +402,131 @@
 
 /* ---------------- PATRAM MAP ---------------- */
 
-.patram-map {
-  position: relative;
+.patram-stack {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  min-height: 500px;
-  padding: 42px;
-  overflow: hidden;
+  gap: 12px;
+  min-height: 0;
+  padding: 18px;
   background:
-    radial-gradient(circle at center, rgba(11, 94, 168, 0.065), transparent 40%),
+    radial-gradient(circle at 50% 0%, rgba(11, 94, 168, 0.07), transparent 42%),
     var(--surface-strong);
   border: 1px solid var(--line);
   border-radius: 12px;
 }
 
-.patram-map::before,
-.patram-map::after {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 0;
-  content: "";
-  background: var(--line);
-  opacity: 0.9;
-}
-
-.patram-map::before {
-  width: 68%;
-  height: 1px;
-  transform: translate(-50%, -50%);
-}
-
-.patram-map::after {
-  width: 1px;
-  height: 65%;
-  transform: translate(-50%, -50%);
+.patram-stack::before,
+.patram-stack::after {
+  display: none;
 }
 
 .patram-core-node {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 184px;
-  height: 184px;
-  padding: 18px;
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 2;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 10px;
+  align-items: baseline;
+  width: auto;
+  height: auto;
+  padding: 18px 20px;
   color: #fff;
   background: var(--blue-dark);
-  border: 8px solid var(--surface-strong);
-  border-radius: 50%;
-  text-align: center;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 10px 30px rgba(7, 69, 125, 0.18);
+  border: 0;
+  border-radius: 9px;
+  text-align: left;
+  transform: none;
+  box-shadow: none;
+}
+
+.patram-core-node:hover {
+  color: #fff;
+  background: var(--blue);
 }
 
 .patram-core-node .node-kicker {
   color: #c8def1;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 9px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .patram-core-node strong {
-  margin: 6px 0 3px;
   color: #fff;
   font-family: "Bricolage Grotesque", system-ui, sans-serif;
-  font-size: 30px;
+  font-size: 27px;
   line-height: 1;
   letter-spacing: -0.04em;
 }
 
 .patram-core-node > span:last-child {
   color: #e6f1fb;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .patram-branch {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   align-content: flex-start;
   gap: 7px;
-  max-width: 290px;
-  padding: 20px;
+  max-width: none;
+  min-height: 130px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.28);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
-.branch-models,
-.branch-evaluation {
-  justify-self: start;
-}
-
-.branch-understanding,
-.branch-systems {
-  justify-self: end;
-}
-
-.branch-models,
-.branch-understanding {
-  align-self: start;
-}
-
-.branch-evaluation,
-.branch-systems {
-  align-self: end;
+.branch-task-specific,
+.branch-infra {
+  grid-column: 1 / -1;
 }
 
 .branch-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   flex-basis: 100%;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   color: var(--orange-dark);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.patram-branch span {
-  padding: 7px 10px;
+.branch-label i {
+  font-size: 11px;
+}
+
+.patram-branch > span {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+.patram-branch > span strong {
+  color: var(--text);
   font-family: "Bricolage Grotesque", system-ui, sans-serif;
   font-size: 13px;
   font-weight: 700;
+}
+
+.patram-branch > span small {
+  color: var(--text-muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.03em;
 }
 
 .patram-note {
@@ -567,7 +560,7 @@
 .journey-line {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
   padding-top: 35px;
 }
@@ -675,6 +668,52 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.exploration-subhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 18px;
+  margin: 8px 0 13px;
+  padding-top: 6px;
+}
+
+.exploration-subhead > span {
+  color: var(--text);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.exploration-subhead > a {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.hackathon-subhead {
+  margin-top: 34px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.exploration-card em {
+  display: block;
+  margin-top: 14px;
+  color: var(--blue-dark);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.competition-card {
+  background:
+    linear-gradient(145deg, rgba(242, 140, 24, 0.035), transparent 58%),
+    var(--surface-strong);
 }
 
 .exploration-card {
@@ -919,10 +958,23 @@ body.dark-mode .affiliation-pill,
 body.dark-mode .patram-map,
 body.dark-mode .achievement-strip,
 body.dark-mode .exploration-card,
-body.dark-mode .backward-pass-card,
-body.dark-mode .flow-actions span {
+body.dark-mode .backward-pass-card {
   background-color: #0b2238;
   border-color: #23496a;
+}
+
+body.dark-mode .patram-branch {
+  background: rgba(7, 26, 44, 0.52);
+  border-color: #23496a;
+}
+
+body.dark-mode .patram-branch > span {
+  background: #071a2c;
+  border-color: #23496a;
+}
+
+body.dark-mode .exploration-card em {
+  color: #7fc1ff;
 }
 
 body.dark-mode .affiliation-pill:hover,
@@ -941,21 +993,12 @@ body.dark-mode .about-hero::after {
   border-color: #23496a;
 }
 
-body.dark-mode .patram-map::before,
-body.dark-mode .patram-map::after,
-body.dark-mode .journey-line::before,
-body.dark-mode .flow-line {
+body.dark-mode .journey-line::before {
   background: #23496a;
-}
-
-body.dark-mode .patram-branch span {
-  background: #071a2c;
-  border-color: #23496a;
 }
 
 body.dark-mode .patram-core-node {
   background: #0b5ea8;
-  border-color: #0b2238;
 }
 
 body.dark-mode .journey-dot {
@@ -994,18 +1037,12 @@ body.dark-mode .hero-status {
     height: 306px;
   }
 
-  .patram-map {
-    min-height: 470px;
-    padding: 25px;
-  }
-
-  .patram-core-node {
-    width: 160px;
-    height: 160px;
+  .patram-stack {
+    padding: 15px;
   }
 
   .patram-branch {
-    max-width: 230px;
+    min-height: 120px;
   }
 }
 
@@ -1106,41 +1143,26 @@ body.dark-mode .hero-status {
     display: none;
   }
 
-  .patram-map {
-    display: grid;
+  .patram-stack {
     grid-template-columns: 1fr;
-    gap: 10px;
-    min-height: auto;
-    padding: 18px;
-    background: var(--surface-strong);
+    padding: 12px;
   }
 
-  .patram-map::before,
-  .patram-map::after {
-    display: none;
+  .patram-core-node,
+  .branch-task-specific,
+  .branch-infra {
+    grid-column: auto;
   }
 
   .patram-core-node {
-    position: relative;
-    top: auto;
-    left: auto;
-    width: 150px;
-    height: 150px;
-    margin: 4px auto 14px;
-    transform: none;
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 
-  .patram-branch,
-  .branch-models,
-  .branch-understanding,
-  .branch-evaluation,
-  .branch-systems {
+  .patram-branch {
     width: 100%;
-    max-width: none;
-    padding: 13px 10px;
-    justify-self: stretch;
-    align-self: auto;
-    border-top: 1px solid var(--line);
+    min-height: auto;
+    padding: 14px;
   }
 
   .patram-note {
