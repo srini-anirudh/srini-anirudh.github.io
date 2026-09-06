@@ -419,7 +419,7 @@ async function initializeBlogFlashcards() {
   const deck = window.BLOG_FLASHCARDS?.[slug];
   if (!deck || !Array.isArray(deck.cards) || !deck.cards.length) return;
   const deckCards = [...deck.cards, ...(Array.isArray(deck.deepDive) ? deck.deepDive : [])];
-  const estimatedMinutes = Math.max(3, Math.ceil(deckCards.length * 0.65));
+  const estimatedMinutes = Math.max(3, Math.ceil(deckCards.length * 0.65 + (deck.results?.length || 0) * 0.35));
 
   const switcher = flashcardElement("section", "article-view-switcher");
   switcher.setAttribute("aria-label", "Choose a reading format");
@@ -453,17 +453,46 @@ async function initializeBlogFlashcards() {
   hero.append(heroCopy, heroVisual);
 
   const framework = flashcardElement("aside", "flashcard-framework");
-  framework.appendChild(flashcardElement("p", "flashcard-framework__eyebrow", "Mental framework"));
+  framework.appendChild(flashcardElement("p", "flashcard-framework__eyebrow", "First-principles concept map"));
+  const frameworkMap = flashcardElement("div", "flashcard-framework__map");
+  const frameworkCenter = flashcardElement("div", "flashcard-framework__center");
+  frameworkCenter.append(
+    flashcardElement("span", "flashcard-framework__center-label", "Central idea"),
+    flashcardElement("strong", "", deck.title),
+  );
   const frameworkFlow = flashcardElement("ol", "flashcard-framework__flow");
   (deck.framework || []).forEach((step, index) => {
     const item = flashcardElement("li", "flashcard-framework__step");
     item.append(
       flashcardElement("span", "flashcard-framework__number", String(index + 1).padStart(2, "0")),
+      flashcardElement("span", "flashcard-framework__step-label", ["Observe", "Explain", "Decide"][index] || "Apply"),
       flashcardElement("span", "flashcard-framework__text", step),
     );
     frameworkFlow.appendChild(item);
   });
-  framework.append(frameworkFlow, flashcardElement("p", "flashcard-framework__takeaway", deck.takeaway));
+  frameworkMap.append(frameworkCenter, frameworkFlow);
+  framework.append(frameworkMap, flashcardElement("p", "flashcard-framework__takeaway", deck.takeaway));
+
+  const results = flashcardElement("section", "flashcard-results");
+  results.setAttribute("aria-labelledby", "flashcard-results-title");
+  const resultsHeader = flashcardElement("div", "flashcard-results__header");
+  resultsHeader.append(
+    flashcardElement("p", "flashcard-results__eyebrow", "Keep these"),
+    flashcardElement("h3", "flashcard-results__title", "Key takeaways & results"),
+    flashcardElement("p", "flashcard-results__intro", "The equations, numerical rules, or invariants that carry most of the article."),
+  );
+  resultsHeader.querySelector("h3").id = "flashcard-results-title";
+  const resultsGrid = flashcardElement("div", "flashcard-results__grid");
+  (deck.results || []).forEach((result) => {
+    const item = flashcardElement("article", "flashcard-result");
+    item.append(
+      flashcardElement("p", "flashcard-result__label", result[0]),
+      flashcardElement("p", "flashcard-result__value", result[1]),
+      flashcardElement("p", "flashcard-result__note", result[2]),
+    );
+    resultsGrid.appendChild(item);
+  });
+  results.append(resultsHeader, resultsGrid);
 
   const deckTools = flashcardElement("div", "flashcard-deck__tools");
   deckTools.appendChild(flashcardElement("p", "flashcard-deck__hint", "Try answering before you reveal each card."));
@@ -500,9 +529,12 @@ async function initializeBlogFlashcards() {
   fullArticleButton.type = "button";
   finish.appendChild(fullArticleButton);
 
-  panel.append(hero, framework, deckTools, cardList, finish);
+  panel.append(hero, framework);
+  if (deck.results?.length) panel.appendChild(results);
+  panel.append(deckTools, cardList, finish);
   article.parentNode.insertBefore(switcher, article);
   article.parentNode.insertBefore(panel, article);
+  if (deck.results?.length) renderBlogMath(results);
 
   function setMode(mode, updateUrl = true) {
     const flashcards = mode === "flashcards";
@@ -546,11 +578,8 @@ async function initializeBlogFlashcards() {
   setMode(initialMode, false);
 }
 
-async function initializeBlogMath() {
-  if (!document.body.classList.contains("blog-article")) return;
-
-  const article = document.querySelector("main.article-content, main.article-wrap, main");
-  if (!article || !/(\$\$|\\\(|\\\[)/.test(article.textContent || "")) return;
+async function renderBlogMath(container) {
+  if (!container || !/(\$\$|\\\(|\\\[)/.test(container.textContent || "")) return;
 
   const version = "0.16.11";
   const base = `https://cdn.jsdelivr.net/npm/katex@${version}/dist`;
@@ -565,7 +594,7 @@ async function initializeBlogMath() {
   try {
     if (!window.katex) await loadScriptOnce(`${base}/katex.min.js`);
     if (!window.renderMathInElement) await loadScriptOnce(`${base}/contrib/auto-render.min.js`);
-    window.renderMathInElement(article, {
+    window.renderMathInElement(container, {
       delimiters: [
         { left: "$$", right: "$$", display: true },
         { left: "\\[", right: "\\]", display: true },
@@ -578,6 +607,12 @@ async function initializeBlogMath() {
   } catch (_error) {
     document.documentElement.dataset.mathReady = "failed";
   }
+}
+
+async function initializeBlogMath() {
+  if (!document.body.classList.contains("blog-article")) return;
+  const article = document.querySelector("main.article-content, main.article-wrap, main");
+  await renderBlogMath(article);
 }
 
 initializeBlogMath();

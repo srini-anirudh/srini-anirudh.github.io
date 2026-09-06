@@ -840,3 +840,218 @@ const BLOG_FLASHCARD_DEEP_DIVES = {
 Object.entries(BLOG_FLASHCARD_DEEP_DIVES).forEach(([slug, cards]) => {
   if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].deepDive = cards;
 });
+
+const BLOG_FLASHCARD_RESULTS = {
+  "the-vlm-architecture-gallery": [
+    ["Raw patch count", "\\(N_v = (H/P)(W/P)\\)", "Halving patch size P creates 4× as many visual tokens at fixed resolution."],
+    ["Fusion families", "4 recurring interfaces", "Projection, query compression, cross-attention, and unified early fusion explain most architecture diagrams."],
+    ["Comparison rule", "Normalize 5 budgets", "Backbone size, resolution, visual tokens, training data, and evaluation protocol must be aligned before attributing gains to architecture."]
+  ],
+  "the-agent-evaluation-playbook": [
+    ["Episode reliability", "\\(\\text{pass}^k = p^k\\)", "If every one of k dependent steps must work and each succeeds with probability p, reliability compounds downward."],
+    ["Outcome test", "State predicates > prose", "Success should be computed from the changed environment, not inferred from what the agent claims it did."],
+    ["Minimum report", "5 distributions", "Outcome, safety, latency, cost, and trajectory quality reveal more than a single average score."]
+  ],
+  "what-autograd-actually-does": [
+    ["Backward primitive", "\\(\\bar{x} = \\bar{y}J_f(x)\\)", "Reverse mode composes vector–Jacobian products; it does not materialize the full Jacobian."],
+    ["Why reverse wins", "1 scalar → N gradients", "One reverse sweep is suited to training because loss dimension is one while parameter dimension is enormous."],
+    ["Checkpoint trade", "Memory ↓ · FLOPs ↑", "Discarding saved activations lowers peak memory by recomputing their forward region during backward."]
+  ],
+  "why-transformers-do-not-explode": [
+    ["Variance target", "\\(\\operatorname{Var}(W_{ij}) \\propto 1/d_{in}\\)", "Fan-in-aware initialization keeps a matrix projection from changing signal scale merely because width changed."],
+    ["Attention scale", "\\(QK^\\top)/\\sqrt{d_h}\\)", "The square-root factor keeps logit variance roughly stable as head width grows."],
+    ["Stability stack", "5 coupled controls", "Initialization, normalization, residual scaling, optimizer schedule, and precision must work as one signal budget."]
+  ],
+  "choosing-the-next-token": [
+    ["Temperature", "\\(p_i = \\operatorname{softmax}(z_i/T)\\)", "T < 1 sharpens differences; T > 1 flattens them. It changes sampling behavior, not learned knowledge."],
+    ["Top-p", "Smallest set with mass ≥ p", "The candidate count expands under uncertainty and contracts when the distribution is confident."],
+    ["Constraint boundary", "Syntax ≠ semantics", "A grammar can guarantee valid JSON or code shape, but not that the generated action or answer is correct."]
+  ],
+  "teaching-a-language-model-to-follow-instructions": [
+    ["SFT objective", "\\(L=-\\sum_{t\\in A}\\log p_\\theta(y_t|x,y_{<t})\\)", "Loss is commonly applied only to assistant tokens A while user and system tokens remain conditioning context."],
+    ["What changed", "Data distribution, not loss family", "SFT is still next-token learning; curated demonstrations redefine which behavior receives probability mass."],
+    ["Packing rule", "Mask every boundary", "Packed examples save padding only if attention and loss masks prevent unrelated conversations from leaking into one another."]
+  ],
+  "how-lora-changes-a-model-without-rewriting-it": [
+    ["Low-rank update", "\\(W' = W + (\\alpha/r)BA\\)", "The frozen base W is modified by two trainable thin matrices with inner dimension r."],
+    ["Trainable size", "\\(r(d_{in}+d_{out}))\\)", "This replaces a full update with d_in×d_out parameters by a sum that is linear in width."],
+    ["Rank bound", "\\(\\operatorname{rank}(BA)\\le r\\)", "LoRA saves state precisely by restricting adaptation to an r-dimensional update subspace."]
+  ],
+  "inside-an-ai-agent-harness": [
+    ["Control loop", "Observe → propose → validate → execute → verify", "The harness owns every transition; the model supplies a proposal inside the loop."],
+    ["State invariant", "Log events before summarizing", "An append-only source of truth makes compression reversible and failures replayable."],
+    ["Authority rule", "Least privilege per action", "Credentials, sandboxes, approval gates, and idempotency belong at the execution boundary, outside model discretion."]
+  ],
+  "memory-is-more-than-context": [
+    ["Useful memory", "Relevant × timely × trusted", "Similarity alone is insufficient; a memory must arrive when it can alter the next decision and carry provenance."],
+    ["Five layers", "Working · episodic · semantic · procedural · reflective", "Different lifetimes and retrieval policies serve different kinds of agent decisions."],
+    ["Allocation rule", "Value per context token", "Retrieve evidence by expected decision value under a limited attention and token budget."]
+  ],
+  "how-multi-agent-systems-actually-coordinate": [
+    ["Independent attempts", "\\(P(\\ge1\\ success)=1-(1-p)^k\\)", "Parallel attempts help only to the degree their errors are genuinely independent."],
+    ["Team inequality", "Coordination gain > coordination cost", "Specialization, diversity, or parallelism must repay messaging, duplicated work, waiting, and verification."],
+    ["Ablation test", "Same budget · fewer agents", "Compare against one strong agent with equal tools and total compute before crediting the multi-agent design."]
+  ],
+  "reinforcement-learning-for-agents-from-first-principles": [
+    ["Agent process", "\\((s_t,a_t,r_t,s_{t+1})_{t=0}^{T})\\)", "Training data is an interactive trajectory, not an isolated prompt-response pair."],
+    ["Return", "\\(G_t=\\sum_{k=0}^{T-t}\\gamma^k r_{t+k}\\)", "Credit assignment asks which earlier actions deserve a delayed cumulative outcome."],
+    ["Environment test", "Resettable · verifiable · isolated", "Without reliable resets and state checks, rollouts cannot supply scalable trustworthy feedback."]
+  ],
+  "how-attention-moves-information": [
+    ["Attention", "\\(\\operatorname{softmax}(QK^\\top/\\sqrt{d_h})V\\)", "Queries and keys choose where to retrieve; values determine what information moves."],
+    ["Full score storage", "\\(O(n^2)\\)", "Every query-key pair creates a score, which is why long sequences motivate sparse, local, or compressed attention."],
+    ["Decode cache", "Keys + values for every past token", "GQA and MLA target this persistent memory and bandwidth cost by sharing or compressing KV state."]
+  ],
+  "the-puzzle-of-overparameterization": [
+    ["Interpolation point", "Training error → 0", "Test error can peak where the model first fits every example, then fall again as capacity continues growing."],
+    ["Double descent", "Bias fall → variance peak → second fall", "The classical U-curve is incomplete when the capacity axis stops at interpolation."],
+    ["Complexity lens", "Function bias > parameter count", "Generalization depends on which fitting function optimization selects among many equivalent parameterizations."]
+  ],
+  "how-llms-are-pretrained": [
+    ["Objective", "\\(L=-\\sum_t\\log p_\\theta(x_t|x_{<t})\\)", "The simple next-token loss becomes powerful through scale, diversity, and repeated compression of structure."],
+    ["Dataset meaning", "A sampling distribution", "Mixture probabilities—not directory sizes—determine which capabilities receive the next unit of compute."],
+    ["Dedup dividend", "Less waste · less leakage · less memorization", "Near-duplicate removal simultaneously improves effective token diversity and evaluation integrity."]
+  ],
+  "mixing-data-without-losing-capabilities": [
+    ["Gradient influence", "\\(w_i \\propto q_i\\lambda_i\\)", "A domain’s effect combines how often it is sampled q_i and how strongly its loss is weighted λ_i."],
+    ["Transfer test", "\\(\\Delta L_j\\mid\\text{update on }i\\)", "Measure whether training on domain i improves or harms held-out performance on domain j."],
+    ["Mixture policy", "Reweight by marginal gain/token", "Static ratios ignore that domains learn and saturate at different rates during training."]
+  ],
+  "how-language-models-learn-to-use-tools": [
+    ["Five decisions", "Need → retrieve → select → call → verify", "A valid function call solves only the middle of the complete tool-use problem."],
+    ["Action contract", "Name + typed arguments + observation", "Schemas turn generated tokens into validated operations and structured feedback."],
+    ["Success metric", "Verified final state", "Tool accuracy should include outcome, side effects, recovery, latency, and cost—not merely parsable syntax."]
+  ],
+  "the-making-of-an-ai-agent": [
+    ["Minimal agent", "Policy + state + actions + loop", "Remove persistent state or consequences and the system collapses back toward stateless response generation."],
+    ["Training unit", "Complete trajectory", "Recovery and long-horizon credit cannot be learned from pristine final answers alone."],
+    ["Responsibility split", "Model proposes · harness enforces", "Permissions, execution, invariants, and verification should remain deterministic wherever possible."]
+  ],
+  "what-changed-inside-the-transformer": [
+    ["Skeleton", "Residual stream + attention + FFN", "Most modern changes optimize the organs while preserving this information-routing backbone."],
+    ["KV pressure", "\\(M_{KV}\\propto Lnh_{kv}d_h\\)", "Cache grows with layers L, context n, KV heads, and head width; GQA and MLA attack those factors."],
+    ["MoE bargain", "Parameters ↑ without proportional token FLOPs", "Sparse routing expands capacity, while communication, balance, and serving memory become new constraints."]
+  ],
+  "scaling-laws-from-first-principles": [
+    ["Dense training compute", "\\(C\\approx6ND\\)", "A useful first estimate multiplies parameters N by training tokens D; the factor covers forward and backward matrix work."],
+    ["Power-law form", "\\(L(x)=L_\\infty+Ax^{-\\alpha}\\)", "Loss improves predictably with diminishing returns over the regime used to fit the curve."],
+    ["Planning rule", "Fit small → optimize budget → validate scale", "Scaling laws guide allocation only when architecture, data quality, objective, and operating regime remain comparable."]
+  ],
+  "reinforcement-learning-from-first-principles": [
+    ["Policy gradient", "\\(\\nabla J=\\mathbb E[\\nabla\\log\\pi_\\theta(a|s)A(s,a)]\\)", "Increase probability for actions that outperform the baseline and decrease it for those that underperform."],
+    ["Advantage", "\\(A(s,a)=Q(s,a)-V(s)\\)", "Relative performance reduces variance without changing the expected policy-gradient direction."],
+    ["Trust mechanism", "Probability ratio or KL bound", "PPO-style constraints prevent one noisy batch from moving the policy into a destructive regime."]
+  ],
+  "teaching-a-model-what-we-prefer": [
+    ["Pairwise model", "\\(P(A\\succ B)=\\sigma(r_A-r_B)\\)", "Comparisons identify reward differences more naturally than absolute human scores."],
+    ["Regularized objective", "Reward − β KL(policy ‖ reference)", "The reference keeps optimization near known-capable behavior where preference coverage is weak."],
+    ["DPO signal", "Preferred likelihood ratio > rejected ratio", "DPO folds preference optimization into a classification-like loss relative to a fixed reference policy."]
+  ]
+};
+
+Object.assign(BLOG_FLASHCARD_RESULTS, {
+  "how-reinforcement-learning-teaches-models-to-reason": [
+    ["Group advantage", "\\(A_i=(r_i-\\bar r)/\\operatorname{std}(r)\\)", "GRPO-style learning compares answers sampled for one prompt instead of fitting a separate value model."],
+    ["RL capability", "Search then reinforce", "RL amplifies successful behaviors the base policy can sample; it cannot reward a strategy absent from exploration."],
+    ["Verifier ceiling", "False positives compound with search", "More samples help only while the checker ranks true solutions above attractive reward hacks."]
+  ],
+  "thinking-in-tokens": [
+    ["Serial depth", "One generated token = one more conditioned step", "A written intermediate state lets later predictions depend on work that did not fit into one forward pass."],
+    ["Useful trace", "State change per token", "Subgoals, calculations, uncertainty, and checks earn their cost; narration that changes no later decision does not."],
+    ["Efficiency metric", "Verified success / inference compute", "Reasoning length is an input cost, not an outcome metric."]
+  ],
+  "how-models-improve-without-changing-their-weights": [
+    ["At least one success", "\\(1-(1-p)^N\\)", "N independent attempts raise discovery probability, but correlated errors make the real gain smaller."],
+    ["Selection condition", "Verifier accuracy > generator self-choice", "Best-of-N works when ranking candidates is easier and more reliable than producing the best one directly."],
+    ["Adaptive compute", "Spend budget where marginal gain is high", "Difficulty and uncertainty estimates should decide which inputs receive longer traces, more samples, or search."]
+  ],
+  "how-to-find-what-is-slowing-your-model": [
+    ["Amdahl bound", "\\(S\\le1/((1-f)+f/s)\\)", "Accelerating fraction f by s cannot overcome the unchanged portion of end-to-end time."],
+    ["Roofline diagnosis", "\\(P\\le\\min(P_{peak}, B\\times AI)\\)", "Arithmetic intensity AI separates plausible compute limits from memory-bandwidth limits."],
+    ["Proof standard", "Hypothesis → metric → intervention → remeasure", "An optimization is real only when the predicted counter and end-to-end target both improve without changing the work."]
+  ],
+  "the-serving-playbook": [
+    ["Little’s law", "\\(L=\\lambda W\\)", "Average in-system requests L equal arrival rate λ times time in system W; queues grow as service falls behind arrivals."],
+    ["Goodput", "Requests meeting SLO / second", "Raw tokens per second can rise while user-visible service worsens, so latency constraints belong in the throughput metric."],
+    ["Continuous batching", "Admit and retire at decode boundaries", "The active batch follows live sequences instead of waiting for a fixed batch’s longest member."]
+  ],
+  "the-mechanics-of-llm-inference": [
+    ["KV-cache bytes", "\\(2BLnh_{kv}d_hb\\)", "Two tensors across batch B, layers L, cached length n, KV heads, head width, and bytes b set persistent cache memory."],
+    ["Two workloads", "Prefill: parallel · Decode: serial", "Prompt processing tends toward compute efficiency; token generation repeatedly streams weights and cache."],
+    ["Latency split", "TTFT + tokens × ITL", "User latency combines queue and prefill time to first token with repeated inter-token decode latency."]
+  ],
+  "the-parallelism-playbook": [
+    ["Data parallel", "Compute ÷ replicas · model replicated", "Each rank sees different examples; full gradients must still be synchronized every update."],
+    ["ZeRO/FSDP memory", "State per rank ≈ total state / world size", "Sharding approaches this ideal but pays gathers, reductions, transient buffers, and imbalance."],
+    ["Pipeline efficiency", "\\(m/(m+p-1)\\)", "For a simple schedule with m microbatches and p stages, fill and drain create the remaining bubble." ]
+  ],
+  "inside-a-training-step": [
+    ["Dense train compute", "≈ 6 × parameters × tokens", "Forward is roughly two operations per active weight-token use; backward contributes about twice the forward work."],
+    ["Activation scale", "\\(O(BTLd)\\)", "Saved hidden states grow with microbatch B, sequence T, layers L, and width d before attention-specific terms."],
+    ["Adam state", "Often 2 statistics / parameter", "First and second moments can outweigh low-precision weights, motivating optimizer-state sharding."]
+  ],
+  "talk-is-not-cheap": [
+    ["Link model", "\\(T(n)=\\alpha+n/\\beta\\)", "Startup latency α dominates small messages; bandwidth β dominates large transfers."],
+    ["All-reduce volume", "≈ \\(2(P-1)/P\\) × tensor bytes", "A bandwidth-optimal ring moves nearly twice the tensor size per rank as participant count P grows."],
+    ["Placement rule", "Frequent bytes stay on fastest links", "Map high-volume tensor collectives inside NVLink domains before crossing PCIe or the cluster network."]
+  ],
+  "why-fast-gpus-still-wait-for-memory": [
+    ["Arithmetic intensity", "\\(AI=\\text{operations}/\\text{bytes}\\)", "Reuse raises AI; extra peak FLOPs do not help work that transfers too many bytes."],
+    ["Roofline", "\\(P=\\min(P_{peak},B\\cdot AI)\\)", "The ridge point is P_peak/B: below it bandwidth dominates, above it compute can dominate."],
+    ["Fusion dividend", "Intermediate HBM traffic → 0", "Keeping producer outputs on-chip removes full write-read round trips and often kernel-launch overhead."]
+  ],
+  "why-gpus-are-built-for-deep-learning": [
+    ["Throughput trade", "More ALUs · less per-thread control", "GPUs sacrifice aggressive single-thread latency machinery to execute many regular operations concurrently."],
+    ["Latency hiding", "Ready warps cover stalled warps", "Occupancy helps until registers, shared memory, or insufficient parallel work limit how many warps can remain resident."],
+    ["Tensor-core primitive", "\\(D=A B+C\\)", "Small mixed-precision matrix multiply-accumulates match the repeated structure of deep-learning projections."]
+  ],
+  "inside-a-modern-vision-encoder": [
+    ["Patch tokens", "\\(N=(H/P)(W/P)\\)", "Resolution grows token count by area; doubling height and width creates 4× the patches."],
+    ["Global attention", "\\(O(N^2d)\\)", "Fine detail becomes expensive twice: more encoder interactions and more downstream visual tokens."],
+    ["Connector objective", "Maximum task evidence / output token", "Pooling must compress while retaining OCR, objects, coordinates, counts, and relations needed later."]
+  ],
+  "one-transformer-two-modalities": [
+    ["Common interface", "\\(X\\in\\mathbb R^{N\\times d}\\)", "After tokenization, both modalities present a sequence of N width-d vectors to the same transformer block."],
+    ["Embedding difference", "Lookup IDs vs project patches", "Text selects discrete learned rows; vision applies a shared linear map to continuous pixel blocks."],
+    ["Geometry difference", "1D order vs 2D coordinates", "Shared attention does not remove the need for modality-appropriate positions, masks, and output heads."]
+  ],
+  "an-image-is-a-sentence": [
+    ["Token count", "\\(N=HW/P^2\\)", "At fixed image area, halving patch width P quadruples sequence length."],
+    ["Attention cost", "\\(O(N^2d)\\)", "Combining the two formulas means halving patch width can make global score computation about 16× larger."],
+    ["Hierarchy trade", "Tokens ↓ · channels ↑", "Patch merging or windowing preserves multiscale structure while preventing high-resolution global attention from dominating."]
+  ],
+  "across-the-cnnverse": [
+    ["Output width", "\\(W_o=\\lfloor(W+2p-d(k-1)-1)/s\\rfloor+1\\)", "Kernel k, padding p, dilation d, and stride s determine spatial size."],
+    ["Parameter sharing", "\\(k^2C_{in}C_{out}\\)", "Convolutional parameter count is independent of image width and height because one filter is reused everywhere."],
+    ["Depthwise separable", "\\(k^2C_{in}+C_{in}C_{out}\\)", "Separating spatial and channel mixing can be far cheaper than a dense k²C_inC_out convolution."]
+  ],
+  "evolution-of-ml-architectures": [
+    ["Dependency path", "RNN: O(n) · attention: O(1)", "Direct attention edges shorten the route between distant tokens during training, while recurrence updates state serially."],
+    ["Training parallelism", "Convolution/attention > recurrence", "Parallelizable operations aligned with accelerators drove architecture adoption alongside modeling quality."],
+    ["Design axes", "Movement · state · credit", "Ask how information travels, what persists, and how gradients reach the responsible component."]
+  ],
+  "how-models-know-where-they-are": [
+    ["Permutation issue", "Attention without position is equivariant", "Reordering inputs only reorders outputs; content interactions alone cannot determine sequence order."],
+    ["RoPE identity", "\\(\\langle R_mq,R_nk\\rangle=f(q,k,n-m)\\)", "Rotating queries and keys makes their dot product depend on relative displacement."],
+    ["2D requirement", "Encode row and column", "Flattened image order alone makes nearby boundaries ambiguous; multimodal position must retain spatial geometry and sequence structure."]
+  ],
+  "what-an-optimizer-actually-does": [
+    ["Momentum", "\\(m_t=\\beta m_{t-1}+(1-\\beta)g_t\\)", "Temporal averaging damps noisy reversals and accumulates directions that stay consistent."],
+    ["Adam update", "\\(\\Delta\\theta_t=-\\eta\\hat m_t/(\\sqrt{\\hat v_t}+\\epsilon)\\)", "First moments choose direction; second moments scale coordinates by recent gradient magnitude."],
+    ["State cost", "Parameters + gradients + moments", "Adaptive optimization can store several values per parameter, making memory and bandwidth part of optimizer choice."]
+  ],
+  "the-geometry-of-normalization": [
+    ["LayerNorm", "\\(y=(x-\\mu)/\\sqrt{\\sigma^2+\\epsilon}\\)", "Center and scale are computed across a token’s feature axis, then learned affine parameters restore flexibility."],
+    ["RMSNorm", "\\(y=x/\\sqrt{\\operatorname{mean}(x^2)+\\epsilon}\\)", "It controls radius without subtracting the feature mean."],
+    ["Axis rule", "The normalized axes define the invariance", "Batch, token, channel, group, and spatial axes couple different examples and discard different scale information."]
+  ],
+  "why-neural-networks-need-nonlinearity": [
+    ["Linear collapse", "\\(W_2(W_1x+b_1)+b_2=Wx+b\\)", "Any depth of affine layers is still one affine map; nonlinearities make additional layers expressively meaningful."],
+    ["Sigmoid ceiling", "\\(\\max_x\\sigma'(x)=1/4\\)", "Repeated derivatives at or below 0.25 explain severe gradient shrinkage even before saturation becomes extreme."],
+    ["SwiGLU", "\\(\\operatorname{SiLU}(xW_g)\\odot(xW_v)\\)", "A learned gate multiplicatively selects features, improving quality while adding projection and activation cost."]
+  ]
+});
+
+Object.entries(BLOG_FLASHCARD_RESULTS).forEach(([slug, results]) => {
+  if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].results = results;
+});
