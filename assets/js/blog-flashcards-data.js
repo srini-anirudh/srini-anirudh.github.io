@@ -1103,3 +1103,489 @@ const BLOG_FLASHCARD_RESULT_LINKS = {
 Object.entries(BLOG_FLASHCARD_RESULT_LINKS).forEach(([slug, resultLinks]) => {
   if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].resultLinks = resultLinks;
 });
+
+const BLOG_FLASHCARD_TABLES = {
+  "the-vlm-architecture-gallery": {
+    title: "Choose the fusion interface",
+    intro: "Start with the information bottleneck and serving budget; the named architecture usually follows from those constraints.",
+    columns: ["Interface", "Visual tokens", "Strength", "Choose when"],
+    rows: [
+      ["Linear projector", "Patch-dependent", "Simple and modular", "Strong pretrained towers and ample token budget"],
+      ["Query compressor", "Fixed small set", "Predictable LLM cost", "Images have many patches but tasks need a compact summary"],
+      ["Cross-attention", "Separate memory", "Selective retrieval at depth", "Language should consult vision without inserting every token"],
+      ["Unified early fusion", "Shared sequence", "Dense cross-modal learning", "Enough joint data and compute exist to train one representation"]
+    ]
+  },
+  "the-agent-evaluation-playbook": {
+    title: "What to measure",
+    intro: "Grade the changed world first, then use the trajectory to explain why the system succeeded or failed.",
+    columns: ["Layer", "Measure", "Catches", "Do not substitute"],
+    rows: [
+      ["Outcome", "Verified state predicates", "Claimed success without action", "Final-answer fluency"],
+      ["Trajectory", "Valid, necessary, recoverable steps", "Lucky or unsafe success", "Step count alone"],
+      ["Reliability", "Repeated-run success distribution", "Stochastic brittleness", "One cherry-picked run"],
+      ["Operations", "Latency, cost, permissions, side effects", "Undeployable capability", "Average accuracy"]
+    ]
+  },
+  "what-autograd-actually-does": {
+    title: "Choose the differentiation mode",
+    intro: "The cheapest mode follows from which side of the function—inputs or outputs—has fewer independent directions.",
+    columns: ["Method", "One sweep gives", "Best shape", "Typical use"],
+    rows: [
+      ["Forward mode", "One input-direction JVP", "Few inputs, many outputs", "Sensitivity and Jacobian columns"],
+      ["Reverse mode", "One output-direction VJP", "Many inputs, few outputs", "Scalar-loss neural-network training"],
+      ["Full Jacobian", "Every pairwise derivative", "Only small dimensions", "Analysis, never ordinary backprop"],
+      ["Checkpointed reverse", "Same gradients with recompute", "Activation-memory limited", "Deep model training"]
+    ]
+  },
+  "why-transformers-do-not-explode": {
+    title: "Stability levers",
+    intro: "Treat instability as a signal-budget failure and identify where scale first leaves its safe range.",
+    columns: ["Lever", "Controls", "Failure signature", "First check"],
+    rows: [
+      ["Initialization", "Forward and gradient variance", "Immediate growth or collapse", "Fan-in and residual scaling"],
+      ["Normalization", "Sublayer input scale", "Depth-dependent drift", "Placement and epsilon"],
+      ["Optimizer", "Parameter update size", "Loss spikes after warmup", "Learning rate and clipping"],
+      ["Precision", "Representable numerical range", "Inf, NaN, or silent underflow", "Accumulator dtype and loss scaling"]
+    ]
+  },
+  "choosing-the-next-token": {
+    title: "Choose a decoding policy",
+    intro: "Match decoding to the objective: diversity, exactness, global likelihood, or structural validity.",
+    columns: ["Method", "What it changes", "Best for", "Main failure"],
+    rows: [
+      ["Greedy", "Always takes local maximum", "Fast deterministic baselines", "Early mistakes cannot recover"],
+      ["Temperature + top-p", "Reshapes and truncates uncertainty", "Open-ended generation", "Unstable quality when poorly tuned"],
+      ["Beam search", "Keeps likely partial sequences", "Sequence-level likelihood tasks", "Bland or length-biased output"],
+      ["Grammar constraint", "Masks invalid next tokens", "JSON, schemas, formal syntax", "Valid structure can still be wrong"]
+    ]
+  },
+  "teaching-a-language-model-to-follow-instructions": {
+    title: "Build the SFT dataset",
+    intro: "The loss is familiar; the behavior comes from example selection, masking, and coverage.",
+    columns: ["Decision", "Good default", "Why", "Failure if ignored"],
+    rows: [
+      ["Examples", "Diverse, correct demonstrations", "Defines the behavior contract", "Template imitation"],
+      ["Loss mask", "Assistant outputs only", "Learns responses, conditions on prompts", "Imitates user/system text"],
+      ["Packing", "Isolate example boundaries", "Uses tokens efficiently", "Cross-example leakage"],
+      ["Evaluation", "Capability and regression suite", "Checks behavior outside training", "Style gains hide lost skills"]
+    ]
+  },
+  "how-lora-changes-a-model-without-rewriting-it": {
+    title: "Choose an adaptation strategy",
+    intro: "Pick based on the size of the behavior shift, memory budget, and whether adapters must remain composable.",
+    columns: ["Method", "Trainable state", "Strength", "Choose when"],
+    rows: [
+      ["Full fine-tuning", "All weights", "Maximum update freedom", "Large data and memory; one final model"],
+      ["LoRA", "Low-rank deltas", "Portable and memory-efficient", "Task shift fits a constrained update"],
+      ["QLoRA", "LoRA + quantized base", "Lowest base-weight memory", "A large frozen model must fit one device"],
+      ["Prompt/prefix tuning", "Learned input state", "Very small footprint", "Behavior shift is narrow and deployment supports it"]
+    ]
+  },
+  "inside-an-ai-agent-harness": {
+    title: "Assign responsibilities",
+    intro: "Put judgment in the model and guarantees in deterministic machinery whenever the boundary is available.",
+    columns: ["Concern", "Model owns", "Harness owns", "Required evidence"],
+    rows: [
+      ["Planning", "Candidate next action", "Budgets and stopping rules", "Explicit goal and state"],
+      ["Tool use", "Intent and arguments", "Schema validation and execution", "Typed observation"],
+      ["Memory", "Use retrieved evidence", "Write, index, provenance", "Source-linked record"],
+      ["Safety", "Recognize ambiguity", "Permissions, sandbox, approvals", "Auditable event log"]
+    ]
+  },
+  "memory-is-more-than-context": {
+    title: "Choose the memory layer",
+    intro: "Store information according to its lifetime and how it will change a future decision.",
+    columns: ["Layer", "Stores", "Lifetime", "Retrieve when"],
+    rows: [
+      ["Working", "Current plan and state", "One task", "Every relevant turn"],
+      ["Episodic", "What happened", "Many tasks", "A similar situation recurs"],
+      ["Semantic", "Stable facts and entities", "Until invalidated", "A decision needs factual context"],
+      ["Procedural", "How to perform actions", "Until workflow changes", "Selecting or executing a method"],
+      ["Reflective", "Consolidated lessons", "Long-lived", "Planning from prior successes and failures"]
+    ]
+  },
+  "how-multi-agent-systems-actually-coordinate": {
+    title: "Choose the topology",
+    intro: "Add coordination structure only for a concrete advantage over one capable agent with the same budget.",
+    columns: ["Topology", "Advantage", "Cost", "Choose when"],
+    rows: [
+      ["Orchestrator + workers", "Clear control and parallel tasks", "Central bottleneck", "Subtasks and dependencies are explicit"],
+      ["Peer-to-peer", "Flexible collaboration", "Message and state conflicts", "Agents have complementary local knowledge"],
+      ["Debate / voting", "Independent error correction", "Correlated answers and judge cost", "Several checkable approaches exist"],
+      ["Shared blackboard", "Artifact-centered coordination", "Consistency and ownership", "Work accumulates in structured shared state"]
+    ]
+  },
+  "reinforcement-learning-for-agents-from-first-principles": {
+    title: "Design the training environment",
+    intro: "The environment is the data generator; weak resets or rewards contaminate every policy update.",
+    columns: ["Requirement", "Why it matters", "Failure", "Design response"],
+    rows: [
+      ["Resettable", "Creates comparable episodes", "State contamination", "Snapshots or isolated sandboxes"],
+      ["Verifiable", "Supplies trustworthy reward", "Reward hacking", "Hidden state predicates"],
+      ["Representative", "Matches deployment decisions", "Sim-to-real gap", "Realistic tools and noise"],
+      ["Observable", "Supports credit and debugging", "Opaque failures", "Structured event and state logs"]
+    ]
+  },
+  "how-attention-moves-information": {
+    title: "Choose the attention pattern",
+    intro: "The useful variant is the cheapest pattern that preserves the retrieval paths the task needs.",
+    columns: ["Pattern", "Reach", "Cost / cache", "Choose when"],
+    rows: [
+      ["Full MHA", "Every allowed token", "Highest KV and quadratic scores", "Context is moderate and quality dominates"],
+      ["GQA / MQA", "Full reach", "Smaller KV cache", "Autoregressive serving is bandwidth-limited"],
+      ["Sliding window", "Local neighborhood", "Linear local scores", "Recent context carries most signal"],
+      ["Compressed / latent", "Full through bottleneck", "Reduced stored state", "A learned summary retains retrieval quality"]
+    ]
+  },
+  "the-puzzle-of-overparameterization": {
+    title: "Interpret the capacity curve",
+    intro: "Parameter count changes both expressivity and the geometry through which optimization selects a function.",
+    columns: ["Regime", "Training error", "Test behavior", "Best question"],
+    rows: [
+      ["Underparameterized", "Nonzero", "Bias dominated", "What structure cannot be represented?"],
+      ["Near interpolation", "Approaches zero", "Variance can peak", "Is the fit ill-conditioned?"],
+      ["Overparameterized", "Zero", "Second descent may appear", "Which interpolating solution is selected?"],
+      ["Long training", "Already zero", "Grokking may improve rules", "Is function complexity still changing?"]
+    ]
+  },
+  "how-llms-are-pretrained": {
+    title: "Build the token pipeline",
+    intro: "Every pipeline stage changes the probability that a type of information reaches the optimizer.",
+    columns: ["Stage", "Decision", "Protects", "Common failure"],
+    rows: [
+      ["Source", "Coverage and licensing", "Capability breadth", "One dominant domain"],
+      ["Filter", "Quality and safety thresholds", "Signal per token", "Removing rare valuable data"],
+      ["Deduplicate", "Exact and semantic similarity", "Diversity and eval integrity", "Benchmark leakage"],
+      ["Mix / schedule", "Sampling weight over time", "Capability allocation", "Static ratios after saturation"],
+      ["Pack", "Boundaries and sequence length", "Compute utilization", "Unwanted document leakage"]
+    ]
+  },
+  "mixing-data-without-losing-capabilities": {
+    title: "Diagnose a mixture",
+    intro: "Use held-out capability changes to distinguish insufficient exposure, conflicting gradients, and simple saturation.",
+    columns: ["Observation", "Likely cause", "Intervention", "Watch next"],
+    rows: [
+      ["New skill flat", "Too little effective weight", "Raise sampling or loss weight", "Marginal gain per token"],
+      ["Old skill regresses", "Interference or forgetting", "Replay or isolate updates", "Cross-domain loss delta"],
+      ["Large domain dominates", "Size-proportional sampling", "Temperature or capped sampling", "Gradient contribution"],
+      ["All domains plateau", "Mixture or capacity saturated", "Change schedule, data, or model", "Fresh eval frontier"]
+    ]
+  },
+  "how-language-models-learn-to-use-tools": {
+    title: "Locate a tool-use failure",
+    intro: "Evaluate each decision separately; a successful API call is not the same as a solved task.",
+    columns: ["Stage", "Question", "Failure", "Metric"],
+    rows: [
+      ["Need", "Should any tool be called?", "Hallucinated or missed call", "Need-detection accuracy"],
+      ["Select", "Which affordance applies?", "Wrong tool", "Top-k tool recall"],
+      ["Ground", "Are arguments valid and correct?", "Schema or entity error", "Execution validity"],
+      ["Use result", "Did evidence change the answer?", "Ignored observation", "Outcome improvement"],
+      ["Verify", "Did the world reach the goal?", "Claimed success", "Final-state pass rate"]
+    ]
+  },
+  "the-making-of-an-ai-agent": {
+    title: "Build the agent loop",
+    intro: "Each component closes a different gap between a stateless language model and reliable action.",
+    columns: ["Component", "Function", "Without it", "Owner"],
+    rows: [
+      ["State", "Represents current reality", "Transcript reconstruction", "Harness"],
+      ["Policy", "Chooses the next action", "No adaptive behavior", "Model"],
+      ["Tools", "Observe and change the world", "Text-only simulation", "Harness boundary"],
+      ["Verifier", "Checks goal and effects", "Confident false completion", "Environment / harness"],
+      ["Stopping rule", "Bounds the episode", "Loops and runaway cost", "Harness"]
+    ]
+  },
+  "what-changed-inside-the-transformer": {
+    title: "Why each organ changed",
+    intro: "Modern modifications survived when they removed a scaling bottleneck without breaking the residual-stream skeleton.",
+    columns: ["Component", "Common modern choice", "Primary gain", "New trade-off"],
+    rows: [
+      ["Normalization", "Pre-norm RMSNorm", "Deep training stability", "Less explicit centering"],
+      ["Position", "RoPE / relative methods", "Useful displacement geometry", "Context extension needs care"],
+      ["Feed-forward", "SwiGLU or MoE", "Quality or conditional capacity", "Wider projections or routing"],
+      ["Attention KV", "GQA / MLA", "Smaller cache and bandwidth", "Compression can cost quality"],
+      ["Kernels", "Fused attention and MLP", "Less memory traffic", "Hardware-specific complexity"]
+    ]
+  },
+  "scaling-laws-from-first-principles": {
+    title: "Use a scaling law responsibly",
+    intro: "A forecast is a controlled extrapolation, not permission to ignore regime changes.",
+    columns: ["Step", "Do", "Why", "Stop if"],
+    rows: [
+      ["Fit", "Run several smaller scales", "Estimate trend and uncertainty", "Curves are not smooth"],
+      ["Allocate", "Optimize N and D under C", "Avoid obvious undertraining", "Data quality is not comparable"],
+      ["Validate", "Hold out a larger run", "Test extrapolation", "Residuals shift systematically"],
+      ["Adjust", "Include serving and data constraints", "Compute-optimal is not product-optimal", "Assumptions leave the fitted regime"]
+    ]
+  },
+  "reinforcement-learning-from-first-principles": {
+    title: "What each RL component fixes",
+    intro: "Most practical machinery either reduces gradient variance or prevents a destructive policy jump.",
+    columns: ["Component", "Role", "Fixes", "Risk"],
+    rows: [
+      ["Return", "Scores sampled consequences", "Missing action labels", "High variance"],
+      ["Baseline / value", "Defines expected outcome", "Noisy absolute reward", "Value bias"],
+      ["Advantage / GAE", "Assigns relative credit", "Long-horizon noise", "Bias–variance tuning"],
+      ["Clip / KL", "Limits update distance", "Policy collapse", "Learning becomes too conservative"]
+    ]
+  },
+  "teaching-a-model-what-we-prefer": {
+    title: "Choose the preference path",
+    intro: "The methods differ mainly in whether reward is modeled explicitly and how policy drift is constrained.",
+    columns: ["Method", "Signal", "Advantage", "Main risk"],
+    rows: [
+      ["SFT", "Preferred demonstrations", "Simple and stable", "No rejected contrast"],
+      ["Reward model + PPO", "Learned scalar reward", "Can optimize sampled behavior", "Reward hacking and complexity"],
+      ["DPO", "Preferred vs rejected pairs", "Direct, stable objective", "Limited to comparison coverage"],
+      ["Rule / verifier reward", "Programmatic outcome", "Scalable when correctness is checkable", "Proxy shortcuts"]
+    ]
+  }
+};
+
+Object.assign(BLOG_FLASHCARD_TABLES, {
+  "how-reinforcement-learning-teaches-models-to-reason": {
+    title: "Choose the reasoning feedback",
+    intro: "Use the densest trustworthy feedback available without making one canonical trace the only valid route.",
+    columns: ["Feedback", "Coverage", "Strength", "Failure mode"],
+    rows: [
+      ["Outcome verifier", "Final answer", "Cheap, objective, scalable", "Sparse credit and reward hacks"],
+      ["Process labels", "Intermediate steps", "Dense credit", "Expensive and overconstraining"],
+      ["Learned reward", "Flexible qualities", "Works without exact checker", "Model bias and exploitation"],
+      ["Group-relative reward", "Answers to one prompt", "No separate value model", "Weak signal when group lacks diversity"]
+    ]
+  },
+  "thinking-in-tokens": {
+    title: "Spend reasoning tokens",
+    intro: "A useful token changes later computation; extra narration that preserves the same state is pure cost.",
+    columns: ["Token use", "Carries forward", "Helps when", "Waste signal"],
+    rows: [
+      ["Decompose", "Subgoals and order", "Dependencies are long", "Restates the prompt"],
+      ["Calculate", "Intermediate variables", "One pass cannot retain arithmetic", "Repeats known values"],
+      ["Branch", "Alternative hypotheses", "Early choices are uncertain", "Branches are not compared"],
+      ["Verify", "Checks and contradictions", "Errors are detectable", "Rubber-stamps the prior answer"]
+    ]
+  },
+  "how-models-improve-without-changing-their-weights": {
+    title: "Choose the test-time strategy",
+    intro: "Additional compute helps through more useful paths or better selection—not by making one path verbose.",
+    columns: ["Strategy", "Adds", "Needs", "Choose when"],
+    rows: [
+      ["Longer chain", "Serial depth", "Productive reasoning policy", "One trajectory needs decomposition"],
+      ["Best-of-N", "Independent complete attempts", "Reliable ranker", "Generation is harder than verification"],
+      ["Voting", "Answer frequency", "Uncorrelated errors", "Correct answers form a stable mode"],
+      ["Search", "Conditional branch expansion", "Partial-state score", "Some branches can be pruned early"],
+      ["Tools", "External compute or evidence", "Safe action interface", "The task exceeds internal recall"]
+    ]
+  },
+  "how-to-find-what-is-slowing-your-model": {
+    title: "From symptom to profiler",
+    intro: "Use the least detailed tool that can falsify the current bottleneck hypothesis.",
+    columns: ["Symptom", "Likely class", "Inspect", "Candidate fix"],
+    rows: [
+      ["GPU gaps", "Host, launch, dependency", "CPU–GPU timeline", "Compile, pipeline input, remove sync"],
+      ["Long low-AI kernels", "Memory bandwidth", "Roofline and bytes", "Fuse, reuse, reduce precision"],
+      ["Long high-AI kernels", "Compute throughput", "Tensor-core counters", "Tile and use supported shapes"],
+      ["Ranks waiting", "Communication or imbalance", "Distributed timeline", "Overlap, bucket, remap topology"],
+      ["Good average, bad tail", "Queueing or stragglers", "Latency distribution", "Admission and scheduling"]
+    ]
+  },
+  "the-serving-playbook": {
+    title: "Choose the serving technique",
+    intro: "First identify whether the service is limited by queueing, prefill compute, decode bandwidth, or KV capacity.",
+    columns: ["Technique", "Targets", "Wins when", "Trade-off"],
+    rows: [
+      ["Continuous batching", "Decode utilization", "Requests arrive and finish irregularly", "Scheduler complexity"],
+      ["Paged KV", "Fragmentation and capacity", "Sequence lengths vary", "Block metadata and indirection"],
+      ["Prefix cache", "Repeated prefill", "Prompts share long prefixes", "Cache lookup and invalidation"],
+      ["Chunked prefill", "Decode tail latency", "Long prompts block live decoding", "Longer individual prefill"],
+      ["Disaggregation", "Phase-specific scaling", "Prefill and decode loads differ", "KV transfer and routing"],
+      ["Speculative decode", "Target decode steps", "Draft acceptance is high", "Draft and verification overhead"]
+    ]
+  },
+  "the-mechanics-of-llm-inference": {
+    title: "Diagnose the inference phase",
+    intro: "Prefill and decode share weights but expose different limits, so optimize their user-facing latencies separately.",
+    columns: ["Phase", "Parallel dimension", "Common limit", "Primary metric"],
+    rows: [
+      ["Queue", "Requests over time", "Admission and capacity", "Queue delay"],
+      ["Prefill", "Prompt positions", "Compute and attention", "Time to first token"],
+      ["Decode", "Active requests", "Weight/KV bandwidth", "Inter-token latency"],
+      ["Sampling", "Vocabulary and constraints", "CPU/GPU synchronization", "Per-step overhead"],
+      ["KV management", "Sequences and blocks", "Memory capacity/fragmentation", "Maximum live tokens"]
+    ]
+  },
+  "the-parallelism-playbook": {
+    title: "How to choose parallelism",
+    intro: "Start from the resource that fails to fit or finish, then choose the partition whose communication matches the fastest available links.",
+    columns: ["Constraint", "Technique", "What is partitioned", "Communication / cost", "Choose when"],
+    rows: [
+      ["Need more throughput", "Data parallel / DDP", "Batch examples", "Gradient all-reduce", "One model replica fits per worker"],
+      ["Optimizer state does not fit", "ZeRO / FSDP", "States, gradients, parameters", "Gather + reduce-scatter", "Model compute fits but persistent state does not"],
+      ["One layer does not fit", "Tensor parallel", "Matrix dimensions / heads", "Collectives inside every layer", "Fast intra-node links are available"],
+      ["Whole model does not fit", "Pipeline parallel", "Contiguous layer stages", "Activations + pipeline bubbles", "Stages can be balanced across devices"],
+      ["Context activations do not fit", "Context / sequence parallel", "Token positions", "Attention and normalization exchanges", "Very long sequences dominate memory"],
+      ["MoE experts do not fit", "Expert parallel", "Expert parameters and routed tokens", "All-to-all + load imbalance", "Sparse experts expand capacity per token"],
+      ["Several constraints", "Hybrid N-D parallel", "Multiple axes", "Interacting collectives", "Map chatty axes within-node and quieter axes across nodes"]
+    ]
+  },
+  "inside-a-training-step": {
+    title: "Read the training memory ledger",
+    intro: "Separate persistent state from tensors whose lifetime ends during forward, backward, or the optimizer step.",
+    columns: ["Memory", "Scales with", "Lifetime", "Reduction lever"],
+    rows: [
+      ["Weights", "Parameter count", "Entire run", "Lower precision or sharding"],
+      ["Optimizer states", "Parameters × states", "Entire run", "ZeRO/FSDP or cheaper optimizer"],
+      ["Gradients", "Trainable parameters", "Backward to update", "Sharding or low-rank adaptation"],
+      ["Activations", "Batch × tokens × width × layers", "Forward through backward", "Checkpointing or smaller microbatch"],
+      ["Temporaries", "Largest kernels / collectives", "One operation", "Fusion, tiling, buffer reuse"]
+    ]
+  },
+  "talk-is-not-cheap": {
+    title: "Choose the communication strategy",
+    intro: "Message size decides whether startup latency or link bandwidth matters; topology decides which algorithm can reach that limit.",
+    columns: ["Situation", "Dominant term", "Prefer", "Avoid"],
+    rows: [
+      ["Many tiny tensors", "Startup latency α", "Bucket or fuse messages", "One collective per tensor"],
+      ["Large dense tensor", "Bytes / bandwidth", "Bandwidth-efficient ring", "Extra copies and slow links"],
+      ["Small reduction", "Collective depth", "Tree-like reduction", "Long sequential ring"],
+      ["Multi-node hierarchy", "Slowest boundary", "Hierarchical collective", "Topology-blind rank order"],
+      ["Independent compute exists", "Critical-path overlap", "Launch communication early", "False overlap with hidden dependency"]
+    ]
+  },
+  "why-fast-gpus-still-wait-for-memory": {
+    title: "Choose the optimization",
+    intro: "Arithmetic intensity determines whether to reduce byte traffic or improve arithmetic throughput.",
+    columns: ["Regime", "Evidence", "Optimize", "Usually ineffective"],
+    rows: [
+      ["Memory-bound", "AI below ridge; bandwidth high", "Fuse, reuse, quantize, coalesce", "More peak FLOPs"],
+      ["Compute-bound", "AI above ridge; tensor cores busy", "Better tiling and math units", "Only reducing launches"],
+      ["Latency-bound", "Tiny kernels and gaps", "Fuse or compile graph", "Bandwidth tuning alone"],
+      ["Capacity-bound", "Working set does not fit", "Shard, recompute, compress", "Faster kernel on same footprint"]
+    ]
+  },
+  "why-gpus-are-built-for-deep-learning": {
+    title: "Map the workload to the processor",
+    intro: "Choose throughput hardware when regular parallel work can amortize movement and launch overhead.",
+    columns: ["Workload property", "GPU advantage", "Requirement", "CPU may win when"],
+    rows: [
+      ["Massive data parallelism", "Many arithmetic lanes", "Thousands of independent operations", "Problem is small"],
+      ["Regular matrix math", "Tensor cores", "Supported shapes and precision", "Control flow dominates"],
+      ["Reusable tiles", "Shared memory and cache", "Locality-aware kernels", "Access is irregular"],
+      ["Long memory latency", "Warp switching", "Enough occupancy", "Single request needs minimum latency"]
+    ]
+  },
+  "inside-a-modern-vision-encoder": {
+    title: "Choose the image intake",
+    intro: "Resolution policy and connector compression jointly determine what evidence survives and what the LLM must pay for.",
+    columns: ["Method", "Detail", "Token cost", "Failure"],
+    rows: [
+      ["Fixed resize", "Uniform global view", "Predictable and low", "Small text and objects disappear"],
+      ["Crop", "High detail in selected region", "Low to moderate", "Missed context outside crop"],
+      ["Tiling", "High local detail + overview", "Grows with tiles", "Duplicated regions and spatial stitching"],
+      ["Native / dynamic resolution", "Preserves aspect and detail", "Variable", "Batching and position complexity"],
+      ["Query compression", "Task-shaped summaries", "Fixed downstream", "Fine evidence lost in bottleneck"]
+    ]
+  },
+  "one-transformer-two-modalities": {
+    title: "What changes at the modality boundary",
+    intro: "The transformer middle can be shared only after each modality supplies a compatible sequence and geometry.",
+    columns: ["Stage", "Text", "Vision", "Shared after"],
+    rows: [
+      ["Tokenize", "Discrete subword IDs", "Continuous pixel patches", "Projection to width d"],
+      ["Position", "1D order", "2D row and column", "Position-aware vectors"],
+      ["Mask", "Often causal", "Often bidirectional", "Task-specific interaction graph"],
+      ["Backbone", "Attention + FFN", "Attention + FFN", "Vector sequence exists"],
+      ["Output", "Vocabulary logits", "Class, region, or features", "Task head defines meaning"]
+    ]
+  },
+  "an-image-is-a-sentence": {
+    title: "Control the ViT token budget",
+    intro: "Patch size and spatial hierarchy decide whether detail or quadratic attention becomes the limiting resource.",
+    columns: ["Design", "Token interaction", "Benefit", "Choose when"],
+    rows: [
+      ["Vanilla ViT", "Global at one scale", "Maximum flexibility", "Resolution is moderate and data is large"],
+      ["DeiT recipe", "Global at one scale", "Data-efficient training", "Private pretraining scale is unavailable"],
+      ["Pyramid", "Tokens merge by stage", "Multiscale dense features", "Detection and segmentation need hierarchy"],
+      ["Windowed / Swin", "Local windows + shifts", "High-resolution efficiency", "Local structure dominates early"],
+      ["Video tokens", "Space × time", "Motion reasoning", "Temporal cost can be constrained"]
+    ]
+  },
+  "across-the-cnnverse": {
+    title: "Choose the convolutional block",
+    intro: "CNN families differ in how they buy receptive field and channel mixing under a compute budget.",
+    columns: ["Block", "Spatial mixing", "Channel mixing", "Best use"],
+    rows: [
+      ["Dense convolution", "k×k across all channels", "Inside same kernel", "Simple, hardware-friendly baseline"],
+      ["Bottleneck", "Narrow middle convolution", "1×1 projections", "Deep residual networks"],
+      ["Depthwise separable", "Per-channel k×k", "Separate 1×1", "Mobile or low-FLOP models"],
+      ["Dilated", "Sparse enlarged kernel", "Normal channel mix", "Large receptive field without downsampling"],
+      ["ConvNeXt block", "Large depthwise kernel", "Inverted bottleneck", "Transformer-era CNN accuracy"]
+    ]
+  },
+  "evolution-of-ml-architectures": {
+    title: "Compare information movement",
+    intro: "Architecture choice follows the structure that should be cheap: locality, persistent state, or content-addressed retrieval.",
+    columns: ["Primitive", "Information path", "Training parallelism", "Natural strength"],
+    rows: [
+      ["Dense", "All features in one layer", "High", "Fixed-size global mixing"],
+      ["Convolution", "Local then expanding", "High", "Spatial locality and translation"],
+      ["Recurrence", "Through serial state", "Low across time", "Streaming and compact state"],
+      ["Attention", "Direct content-based edges", "High across known tokens", "Flexible retrieval"],
+      ["State-space", "Structured recurrent scan", "Parallelizable training", "Long sequences and streaming"],
+      ["Hybrid", "Primitive chosen by layer", "Mixed", "Balancing retrieval with efficiency"]
+    ]
+  },
+  "how-models-know-where-they-are": {
+    title: "Choose positional geometry",
+    intro: "The best encoding makes task-relevant relationships easy while surviving the lengths and shapes expected at inference.",
+    columns: ["Method", "Represents", "Strength", "Limitation"],
+    rows: [
+      ["Learned absolute", "Token index", "Flexible in training range", "Fixed table and weak extrapolation"],
+      ["Sinusoidal", "Absolute multiscale phase", "No learned table", "Frequency behavior still shifts"],
+      ["Relative bias", "Pairwise displacement", "Direct distance preference", "Bias form can limit geometry"],
+      ["RoPE", "Relative phase in Q/K", "Natural dot-product displacement", "Long-context scaling is delicate"],
+      ["2D / multimodal", "Row, column, time, modality", "Preserves structured coordinates", "More axes need calibration"]
+    ]
+  },
+  "what-an-optimizer-actually-does": {
+    title: "Choose the update geometry",
+    intro: "Match the optimizer to gradient noise, curvature, state budget, and distributed bandwidth—not habit.",
+    columns: ["Method", "Memory", "Adaptation", "Choose when"],
+    rows: [
+      ["SGD", "One update buffer or none", "Global learning rate", "Scale is uniform and memory is tight"],
+      ["Momentum", "First moment", "Temporal smoothing", "Directions are noisy but persistent"],
+      ["AdamW", "First + second moments", "Per-coordinate scale", "Transformer gradients vary by coordinate"],
+      ["Matrix-aware / Muon", "Matrix update state", "Balances matrix directions", "Large 2D parameters dominate and kernels support it"],
+      ["Sharded optimizer", "State divided by ranks", "Same logical rule", "Optimizer memory no longer fits locally"]
+    ]
+  },
+  "the-geometry-of-normalization": {
+    title: "Choose what to normalize",
+    intro: "Axis choice determines which examples or features share statistics and which scale information disappears.",
+    columns: ["Method", "Statistics over", "Keeps batch independent?", "Choose when"],
+    rows: [
+      ["BatchNorm", "Batch + spatial per channel", "No", "CNN batches are large and stable"],
+      ["LayerNorm", "Features per token/example", "Yes", "Transformer tokens need centered scale"],
+      ["RMSNorm", "Feature RMS per token", "Yes", "Scaling control is enough and simplicity matters"],
+      ["GroupNorm", "Channel groups per example", "Yes", "Vision batches are small"],
+      ["InstanceNorm", "Spatial map per channel/example", "Yes", "Instance style statistics should be removed"]
+    ]
+  },
+  "why-neural-networks-need-nonlinearity": {
+    title: "Choose an activation",
+    intro: "Start with gradient flow and gating behavior, then account for sparsity, precision, and projection cost.",
+    columns: ["Activation", "Derivative behavior", "Strength", "Main cost / failure"],
+    rows: [
+      ["Sigmoid / tanh", "Saturates at both ends", "Smooth bounded gate", "Vanishing gradients"],
+      ["ReLU", "0 or 1", "Cheap and sparse", "Dead negative units"],
+      ["GELU / SiLU", "Smooth self-gate", "Stable transformer features", "Dense and slightly costlier"],
+      ["SwiGLU", "Learned multiplicative gate", "Strong quality per compute", "Extra projection width"],
+      ["Squared ReLU", "Zero then growing slope", "Sparse high-response features", "Large activation tails"]
+    ]
+  }
+});
+
+Object.entries(BLOG_FLASHCARD_TABLES).forEach(([slug, table]) => {
+  if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].table = table;
+});

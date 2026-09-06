@@ -419,7 +419,11 @@ async function initializeBlogFlashcards() {
   const deck = window.BLOG_FLASHCARDS?.[slug];
   if (!deck || !Array.isArray(deck.cards) || !deck.cards.length) return;
   const deckCards = [...deck.cards, ...(Array.isArray(deck.deepDive) ? deck.deepDive : [])];
-  const estimatedMinutes = Math.max(3, Math.ceil(deckCards.length * 0.65 + (deck.results?.length || 0) * 0.35));
+  const estimatedMinutes = Math.max(3, Math.ceil(
+    deckCards.length * 0.65
+    + (deck.results?.length || 0) * 0.35
+    + (deck.table?.rows?.length || 0) * 0.22,
+  ));
 
   const switcher = flashcardElement("section", "article-view-switcher");
   switcher.setAttribute("aria-label", "Choose a reading format");
@@ -494,6 +498,42 @@ async function initializeBlogFlashcards() {
   });
   results.append(resultsHeader, resultsGrid);
 
+  const summaryTable = flashcardElement("section", "flashcard-summary-table");
+  if (deck.table) {
+    summaryTable.setAttribute("aria-labelledby", "flashcard-summary-table-title");
+    const tableHeader = flashcardElement("div", "flashcard-summary-table__header");
+    tableHeader.append(
+      flashcardElement("p", "flashcard-summary-table__eyebrow", "At a glance"),
+      flashcardElement("h3", "flashcard-summary-table__title", deck.table.title),
+      flashcardElement("p", "flashcard-summary-table__intro", deck.table.intro),
+    );
+    tableHeader.querySelector("h3").id = "flashcard-summary-table-title";
+    const tableScroll = flashcardElement("div", "flashcard-summary-table__scroll");
+    const table = document.createElement("table");
+    const tableHead = document.createElement("thead");
+    const headingRow = document.createElement("tr");
+    deck.table.columns.forEach((column) => {
+      const heading = flashcardElement("th", "", column);
+      heading.scope = "col";
+      headingRow.appendChild(heading);
+    });
+    tableHead.appendChild(headingRow);
+    const tableBody = document.createElement("tbody");
+    deck.table.rows.forEach((row) => {
+      const tableRow = document.createElement("tr");
+      row.forEach((cell, cellIndex) => {
+        const element = flashcardElement(cellIndex === 0 ? "th" : "td", "", cell);
+        if (cellIndex === 0) element.scope = "row";
+        element.dataset.label = deck.table.columns[cellIndex];
+        tableRow.appendChild(element);
+      });
+      tableBody.appendChild(tableRow);
+    });
+    table.append(tableHead, tableBody);
+    tableScroll.appendChild(table);
+    summaryTable.append(tableHeader, tableScroll);
+  }
+
   const deckTools = flashcardElement("div", "flashcard-deck__tools");
   deckTools.appendChild(flashcardElement("p", "flashcard-deck__hint", "Try answering before you reveal each card."));
   const expandButton = flashcardElement("button", "flashcard-deck__expand", "Reveal all answers");
@@ -556,6 +596,7 @@ async function initializeBlogFlashcards() {
 
   panel.append(hero, framework);
   if (deck.results?.length) panel.appendChild(results);
+  if (deck.table) panel.appendChild(summaryTable);
   panel.append(deckTools, cardList, finish);
   article.parentNode.insertBefore(switcher, article);
   article.parentNode.insertBefore(panel, article);
