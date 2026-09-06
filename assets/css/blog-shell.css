@@ -1387,6 +1387,19 @@ html.dark-mode .flashcard-formula-guide {
   letter-spacing: 0.08em;
 }
 
+.flashcard-formula__cell {
+  min-width: 0;
+}
+
+.flashcard-formula__cell-label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--blog-muted);
+  font: 700 9px/1.2 var(--blog-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .flashcard-formula__value,
 .flashcard-answer-formulae__value {
   min-width: 0;
@@ -1846,7 +1859,7 @@ html.dark-mode .flashcard-formula-guide {
     gap: 10px;
   }
 
-  .flashcard-formula__context {
+  .flashcard-formula__consequence {
     grid-column: 2;
   }
 

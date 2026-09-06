@@ -428,6 +428,7 @@ function flashcardSentenceSummary(value, limit = 280) {
     .map((sentence) => sentence.replace(/\uE000/g, "."));
   let summary = "";
   for (const sentence of sentences) {
+    if (!summary && sentence.trim().length > limit) return restoreMath(cleanFlashcardSourceText(sentence, limit));
     if (summary && summary.length + sentence.trim().length + 1 > limit) {
       if (summary.length < limit * 0.46) return restoreMath(cleanFlashcardSourceText(`${summary} ${sentence}`, limit));
       break;
@@ -443,6 +444,83 @@ function cleanFlashcardHeading(value) {
     .replace(/^\d+\s*[.\-—:]\s*/, "")
     .replace(/^part\s+[ivxlcdm\d]+\s*[:\-—]\s*/i, "")
     .trim();
+}
+
+function flashcardReadableProse(node) {
+  if (!node || node.matches?.("figcaption, .fig-cap, .fig-note, .figure-caption, .figure-note, .eq, .math, .math-block, .eqbox, .keymath, .formula, .key-math")) return "";
+  const rawText = cleanFlashcardSourceText(node.textContent);
+  if (/^(?:\$\$[\s\S]+\$\$|\\\[[\s\S]+\\\]|\\\([\s\S]+\\\))$/.test(rawText)) return "";
+  const clone = node.cloneNode(true);
+  clone.querySelectorAll([
+    ".katex",
+    ".katex-display",
+    ".eq",
+    ".math",
+    ".math-block",
+    ".eq-inline",
+    ".eqbox",
+    ".keymath",
+    ".formula",
+    ".key-math",
+    "script",
+    "style",
+  ].join(", ")).forEach((element) => element.remove());
+  return cleanFlashcardSourceText(clone.textContent);
+}
+
+function flashcardInsightScore(value, title = "") {
+  const text = cleanFlashcardSourceText(value);
+  const titleTokens = flashcardCoverageTokens(title);
+  const textTokens = flashcardCoverageTokens(text);
+  let score = Math.min(3, titleTokens.filter((token) => textTokens.includes(token)).length);
+  if (/(?:therefore|which means|this means|so that|because|implies?|consequence|trade-?off|rule of thumb|in practice|the result|the key|the point|must|should|cannot|only when|instead|rather than|,\s*not\b)/i.test(text)) score += 4;
+  if (/(?:\buse\b|choose|prefer|avoid|keep|replace|allocate|budget)/i.test(text)) score += 3;
+  if (/(?:scales? (?:as|with)|grows?|falls?|increases?|decreases?|reduces?|costs?|saves?|dominates?|bottleneck|bounded?|optimal|stable|unstable)/i.test(text)) score += 4;
+  if (/(?:failure|fails?|wrong|risk|danger|incident|security|privacy|leak|poison|struggle|highest-leverage|most systems)/i.test(text)) score += 3;
+  if (/(?:beats?|matters?|worth|currency|mental model|rule|invariant)/i.test(text)) score += 3;
+  if (/(?:\d[\d,]*(?:\.\d+)?\s*(?:[-–]\s*)?(?:×|x|%|flops?|bytes?|tokens?)|[=≈∝≤≥]|\bO\s*\()/i.test(text)) score += 3;
+  if (/(?:for example|specifically|holding .* fixed|doubling|halving)/i.test(text)) score += 2;
+  if (/^(?:nobody starts|there is a moment|before |everything (?:so far|above)|first,|here is|now |one last|pulling |start (?:with|from)|the claim of this section|this section|we (?:begin|have|started)|so far)/i.test(text)) score -= 6;
+  if (/^(?:and|but|so|which)\b/i.test(text)) score -= 5;
+  if (/[:：]\s*$/.test(text)) score -= 4;
+  if (/^(?:in|on) (?:january|february|march|april|may|june|july|august|september|october|november|december|19\d\d|20\d\d)/i.test(text)) score -= 2;
+  return score;
+}
+
+function flashcardInsightSummary(value, title = "", limit = 280) {
+  const source = cleanFlashcardSourceText(value);
+  if (!source) return "";
+  const protectedParts = [];
+  const protectedText = source
+    .replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g, (snippet) => {
+      const token = `\uE110${protectedParts.length}\uE111`;
+      protectedParts.push(snippet);
+      return token;
+    })
+    .replace(/\b(?:et al|e\.g|i\.e|Fig|Eq|Sec|Dr)\./gi, (abbreviation) => abbreviation.replace(/\./g, "\uE002"))
+    .replace(/(\d)\.(\d)/g, "$1\uE000$2");
+  const restore = (text) => text
+    .replace(/\uE000/g, ".")
+    .replace(/\uE002/g, ".")
+    .replace(/\uE110(\d+)\uE111/g, (_match, index) => protectedParts[Number(index)] || "");
+  const sentences = (protectedText.match(/[^.!?]+[.!?]+(?:[”’"']|$)?|[^.!?]+$/g) || [])
+    .map((sentence, index) => ({
+      index,
+      text: restore(sentence.trim()),
+    }))
+    .filter((sentence) => sentence.text.length >= 18);
+  if (!sentences.length) return flashcardSentenceSummary(source, limit);
+  sentences.forEach((sentence) => { sentence.score = flashcardInsightScore(sentence.text, title); });
+  const ranked = [...sentences].sort((left, right) => right.score - left.score || left.index - right.index);
+  const selected = [ranked[0]];
+  for (const candidate of ranked.slice(1)) {
+    const prospectiveLength = selected.reduce((total, sentence) => total + sentence.text.length + 1, 0) + candidate.text.length;
+    if (candidate.score < 2 || prospectiveLength > limit) continue;
+    selected.push(candidate);
+    if (selected.length === 3) break;
+  }
+  const summary = selected.sort((left, right) => left.index - right.index).map((sentence) => sentence.text).join(" ");
+  return flashcardSentenceSummary(summary, limit);
 }
 
 function collectFlashcardSections(article) {
@@ -480,18 +558,22 @@ function collectFlashcardSections(article) {
       if (candidate.matches("h2") || candidate.matches(heading.tagName.toLowerCase())) break;
       if (!candidate.matches("p, figcaption, .aside-note, .keyline, .nuance, li")) continue;
       if (candidate.closest("nav, .toc, .article-toc, footer, .article-citation, .animation-controls")) continue;
-      const text = cleanFlashcardSourceText(candidate.textContent);
+      const text = flashcardReadableProse(candidate);
       if (text.length < 45 || /^figure\s+\d+/i.test(text)) continue;
       summaries.push(text);
-      if (summaries.length === 4) break;
+      if (summaries.length === 14) break;
     }
 
     const transitional = /^(?:before |everything (?:so far|above)|first,|here is|now |one last|pulling |start (?:with|from)|the claim of this section|this section|we (?:begin|have|started)|so far)/i;
-    const summarySource = summaries.find((text) => text.length >= 85 && !transitional.test(text))
+    const rankedSummaries = summaries
+      .filter((text) => text.length >= 85 && !transitional.test(text))
+      .map((text, position) => ({ text, score: flashcardInsightScore(text, title) - position * 0.08 }))
+      .sort((left, right) => right.score - left.score);
+    const summarySource = rankedSummaries[0]?.text
       || summaries.find((text) => text.length >= 85)
       || summaries[0]
       || "";
-    const summary = flashcardSentenceSummary(summarySource, 300);
+    const summary = flashcardInsightSummary(summarySource, title, 300);
     return [{
       id: heading.id,
       title,
@@ -511,16 +593,295 @@ function formulaLooksMeaningful(value, isTex = false) {
   return /[=≈≃∝≤≥<>±×÷/∑∏∫√→]|\b(?:argmax|argmin|softmax|log|exp|var|expectation|flops?|bytes?|O\s*\()\b/i.test(text);
 }
 
+function flashcardPlainFormula(value) {
+  let text = cleanFlashcardSourceText(value)
+    .replace(/^\$\$|\$\$$/g, "")
+    .replace(/^\\\[|\\\]$/g, "")
+    .replace(/^\\\(|\\\)$/g, "")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/⁴/g, "^4")
+    .replace(/⁵/g, "^5")
+    .replace(/⁻/g, "-")
+    .replace(/\\mathcal\{O\}/g, "O")
+    .replace(/\\(?:operatorname|mathrm|mathbf|mathit|mathbb)\{([^{}]*)\}/g, "$1")
+    .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)")
+    .replace(/\\sqrt\{([^{}]*)\}/g, "sqrt($1)")
+    .replace(/√\s*([A-Za-zα-ωΑ-Ωℓ]+(?:_[A-Za-z0-9]+)?)/g, "sqrt($1)")
+    .replace(/\\(?:cdot|times)/g, "*")
+    .replace(/\\(?:leq|le)/g, "≤")
+    .replace(/\\(?:geq|ge)/g, "≥")
+    .replace(/\\approx/g, "≈")
+    .replace(/\\propto/g, "∝")
+    .replace(/\\(?:left|right|bigl|bigr|Bigl|Bigr)/g, "")
+    .replace(/\^\(([^()]+)\)/g, "^$1")
+    .replace(/_\(([^()]+)\)/g, "_$1")
+    .replace(/\^\{([^{}]+)\}/g, "^$1")
+    .replace(/_\{([^{}]+)\}/g, "_$1")
+    .replace(/[{}]/g, "")
+    .replace(/\\([A-Za-z]+)/g, "$1");
+  for (let pass = 0; pass < 2; pass += 1) {
+    text = text.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, "($1)/($2)");
+  }
+  return cleanFlashcardSourceText(text);
+}
+
+function flashcardSemanticMathText(node) {
+  const clone = node.cloneNode(true);
+  clone.querySelectorAll("sup").forEach((script) => script.replaceWith(`^(${cleanFlashcardSourceText(script.textContent)})`));
+  clone.querySelectorAll("sub").forEach((script) => script.replaceWith(`_(${cleanFlashcardSourceText(script.textContent)})`));
+  return cleanFlashcardSourceText(clone.textContent);
+}
+
 function flashcardFormulaKey(value) {
-  return cleanFlashcardSourceText(value)
+  return flashcardPlainFormula(value)
     .toLowerCase()
-    .replace(/[\s\u200b]+/g, "")
+    .replace(/[·×]/g, "*")
+    .replace(/[\s\u200b()[\]]+/g, "")
     .replace(/[;,.:]+$/g, "");
+}
+
+function flashcardFormulaSubject(node) {
+  const row = node.closest?.("tr");
+  if (!row) return "";
+  const firstCell = row.querySelector("th, td");
+  const currentCell = node.closest("th, td");
+  if (!firstCell || firstCell === currentCell) return "";
+  return cleanFlashcardSourceText(firstCell.textContent, 70);
+}
+
+function flashcardUsefulFormulaContext(value, formulaText) {
+  const context = cleanFlashcardSourceText(value);
+  if (!context || flashcardFormulaKey(context) === flashcardFormulaKey(formulaText)) return "";
+  const proseOnly = context
+    .replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g, " ")
+    .replace(/\\[A-Za-z]+/g, " ")
+    .replace(/[^A-Za-z\s-]/g, " ");
+  const proseWords = (proseOnly.match(/\b[A-Za-z][A-Za-z-]{2,}\b/g) || [])
+    .filter((word) => !/^(?:argmax|argmin|frac|left|right|mathbb|mathrm|sqrt|sum|times)$/i.test(word));
+  return proseWords.length >= 5 ? flashcardSentenceSummary(context, 290) : "";
+}
+
+function flashcardSplitFormulaTerms(expression) {
+  const terms = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < expression.length; index += 1) {
+    if (expression[index] === "(") depth += 1;
+    else if (expression[index] === ")") depth -= 1;
+    else if (expression[index] === "+" && depth === 0) {
+      terms.push(expression.slice(start, index));
+      start = index + 1;
+    }
+  }
+  terms.push(expression.slice(start));
+  return terms.map((term) => term.trim()).filter(Boolean);
+}
+
+function flashcardScalingFactors(expression) {
+  const compact = flashcardPlainFormula(expression)
+    .replace(/\s+/g, "")
+    .replace(/sqrt\(([^()]+)\)/gi, "$1^0.5");
+  if (!compact || /(?:log|exp|softmax|sum|var|conv|min|max)/i.test(compact) || /\([^)]*[+−-][^)]*\)/.test(compact)) return null;
+  const divisionParts = compact.split("/");
+  if (divisionParts.length > 2) return null;
+  const factors = new Map();
+  let denominatorConstant = null;
+
+  divisionParts.forEach((part, partIndex) => {
+    const denominator = partIndex === 1;
+    if (denominator && /^\(?\d+(?:\.\d+)?\)?$/.test(part)) denominatorConstant = Number(part.replace(/[()]/g, ""));
+    const tokenPattern = /([A-Za-zα-ωΑ-ΩℓσΣ](?:_[A-Za-z0-9]+)?)(?:\^(-?\d+(?:\.\d+)?))?/g;
+    let match;
+    while ((match = tokenPattern.exec(part))) {
+      const variable = match[1];
+      const exponent = Number(match[2] || 1) * (denominator ? -1 : 1);
+      factors.set(variable, (factors.get(variable) || 0) + exponent);
+    }
+    const remainder = part
+      .replace(tokenPattern, "")
+      .replace(/[\d.*·×^()+−-]/g, "");
+    if (remainder) factors.clear();
+  });
+
+  [...factors.entries()].forEach(([variable, exponent]) => {
+    if (!exponent || variable === "O") factors.delete(variable);
+  });
+  if (!factors.size || factors.size > 5) return null;
+  return { factors, denominatorConstant };
+}
+
+function flashcardFactorDescription(variable, exponent) {
+  if (exponent === 1) return `linear in ${variable}`;
+  if (exponent === 2) return `quadratic in ${variable}`;
+  if (exponent === 3) return `cubic in ${variable}`;
+  if (exponent === 0.5) return `square-root in ${variable}`;
+  if (exponent === -1) return `inversely proportional to ${variable}`;
+  if (exponent === -2) return `inverse-quadratic in ${variable}`;
+  return exponent > 0 ? `proportional to ${variable}^${exponent}` : `proportional to 1/${variable}^${Math.abs(exponent)}`;
+}
+
+function flashcardDoublingEffect(variable, exponent, noun = "it") {
+  if (exponent === 1) return `doubling ${variable} doubles ${noun}`;
+  if (exponent === 2) return `doubling ${variable} makes ${noun} 4× larger`;
+  if (exponent === 3) return `doubling ${variable} makes ${noun} 8× larger`;
+  if (exponent === 0.5) return `doubling ${variable} makes ${noun} about 1.41× larger`;
+  if (exponent === -1) return `doubling ${variable} halves ${noun}`;
+  if (exponent === -2) return `doubling ${variable} cuts ${noun} to one quarter`;
+  const multiplier = Math.pow(2, Math.abs(exponent));
+  const formatted = Number.isInteger(multiplier) ? String(multiplier) : multiplier.toFixed(2);
+  return exponent > 0
+    ? `doubling ${variable} makes ${noun} ${formatted}× larger`
+    : `doubling ${variable} divides ${noun} by ${formatted}`;
+}
+
+function flashcardFormulaConsequence(value, subject = "") {
+  const plain = flashcardPlainFormula(value);
+  const compact = plain.replace(/\s+/g, "");
+  const complexity = compact.match(/^(?:O|Θ)\((.*)\)$/i);
+  let expression = complexity?.[1] || "";
+  let quantity = subject ? `${subject} cost` : "The quantity";
+
+  if (complexity && expression === "1") {
+    return `${quantity} is constant-time with respect to the modeled input size. Doubling that input does not increase this operation's asymptotic work, although fixed implementation costs still remain.`;
+  }
+
+  if (/[∈⊂]\s*(?:R|ℝ)/.test(plain)) {
+    const shapeBody = plain.match(/[∈⊂]\s*(?:R|ℝ)\s*\^?\s*\(?([^)]{1,100})\)?/i)?.[1] || "";
+    const shapeScaling = flashcardScalingFactors(shapeBody);
+    if (shapeScaling) {
+      const axes = [...shapeScaling.factors.keys()];
+      const effects = [...shapeScaling.factors]
+        .slice(0, 4)
+        .map(([variable, exponent]) => flashcardDoublingEffect(variable, exponent, "the stored element count"));
+      return `This is a tensor-shape constraint. Storage scales with the product of its axes (${axes.join(", ")}); ${effects.join("; ")}. The same dimensions also determine which matrix products are valid.`;
+    }
+    return "This is a shape constraint, not a scalar equality: it specifies the object's permitted dimensions and therefore which products are valid. Storage grows with the product of the listed axis sizes.";
+  }
+  const rootSum = compact.match(/^([A-Za-z]+)\+sqrt\(?([A-Za-z]+)\)?\+sqrt\(?([A-Za-z]+)\)?$/i);
+  if (rootSum) {
+    return `${quantity} combines a linear ${rootSum[1]} term with square-root ${rootSum[2]} and ${rootSum[3]} terms. Doubling ${rootSum[1]} doubles the linear contribution, while either square-root input must grow 4× to double its contribution.`;
+  }
+
+  const inverseRoot = compact.match(/^(?:O\()?1\/sqrt\(?([A-Za-zα-ωΑ-Ωℓ]+)\)?\)?$/i);
+  if (inverseRoot) {
+    return `${quantity} falls with the inverse square root of ${inverseRoot[1]}. Doubling ${inverseRoot[1]} multiplies it by \\(1/\\sqrt{2}\\approx0.71\\); cutting it in half requires 4× more ${inverseRoot[1]}.`;
+  }
+  const rootDenominator = compact.match(/^([A-Za-zα-ωΑ-Ωℓ]+)\/sqrt\(?([A-Za-zα-ωΑ-Ωℓ]+)\)?$/i);
+  if (rootDenominator) {
+    return `${quantity} is linear in ${rootDenominator[1]} and inverse-square-root in ${rootDenominator[2]}. Doubling ${rootDenominator[1]} doubles it; doubling ${rootDenominator[2]} multiplies it by about 0.71.`;
+  }
+  const inverseVariable = compact.match(/^1\/([A-Za-zα-ωΑ-Ωḡ]+)$/i);
+  if (inverseVariable) {
+    return `${quantity} is inversely proportional to ${inverseVariable[1]}. Doubling ${inverseVariable[1]} halves it; halving ${inverseVariable[1]} doubles it.`;
+  }
+  const symbolicPower = compact.match(/^([A-Za-z])\^(-?[A-Za-zα-ωΑ-Ω]+|-?\d*\.\d+)$/i);
+  if (symbolicPower) {
+    const exponent = Number(symbolicPower[2]);
+    if (Number.isFinite(exponent)) {
+      const factor = Math.pow(2, exponent);
+      return `${quantity} follows a power law in ${symbolicPower[1]} with exponent ${exponent}. Doubling ${symbolicPower[1]} multiplies it by \\(2^{${exponent}}\\approx${factor.toFixed(2)}\\), ${factor < 1 ? "so it decreases" : factor < 2 ? "so it grows sublinearly" : "so it grows superlinearly"}.`;
+    }
+    const negative = symbolicPower[2].startsWith("-");
+    return `${quantity} is a power law in ${symbolicPower[1]}. Because the exponent is ${negative ? "negative" : "positive"}, increasing ${symbolicPower[1]} ${negative ? "reduces" : "increases"} the result; doubling it changes the result by \\(2^{${symbolicPower[2]}}\\).`;
+  }
+  if (/∂.+\/∂.+(?:→|≈|=)I/.test(compact)) {
+    return "The local Jacobian approaches the identity, so both activations and gradients pass through the block with little rescaling instead of being repeatedly amplified or attenuated.";
+  }
+  if (/q(?:\^T|⊤)?k\/sqrt\(?d\)?/i.test(compact)) {
+    return "The raw dot-product variance grows with head width \\(d\\); dividing by \\(\\sqrt d\\) keeps the attention-logit scale roughly constant, preventing softmax from saturating merely because the head is wider.";
+  }
+  if (/\/[^/]*(?:\|\||‖).*(?:\^2|²)/.test(compact)) {
+    return "The denominator is squared: doubling its magnitude cuts the ratio to one quarter, while halving it makes the ratio 4× larger.";
+  }
+  if (/(?:1|beta)\)?\/\(?(?:lvert)?y(?:rvert)?\)?logpi/i.test(compact)) {
+    const betaScaled = /beta/i.test(compact);
+    return `Dividing sequence log-probability by response length turns a sum into a per-token average, removing the automatic penalty on longer answers.${betaScaled ? " The β factor sets preference strength: doubling β doubles the margin before the outer loss is applied." : " Length now matters only through answer quality, not simply through the number of accumulated log-probability terms."}`;
+  }
+  if (/^logpi(?:_|$)/i.test(compact)) {
+    return "Raw sequence log-probability sums one usually-negative term per token, so longer answers receive a larger-magnitude penalty unless the objective normalizes for length.";
+  }
+
+  if (!expression) {
+    const relation = plain.match(/^(.{1,45}?)(?:=|≈|∝)(.+)$/);
+    if (relation && relation[2].length <= 90) {
+      expression = relation[2];
+      const left = cleanFlashcardSourceText(relation[1], 32);
+      if (left && !/[+*/]/.test(left)) quantity = left;
+    }
+  }
+  if (!expression && /^[\dA-Za-zα-ωΑ-Ωℓ().+*/^_-]+$/.test(compact) && /[A-Za-zα-ωΑ-Ωℓ]/.test(compact) && /[+*/^]/.test(compact)) {
+    expression = compact;
+  }
+
+  if (expression) {
+    const distributive = expression.match(/^(.*?)\(([^()+]+)\+([^()+]+)\)(.*?)$/);
+    if (distributive) {
+      const [, prefix, firstBranch, secondBranch, suffix] = distributive;
+      expression = `${prefix}${firstBranch}${suffix}+${prefix}${secondBranch}${suffix}`;
+    }
+    const terms = flashcardSplitFormulaTerms(expression);
+    const parsedTerms = terms.map(flashcardScalingFactors);
+    if (parsedTerms.every(Boolean)) {
+      if (parsedTerms.length === 1) {
+        const parsed = parsedTerms[0];
+        const descriptions = [...parsed.factors].map(([variable, exponent]) => flashcardFactorDescription(variable, exponent));
+        const effects = [...parsed.factors].slice(0, 4).map(([variable, exponent]) => flashcardDoublingEffect(variable, exponent));
+        const constant = parsed.denominatorConstant && parsed.denominatorConstant > 1
+          ? ` The /${parsed.denominatorConstant} lowers the constant by ${parsed.denominatorConstant}× but does not change the asymptotic order.`
+          : "";
+        return `${quantity} is ${descriptions.join(", ")}. Holding other terms fixed, ${effects.join("; ")}.${constant}`;
+      }
+
+      const termNames = ["first", "second", "third"];
+      const descriptions = parsedTerms.map((parsed, index) => (
+        `the ${termNames[index] || `${index + 1}th`} term is ${[...parsed.factors].map(([variable, exponent]) => flashcardFactorDescription(variable, exponent)).join(", ")}`
+      ));
+      const variables = [...new Set(parsedTerms.flatMap((parsed) => [...parsed.factors.keys()]))].slice(0, 3);
+      const effects = variables.map((variable) => {
+        const changes = parsedTerms.map((parsed, index) => {
+          const exponent = parsed.factors.get(variable) || 0;
+          const noun = `the ${termNames[index] || `${index + 1}th`} term`;
+          return exponent ? flashcardDoublingEffect(variable, exponent, noun) : `${noun} is unchanged`;
+        });
+        return changes.join(" while ");
+      });
+      const effectText = effects.join("; ");
+      return `${quantity} adds two regimes: ${descriptions.join("; ")}. ${effectText.charAt(0).toUpperCase()}${effectText.slice(1)}. Whichever term is larger dominates the total.`;
+    }
+  }
+
+  if (/softmax|exp\([^)]*\).*\/(?:sum|Σ)/i.test(plain)) {
+    return "The outputs are coupled probabilities: raising one logit increases its share while reducing the others, and adding the same constant to every logit changes nothing.";
+  }
+  if (/(?:≥|≤|<|>)/.test(plain)) {
+    return "This is a regime boundary: moving a quantity across the threshold changes which condition or approximation is valid.";
+  }
+  if (/\b(?:min|max)\b/i.test(plain)) {
+    return "The active branch changes when the arguments cross; within a branch, only the selected argument controls the result.";
+  }
+  if (/\b(?:log|ln)\b/i.test(plain)) {
+    return "The logarithm turns multiplicative changes into additive ones, so ratios—not raw differences—set the scale of the effect.";
+  }
+  if (/[=≈∝]/.test(plain)) {
+    return "Read the right-hand side as a sensitivity map: coefficients set proportional changes, powers amplify them, and denominators suppress them.";
+  }
+  return "";
+}
+
+function flashcardFormulaExplanation({ formulaText, context, subject, section }) {
+  const prose = flashcardUsefulFormulaContext(context, formulaText);
+  const consequence = flashcardFormulaConsequence(formulaText, subject);
+  const proseAlreadyExplainsChange = /(?:\d+(?:\.\d+)?\s*[×x]|quadratic|linear|doubl|halv|increase|decrease|reduction|proportional|scales? (?:as|with)|grows?|shrinks?)/i.test(prose);
+  if (prose && consequence && !proseAlreadyExplainsChange) return flashcardSentenceSummary(`${consequence} ${prose}`, 430);
+  if (prose) return prose;
+  if (consequence) return consequence;
+  return `This relationship formalizes “${section?.title || "the section's core mechanism"}”. To read its sensitivity, change one input at a time while holding the others fixed, then compare the resulting value or regime.`;
 }
 
 function collectFlashcardFormulae(article, sections) {
   const formulae = [];
-  const seen = new Set();
+  const seen = new Map();
   const mathSelector = ".eq, .math, .math-block, .eq-inline, .eqbox, .keymath, .formula, .key-math, .m, .v";
   const ignoredSelector = "nav, .toc, .article-toc, script, style, pre, svg, canvas, .article-citation";
 
@@ -548,27 +909,39 @@ function collectFlashcardFormulae(article, sections) {
     return findText("nextElementSibling") || findText("previousElementSibling");
   };
 
-  const addFormula = ({ node, text, html = "", tex = "", context = "", forceMeaningful = false }) => {
+  const addFormula = ({ node, text, html = "", tex = "", context = "", subject = "", forceMeaningful = false }) => {
     if (!forceMeaningful && !formulaLooksMeaningful(text, Boolean(tex))) return;
     const key = flashcardFormulaKey(text);
-    if (!key || seen.has(key)) return;
-    seen.add(key);
+    if (!key) return;
     const section = sectionForNode(node);
-    formulae.push({
+    const formulaSubject = subject || flashcardFormulaSubject(node);
+    const explanation = flashcardFormulaExplanation({ formulaText: text, context, subject: formulaSubject, section });
+    if (seen.has(key)) {
+      const existing = seen.get(key);
+      const existingIsFallback = /formalizes|compare cases by changing/i.test(existing.context);
+      const candidateIsSpecific = /\d+(?:\.\d+)?\s*[×x]|quadratic|linear|doubl|halv|increase|decrease|reduction|proportional/i.test(explanation);
+      if (existingIsFallback || (candidateIsSpecific && !/\d+(?:\.\d+)?\s*[×x]|quadratic|linear|doubl|halv|increase|decrease|reduction|proportional/i.test(existing.context))) {
+        existing.context = explanation;
+      }
+      return;
+    }
+    const formula = {
       text: cleanFlashcardSourceText(text),
       html,
       tex,
-      context: flashcardSentenceSummary(context || section?.summary || "This relationship is derived and interpreted in this section.", 260),
+      context: explanation,
       sectionId: section?.id || "core-relationships",
       sectionTitle: section?.title || "Core relationships",
-    });
+    };
+    formulae.push(formula);
+    seen.set(key, formula);
   };
 
   [...article.querySelectorAll(mathSelector)].forEach((node) => {
     if (node.closest(ignoredSelector)) return;
     const parentMath = node.parentElement?.closest(mathSelector);
     if (parentMath) return;
-    const isInlineNotation = node.matches(".m, .v");
+    const isInlineNotation = node.matches(".m, .v, .eq-inline");
     if (isInlineNotation && !node.closest("p, li, td, th, figcaption")) return;
     const clone = node.cloneNode(true);
     const noteText = [...clone.querySelectorAll(".math-note, .eq-note, .eqnote, .an, .lbl")]
@@ -576,7 +949,7 @@ function collectFlashcardFormulae(article, sections) {
       .join(" ");
     clone.querySelectorAll(".math-note, .eq-note, .eqnote, .an, .lbl, script, style, button").forEach((child) => child.remove());
     clone.querySelectorAll("[id]").forEach((child) => child.removeAttribute("id"));
-    const text = clone.textContent;
+    const text = flashcardSemanticMathText(clone);
     const compactRatio = text.includes("/") && cleanFlashcardSourceText(text).length <= 44 && !/\b[a-z]{4,}\s+[a-z]{4,}\b/i.test(text);
     const meaningfulSuperscript = Boolean(clone.querySelector("sup")) && cleanFlashcardSourceText(text).length >= 3;
     if (isInlineNotation && !formulaLooksMeaningful(text) && !compactRatio && !meaningfulSuperscript) return;
@@ -587,7 +960,7 @@ function collectFlashcardFormulae(article, sections) {
       node,
       text,
       html: clone.innerHTML,
-      context: noteText || adjacentNote || nearbyExplanation(node),
+      context: noteText || adjacentNote || (isInlineNotation ? node.closest("p, li, td, th, figcaption")?.textContent : "") || nearbyExplanation(node),
       forceMeaningful: isInlineNotation && (compactRatio || meaningfulSuperscript),
     });
   });
@@ -603,7 +976,13 @@ function collectFlashcardFormulae(article, sections) {
         const tex = match[0];
         const inner = match[1] || match[2] || match[3] || "";
         const context = (parent.textContent || "").replace(match[0], " ");
-        addFormula({ node: parent, text: inner, tex, context });
+        addFormula({
+          node: parent,
+          text: inner,
+          tex,
+          context: cleanFlashcardSourceText(context) || nearbyExplanation(parent),
+          subject: flashcardFormulaSubject(parent),
+        });
       }
       texPattern.lastIndex = 0;
     }
@@ -612,11 +991,17 @@ function collectFlashcardFormulae(article, sections) {
 
   [...article.querySelectorAll("code")].forEach((node) => {
     if (node.closest(ignoredSelector) || node.closest(mathSelector)) return;
-    const text = cleanFlashcardSourceText(node.textContent);
+    const text = flashcardSemanticMathText(node);
     const hasStrongRelationship = /[=≈≃∝≤≥<>±×÷∑∏∫√→]|\b(?:argmax|argmin|softmax|log|exp|var|flops?|bytes?|O\s*\()\b/i.test(text);
     const isRatioExpression = text.includes("/") && /[\d()^]/.test(text);
     if ((!hasStrongRelationship && !isRatioExpression) || text.length > 240) return;
-    addFormula({ node, text, html: node.innerHTML, context: node.closest("p, li, td")?.textContent || "" });
+    addFormula({
+      node,
+      text,
+      html: node.innerHTML,
+      context: node.closest("p, li, figcaption")?.textContent || "",
+      subject: flashcardFormulaSubject(node),
+    });
   });
 
   return formulae;
@@ -676,7 +1061,7 @@ function matchFlashcardCardToSection(card, sections) {
 }
 
 function flashcardTakeaway(value) {
-  return flashcardSentenceSummary(value, 210);
+  return flashcardInsightSummary(value, "", 280);
 }
 
 function appendFlashcardFormula(target, formula) {
@@ -874,12 +1259,22 @@ async function initializeBlogFlashcards() {
       const list = flashcardElement("div", "flashcard-formula-group__list");
       group.formulae.forEach((formula, formulaIndex) => {
         const item = flashcardElement("article", "flashcard-formula");
+        const formulaCell = flashcardElement("div", "flashcard-formula__cell");
         const value = flashcardElement("div", "flashcard-formula__value");
         appendFlashcardFormula(value, formula);
+        formulaCell.append(
+          flashcardElement("span", "flashcard-formula__cell-label", "Formula"),
+          value,
+        );
+        const consequenceCell = flashcardElement("div", "flashcard-formula__cell flashcard-formula__consequence");
+        consequenceCell.append(
+          flashcardElement("span", "flashcard-formula__cell-label", "Consequence / sensitivity"),
+          flashcardElement("p", "flashcard-formula__context", formula.context),
+        );
         item.append(
           flashcardElement("span", "flashcard-formula__number", String(formulaIndex + 1).padStart(2, "0")),
-          value,
-          flashcardElement("p", "flashcard-formula__context", formula.context),
+          formulaCell,
+          consequenceCell,
         );
         list.appendChild(item);
       });
