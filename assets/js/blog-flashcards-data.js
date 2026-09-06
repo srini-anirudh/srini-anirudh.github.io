@@ -859,7 +859,7 @@ const BLOG_FLASHCARD_RESULTS = {
   ],
   "why-transformers-do-not-explode": [
     ["Variance target", "\\(\\operatorname{Var}(W_{ij}) \\propto 1/d_{in}\\)", "Fan-in-aware initialization keeps a matrix projection from changing signal scale merely because width changed."],
-    ["Attention scale", "\\(QK^\\top)/\\sqrt{d_h}\\)", "The square-root factor keeps logit variance roughly stable as head width grows."],
+    ["Attention scale", "\\(QK^\\top/\\sqrt{d_h}\\)", "The square-root factor keeps logit variance roughly stable as head width grows."],
     ["Stability stack", "5 coupled controls", "Initialization, normalization, residual scaling, optimizer schedule, and precision must work as one signal budget."]
   ],
   "choosing-the-next-token": [

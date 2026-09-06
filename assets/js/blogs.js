@@ -400,6 +400,290 @@ function flashcardElement(tag, className, textContent) {
   return element;
 }
 
+function cleanFlashcardSourceText(value, limit = Infinity) {
+  const text = (value || "")
+    .replace(/[\u00a0\u2007\u202f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (text.length <= limit) return text;
+  const shortened = text.slice(0, Math.max(0, limit - 1));
+  const wordBoundary = shortened.lastIndexOf(" ");
+  return `${shortened.slice(0, wordBoundary > limit * 0.72 ? wordBoundary : shortened.length).trim()}…`;
+}
+
+function flashcardSentenceSummary(value, limit = 280) {
+  const sourceText = cleanFlashcardSourceText(value);
+  const mathSnippets = [];
+  const text = sourceText.replace(/\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)/g, (snippet) => {
+    const token = `\uE100${mathSnippets.length}\uE101`;
+    mathSnippets.push(snippet);
+    return token;
+  });
+  const restoreMath = (summary) => summary
+    .replace(/\uE100(\d+)\uE101/g, (_match, index) => mathSnippets[Number(index)] || "")
+    .replace(/\uE100\d*…?$/g, "…");
+  if (text.length <= limit) return restoreMath(text);
+  const decimalSafeText = text.replace(/(\d)\.(\d)/g, "$1\uE000$2");
+  const sentences = (decimalSafeText.match(/[^.!?]+[.!?]+(?:[”’"']|$)?/g) || [])
+    .map((sentence) => sentence.replace(/\uE000/g, "."));
+  let summary = "";
+  for (const sentence of sentences) {
+    if (summary && summary.length + sentence.trim().length + 1 > limit) {
+      if (summary.length < limit * 0.46) return restoreMath(cleanFlashcardSourceText(`${summary} ${sentence}`, limit));
+      break;
+    }
+    summary = `${summary} ${sentence.trim()}`.trim();
+    if (summary.length >= limit * 0.58) break;
+  }
+  return restoreMath(summary || cleanFlashcardSourceText(text, limit));
+}
+
+function cleanFlashcardHeading(value) {
+  return cleanFlashcardSourceText(value)
+    .replace(/^\d+\s*[.\-—:]\s*/, "")
+    .replace(/^part\s+[ivxlcdm\d]+\s*[:\-—]\s*/i, "")
+    .trim();
+}
+
+function collectFlashcardSections(article) {
+  const excluded = /^(contents?|table of contents|references?|further reading|related (?:reading|articles?)|citation|acknowledg(?:e)?ments?|notes?)$/i;
+  const isUsefulHeading = (heading) => {
+    if (heading.closest("nav, .toc, .article-toc, footer, .article-citation")) return false;
+    const title = cleanFlashcardHeading(heading.textContent);
+    return title.length > 2 && !excluded.test(title);
+  };
+
+  let headings = [...article.querySelectorAll("h2")].filter(isUsefulHeading);
+  if (headings.length < 3) {
+    headings = [...headings, ...article.querySelectorAll("h3")]
+      .filter(isUsefulHeading)
+      .filter((heading, index, all) => all.indexOf(heading) === index)
+      .filter((heading) => !heading.closest(".panel-head, figure, .article-panel"));
+  }
+  headings.sort((left, right) => (
+    left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+  ));
+
+  const readingOrder = [...article.querySelectorAll("h2, h3, p, figcaption, .aside-note, .keyline, .nuance, section > ul > li, section > ol > li")];
+  const seenTitles = new Set();
+  return headings.flatMap((heading, index) => {
+    const title = cleanFlashcardHeading(heading.textContent);
+    const titleKey = title.toLowerCase();
+    if (seenTitles.has(titleKey)) return [];
+    seenTitles.add(titleKey);
+
+    if (!heading.id) heading.id = `article-concept-${index + 1}`;
+    const start = readingOrder.indexOf(heading);
+    const summaries = [];
+    for (let cursor = start + 1; cursor < readingOrder.length; cursor += 1) {
+      const candidate = readingOrder[cursor];
+      if (candidate.matches("h2") || candidate.matches(heading.tagName.toLowerCase())) break;
+      if (!candidate.matches("p, figcaption, .aside-note, .keyline, .nuance, li")) continue;
+      if (candidate.closest("nav, .toc, .article-toc, footer, .article-citation, .animation-controls")) continue;
+      const text = cleanFlashcardSourceText(candidate.textContent);
+      if (text.length < 45 || /^figure\s+\d+/i.test(text)) continue;
+      summaries.push(text);
+      if (summaries.length === 4) break;
+    }
+
+    const transitional = /^(?:before |everything (?:so far|above)|first,|here is|now |one last|pulling |start (?:with|from)|the claim of this section|this section|we (?:begin|have|started)|so far)/i;
+    const summarySource = summaries.find((text) => text.length >= 85 && !transitional.test(text))
+      || summaries.find((text) => text.length >= 85)
+      || summaries[0]
+      || "";
+    const summary = flashcardSentenceSummary(summarySource, 300);
+    return [{
+      id: heading.id,
+      title,
+      summary,
+      heading,
+      index,
+    }];
+  });
+}
+
+function formulaLooksMeaningful(value, isTex = false) {
+  const text = cleanFlashcardSourceText(value);
+  if (text.length < 4 || text.length > 1600) return false;
+  if (isTex) {
+    return /[=<>^]|\\(?:frac|sum|prod|int|sqrt|approx|propto|le|ge|exp|log|mathbb|mathcal|operatorname|begin)\b/.test(text);
+  }
+  return /[=≈≃∝≤≥<>±×÷/∑∏∫√→]|\b(?:argmax|argmin|softmax|log|exp|var|expectation|flops?|bytes?|O\s*\()\b/i.test(text);
+}
+
+function flashcardFormulaKey(value) {
+  return cleanFlashcardSourceText(value)
+    .toLowerCase()
+    .replace(/[\s\u200b]+/g, "")
+    .replace(/[;,.:]+$/g, "");
+}
+
+function collectFlashcardFormulae(article, sections) {
+  const formulae = [];
+  const seen = new Set();
+  const mathSelector = ".eq, .math, .math-block, .eq-inline, .eqbox, .keymath, .formula, .key-math, .m, .v";
+  const ignoredSelector = "nav, .toc, .article-toc, script, style, pre, svg, canvas, .article-citation";
+
+  const sectionForNode = (node) => {
+    let current = null;
+    sections.forEach((section) => {
+      if (section.heading === node || (section.heading.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)) current = section;
+    });
+    return current;
+  };
+
+  const nearbyExplanation = (node) => {
+    const findText = (direction) => {
+      let sibling = node[direction];
+      for (let steps = 0; sibling && steps < 4; steps += 1, sibling = sibling[direction]) {
+        if (sibling.matches?.("h2, h3")) break;
+        const candidate = sibling.matches?.("p, .aside-note, .keyline, .nuance")
+          ? sibling
+          : sibling.querySelector?.("p:not(.fig-caption):not(.figure-caption)");
+        const text = cleanFlashcardSourceText(candidate?.textContent);
+        if (text.length >= 55) return text;
+      }
+      return "";
+    };
+    return findText("nextElementSibling") || findText("previousElementSibling");
+  };
+
+  const addFormula = ({ node, text, html = "", tex = "", context = "", forceMeaningful = false }) => {
+    if (!forceMeaningful && !formulaLooksMeaningful(text, Boolean(tex))) return;
+    const key = flashcardFormulaKey(text);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    const section = sectionForNode(node);
+    formulae.push({
+      text: cleanFlashcardSourceText(text),
+      html,
+      tex,
+      context: flashcardSentenceSummary(context || section?.summary || "This relationship is derived and interpreted in this section.", 260),
+      sectionId: section?.id || "core-relationships",
+      sectionTitle: section?.title || "Core relationships",
+    });
+  };
+
+  [...article.querySelectorAll(mathSelector)].forEach((node) => {
+    if (node.closest(ignoredSelector)) return;
+    const parentMath = node.parentElement?.closest(mathSelector);
+    if (parentMath) return;
+    const isInlineNotation = node.matches(".m, .v");
+    if (isInlineNotation && !node.closest("p, li, td, th, figcaption")) return;
+    const clone = node.cloneNode(true);
+    const noteText = [...clone.querySelectorAll(".math-note, .eq-note, .eqnote, .an, .lbl")]
+      .map((note) => note.textContent)
+      .join(" ");
+    clone.querySelectorAll(".math-note, .eq-note, .eqnote, .an, .lbl, script, style, button").forEach((child) => child.remove());
+    clone.querySelectorAll("[id]").forEach((child) => child.removeAttribute("id"));
+    const text = clone.textContent;
+    const compactRatio = text.includes("/") && cleanFlashcardSourceText(text).length <= 44 && !/\b[a-z]{4,}\s+[a-z]{4,}\b/i.test(text);
+    const meaningfulSuperscript = Boolean(clone.querySelector("sup")) && cleanFlashcardSourceText(text).length >= 3;
+    if (isInlineNotation && !formulaLooksMeaningful(text) && !compactRatio && !meaningfulSuperscript) return;
+    const adjacentNote = node.nextElementSibling?.matches(".math-note, .eq-note, .eqnote, .an, .lbl")
+      ? node.nextElementSibling.textContent
+      : "";
+    addFormula({
+      node,
+      text,
+      html: clone.innerHTML,
+      context: noteText || adjacentNote || nearbyExplanation(node),
+      forceMeaningful: isInlineNotation && (compactRatio || meaningfulSuperscript),
+    });
+  });
+
+  const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+  let textNode = walker.nextNode();
+  const texPattern = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)/g;
+  while (textNode) {
+    const parent = textNode.parentElement;
+    if (parent && !parent.closest(ignoredSelector) && !parent.closest(mathSelector)) {
+      let match;
+      while ((match = texPattern.exec(textNode.nodeValue || ""))) {
+        const tex = match[0];
+        const inner = match[1] || match[2] || match[3] || "";
+        const context = (parent.textContent || "").replace(match[0], " ");
+        addFormula({ node: parent, text: inner, tex, context });
+      }
+      texPattern.lastIndex = 0;
+    }
+    textNode = walker.nextNode();
+  }
+
+  [...article.querySelectorAll("code")].forEach((node) => {
+    if (node.closest(ignoredSelector) || node.closest(mathSelector)) return;
+    const text = cleanFlashcardSourceText(node.textContent);
+    const hasStrongRelationship = /[=≈≃∝≤≥<>±×÷∑∏∫√→]|\b(?:argmax|argmin|softmax|log|exp|var|flops?|bytes?|O\s*\()\b/i.test(text);
+    const isRatioExpression = text.includes("/") && /[\d()^]/.test(text);
+    if ((!hasStrongRelationship && !isRatioExpression) || text.length > 240) return;
+    addFormula({ node, text, html: node.innerHTML, context: node.closest("p, li, td")?.textContent || "" });
+  });
+
+  return formulae;
+}
+
+function captureFlashcardArticleSource(article) {
+  const sections = collectFlashcardSections(article);
+  return { sections, formulae: collectFlashcardFormulae(article, sections) };
+}
+
+const flashcardCoverageStopWords = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how", "in", "into", "is", "it",
+  "model", "models", "of", "on", "or", "part", "the", "this", "to", "toward", "towards", "what", "when", "where", "why", "with",
+]);
+
+function flashcardCoverageTokens(value) {
+  return cleanFlashcardSourceText(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(" ")
+    .filter((token) => token.length > 2 && !flashcardCoverageStopWords.has(token));
+}
+
+function buildFlashcardSectionReview(sections, cards) {
+  const cardText = cards.map((card) => flashcardCoverageTokens(`${card[0]} ${card[2] || ""}`));
+  return sections.flatMap((section) => {
+    if (!section.summary) return [];
+    const sectionTokens = [...new Set(flashcardCoverageTokens(section.title))];
+    const covered = sectionTokens.length && cardText.some((tokens) => {
+      const overlap = sectionTokens.filter((token) => tokens.includes(token)).length;
+      return overlap >= Math.min(2, Math.ceil(sectionTokens.length * 0.5));
+    });
+    if (covered) return [];
+    const question = /\?$/.test(section.title)
+      ? section.title
+      : `What should you retain from “${section.title}”?`;
+    const reviewCard = [question, section.summary, `Section lens · ${section.title}`];
+    reviewCard.sectionId = section.id;
+    return [reviewCard];
+  });
+}
+
+function matchFlashcardCardToSection(card, sections) {
+  const cardTokens = [...new Set(flashcardCoverageTokens(`${card[0]} ${card[2] || ""}`))];
+  let best = null;
+  sections.forEach((section) => {
+    const sectionTokens = [...new Set(flashcardCoverageTokens(section.title))];
+    if (!sectionTokens.length) return;
+    const overlap = sectionTokens.filter((token) => cardTokens.includes(token)).length;
+    const required = Math.min(2, Math.ceil(sectionTokens.length * 0.5));
+    const score = overlap / sectionTokens.length;
+    if (overlap >= required && (!best || score > best.score)) best = { section, score };
+  });
+  return best?.section || null;
+}
+
+function flashcardTakeaway(value) {
+  return flashcardSentenceSummary(value, 210);
+}
+
+function appendFlashcardFormula(target, formula) {
+  if (formula.html) target.innerHTML = formula.html;
+  else target.textContent = formula.tex || formula.text;
+}
+
 async function initializeBlogFlashcards() {
   if (!document.body.classList.contains("blog-article")) return;
 
@@ -408,6 +692,7 @@ async function initializeBlogFlashcards() {
   const slug = blogsIndex >= 0 ? pathParts[blogsIndex + 1] : "";
   const article = document.querySelector("main.article-content, main.article-wrap, main");
   if (!slug || !article || !blogShellScriptSource) return;
+  const articleSource = captureFlashcardArticleSource(article);
 
   try {
     const dataUrl = new URL("blog-flashcards-data.js", blogShellScriptSource).href;
@@ -418,11 +703,15 @@ async function initializeBlogFlashcards() {
 
   const deck = window.BLOG_FLASHCARDS?.[slug];
   if (!deck || !Array.isArray(deck.cards) || !deck.cards.length) return;
-  const deckCards = [...deck.cards, ...(Array.isArray(deck.deepDive) ? deck.deepDive : [])];
+  const deepDiveCards = Array.isArray(deck.deepDive) ? deck.deepDive : [];
+  const curatedCards = [...deck.cards, ...deepDiveCards];
+  const sectionReviewCards = buildFlashcardSectionReview(articleSource.sections, curatedCards);
+  const deckCards = [...curatedCards, ...sectionReviewCards];
   const estimatedMinutes = Math.max(3, Math.ceil(
     deckCards.length * 0.65
     + (deck.results?.length || 0) * 0.35
-    + (deck.table?.rows?.length || 0) * 0.22,
+    + (deck.table?.rows?.length || 0) * 0.22
+    + articleSource.formulae.length * 0.12,
   ));
 
   const switcher = flashcardElement("section", "article-view-switcher");
@@ -443,7 +732,8 @@ async function initializeBlogFlashcards() {
 
   const hero = flashcardElement("header", "flashcard-deck__hero");
   const heroCopy = flashcardElement("div", "flashcard-deck__hero-copy");
-  heroCopy.appendChild(flashcardElement("p", "flashcard-deck__eyebrow", `TL;DR · ${deckCards.length} questions · about ${estimatedMinutes} min`));
+  const formulaCountLabel = articleSource.formulae.length ? ` · ${articleSource.formulae.length} formulae` : "";
+  heroCopy.appendChild(flashcardElement("p", "flashcard-deck__eyebrow", `TL;DR · ${deckCards.length} questions${formulaCountLabel} · about ${estimatedMinutes} min`));
   const title = flashcardElement("h2", "flashcard-deck__title", deck.title);
   title.id = "flashcard-deck-title";
   heroCopy.append(title, flashcardElement("p", "flashcard-deck__summary", deck.summary));
@@ -477,6 +767,58 @@ async function initializeBlogFlashcards() {
   frameworkMap.append(frameworkCenter, frameworkFlow);
   framework.append(frameworkMap, flashcardElement("p", "flashcard-framework__takeaway", deck.takeaway));
 
+  const conceptMap = flashcardElement("section", "flashcard-concept-map");
+  if (articleSource.sections.length) {
+    conceptMap.setAttribute("aria-labelledby", "flashcard-concept-map-title");
+    const conceptHeader = flashcardElement("div", "flashcard-concept-map__header");
+    conceptHeader.append(
+      flashcardElement("p", "flashcard-concept-map__eyebrow", "Map the whole article"),
+      flashcardElement("h3", "flashcard-concept-map__title", "Article concept map"),
+      flashcardElement("p", "flashcard-concept-map__intro", `${articleSource.sections.length} major concepts, in reading order. Select any branch to open that section in the full article.`),
+    );
+    conceptHeader.querySelector("h3").id = "flashcard-concept-map-title";
+    const conceptBody = flashcardElement("div", "flashcard-concept-map__body");
+    const conceptRoot = flashcardElement("div", "flashcard-concept-map__root");
+    conceptRoot.append(
+      flashcardElement("span", "flashcard-concept-map__root-label", "Central question"),
+      flashcardElement("strong", "", deck.title),
+    );
+    const conceptBranches = flashcardElement("ol", "flashcard-concept-map__branches");
+    articleSource.sections.forEach((section, index) => {
+      const item = flashcardElement("li", "flashcard-concept-map__branch");
+      const button = flashcardElement("button", "flashcard-concept-map__node");
+      button.type = "button";
+      button.append(
+        flashcardElement("span", "flashcard-concept-map__number", String(index + 1).padStart(2, "0")),
+        flashcardElement("strong", "", section.title),
+      );
+      if (section.summary) button.appendChild(flashcardElement("span", "flashcard-concept-map__summary", flashcardSentenceSummary(section.summary, 135)));
+      button.addEventListener("click", () => {
+        setMode("article");
+        document.getElementById(section.id)?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start",
+        });
+      });
+      item.appendChild(button);
+      conceptBranches.appendChild(item);
+    });
+    conceptBody.append(conceptRoot, conceptBranches);
+    conceptMap.append(conceptHeader, conceptBody);
+    if (articleSource.sections.length > 10) {
+      conceptMap.classList.add("is-collapsed");
+      const conceptToggle = flashcardElement("button", "flashcard-concept-map__toggle", `Show all ${articleSource.sections.length} concepts`);
+      conceptToggle.type = "button";
+      conceptToggle.setAttribute("aria-expanded", "false");
+      conceptToggle.addEventListener("click", () => {
+        const expanded = conceptMap.classList.toggle("is-expanded");
+        conceptToggle.textContent = expanded ? "Show the compact map" : `Show all ${articleSource.sections.length} concepts`;
+        conceptToggle.setAttribute("aria-expanded", String(expanded));
+      });
+      conceptMap.appendChild(conceptToggle);
+    }
+  }
+
   const results = flashcardElement("section", "flashcard-results");
   results.setAttribute("aria-labelledby", "flashcard-results-title");
   const resultsHeader = flashcardElement("div", "flashcard-results__header");
@@ -497,6 +839,62 @@ async function initializeBlogFlashcards() {
     resultsGrid.appendChild(item);
   });
   results.append(resultsHeader, resultsGrid);
+
+  const formulaGuide = flashcardElement("section", "flashcard-formula-guide");
+  const formulaGroupDetails = [];
+  if (articleSource.formulae.length) {
+    formulaGuide.setAttribute("aria-labelledby", "flashcard-formula-guide-title");
+    const formulaHeader = flashcardElement("div", "flashcard-formula-guide__header");
+    const formulaHeaderCopy = flashcardElement("div", "flashcard-formula-guide__header-copy");
+    const formulaGroups = new Map();
+    articleSource.formulae.forEach((formula) => {
+      if (!formulaGroups.has(formula.sectionId)) formulaGroups.set(formula.sectionId, { title: formula.sectionTitle, formulae: [] });
+      formulaGroups.get(formula.sectionId).formulae.push(formula);
+    });
+    formulaHeaderCopy.append(
+      flashcardElement("p", "flashcard-formula-guide__eyebrow", "Complete math reference"),
+      flashcardElement("h3", "flashcard-formula-guide__title", "Formula guide"),
+      flashcardElement("p", "flashcard-formula-guide__intro", `${articleSource.formulae.length} meaningful equations and numerical relationships, grouped across ${formulaGroups.size} article sections. Repeated single-symbol notation is intentionally omitted.`),
+    );
+    formulaHeaderCopy.querySelector("h3").id = "flashcard-formula-guide-title";
+    const formulaeInitiallyOpen = articleSource.formulae.length <= 10;
+    const formulaExpand = flashcardElement("button", "flashcard-formula-guide__expand", formulaeInitiallyOpen ? "Collapse every section" : "Expand every section");
+    formulaExpand.type = "button";
+    formulaExpand.setAttribute("aria-expanded", String(formulaeInitiallyOpen));
+    formulaHeader.append(formulaHeaderCopy, formulaExpand);
+    const formulaGroupList = flashcardElement("div", "flashcard-formula-guide__groups");
+    [...formulaGroups.values()].forEach((group, groupIndex) => {
+      const details = flashcardElement("details", "flashcard-formula-group");
+      details.open = formulaeInitiallyOpen || groupIndex === 0;
+      const summary = flashcardElement("summary", "flashcard-formula-group__summary");
+      summary.append(
+        flashcardElement("strong", "", group.title),
+        flashcardElement("span", "", `${group.formulae.length} ${group.formulae.length === 1 ? "relationship" : "relationships"}`),
+      );
+      const list = flashcardElement("div", "flashcard-formula-group__list");
+      group.formulae.forEach((formula, formulaIndex) => {
+        const item = flashcardElement("article", "flashcard-formula");
+        const value = flashcardElement("div", "flashcard-formula__value");
+        appendFlashcardFormula(value, formula);
+        item.append(
+          flashcardElement("span", "flashcard-formula__number", String(formulaIndex + 1).padStart(2, "0")),
+          value,
+          flashcardElement("p", "flashcard-formula__context", formula.context),
+        );
+        list.appendChild(item);
+      });
+      details.append(summary, list);
+      formulaGroupList.appendChild(details);
+      formulaGroupDetails.push(details);
+    });
+    formulaExpand.addEventListener("click", () => {
+      const shouldOpen = formulaGroupDetails.some((details) => !details.open);
+      formulaGroupDetails.forEach((details) => { details.open = shouldOpen; });
+      formulaExpand.textContent = shouldOpen ? "Collapse every section" : "Expand every section";
+      formulaExpand.setAttribute("aria-expanded", String(shouldOpen));
+    });
+    formulaGuide.append(formulaHeader, formulaGroupList);
+  }
 
   const summaryTable = flashcardElement("section", "flashcard-summary-table");
   if (deck.table) {
@@ -534,6 +932,52 @@ async function initializeBlogFlashcards() {
     summaryTable.append(tableHeader, tableScroll);
   }
 
+  const retentionTable = flashcardElement("section", "flashcard-summary-table flashcard-retention-table");
+  retentionTable.setAttribute("aria-labelledby", "flashcard-retention-table-title");
+  const retentionHeader = flashcardElement("div", "flashcard-summary-table__header");
+  retentionHeader.append(
+    flashcardElement("p", "flashcard-summary-table__eyebrow", "Complete takeaway checklist"),
+    flashcardElement("h3", "flashcard-summary-table__title", `${deckCards.length} things to retain`),
+    flashcardElement("p", "flashcard-summary-table__intro", "A one-line checkpoint for every core, deep-dive, and section-level question covered by this article."),
+  );
+  retentionHeader.querySelector("h3").id = "flashcard-retention-table-title";
+  const retentionScroll = flashcardElement("div", "flashcard-summary-table__scroll");
+  const retentionGrid = document.createElement("table");
+  const retentionHead = document.createElement("thead");
+  const retentionHeadingRow = document.createElement("tr");
+  ["Question", "What to remember"].forEach((column) => {
+    const heading = flashcardElement("th", "", column);
+    heading.scope = "col";
+    retentionHeadingRow.appendChild(heading);
+  });
+  retentionHead.appendChild(retentionHeadingRow);
+  const retentionBody = document.createElement("tbody");
+  deckCards.forEach((card) => {
+    const row = document.createElement("tr");
+    const question = flashcardElement("th", "", card[0]);
+    question.scope = "row";
+    question.dataset.label = "Question";
+    const takeaway = flashcardElement("td", "", flashcardTakeaway(card[1]));
+    takeaway.dataset.label = "What to remember";
+    row.append(question, takeaway);
+    retentionBody.appendChild(row);
+  });
+  retentionGrid.append(retentionHead, retentionBody);
+  retentionScroll.appendChild(retentionGrid);
+  retentionTable.append(retentionHeader, retentionScroll);
+  if (deckCards.length > 10) {
+    retentionTable.classList.add("is-collapsed");
+    const retentionToggle = flashcardElement("button", "flashcard-retention-table__toggle", `Show all ${deckCards.length} takeaways`);
+    retentionToggle.type = "button";
+    retentionToggle.setAttribute("aria-expanded", "false");
+    retentionToggle.addEventListener("click", () => {
+      const expanded = retentionTable.classList.toggle("is-expanded");
+      retentionToggle.textContent = expanded ? "Show the compact checklist" : `Show all ${deckCards.length} takeaways`;
+      retentionToggle.setAttribute("aria-expanded", String(expanded));
+    });
+    retentionTable.appendChild(retentionToggle);
+  }
+
   const deckTools = flashcardElement("div", "flashcard-deck__tools");
   deckTools.appendChild(flashcardElement("p", "flashcard-deck__hint", "Try answering before you reveal each card."));
   const expandButton = flashcardElement("button", "flashcard-deck__expand", "Reveal all answers");
@@ -542,18 +986,23 @@ async function initializeBlogFlashcards() {
 
   const cardList = flashcardElement("ol", "flashcard-list");
   const cardDetails = deckCards.map((card, index) => {
-    if (index === 0 || index === deck.cards.length) {
-      const divider = flashcardElement("li", "flashcard-list__divider", index === 0 ? "Core mental model" : "Deeper questions");
-      cardList.appendChild(divider);
-    }
+    if (index === 0) cardList.appendChild(flashcardElement("li", "flashcard-list__divider", "Core mental model"));
+    if (deepDiveCards.length && index === deck.cards.length) cardList.appendChild(flashcardElement("li", "flashcard-list__divider", "Deeper questions"));
+    if (sectionReviewCards.length && index === curatedCards.length) cardList.appendChild(flashcardElement("li", "flashcard-list__divider", "Section-by-section review"));
     const item = flashcardElement("li", "flashcard-list__item");
     const details = flashcardElement("details", "flashcard");
     const linkedResults = (deck.results || []).filter((_result, resultIndex) => deck.resultLinks?.[resultIndex] === index);
+    const matchedSection = card.sectionId
+      ? articleSource.sections.find((section) => section.id === card.sectionId)
+      : matchFlashcardCardToSection(card, articleSource.sections);
+    const linkedFormulae = matchedSection
+      ? articleSource.formulae.filter((formula) => formula.sectionId === matchedSection.id).slice(0, card.sectionId ? 3 : 2)
+      : [];
     const question = flashcardElement("summary", "flashcard__question");
     question.append(
       flashcardElement("span", "flashcard__number", String(index + 1).padStart(2, "0")),
       flashcardElement("span", "flashcard__prompt", card[0]),
-      flashcardElement("span", linkedResults.length ? "flashcard__reveal flashcard__reveal--visual" : "flashcard__reveal", "Reveal"),
+      flashcardElement("span", linkedResults.length || linkedFormulae.length ? "flashcard__reveal flashcard__reveal--visual" : "flashcard__reveal", "Reveal"),
     );
     const answer = flashcardElement("div", "flashcard__answer");
     answer.appendChild(flashcardElement("p", "", card[1]));
@@ -582,6 +1031,18 @@ async function initializeBlogFlashcards() {
       diagram.appendChild(flow);
       answer.appendChild(diagram);
     });
+    if (linkedFormulae.length) {
+      const formulaFigure = flashcardElement("figure", "flashcard-answer-formulae");
+      formulaFigure.appendChild(flashcardElement("figcaption", "flashcard-answer-formulae__title", "Math used in this section"));
+      linkedFormulae.forEach((formula) => {
+        const formulaItem = flashcardElement("div", "flashcard-answer-formulae__item");
+        const value = flashcardElement("div", "flashcard-answer-formulae__value");
+        appendFlashcardFormula(value, formula);
+        formulaItem.append(value, flashcardElement("p", "", formula.context));
+        formulaFigure.appendChild(formulaItem);
+      });
+      answer.appendChild(formulaFigure);
+    }
     details.append(question, answer);
     item.appendChild(details);
     cardList.appendChild(item);
@@ -595,12 +1056,15 @@ async function initializeBlogFlashcards() {
   finish.appendChild(fullArticleButton);
 
   panel.append(hero, framework);
+  if (articleSource.sections.length) panel.appendChild(conceptMap);
   if (deck.results?.length) panel.appendChild(results);
   if (deck.table) panel.appendChild(summaryTable);
+  panel.appendChild(retentionTable);
+  if (articleSource.formulae.length) panel.appendChild(formulaGuide);
   panel.append(deckTools, cardList, finish);
   article.parentNode.insertBefore(switcher, article);
   article.parentNode.insertBefore(panel, article);
-  if (deck.results?.length) renderBlogMath(panel);
+  renderBlogMath(panel);
 
   function setMode(mode, updateUrl = true) {
     const flashcards = mode === "flashcards";
@@ -689,8 +1153,8 @@ async function initializeBlogMath() {
   await renderBlogMath(article);
 }
 
-initializeBlogMath();
 initializeBlogFlashcards();
+initializeBlogMath();
 
 function initializeDistillSideToc() {
   if (!document.body.classList.contains("blog-article")) return;

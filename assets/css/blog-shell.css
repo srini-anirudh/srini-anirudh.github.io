@@ -905,6 +905,170 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
   font-weight: 750;
 }
 
+.flashcard-concept-map {
+  margin: 0 0 46px;
+  padding: clamp(25px, 4vw, 42px);
+  border: 1px solid var(--blog-rule);
+  background: var(--blog-paper-bright);
+}
+
+.flashcard-concept-map__header {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.48fr) minmax(280px, 1fr);
+  column-gap: clamp(28px, 5vw, 64px);
+  align-items: end;
+  margin-bottom: 34px;
+}
+
+.flashcard-concept-map__eyebrow,
+.flashcard-formula-guide__eyebrow {
+  grid-column: 1;
+  margin: 0 0 10px;
+  color: var(--blog-orange);
+  font: 700 11px/1 var(--blog-mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.flashcard-concept-map__title,
+.flashcard-formula-guide__title {
+  grid-column: 1;
+  margin: 0;
+  font: 750 clamp(25px, 3vw, 38px)/1 var(--blog-display);
+  letter-spacing: -0.035em;
+}
+
+.flashcard-concept-map__intro {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+  color: var(--blog-ink-soft);
+  font: 400 17px/1.45 var(--blog-body);
+}
+
+.flashcard-concept-map__body {
+  display: grid;
+  justify-items: center;
+}
+
+.flashcard-concept-map__root {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(440px, 86%);
+  min-height: 110px;
+  padding: 22px 28px;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--blog-paper-bright);
+  background: var(--blog-ink);
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--blog-orange) 72%, transparent);
+  text-align: center;
+}
+
+.flashcard-concept-map__root::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: 32px;
+  background: var(--blog-orange);
+  content: "";
+}
+
+.flashcard-concept-map__root-label {
+  margin-bottom: 8px;
+  color: var(--blog-orange);
+  font: 700 10px/1 var(--blog-mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.flashcard-concept-map__root strong {
+  color: inherit !important;
+  font: 750 clamp(20px, 2.2vw, 28px)/1.12 var(--blog-display);
+}
+
+.flashcard-concept-map__branches {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 18px;
+  width: 100%;
+  margin: 32px 0 0;
+  padding: 28px 0 0;
+  border-top: 1px solid var(--blog-orange);
+  list-style: none;
+}
+
+.flashcard-concept-map__branch {
+  position: relative;
+  display: flex;
+}
+
+.flashcard-concept-map__branch::before {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  width: 1px;
+  height: 28px;
+  background: var(--blog-orange);
+  content: "";
+}
+
+.flashcard-concept-map__node {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 6px 10px;
+  width: 100%;
+  min-height: 112px;
+  padding: 17px 18px;
+  border: 1px solid var(--blog-rule);
+  color: var(--blog-ink);
+  background: var(--blog-paper-soft);
+  text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.flashcard-concept-map__node:hover,
+.flashcard-concept-map__node:focus-visible {
+  border-color: var(--blog-blue);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--blog-blue) 20%, transparent);
+  transform: translateY(-2px);
+}
+
+.flashcard-concept-map__number {
+  grid-row: 1 / span 2;
+  color: var(--blog-orange);
+  font: 700 11px/1.4 var(--blog-mono);
+  letter-spacing: 0.08em;
+}
+
+.flashcard-concept-map__node strong {
+  font: 750 16px/1.25 var(--blog-display);
+}
+
+.flashcard-concept-map__summary {
+  color: var(--blog-muted);
+  font: 400 13px/1.4 var(--blog-body);
+}
+
+.flashcard-concept-map.is-collapsed:not(.is-expanded) .flashcard-concept-map__branch:nth-child(n + 9) {
+  display: none;
+}
+
+.flashcard-concept-map__toggle,
+.flashcard-retention-table__toggle {
+  display: block;
+  margin: 22px auto 0;
+  padding: 10px 0 8px;
+  border-bottom: 2px solid var(--blog-blue);
+  color: var(--blog-blue);
+  background: transparent;
+  font: 700 12px/1.2 var(--blog-mono);
+  letter-spacing: 0.04em;
+}
+
 .flashcard-results {
   display: grid;
   grid-template-columns: minmax(210px, 0.36fr) minmax(0, 1fr);
@@ -1072,6 +1236,143 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
 .flashcard-summary-table tbody tr:hover td,
 .flashcard-summary-table tbody tr:hover th {
   background: color-mix(in srgb, var(--blog-orange) 8%, var(--blog-paper-bright));
+}
+
+.flashcard-retention-table tbody th {
+  width: 38%;
+}
+
+.flashcard-retention-table.is-collapsed:not(.is-expanded) tbody tr:nth-child(n + 9) {
+  display: none;
+}
+
+.flashcard-formula-guide {
+  margin: 0 0 46px;
+  padding: clamp(25px, 4vw, 42px);
+  border: 1px solid var(--blog-ink);
+  background: var(--blog-ink);
+}
+
+.flashcard-formula-guide__header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 26px;
+}
+
+.flashcard-formula-guide__header-copy {
+  max-width: 780px;
+}
+
+.flashcard-formula-guide__title {
+  color: var(--blog-paper-bright);
+}
+
+.flashcard-formula-guide__intro {
+  margin: 14px 0 0;
+  color: color-mix(in srgb, var(--blog-paper-bright) 72%, transparent);
+  font: 400 16px/1.45 var(--blog-body);
+}
+
+.flashcard-formula-guide__expand {
+  flex: 0 0 auto;
+  padding: 10px 0 8px;
+  border-bottom: 2px solid var(--blog-orange);
+  color: var(--blog-paper-bright);
+  background: transparent;
+  font: 700 12px/1.2 var(--blog-mono);
+  letter-spacing: 0.04em;
+}
+
+.flashcard-formula-guide__groups {
+  display: grid;
+  gap: 10px;
+}
+
+.flashcard-formula-group {
+  border: 1px solid color-mix(in srgb, var(--blog-paper-bright) 20%, transparent);
+  background: color-mix(in srgb, var(--blog-paper-bright) 5%, transparent);
+}
+
+.flashcard-formula-group__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 19px;
+  color: var(--blog-paper-bright);
+  cursor: pointer;
+  list-style: none;
+}
+
+.flashcard-formula-group__summary::-webkit-details-marker {
+  display: none;
+}
+
+.flashcard-formula-group__summary::after {
+  flex: 0 0 auto;
+  color: var(--blog-orange);
+  content: "+";
+  font: 700 20px/1 var(--blog-mono);
+}
+
+.flashcard-formula-group[open] > .flashcard-formula-group__summary::after {
+  content: "−";
+}
+
+.flashcard-formula-group__summary strong {
+  font: 750 17px/1.25 var(--blog-display);
+}
+
+.flashcard-formula-group__summary span {
+  margin-left: auto;
+  color: color-mix(in srgb, var(--blog-paper-bright) 58%, transparent);
+  font: 700 10px/1.2 var(--blog-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flashcard-formula-group__list {
+  display: grid;
+  gap: 1px;
+  border-top: 1px solid color-mix(in srgb, var(--blog-paper-bright) 20%, transparent);
+  background: color-mix(in srgb, var(--blog-paper-bright) 17%, transparent);
+}
+
+.flashcard-formula {
+  display: grid;
+  grid-template-columns: 34px minmax(200px, 0.78fr) minmax(240px, 1fr);
+  gap: 18px;
+  align-items: center;
+  padding: 19px;
+  color: var(--blog-ink);
+  background: var(--blog-paper-bright);
+}
+
+.flashcard-formula__number {
+  color: var(--blog-orange);
+  font: 700 11px/1 var(--blog-mono);
+  letter-spacing: 0.08em;
+}
+
+.flashcard-formula__value,
+.flashcard-answer-formulae__value {
+  min-width: 0;
+  overflow-x: auto;
+  padding: 3px 0;
+  font: 700 16px/1.55 var(--blog-mono);
+}
+
+.flashcard-formula__value .katex,
+.flashcard-answer-formulae__value .katex {
+  font-size: 1em;
+}
+
+.flashcard-formula__context {
+  margin: 0;
+  color: var(--blog-ink-soft);
+  font: 400 14px/1.44 var(--blog-body);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1302,6 +1603,47 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
   font-size: 1em;
 }
 
+.flashcard-answer-formulae {
+  width: 100%;
+  max-width: 900px;
+  margin: 22px 0 0;
+  padding: 18px;
+  border: 1px solid var(--blog-blue);
+  background: color-mix(in srgb, var(--blog-blue) 5%, var(--blog-paper-bright));
+}
+
+.flashcard-answer-formulae__title {
+  margin: 0 0 12px;
+  color: var(--blog-blue);
+  font: 700 10px/1 var(--blog-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.flashcard-answer-formulae__item {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(240px, 1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 14px 0;
+  border-top: 1px solid var(--blog-rule);
+}
+
+.flashcard-answer-formulae__item:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.flashcard-answer-formulae__item:last-child {
+  padding-bottom: 0;
+}
+
+.flashcard-answer-formulae__item p {
+  margin: 0;
+  color: var(--blog-ink-soft);
+  font-size: 14px;
+}
+
 .flashcard-deck__finish {
   display: flex;
   align-items: center;
@@ -1374,7 +1716,8 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
 
   .flashcard-framework__map,
   .flashcard-results,
-  .flashcard-summary-table__header {
+  .flashcard-summary-table__header,
+  .flashcard-concept-map__header {
     grid-template-columns: 1fr;
     min-width: 0;
   }
@@ -1432,13 +1775,48 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
 
   .flashcard-summary-table__eyebrow,
   .flashcard-summary-table__title,
-  .flashcard-summary-table__intro {
+  .flashcard-summary-table__intro,
+  .flashcard-concept-map__eyebrow,
+  .flashcard-concept-map__title,
+  .flashcard-concept-map__intro {
     grid-column: 1;
     grid-row: auto;
   }
 
-  .flashcard-summary-table__intro {
+  .flashcard-summary-table__intro,
+  .flashcard-concept-map__intro {
     margin-top: 14px;
+  }
+
+  .flashcard-concept-map__branches {
+    grid-template-columns: 1fr;
+  }
+
+  .flashcard-concept-map__branch::before {
+    left: 24px;
+  }
+
+  .flashcard-formula-guide__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .flashcard-formula-guide__expand {
+    align-self: flex-start;
+  }
+
+  .flashcard-formula-group__summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .flashcard-formula {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .flashcard-formula__context {
+    grid-column: 2;
   }
 
   .flashcard-summary-table__scroll {
@@ -1503,6 +1881,10 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
     border-bottom: 0;
   }
 
+  .flashcard-retention-table tbody th {
+    width: 100%;
+  }
+
   .flashcard__question {
     grid-template-columns: 30px minmax(0, 1fr);
     gap: 10px;
@@ -1543,6 +1925,17 @@ html[data-reading-mode="flashcards"] .distill-side-toc {
     bottom: calc(100% + 3px);
     left: 15px;
     transform: rotate(135deg);
+  }
+
+  .flashcard-answer-formulae {
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 14px;
+  }
+
+  .flashcard-answer-formulae__item {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 

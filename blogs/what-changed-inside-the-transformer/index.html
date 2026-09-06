@@ -347,7 +347,7 @@
 
         <p><strong>2017: add a sinusoid.</strong> The original Transformer added a fixed vector \(p_m\) to the token embedding, with \(p_{m,2i} = \sin(m/10000^{2i/d})\) and cosine in the odd slots. Fixed, not learned, and chosen so that \(p_{m+k}\) is a linear function of \(p_m\) — the paper hoped this would make relative offsets easy to learn.</p>
 
-        <p><strong>2018–2020: learn it.</strong> GPT-2 and GPT-3 replaced the sinusoid with a learned lookup table \(P \in \mathbb{R}^{S_\max \times d}\), added to the embedding. Simple, works, and has a hard failure mode: row \(m\) for \(m \ge S_\max\) does not exist. GPT-2 could not process a 1025th token at all. Extending context meant training new rows from scratch.</p>
+        <p><strong>2018–2020: learn it.</strong> GPT-2 and GPT-3 replaced the sinusoid with a learned lookup table \(P \in \mathbb{R}^{S_{\max} \times d}\), added to the embedding. Simple, works, and has a hard failure mode: row \(m\) for \(m \ge S_{\max}\) does not exist. GPT-2 could not process a 1025th token at all. Extending context meant training new rows from scratch.</p>
 
         <p>Both share a deeper problem. Position enters once, at the input, as an <em>additive</em> perturbation of the content vector. By layer 40 the model has to have preserved that perturbation through forty rounds of mixing in order to still know where it is. And the thing attention actually cares about is not absolute position — it is the offset between the query and the key.</p>
 
