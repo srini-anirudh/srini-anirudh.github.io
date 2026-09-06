@@ -508,15 +508,40 @@ async function initializeBlogFlashcards() {
     }
     const item = flashcardElement("li", "flashcard-list__item");
     const details = flashcardElement("details", "flashcard");
+    const linkedResults = (deck.results || []).filter((_result, resultIndex) => deck.resultLinks?.[resultIndex] === index);
     const question = flashcardElement("summary", "flashcard__question");
     question.append(
       flashcardElement("span", "flashcard__number", String(index + 1).padStart(2, "0")),
       flashcardElement("span", "flashcard__prompt", card[0]),
-      flashcardElement("span", "flashcard__reveal", "Reveal"),
+      flashcardElement("span", linkedResults.length ? "flashcard__reveal flashcard__reveal--visual" : "flashcard__reveal", "Reveal"),
     );
     const answer = flashcardElement("div", "flashcard__answer");
     answer.appendChild(flashcardElement("p", "", card[1]));
     if (card[2]) answer.appendChild(flashcardElement("p", "flashcard__lens", card[2]));
+    linkedResults.forEach((result) => {
+      const diagram = flashcardElement("figure", "flashcard-answer-diagram");
+      diagram.setAttribute("aria-label", `Explanation diagram for ${result[0]}`);
+      diagram.appendChild(flashcardElement("figcaption", "flashcard-answer-diagram__title", "See the relationship"));
+      const flow = flashcardElement("div", "flashcard-answer-diagram__flow");
+      const premise = flashcardElement("div", "flashcard-answer-diagram__node");
+      premise.append(
+        flashcardElement("span", "flashcard-answer-diagram__label", "Start with"),
+        flashcardElement("strong", "", result[0]),
+      );
+      const relation = flashcardElement("div", "flashcard-answer-diagram__node flashcard-answer-diagram__node--result");
+      relation.append(
+        flashcardElement("span", "flashcard-answer-diagram__label", "Relationship"),
+        flashcardElement("strong", "flashcard-answer-diagram__math", result[1]),
+      );
+      const meaning = flashcardElement("div", "flashcard-answer-diagram__node");
+      meaning.append(
+        flashcardElement("span", "flashcard-answer-diagram__label", "Therefore"),
+        flashcardElement("strong", "", result[2]),
+      );
+      flow.append(premise, relation, meaning);
+      diagram.appendChild(flow);
+      answer.appendChild(diagram);
+    });
     details.append(question, answer);
     item.appendChild(details);
     cardList.appendChild(item);
@@ -534,7 +559,7 @@ async function initializeBlogFlashcards() {
   panel.append(deckTools, cardList, finish);
   article.parentNode.insertBefore(switcher, article);
   article.parentNode.insertBefore(panel, article);
-  if (deck.results?.length) renderBlogMath(results);
+  if (deck.results?.length) renderBlogMath(panel);
 
   function setMode(mode, updateUrl = true) {
     const flashcards = mode === "flashcards";
@@ -565,6 +590,10 @@ async function initializeBlogFlashcards() {
     const shouldOpen = cardDetails.some((details) => !details.open);
     cardDetails.forEach((details) => { details.open = shouldOpen; });
     expandButton.textContent = shouldOpen ? "Hide all answers" : "Reveal all answers";
+    const url = new URL(location.href);
+    if (shouldOpen) url.searchParams.set("answers", "all");
+    else url.searchParams.delete("answers");
+    history.replaceState({}, "", url);
   });
   cardDetails.forEach((details) => details.addEventListener("toggle", () => {
     const allOpen = cardDetails.every((card) => card.open);
@@ -576,6 +605,10 @@ async function initializeBlogFlashcards() {
 
   const initialMode = new URL(location.href).searchParams.get("view") === "flashcards" ? "flashcards" : "article";
   setMode(initialMode, false);
+  if (new URL(location.href).searchParams.get("answers") === "all") {
+    cardDetails.forEach((details) => { details.open = true; });
+    expandButton.textContent = "Hide all answers";
+  }
 }
 
 async function renderBlogMath(container) {

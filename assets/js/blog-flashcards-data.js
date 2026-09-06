@@ -874,7 +874,7 @@ const BLOG_FLASHCARD_RESULTS = {
   ],
   "how-lora-changes-a-model-without-rewriting-it": [
     ["Low-rank update", "\\(W' = W + (\\alpha/r)BA\\)", "The frozen base W is modified by two trainable thin matrices with inner dimension r."],
-    ["Trainable size", "\\(r(d_{in}+d_{out}))\\)", "This replaces a full update with d_in×d_out parameters by a sum that is linear in width."],
+    ["Trainable size", "\\(r(d_{in}+d_{out})\\)", "This replaces a full update with d_in×d_out parameters by a sum that is linear in width."],
     ["Rank bound", "\\(\\operatorname{rank}(BA)\\le r\\)", "LoRA saves state precisely by restricting adaptation to an r-dimensional update subspace."]
   ],
   "inside-an-ai-agent-harness": [
@@ -1054,4 +1054,52 @@ Object.assign(BLOG_FLASHCARD_RESULTS, {
 
 Object.entries(BLOG_FLASHCARD_RESULTS).forEach(([slug, results]) => {
   if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].results = results;
+});
+
+const BLOG_FLASHCARD_RESULT_LINKS = {
+  "the-vlm-architecture-gallery": [2, 0, 1],
+  "the-agent-evaluation-playbook": [3, 0, 8],
+  "what-autograd-actually-does": [5, 4, 3],
+  "why-transformers-do-not-explode": [4, 7, 3],
+  "choosing-the-next-token": [1, 2, 7],
+  "teaching-a-language-model-to-follow-instructions": [2, 1, 6],
+  "how-lora-changes-a-model-without-rewriting-it": [0, 2, 4],
+  "inside-an-ai-agent-harness": [0, 2, 3],
+  "memory-is-more-than-context": [2, 1, 0],
+  "how-multi-agent-systems-actually-coordinate": [0, 1, 8],
+  "reinforcement-learning-for-agents-from-first-principles": [4, 2, 3],
+  "how-attention-moves-information": [1, 7, 8],
+  "the-puzzle-of-overparameterization": [4, 1, 5],
+  "how-llms-are-pretrained": [0, 3, 2],
+  "mixing-data-without-losing-capabilities": [1, 4, 8],
+  "how-language-models-learn-to-use-tools": [1, 0, 8],
+  "the-making-of-an-ai-agent": [0, 1, 8],
+  "what-changed-inside-the-transformer": [0, 3, 7],
+  "scaling-laws-from-first-principles": [0, 1, 8],
+  "reinforcement-learning-from-first-principles": [0, 2, 8],
+  "teaching-a-model-what-we-prefer": [4, 7, 3],
+  "how-reinforcement-learning-teaches-models-to-reason": [6, 0, 8],
+  "thinking-in-tokens": [0, 3, 7],
+  "how-models-improve-without-changing-their-weights": [4, 2, 7],
+  "how-to-find-what-is-slowing-your-model": [8, 5, 3],
+  "the-serving-playbook": [8, 3, 1],
+  "the-mechanics-of-llm-inference": [4, 1, 5],
+  "the-parallelism-playbook": [0, 1, 7],
+  "inside-a-training-step": [5, 6, 8],
+  "talk-is-not-cheap": [0, 2, 4],
+  "why-fast-gpus-still-wait-for-memory": [0, 1, 3],
+  "why-gpus-are-built-for-deep-learning": [0, 2, 3],
+  "inside-a-modern-vision-encoder": [0, 1, 2],
+  "one-transformer-two-modalities": [1, 0, 2],
+  "an-image-is-a-sentence": [0, 2, 6],
+  "across-the-cnnverse": [4, 0, 6],
+  "evolution-of-ml-architectures": [4, 2, 8],
+  "how-models-know-where-they-are": [0, 2, 8],
+  "what-an-optimizer-actually-does": [1, 2, 3],
+  "the-geometry-of-normalization": [5, 6, 1],
+  "why-neural-networks-need-nonlinearity": [0, 1, 3]
+};
+
+Object.entries(BLOG_FLASHCARD_RESULT_LINKS).forEach(([slug, resultLinks]) => {
+  if (window.BLOG_FLASHCARDS[slug]) window.BLOG_FLASHCARDS[slug].resultLinks = resultLinks;
 });
