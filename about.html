@@ -273,13 +273,27 @@
         </div>
 
         <div class="patram-pentagon" aria-label="Patram ecosystem">
-          <svg class="patram-pentagon-lines" viewBox="0 0 1000 680" aria-hidden="true">
-            <polygon points="500,88 825,275 700,560 300,560 175,275"></polygon>
-            <line x1="500" y1="345" x2="500" y2="88"></line>
-            <line x1="500" y1="345" x2="825" y2="275"></line>
-            <line x1="500" y1="345" x2="700" y2="560"></line>
-            <line x1="500" y1="345" x2="300" y2="560"></line>
-            <line x1="500" y1="345" x2="175" y2="275"></line>
+          <svg class="patram-pentagon-lines" viewBox="0 0 1000 650" aria-hidden="true">
+            <!-- outer pentagon: lines only, never a filled polygon -->
+            <line x1="500" y1="148" x2="820" y2="300"></line>
+            <line x1="820" y1="300" x2="740" y2="560"></line>
+            <line x1="740" y1="560" x2="260" y2="560"></line>
+            <line x1="260" y1="560" x2="180" y2="300"></line>
+            <line x1="180" y1="300" x2="500" y2="148"></line>
+
+            <!-- spokes to the central Patram node -->
+            <line class="pentagon-spoke" x1="500" y1="345" x2="500" y2="148"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="820" y2="300"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="740" y2="560"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="260" y2="560"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="180" y2="300"></line>
+
+            <!-- subtle vertex markers -->
+            <circle cx="500" cy="148" r="5"></circle>
+            <circle cx="820" cy="300" r="5"></circle>
+            <circle cx="740" cy="560" r="5"></circle>
+            <circle cx="260" cy="560" r="5"></circle>
+            <circle cx="180" cy="300" r="5"></circle>
           </svg>
 
           <a class="patram-core-node" href="projects.html#patram" target="_self">
