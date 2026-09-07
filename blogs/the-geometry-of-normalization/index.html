@@ -12,8 +12,8 @@
     <meta name="description" content="A visual field guide to every normalization layer in deep learning — from BatchNorm to Peri-LN — and why the modality interface in a VLM is a normalization problem." />
     <title>The Geometry of Normalization: BatchNorm, LayerNorm &amp; RMSNorm | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
-    <meta property="article:published_time" content="2025-02-14" />
-    <meta property="article:modified_time" content="2025-02-18" />
+    <meta property="article:published_time" content="2024-07-14" />
+    <meta property="article:modified_time" content="2026-01-25" />
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/" />
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
@@ -28,7 +28,7 @@
     <meta name="twitter:description" content="A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/"},"headline":"The Geometry of Normalization: BatchNorm, LayerNorm and RMSNorm","description":"A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs.","image":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/preview.png","datePublished":"2025-02-14","dateModified":"2025-02-18","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["normalization","BatchNorm","LayerNorm","RMSNorm","vision-language models","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/"},"headline":"The Geometry of Normalization: BatchNorm, LayerNorm and RMSNorm","description":"A visual field guide to normalization layers, their placement, and why modality interfaces make normalization matter in VLMs.","image":"https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/preview.png","datePublished":"2024-07-14","dateModified":"2026-01-25","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["normalization","BatchNorm","LayerNorm","RMSNorm","vision-language models","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
 
     <style id="chrome-fallback">
@@ -59,7 +59,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
 <style>
 :root{
   --paper:#E4E2DC; --paper2:#EFEDE9; --paper3:#F7F6F3;
@@ -364,7 +364,7 @@ h1.article-title .fade{color:var(--ink3)}
           <span>Normalization</span><span>Transformers</span><span>Vision-language models</span><span>Training stability</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-02-14">February 14, 2025</time></span><span>Last modified <time datetime="2025-02-18">February 18, 2025</time></span><span>45 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-07-14">July 14, 2024</time></span><span>Last modified <time datetime="2026-01-25">January 25, 2026</time></span><span>45 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -1736,16 +1736,16 @@ x / <span class="cm">(</span>√mean<span class="cm">(</span>x²<span class="cm"
     <aside class="article-citation" aria-labelledby="cite-this-article">
       <p class="article-citation-kicker">Use and attribution</p>
       <h2 id="cite-this-article">Cite this article</h2>
-      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>The Geometry of Normalization</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/">https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/</a></p>
+      <p class="article-citation-reference">Srinivasan, A. (2024, July 14). <cite>The Geometry of Normalization</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/">https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/</a></p>
       <div class="article-citation-code">
-        <pre><code>@misc{srinivasan2026normalization,
+        <pre><code>@misc{srinivasan2024normalization,
   author       = {Srinivasan, Anirudh},
   title        = {The Geometry of Normalization},
-  year         = {2026},
-  month        = {feb},
+  year         = {2024},
+  month        = {Jul},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/},
-  note         = {Published February 14, 2025; updated February 18, 2025}
+  note         = {Published July 14, 2024; updated January 25, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -3217,6 +3217,6 @@ sliderReel("in-k", [
 ], {dwell:5.0});
 </script>
 
-    <script src="../../assets/js/blogs.js"></script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
   </body>
 </html>

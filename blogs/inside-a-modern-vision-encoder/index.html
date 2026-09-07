@@ -23,8 +23,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A field guide to the vision encoder inside a VLM: intake geometry, resolution strategies, training objectives, connectors, and the encoder every major model actually ships." />
-    <meta property="article:published_time" content="2025-10-17" />
-    <meta property="article:modified_time" content="2025-10-23" />
+    <meta property="article:published_time" content="2025-10-19" />
+    <meta property="article:modified_time" content="2026-01-18" />
     <title>Inside a Modern Vision Encoder | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/" />
@@ -40,7 +40,7 @@
     <meta name="twitter:description" content="A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/"},"headline":"Inside a Modern Vision Encoder","description":"A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use.","image":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png","datePublished":"2025-10-17","dateModified":"2025-10-23","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["vision encoders","vision-language models","VLM","CLIP","SigLIP","visual tokens"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/"},"headline":"Inside a Modern Vision Encoder","description":"A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use.","image":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png","datePublished":"2025-10-19","dateModified":"2026-01-18","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/about.html#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/about.html#person"},"keywords":["vision encoders","vision-language models","VLM","CLIP","SigLIP","visual tokens"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -48,7 +48,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
     <style>
       :root{--paper:#e4e2dc;--paper-bright:#f7f6f3;--page-ink:#14171a;--ink-soft:#474e53;--rule:#cac6bd}
       html{scroll-behavior:smooth}
@@ -320,7 +320,7 @@ svg .hit:focus{outline:none}
           <span>Vision encoders</span><span>VLMs</span><span>Multimodal</span><span>Interactive</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-17">October 17, 2025</time></span><span>Last modified <time datetime="2025-10-23">October 23, 2025</time></span><span>42 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-19">October 19, 2025</time></span><span>Last modified <time datetime="2026-01-18">January 18, 2026</time></span><span>42 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -1574,7 +1574,7 @@ input[type=range]{width:100%;accent-color:#4BC8E8;background:transparent}
           <div class="facts"><span>same ViT + connector</span><span>3D spatial reasoning</span><span>action tokens</span></div>
         </div>
         <div class="stop">
-          <div class="when">Dec 2025 · Molmo 2</div>
+          <div class="when">Jan 2026 · Molmo 2</div>
           <h4>SigLIP 2, a crop budget that changes at inference, and video</h4>
           <p>The tower moves to SigLIP 2 and the layer pair shifts to third-to-last and ninth-from-last. The
           crop budget is now explicitly a knob: K=8 overlapping crops during training, K=24 at inference —
@@ -2352,7 +2352,7 @@ table.mx td.dt{color:var(--dim);white-space:nowrap}
           <li><a href="https://arxiv.org/abs/2504.10479">InternVL3: native multimodal pretraining, V2PE</a><span>Zhu et al., 2025</span></li>
           <li><a href="https://arxiv.org/abs/2508.18265">InternVL3.5: Visual Resolution Router</a><span>Wang et al., 2025</span></li>
           <li><a href="https://arxiv.org/abs/2409.17146">Molmo and PixMo: open weights and open data</a><span>Deitke et al., 2024</span></li>
-          <li><a href="https://arxiv.org/abs/2601.10611">Molmo 2: video understanding and grounding</a><span>Clark et al., 2025</span></li>
+          <li><a href="https://arxiv.org/abs/2601.10611">Molmo2: open weights and data for video understanding and grounding</a><span>Clark et al., 2026</span></li>
           <li><a href="https://arxiv.org/abs/2508.07917">MolmoAct: reasoning in space</a><span>Ai2, 2025</span></li>
         </ul>
       </div>
@@ -2391,16 +2391,16 @@ table.mx td.dt{color:var(--dim);white-space:nowrap}
 <aside class="article-citation" aria-labelledby="cite-this-article">
   <p class="article-citation-kicker">Use and attribution</p>
   <h2 id="cite-this-article">Cite this article</h2>
-  <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Inside a Modern Vision Encoder</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/">https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/</a></p>
+  <p class="article-citation-reference">Srinivasan, A. (2025, October 19). <cite>Inside a Modern Vision Encoder</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/">https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/</a></p>
   <div class="article-citation-code">
-    <pre><code>@misc{srinivasan2026visualtokens,
+    <pre><code>@misc{srinivasan2025visualtokens,
   author       = {Srinivasan, Anirudh},
   title        = {Inside a Modern Vision Encoder},
-  year         = {2026},
-  month        = {oct},
+  year         = {2025},
+  month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/},
-  note         = {Published October 17, 2025; updated October 23, 2025}
+  note         = {Published October 19, 2025; updated January 18, 2026}
 }</code></pre>
     <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
     <span class="citation-status" aria-live="polite"></span>
@@ -6154,6 +6154,6 @@ body.vision-encoder-article .ireadout em{color:var(--doc)}
 body.vision-encoder-article .fam-line li em{color:var(--dim)}
 </style>
 
-    <script src="../../assets/js/blogs.js"></script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
   </body>
 </html>
