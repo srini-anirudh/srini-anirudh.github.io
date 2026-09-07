@@ -274,26 +274,34 @@
 
         <div class="patram-pentagon" aria-label="Patram ecosystem">
           <svg class="patram-pentagon-lines" viewBox="0 0 1000 650" aria-hidden="true">
-            <!-- outer pentagon: lines only, never a filled polygon -->
-            <line x1="500" y1="148" x2="820" y2="300"></line>
-            <line x1="820" y1="300" x2="740" y2="560"></line>
-            <line x1="740" y1="560" x2="260" y2="560"></line>
-            <line x1="260" y1="560" x2="180" y2="300"></line>
-            <line x1="180" y1="300" x2="500" y2="148"></line>
+            <defs>
+              <linearGradient id="patram-field-gradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#0b5ea8" stop-opacity="0.12"></stop>
+                <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.04"></stop>
+                <stop offset="1" stop-color="#f28c18" stop-opacity="0.12"></stop>
+              </linearGradient>
+            </defs>
+
+            <!-- A softly tinted field with an explicit fill: never the SVG default black. -->
+            <polygon
+              class="ecosystem-field"
+              points="500,142 708,280 727,510 292,510 275,280"
+              fill="url(#patram-field-gradient)"
+            ></polygon>
 
             <!-- spokes to the central Patram node -->
-            <line class="pentagon-spoke" x1="500" y1="345" x2="500" y2="148"></line>
-            <line class="pentagon-spoke" x1="500" y1="345" x2="820" y2="300"></line>
-            <line class="pentagon-spoke" x1="500" y1="345" x2="740" y2="560"></line>
-            <line class="pentagon-spoke" x1="500" y1="345" x2="260" y2="560"></line>
-            <line class="pentagon-spoke" x1="500" y1="345" x2="180" y2="300"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="500" y2="142"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="708" y2="280"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="727" y2="510"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="292" y2="510"></line>
+            <line class="pentagon-spoke" x1="500" y1="345" x2="275" y2="280"></line>
 
-            <!-- subtle vertex markers -->
-            <circle cx="500" cy="148" r="5"></circle>
-            <circle cx="820" cy="300" r="5"></circle>
-            <circle cx="740" cy="560" r="5"></circle>
-            <circle cx="260" cy="560" r="5"></circle>
-            <circle cx="180" cy="300" r="5"></circle>
+            <!-- Connection points sit directly beneath the five category cards. -->
+            <circle cx="500" cy="142" r="5"></circle>
+            <circle cx="708" cy="280" r="5"></circle>
+            <circle cx="727" cy="510" r="5"></circle>
+            <circle cx="292" cy="510" r="5"></circle>
+            <circle cx="275" cy="280" r="5"></circle>
           </svg>
 
           <a class="patram-core-node" href="projects.html#patram" target="_self">
