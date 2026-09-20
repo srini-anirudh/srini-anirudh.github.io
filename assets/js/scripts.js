@@ -151,21 +151,21 @@ function showToast(message) {
  * Research BibTeX copy
  */
 const bibtexEntries = {
-  doclayout: `@inproceedings{venna2026doclayout,
-    title={DOCLAYOUT-VL: A Foundational Model for Hierarchical, Open-Set and Promptable Document Layout Segmentation},
-    author={Venna, Venkata Kesav and Bandarupalli, Srihari and Srinivasan, Anirudh and R, Raghuveer and Gunda, Sai Madhusudan and Sarvadevabhatla, Ravi Kiran},
-    booktitle={European Conference on Computer Vision},
-    pages={275--296},
-    year={2026},
-    organization={Springer}
+  doclayoutvl: `@inproceedings{venna2026doclayout,
+    title        = {DOCLAYOUT-VL: A Foundational Model for Hierarchical, Open-Set and Promptable Document Layout Segmentation},
+    author       = {Venna, Venkata Kesav and Bandarupalli, Srihari and Srinivasan, Anirudh and R, Raghuveer and Gunda, Sai Madhusudan and Sarvadevabhatla, Ravi Kiran},
+    booktitle    = {European Conference on Computer Vision},
+    pages        = {275--296},
+    year         = {2026},
+    organization = {Springer}
 }`,
   docog: `@inproceedings{gunda2026docog,
-    title={DoCoG: Mask-Based Multi-type Grounded Chain-of-Thought for Document QA},
-    author={Gunda, Sai Madhusudan and Jinka, Jyothi Swaroopa and Rachakonda, Hrithik Sagar and Jain, Aryan and Venna, Venkata Kesav and Srinivasan, Anirudh and Sarvadevabhatla, Ravi Kiran},
-    booktitle={European Conference on Computer Vision},
-    pages={308--327},
-    year={2026},
-    organization={Springer}
+    title        = {DoCoG: Mask-Based Multi-type Grounded Chain-of-Thought for Document QA},
+    author       = {Gunda, Sai Madhusudan and Jinka, Jyothi Swaroopa and Rachakonda, Hrithik Sagar and Jain, Aryan and Venna, Venkata Kesav and Srinivasan, Anirudh and Sarvadevabhatla, Ravi Kiran},
+    booktitle    = {European Conference on Computer Vision},
+    pages        = {308--327},
+    year         = {2026},
+    organization = {Springer}
 }`,
   m3grounder: `@InProceedings{Venna_2026_CVPR,
     author    = {Venna, Venkata Kesav and Gunda, Sai Madhusudan and Jinka, Jyothi Swaroopa and Rachakonda, Hrithik Sagar and Srinivasan, Anirudh and Sarvadevabhatla, Ravi Kiran},
