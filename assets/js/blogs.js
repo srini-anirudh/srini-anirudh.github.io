@@ -7,6 +7,22 @@ const blogMoon = blogColorModeToggle?.querySelector(".moon");
 const blogNavToggle = document.querySelector(".nav-toggle");
 const blogNavLinks = document.querySelector(".nav-links");
 
+function addGoogleScholarFooterLink() {
+  const footer = document.querySelector(".site-footer");
+  if (!footer || footer.querySelector('a[href*="scholar.google.com/citations"]')) return;
+
+  const link = document.createElement("a");
+  link.href = "https://scholar.google.com/citations?hl=en&user=bhm5TBQAAAAJ";
+  link.title = "Google Scholar";
+  link.innerHTML = '<i class="fas fa-graduation-cap"></i>Google Scholar';
+
+  const linkedIn = footer.querySelector('a[title="LinkedIn"]');
+  linkedIn?.after(link);
+  if (!linkedIn) footer.appendChild(link);
+}
+
+addGoogleScholarFooterLink();
+
 function syncBlogTheme(enabled) {
   document.documentElement.classList.toggle("dark-mode", enabled);
   document.body.classList.toggle("dark-mode", enabled);
