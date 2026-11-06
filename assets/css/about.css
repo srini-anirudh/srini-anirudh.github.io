@@ -1495,3 +1495,16 @@ body.dark-mode .hero-status {
     transition: none !important;
   }
 }
+
+/* Scrollable news feed */
+.news-section {
+  margin: 8px 0 56px;
+}
+
+.news-section .news-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 14px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}

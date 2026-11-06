@@ -3,7 +3,7 @@
 This is a static GitHub Pages site. Keep root-level HTML files for clean URLs on the user site:
 
 - `index.html` - landing page and news
-- `about.html` - about, education, and experience
+- `index.html` - home: intro, news, work, projects, and community (`about.html` redirects here)
 - `research.html` - publications and paper resources
 - `projects.html` - applied project pages and demos
 - `blogs/` - blog index and one folder per self-contained blog article
