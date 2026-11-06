@@ -268,7 +268,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">17 of 20 &middot; Retrieval</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../vlms-that-act/"><span>Previous &middot; 14</span><strong>VLMs That Act</strong></a><a class="ml-series-nav__link" href="../what-happens-inside-a-vlm/"><span>Next &middot; 18</span><strong>What Happens Inside a VLM</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../the-cost-of-a-picture/"><span>Previous &middot; 16</span><strong>The Cost of a Picture</strong></a><a class="ml-series-nav__link" href="../what-happens-inside-a-vlm/"><span>Next &middot; 18</span><strong>What Happens Inside a VLM</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -298,7 +298,7 @@
         <h2>Why a VLM needs a search engine</h2>
         <p class="lede">An analyst asks a question: "How did capital expenditure in Asia change between 2022 and 2023?" The answer exists. It is a bar chart on page 1,812 of a 40,000-page archive of annual reports. No sentence on that page states the number. The only evidence is the height of two bars.</p>
         <p>A vision-language model (VLM) can read that chart if it sees the page. The earlier posts in this series show how: the page becomes visual tokens, and the language model attends to them (see <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a>). The problem is that the model cannot see all 40,000 pages.</p>
-        <p>Do the arithmetic. ColPali, a retriever we will meet later, cuts a page into 1,024 patches. A VLM that reads a page at similar resolution spends roughly a thousand visual tokens on it. Forty thousand pages is then about forty million tokens. That is far beyond any context window, and it would be slow and expensive even if it fit. The cost of a single picture is already a design problem (see <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>). Forty thousand pictures per question is not an option.</p>
+        <p>Do the arithmetic. ColPali, a retriever we will meet later, cuts a page into 1,024 patches. A VLM that reads a page at similar resolution spends roughly a thousand visual tokens on it. Forty thousand pages is then about forty million tokens. That is far beyond any context window, and it would be slow and expensive even if it fit. The cost of a single picture is already a design problem (see <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>). Forty thousand pictures per question is not an option.</p>
         <p>So the system must do two jobs. First, it must <em>search</em>: find the few pages, images or video frames that are likely to hold the answer. Second, it must <em>read</em>: give that evidence to the VLM and produce an answer that points back to it. This pattern is called retrieval-augmented generation, or RAG. When the evidence is visual, people call it visual RAG or multimodal RAG.</p>
         <p>This post builds the search half from first principles and then connects it to the reading half. The thread runs as follows. We start with the three basic ways to score a query against a candidate, and how to measure whether a ranking is good. We then look at contrastive models such as CLIP as retrievers, and at a quirk of their geometry called the modality gap. Next come VLMs turned into embedding models, and the document retrievers that skip OCR entirely. We then cost out the index, add a reranker, and feed the evidence to the generator with citations. The last sections cover video, training data, benchmarks and the design choices a practitioner has to make.</p>
 
@@ -570,7 +570,7 @@
           <figcaption><strong>Figure 7.</strong> Index size is pages × vectors × dimensions × bytes. The page grid shows how many vectors one page stores; pooling merges neighbouring patches. Quality retention depends on the corpus and is not modelled here; the text gives the measured numbers from ColPali and Light-ColPali.</figcaption>
         </figure>
 
-        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Resolution links reading quality and index size. A retriever that sees more patches reads small text better, as DSE's crop-grid experiment shows. In a multi-vector index, each extra patch is also an extra stored vector, so index size grows linearly with the patch count. The resolution you choose for retrieval is therefore a storage decision too. The efficiency techniques in <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>, such as merging visual tokens, reappear here as index compression.</p></aside>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Resolution links reading quality and index size. A retriever that sees more patches reads small text better, as DSE's crop-grid experiment shows. In a multi-vector index, each extra patch is also an extra stored vector, so index size grows linearly with the patch count. The resolution you choose for retrieval is therefore a storage decision too. The efficiency techniques in <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>, such as merging visual tokens, reappear here as index compression.</p></aside>
       </section>
 
       <section id="reranking">
@@ -745,7 +745,7 @@
         <ul>
           <li><a href="../how-vlms-read-documents/">How VLMs Read Documents</a></li>
           <li><a href="../when-language-must-point/">When Language Must Point</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li>
+          <li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li>
           <li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li>
           <li><a href="../memory-is-more-than-context/">Memory Is More Than Context</a></li>
         </ul>

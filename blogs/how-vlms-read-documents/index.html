@@ -423,7 +423,7 @@
         </figure>
 
         <h3>Three ways to spend fewer tokens</h3>
-        <p>The literature has tried three broad ways to break the trade. The <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">post on efficient VLMs</a> covers token compression in general. Here are the parts specific to text-heavy images.</p>
+        <p>The literature has tried three broad ways to break the trade. The <a href="../the-cost-of-a-picture/">post on efficient VLMs</a> covers token compression in general. Here are the parts specific to text-heavy images.</p>
         <p><strong>Merge or drop tokens after the encoder.</strong> DocOwl 1.5's horizontal merge and TextMonkey's similarity-based filtering both belong here. Pixel shuffle, which folds a 2-by-2 block of features into one token, is now standard (SmolDocling, MinerU2.5 and the Qwen models use a version of it). DocOwl2 compresses a page to 324 tokens with cross-attention guided by a global view.</p>
         <p><strong>Use an encoder designed for dense text.</strong> GOT-OCR2.0 uses an 80M-parameter ViTDet encoder at 1024 by 1024, whose local window attention keeps high resolution affordable, and compresses every image to 256 tokens. Its 0.5B decoder supports 8K output tokens. DeepSeek-OCR pushes this further. Its DeepEncoder runs window attention (an 80M SAM-base) on the full-resolution patches, compresses them 16× with convolutions, and only then applies global attention (a 300M CLIP-large) on the few remaining tokens. Its native modes cost 64, 100, 256 or 400 tokens per image, and a tiled "Gundam" mode handles larger pages.</p>
         <p><strong>Decouple layout from recognition.</strong> MinerU2.5 looks at a downsampled page to find the layout, then reads each element from a crop of the original image at native resolution. Small elements get many pixels only where they are needed. We return to this design below.</p>
@@ -708,7 +708,7 @@
           <li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li>
           <li><a href="../when-language-must-point/">When Language Must Point</a></li>
           <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li>
+          <li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li>
           <li><a href="../searching-with-pixels/">Searching With Pixels</a></li>
         </ul>
       </nav>

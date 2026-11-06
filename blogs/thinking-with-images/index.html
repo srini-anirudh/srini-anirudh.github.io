@@ -521,7 +521,7 @@
 
         <h3>Where the pixels go</h3>
         <p>Take a 12-megapixel phone photo, 4032 pixels wide and 3024 tall. The plaque text is 32 pixels tall in the original.</p>
-        <p>A VLM cannot afford to encode every pixel. With 14-pixel patches and no token merging, the full photo would need (4032/14) × (3024/14) = 288 × 216 = 62,208 visual tokens. So the resolution policy resizes it. (<a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a> covers the token-compression side of this budget.) Suppose it resizes the long side to 448 pixels. The image becomes 448 × 336. The patch grid is 32 × 24, which is 768 tokens.</p>
+        <p>A VLM cannot afford to encode every pixel. With 14-pixel patches and no token merging, the full photo would need (4032/14) × (3024/14) = 288 × 216 = 62,208 visual tokens. So the resolution policy resizes it. (<a href="../the-cost-of-a-picture/">The Cost of a Picture</a> covers the token-compression side of this budget.) Suppose it resizes the long side to 448 pixels. The image becomes 448 × 336. The patch grid is 32 × 24, which is 768 tokens.</p>
         <p>The text height scales with the image. It becomes 32 × 448 / 4032 ≈ 3.6 pixels. The whole line of text now fits inside a single row of 14-pixel patches.</p>
         <p>Resizing is a low-pass filter. Detail finer than the new pixel grid is averaged away before the encoder runs. The encoder never sees the letters. It sees a small grey smudge on a dark plaque.</p>
 

@@ -400,7 +400,7 @@
 
       <section id="compression">
         <h2>Fitting a video into the budget</h2>
-        <p>Sampling and tubelets reduce the token count before the language model. Most video models compress further. Compression is a broad topic covered for images in <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>. Video adds one new resource to compress: redundancy <em>across</em> frames. The methods fall into six groups.</p>
+        <p>Sampling and tubelets reduce the token count before the language model. Most video models compress further. Compression is a broad topic covered for images in <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>. Video adds one new resource to compress: redundancy <em>across</em> frames. The methods fall into six groups.</p>
         <h3>Pooling</h3>
         <p>The cheapest compressor is an average. Video-ChatGPT averages each frame's CLIP features over space to get one token per frame. It also averages over time to get one token per spatial position. Both sets go to the language model. LLaVA-OneVision shrinks each frame's feature map with bilinear interpolation to 196 tokens and takes up to 32 frames. PLLaVA found something surprising about pooling. Fine-tuning an image model on many frames without pooling made performance saturate or drop. The authors traced this to a few very high-norm visual features that dominate. Pooling along time smoothed them out and fixed it.</p>
         <h3>Learned queries</h3>
@@ -659,7 +659,7 @@
         <p>Two threads continue in the next posts. The single-frame shortcut is a reward-hacking problem as much as an evaluation problem, and T-GRPO's shuffled-frame comparison is one instance of a broader idea: design the reward so that it can only be earned by looking. That is the subject of <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>. The search route for long video, where a model decides which moments to look at, is a form of active perception that <a href="../thinking-with-images/">Thinking With Images</a> develops for images.</p>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>

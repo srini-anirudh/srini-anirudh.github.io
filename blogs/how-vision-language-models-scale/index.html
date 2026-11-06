@@ -569,7 +569,7 @@
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"One visual token" is an average over a benchmark mix that is mostly coarse visual reasoning, measured with one LLM family and one compression method. The same paper shows the opposite optimum for OCR. Zhuang et al. (2026) stress-tested how much text a vision token can carry and found a stable regime, an unstable regime and a collapse as the characters per token grow. The practical rule is to set the visual token budget per task type, not per model, and to test it on the densest inputs you expect.</p></aside>
 
         <h3>Train-optimal and deploy-optimal VLMs</h3>
-        <p>The language-model lesson carries over with a twist. A deploy-optimal LLM is smaller and trained longer than a train-optimal one. A deploy-optimal VLM has a second lever: it can spend training compute on a model that works well with fewer visual tokens. Token compression, dynamic routing between resolutions and efficient encoders all trade a little training effort for a lot of serving cost. InternVL3.5's visual resolution router and FastVLM's hybrid encoder are examples. Post 16, <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>, covers these methods in detail. For scaling, the point is that the visual token count belongs in the scaling law, next to <span class="m">N</span> and <span class="m">D</span>.</p>
+        <p>The language-model lesson carries over with a twist. A deploy-optimal LLM is smaller and trained longer than a train-optimal one. A deploy-optimal VLM has a second lever: it can spend training compute on a model that works well with fewer visual tokens. Token compression, dynamic routing between resolutions and efficient encoders all trade a little training effort for a lot of serving cost. InternVL3.5's visual resolution router and FastVLM's hybrid encoder are examples. Post 16, <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>, covers these methods in detail. For scaling, the point is that the visual token count belongs in the scaling law, next to <span class="m">N</span> and <span class="m">D</span>.</p>
       </section>
 
       <section id="post-training">
@@ -718,7 +718,7 @@
         <p>The next post, <a href="../one-model-many-visual-skills/">One Model, Many Visual Skills</a>, picks up where the budget ends: how post-training turns a pretrained VLM into one that follows instructions across many visual tasks.</p>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a></li><li><a href="../teaching-language-models-to-see/">Teaching Language Models to See</a></li><li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a></li><li><a href="../teaching-language-models-to-see/">Teaching Language Models to See</a></li><li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>

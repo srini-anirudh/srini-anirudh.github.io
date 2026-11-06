@@ -202,7 +202,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">14 of 20 &middot; Agents</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Previous &middot; 13</span><strong>Thinking With Images</strong></a><a class="ml-series-nav__link" href="../searching-with-pixels/"><span>Next &middot; 17</span><strong>Searching With Pixels</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Previous &middot; 13</span><strong>Thinking With Images</strong></a><a class="ml-series-nav__link" href="../the-cost-of-a-picture/"><span>Next &middot; 16</span><strong>The Cost of a Picture</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -381,7 +381,7 @@
         </figure>
 
         <p>ScreenSpot-Pro (Li et al.) measured this effect. It collected high-resolution screenshots from 23 professional applications across five industries and three operating systems. The targets are small, and the screens are large. When the benchmark was released, the best existing grounding model scored 18.9%.</p>
-        <p>The authors also proposed ScreenSeekeR, a search method that uses a planner to guide zooming into likely regions. Without any extra training it reached 48.1%. Zooming at inference time is exactly the kind of tool use covered in <a href="../thinking-with-images/">Thinking With Images</a>. The cost side of resolution, and how to cut visual tokens without losing small targets, is the subject of <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
+        <p>The authors also proposed ScreenSeekeR, a search method that uses a planner to guide zooming into likely regions. Without any extra training it reached 48.1%. Zooming at inference time is exactly the kind of tool use covered in <a href="../thinking-with-images/">Thinking With Images</a>. The cost side of resolution, and how to cut visual tokens without losing small targets, is the subject of <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
 
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>On ScreenSpot-Pro, a zoom-in search procedure took accuracy from 18.9% (best existing model) to 48.1% with no training. Much of the failure on professional screens is therefore a resolution problem, not a knowledge problem. If your agent works on large or dense screens, give it a zoom or crop action before you collect more grounding data.</p></aside>
       </section>
@@ -493,7 +493,7 @@
         <p>Writing coordinates as text has a weakness. The model must turn a spatial judgement into digits, one token at a time. GUI-Actor (Wu et al.) replaces this with an attention-based action head. A special <code>&lt;ACTOR&gt;</code> token attends to the visual patches, and the most attended patches give the target. Its 7B version on Qwen2.5-VL reported 44.6 on ScreenSpot-Pro. The output-format trade-offs are discussed in <a href="../when-language-must-point/">When Language Must Point</a>.</p>
 
         <h3>Spend fewer tokens on empty space</h3>
-        <p>Screens have large flat areas. ShowUI (Lin et al.) treats patches with identical colour as connected components and skips part of each component during training. This removes 33% of visual tokens and speeds training by 1.4 times. Built on Qwen2-VL-2B with 256,000 training examples, it reached 75.1% on ScreenSpot zero-shot. Token reduction more broadly is the topic of <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
+        <p>Screens have large flat areas. ShowUI (Lin et al.) treats patches with identical colour as connected components and skips part of each component during training. This removes 33% of visual tokens and speeds training by 1.4 times. Built on Qwen2-VL-2B with 256,000 training examples, it reached 75.1% on ScreenSpot zero-shot. Token reduction more broadly is the topic of <a href="../the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
 
         <div class="comparison-table-wrap">
           <table class="comparison-table">
