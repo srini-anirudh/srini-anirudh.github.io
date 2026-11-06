@@ -415,8 +415,11 @@ wrote tinystories/ (52.1s)</code></pre></figure>
         <p>BPE starts from single bytes and repeatedly merges the most frequent adjacent pair into a new token. It stops when the vocabulary reaches 4,096 entries. Common words become one token. Rare words stay in pieces.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials"><pre><code>$ .venv/bin/python c05-pretraining/scripts/inspect_tokens.py</code></pre></figure><figure class="code-output" data-from="results/inspect_tokens.txt &middot; AMD EPYC 7R13, 8 threads, CPU only, torch 2.15.0"><pre><code>bpe-4096: vocab 4,096, eos 0, 12 tokens
   ids    [429, 438, 259, 398, 401, 283, 259, 391, 498, 402, 544, 14]
+  pieces Once _upon _a _time _there _was _a _little _boy _named _Ben .
+gpt2: vocab 50,257, eos 50256, 12 tokens
+  ids    [7454, 2402, 257, 640, 612, 373, 257, 1310, 2933, 3706, 3932, 13]
   pieces Once _upon _a _time _there _was _a _little _boy _named _Ben .</code></pre></figure>
-        <p>The first output line shows the two tokenizers side by side. On this simple sentence they make the same 12 pieces. Their ids differ, and so do their sizes. The difference shows up in the model.</p>
+        <p>The output shows the two tokenizers one after the other. On this simple sentence they make the same 12 pieces. Their ids differ, and so do their sizes. The difference shows up in the model.</p>
         <figure class="code-output" data-from="results/inspect_tokens.txt &middot; AMD EPYC 7R13, 8 threads, CPU only, torch 2.15.0" data-label="Embedding budget"><pre><code>embedding bpe-4096    4096 x 256 =  1.05M params, 19% of a 4.4M-block model
 embedding gpt2       50257 x 256 = 12.87M params, 75% of a 4.4M-block model</code></pre></figure>
         <p>The embedding table has one row per token. With tied embeddings that same table is also the output layer. At 256 dimensions, the GPT-2 vocabulary would take 12.87M parameters, which is 75% of the model. Our 4,096-token vocabulary takes 1.05M, which is 19%. On a corpus of children&rsquo;s stories, most of GPT-2&rsquo;s entries would never earn their place.</p>
