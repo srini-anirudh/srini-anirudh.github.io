@@ -25,7 +25,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 10 | How VLMs Read Documents | `how-vlms-read-documents` | Document and OCR VLMs | In progress |
 | 11 | Seeing in Time | `seeing-in-time` | Video understanding | In progress |
 | 12 | Rewarding What the Model Sees | `rewarding-what-the-model-sees` | RL for VLMs | In progress |
-| 13 | Thinking With Images | `thinking-with-images` | Reasoning and multimodal test-time scaling | In progress |
+| 13 | Thinking With Images | `thinking-with-images` | Reasoning and multimodal test-time scaling | Published |
 | 14 | VLMs That Act | `vlms-that-act` | Visual tools, GUI agents, computer use | In progress |
 | 15 | From VLMs to VLAs | `from-vlms-to-vlas` | Vision-language-action models | In progress |
 | **Systems and frontier** |||||
