@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT — implemented
+
+    Every animated figure in this article is driven by one shared stepper helper
+    (see the script at the end of the page). Each figure ships its own control
+    group in this order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Step NN / Total]
+
+    · Multi-stage sequences: every step is a target state; the helper tweens all
+      numeric parameters (bar lengths, curve progress, camera viewBox) with an
+      eased transition, so there are no two-state flips.
+    · Autoplay only while the figure is at least half on screen
+      (IntersectionObserver, threshold 0.5). Play/Pause resumes from the current
+      step; changing speed preserves the position.
+    · Any manual control pauses autoplay; playback resumes only via Play.
+    · prefers-reduced-motion: no autoplay, no tweening, no camera moves; every
+      state remains reachable with Previous/Next.
+    · Semantic buttons, aria-pressed on play state and speed, aria-live status,
+      visible focus rings. Interactive figures (sliders, presets) need no autoplay.
+
+    Preview assets: preview.gif and preview.png (Figure 1).
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="What a scaling law means for a vision-language model: how compute splits between two towers, what the vision, data, fusion and visual-token scaling studies show, and what open VLMs actually spend." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="How Vision-Language Models Scale: Scaling Laws for VLMs" />
+    <meta property="og:description" content="What a scaling law means for a vision-language model: how compute splits between two towers, what the vision, data, fusion and visual-token scaling studies show, and what open VLMs actually spend." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="How Vision-Language Models Scale: Scaling Laws for VLMs" />
+    <meta name="twitter:description" content="What a scaling law means for a vision-language model: how compute splits between two towers, what the vision, data, fusion and visual-token scaling studies show, and what open VLMs actually spend." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/preview.png" />
+    <title>How Vision-Language Models Scale: Scaling Laws for VLMs | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/" },
+        "headline": "How Vision-Language Models Scale",
+        "description": "What a scaling law means for a vision-language model: how compute splits between two towers, what the vision, data, fusion and visual-token scaling studies show, and what open VLMs actually spend.",
+        "image": "https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["scaling laws", "vision-language models", "compute budgets", "visual tokens", "VLM"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#vlms" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --blue: #0b5ea8;
+        --orange: #d66f00;
+        --green: #2f8f5b;
+        --red: #b8432f;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; scroll-margin-top: 90px; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content section { scroll-margin-top: 90px; }
+      .article-content a { color: var(--blue); text-underline-offset: 3px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* Equations: KaTeX-free, plain HTML. */
+      .eq { margin: 22px 0; padding: 15px 18px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 16px/1.75 var(--mono); }
+      .eq.center { text-align: center; }
+      .eq .an { display: block; margin-top: 7px; color: var(--muted); font-size: 12.5px; font-style: italic; }
+      .eq sub, .eq sup { font-size: 0.72em; }
+      .m { font-family: var(--mono); font-size: 0.86em; white-space: nowrap; }
+
+      /* Insight and nuance callouts (writing guide, section 4). */
+      .callout { margin: 28px 0; padding: 15px 19px 4px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--blue); }
+      .callout-nuance { border-left-color: var(--orange); }
+      .callout p { font-size: 17.5px; line-height: 1.6; }
+      .callout .callout-label { margin: 0 0 6px; color: var(--blue); font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .callout-nuance .callout-label { color: var(--orange); }
+
+      /* Figures: light paper panels, no dark instrument panels. */
+      .fig { margin: 34px 0 38px; padding: 18px 18px 14px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .fig.wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      .fig-kicker { margin: 0 0 4px; color: var(--muted); font: 600 11px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .fig-title { margin: 0 0 12px; font: 700 21px/1.2 var(--display); letter-spacing: -0.01em; }
+      .fig-svg { display: block; width: 100%; height: auto; overflow: hidden; }
+      .fig-svg text { font-family: var(--mono); }
+      .fig-step-text { min-height: 3.2em; margin: 4px 0 8px; padding: 8px 12px; color: var(--ink); background: #fffefb; border-left: 3px solid var(--orange); font: 15.5px/1.5 var(--body); }
+      .fig figcaption { margin-top: 12px; color: var(--ink-soft); font: 14.5px/1.55 var(--body); }
+      .fig figcaption strong { color: var(--ink); font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+      .fig-note { margin: 8px 0 0; color: var(--muted); font: 12px/1.5 var(--mono); }
+      .anim-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+      .anim-controls button, .fig-btn { min-height: 38px; padding: 7px 11px; color: var(--ink); background: var(--paper-bright); border: 1px solid var(--ink); border-radius: 2px; cursor: pointer; font: 600 11.5px/1 var(--mono); }
+      .anim-controls button:hover, .fig-btn:hover { background: #efede9; }
+      .anim-controls button[aria-pressed="true"], .fig-btn[aria-pressed="true"] { color: #fff; background: var(--orange); border-color: var(--orange); }
+      .anim-controls button[data-action="play"][aria-pressed="true"] { color: #fff; background: var(--ink); border-color: var(--ink); }
+      .anim-controls button:focus-visible, .fig-btn:focus-visible, .fig input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+      .anim-status { margin-left: auto; color: var(--ink-soft); font: 12px/1.4 var(--mono); }
+      .fig-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+
+      /* Interactive controls (calculator, token trade-off). */
+      .ctl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px 22px; margin: 6px 0 12px; }
+      .ctl { display: flex; flex-direction: column; gap: 3px; font: 12px/1.35 var(--mono); color: var(--ink-soft); }
+      .ctl label { display: flex; justify-content: space-between; gap: 8px; }
+      .ctl output { color: var(--ink); font-weight: 600; }
+      .ctl input[type=range] { width: 100%; accent-color: var(--orange); }
+      .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+      .seg .fig-btn { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+      .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0 4px; }
+      .readout div { padding: 8px 10px; background: #fffefb; border: 1px solid var(--rule); font: 11.5px/1.35 var(--mono); color: var(--ink-soft); }
+      .readout b { display: block; margin-top: 3px; color: var(--ink); font-size: 15px; }
+
+      /* Tables: reuse the shared comparison treatment. */
+      .comparison-table { min-width: 860px !important; }
+      .comparison-table td { font-size: 11.5px; }
+      .comparison-table td:first-child { font-weight: 600; white-space: nowrap; }
+      .table-note { margin: -12px 0 26px; color: var(--ink-soft); font-size: 16px; }
+      .key-list { margin: 0 0 18px; padding-left: 1.2em; }
+      .key-list li { margin: 0 0 12px; }
+      .plan-list li { margin: 0 0 10px; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .fig { padding: 12px 10px 10px; }
+        .fig.wide { width: calc(100vw - 20px); margin-left: calc(50% - 50vw + 10px); }
+        .anim-status { margin-left: 0; width: 100%; }
+        .fig-step-text { font-size: 15px; min-height: 4.6em; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article how-vision-language-models-scale-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Vision-language models</p>
+        <h1 class="article-title">How Vision-Language Models Scale</h1>
+        <p class="article-subtitle">What a scaling law means when a model has two towers, a connector between them, and a variable number of tokens per picture.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Scaling laws</span><span>Vision-language models</span><span>Compute budgets</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>40 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">05 of 20 &middot; Scaling</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../teaching-language-models-to-see/"><span>Previous &middot; 04</span><strong>Teaching Language Models to See</strong></a><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Next &middot; 13</span><strong>Thinking With Images</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#question">The question this article answers</a></li>
+          <li><a href="#recap">Scaling laws in one page</a></li>
+          <li><a href="#budget">What changes with two towers</a></li>
+          <li><a href="#vision-tower">Scaling the vision tower</a></li>
+          <li><a href="#data-quality">Quality, quantity and repetition</a></li>
+          <li><a href="#fusion">Mixed-modal and native models</a></li>
+          <li><a href="#split">Splitting parameters between towers</a></li>
+          <li><a href="#tokens">Visual tokens as a scaling axis</a></li>
+          <li><a href="#post-training">Scaling post-training</a></li>
+          <li><a href="#compute">What open VLMs actually spend</a></li>
+          <li><a href="#studies">The scaling studies side by side</a></li>
+          <li><a href="#unknowns">What is still unknown</a></li>
+          <li><a href="#planning">A planning procedure</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="question">
+        <h2>The question this article answers</h2>
+        <p>Suppose you have a fixed amount of compute and you want to build a vision-language model (VLM). You must pick a vision encoder and a language model. You must pick an image resolution. You must decide how much caption data, interleaved web data and plain text to train on. Every one of these choices spends the same budget. Which split buys the most capability?</p>
+        <p>For a text-only language model, this question has a well-studied answer. A scaling law describes how loss falls as you add parameters and training tokens. From that law you can work out how to split a compute budget between model size and data. The site's article <a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a> derives that answer in detail.</p>
+        <p>A VLM breaks the clean picture in three places. First, it has two towers joined by a connector, so "model size" is really three numbers. Second, a training sample is not a fixed number of tokens. An image can become 64 tokens or 7,000 tokens, depending on resolution and on how the patches are merged. Third, most VLMs are assembled from parts that were already trained elsewhere. Their cost was paid before the VLM run started.</p>
+        <p>This article asks what a scaling law means under those conditions, and what the published evidence says. We start with a short recap of the language-model case. Then we define the compute budget of a VLM carefully, because every later result depends on it. After that we go through each axis that people have scaled: the vision tower, the data, the fusion style, the split of parameters, the number of visual tokens, and post-training. We close with what open VLMs have actually spent, and with what nobody knows yet.</p>
+        <p>This is post 05 of the series. The previous post, <a href="../teaching-language-models-to-see/">Teaching Language Models to See</a>, covers how VLMs are pretrained. Here we ask how that recipe should change as the budget grows.</p>
+      </section>
+
+      <section id="recap">
+        <h2>Scaling laws in one page</h2>
+        <p>A scaling law is a formula that predicts a model's loss from the resources spent on it. The most used form, from the Chinchilla study, writes the loss <span class="m">L</span> as a function of the parameter count <span class="m">N</span> and the number of training tokens <span class="m">D</span>:</p>
+        <div class="eq center">
+          L(N, D) = E + A / N<sup>α</sup> + B / D<sup>β</sup>
+          <span class="an">E is the irreducible loss. The two other terms shrink as the model and the data grow.</span>
+        </div>
+        <p>Training compute ties the two resources together. For a dense transformer, each parameter costs about six floating-point operations per token: two in the forward pass and four in the backward pass. So the compute budget is</p>
+        <div class="eq center">
+          C ≈ 6 · N · D
+        </div>
+        <p>Fix <span class="m">C</span>, substitute <span class="m">D = C / 6N</span> into the loss, and minimise over <span class="m">N</span>. The answer is a compute-optimal model size. Hoffmann et al. found that model size and token count should grow at roughly the same rate, about 20 training tokens per parameter in their fit. Kaplan et al. had earlier recommended much larger models trained on fewer tokens. The difference came mostly from how parameters and compute were counted, a story the <a href="../scaling-laws-from-first-principles/">scaling-laws article</a> tells in full.</p>
+        <p>Two further points from that article matter here. The first is that train-optimal is not deploy-optimal. If a model will serve billions of requests, a smaller model trained on more tokens can be cheaper over its lifetime, even if it wasted training compute (Sardana et al., 2023). The second is that loss is not capability. A smooth fall in loss can still show up as sudden jumps on a benchmark, and the link between them has to be measured.</p>
+        <p>Does the same law hold beyond text? Henighan et al. (2020) trained autoregressive transformers on images, video, mathematics, and image–caption pairs in both directions. Every domain followed a power law plus a constant. The compute-optimal model size grew with compute along nearly the same power law in every domain, roughly <span class="m">N<sub>opt</sub> ∝ C<sup>0.7</sup></span> in their setup. So the basic shape survives contact with pixels. The rest of this article is about what that simple picture leaves out.</p>
+      </section>
+
+      <section id="budget">
+        <h2>What changes when the model has two towers</h2>
+        <p>Take a typical modern VLM. A vision encoder turns the image into patch features. A small connector maps those features into the language model's embedding space, often after merging neighbouring patches. A language model (the LLM) reads the visual tokens together with the text and predicts the next text token. The architectures are surveyed in <a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a>, and the encoder side in <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a>.</p>
+
+        <h3>Parameters split into three</h3>
+        <p>The single number <span class="m">N</span> becomes a sum:</p>
+        <div class="eq center">
+          N = N<sub>V</sub> + N<sub>C</sub> + N<sub>L</sub>
+          <span class="an">vision encoder + connector + language model</span>
+        </div>
+        <p>These three parts are not equal in cost or in effect. The connector is usually tiny. In LLaVA-OneVision, the trainable projector for the 72B model has 72M parameters. The encoder is usually a few hundred million parameters. The LLM is billions. So the parameter count is dominated by the LLM, but, as we will see, the compute is not always.</p>
+
+        <h3>Data splits into kinds</h3>
+        <p>A text model trains on one kind of token. A VLM trains on a mixture. Typical pretraining mixes image–caption pairs, interleaved web documents with several images, and text-only data. MM1 used 45% captions, 45% interleaved documents and 10% text in its ablation setup. DeepSeek-VL reported that keeping at least 70% language data during pretraining was needed to preserve language ability. The data also arrives in stages: alignment, large-scale pretraining, instruction tuning, and often reinforcement learning. So <span class="m">D</span> is a vector of token counts, one per kind and per stage.</p>
+
+        <h3>An image does not have a fixed size in tokens</h3>
+        <p>A ViT cuts an image of <span class="m">H × W</span> pixels into square patches of side <span class="m">p</span>. The number of patches is</p>
+        <div class="eq center">
+          P = (H / p) · (W / p)
+          <span class="an">a 448 × 448 image with 14-pixel patches gives 32 × 32 = 1,024 patches</span>
+        </div>
+        <p>Many VLMs then merge each <span class="m">m × m</span> block of patch features into one token before the LLM sees it. This is called pixel shuffle or patch merging. InternVL, Qwen2-VL and NVLM use a 2 × 2 merge. So the LLM receives</p>
+        <div class="eq center">
+          V = P / m<sup>2</sup>
+          <span class="an">1,024 patches with a 2 × 2 merge give 256 visual tokens</span>
+        </div>
+        <p>Both numbers grow with the square of the resolution. Doubling the side of the image multiplies the work of both towers by four. Tiling schemes multiply it again by the number of tiles. This is why resolution is a scaling axis of its own, and why a VLM's "tokens per sample" is a design choice rather than a property of the data.</p>
+
+        <h3>The compute budget of one training sample</h3>
+        <p>Now apply the six-FLOPs rule to each tower. The encoder runs on every patch. The LLM runs on every visual token and every text token. If both towers are trained, one sample with <span class="m">T</span> text tokens costs about</p>
+        <div class="eq center">
+          C<sub>sample</sub> ≈ 6 · N<sub>V</sub> · P + 6 · N<sub>L</sub> · (V + T)
+          <span class="an">the connector term is small and is left out; attention scores are also left out</span>
+        </div>
+        <p>Shukor et al. use the same accounting for late-fusion models, written as <span class="m">C = 6(N<sub>v</sub>D<sub>v</sub> + N·D)</span>, with <span class="m">D<sub>v</sub></span> the number of vision-only tokens.</p>
+        <p>The factor of six assumes the tower is trained. Frozen towers change it, and the change is not symmetric. A frozen encoder at the start of the network only needs a forward pass: 2 FLOPs per parameter per patch. A frozen LLM is different. If the connector below it is being trained, the gradient must still travel back through the LLM to reach the connector. That backward pass computes gradients with respect to activations, which costs another 2 FLOPs per parameter. Only the weight-gradient half is skipped. So a frozen LLM still costs about 4 FLOPs per parameter per token.</p>
+        <div class="eq center">
+          k = 6 (trained) · 4 (frozen, but something below it trains) · 2 (frozen, nothing below it trains)
+          <span class="an">multiply each tower's parameter count by its k</span>
+        </div>
+        <p>Figure 1 walks through one sample with a 0.4B encoder, a 448-pixel image, a 2 × 2 merge, 200 text tokens and a 7B LLM.</p>
+
+        <figure class="fig wide" id="fig-anatomy" data-fig>
+          <p class="fig-kicker">Figure 1 · animated</p>
+          <p class="fig-title">Where the FLOPs of one training sample go</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="A 448-pixel image is cut into 1,024 patches, encoded by a 0.4B vision encoder, merged 2 by 2 into 256 visual tokens, joined with 200 text tokens and processed by a 7B language model. Bars compare the FLOPs spent in each tower under different freezing choices and for a 0.5B language model."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 1.</strong> FLOPs per training sample, counted with 6 FLOPs per parameter per token for trained towers, 2 for a frozen encoder and 4 for a frozen LLM that still passes gradients down. Attention-score FLOPs are left out. With a 7B LLM the encoder is about 11% of the compute. With a 0.5B LLM it is about 64%.</figcaption>
+        </figure>
+
+        <p>Two consequences follow from this arithmetic, and both run against intuition.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The encoder's share of compute is <span class="m">N<sub>V</sub>·m² / (N<sub>V</sub>·m² + N<sub>L</sub>·(1 + T/V))</span>. The merge factor multiplies the encoder's weight, because the encoder sees every patch while the LLM sees only the merged tokens. With a 2 × 2 merge, a 0.675B encoder (Qwen2-VL) costs as much per image as a 2.7B LLM would. Paired with Qwen2-VL-2B's 1.5B LLM, the encoder is about 64% of the visual compute. Paired with the 72B LLM, it is under 4%. In practice, the encoder is a rounding error for large VLMs and the main cost for small ones. SmolVLM's finding that small models want small encoders, and Qwen3-VL's switch to a 300M encoder for its 2B and 4B models, both fit this arithmetic.</p></aside>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Freezing the LLM during the connector-alignment stage saves only a third of the LLM's training compute, not two thirds, because gradients still have to flow back through it. The real savings of a frozen LLM are in memory: no optimizer state and no weight gradients for billions of parameters. So when a recipe says "stage 1 is cheap", it is cheap because it is short, not because each step is.</p></aside>
+
+        <h3>An interactive budget</h3>
+        <p>The calculator below applies the same accounting to any configuration. Change the resolution and watch both towers grow with its square. Change the merge factor and watch only the LLM's share move. The presets use the published configurations of five open models. The text-token count is an assumption you can change.</p>
+
+        <figure class="fig wide" id="fig-calc">
+          <p class="fig-kicker">Figure 2 · interactive</p>
+          <p class="fig-title">A VLM compute calculator</p>
+          <div class="seg" role="group" aria-label="Presets" data-presets></div>
+          <div class="ctl-grid">
+            <div class="ctl"><label for="c-nv"><span>Vision encoder N<sub>V</sub></span> <output id="o-nv"></output></label><input id="c-nv" type="range" min="0" max="7" step="1" /></div>
+            <div class="ctl"><label for="c-nl"><span>Language model N<sub>L</sub></span> <output id="o-nl"></output></label><input id="c-nl" type="range" min="0" max="8" step="1" /></div>
+            <div class="ctl"><label for="c-res">Image side (pixels) <output id="o-res"></output></label><input id="c-res" type="range" min="224" max="2016" step="28" /></div>
+            <div class="ctl"><label for="c-img">Images or tiles per sample <output id="o-img"></output></label><input id="c-img" type="range" min="1" max="16" step="1" /></div>
+            <div class="ctl"><label for="c-txt">Text tokens per sample <output id="o-txt"></output></label><input id="c-txt" type="range" min="0" max="4096" step="32" /></div>
+            <div class="ctl"><span>Patch size p</span><div class="seg" role="group" aria-label="Patch size" data-seg="p"></div></div>
+            <div class="ctl"><span>Token merge m × m</span><div class="seg" role="group" aria-label="Token merge" data-seg="m"></div></div>
+            <div class="ctl"><span>Encoder / LLM</span><div class="seg" role="group" aria-label="Training mode" data-seg="mode"></div></div>
+          </div>
+          <svg class="fig-svg" role="img" aria-label="Stacked bar of training FLOPs per sample split into vision encoder and language model, and a strip showing visual and text tokens."></svg>
+          <div class="readout" aria-live="polite"></div>
+          <p class="fig-note">FLOPs = k·N per token, with k = 6 trained, 2 for a frozen encoder, 4 for a frozen LLM below which the connector trains. Attention scores, the connector and the ViT's quadratic attention at high resolution are not counted. Preset text lengths are assumptions.</p>
+          <figcaption><strong>Figure 2.</strong> Training FLOPs per sample for a two-tower VLM. Small LLMs paired with standard encoders spend most of their compute on vision. Large LLMs spend almost all of it in the language model, and there the cost is set by the number of visual tokens.</figcaption>
+        </figure>
+
+        <p>The calculator also shows why high resolution is expensive for the encoder in a way this formula hides. The six-FLOPs rule counts only matrix products against weights. Self-attention adds a cost that grows with the square of the number of patches. At a few thousand patches per image this term is no longer small. Qwen2.5-VL's encoder therefore uses windowed attention of 112 × 112 pixels in most layers and full attention in only four of its 32 layers.</p>
+
+        <h3>Sunk cost: the compute you did not pay</h3>
+        <p>One more accounting choice changes every comparison. Almost every open VLM starts from a pretrained LLM and a pretrained encoder. The LLM may have seen 18 trillion text tokens before the VLM run begins. Should its cost count?</p>
+        <p>For the question "how should I spend my budget", the answer is no. That compute is sunk. But it means that two VLM papers reporting their training tokens can be describing very different total investments. InternVL 2.5 reports that its 78B model used about 120B tokens of multimodal training, against a cumulative 1.4T for Qwen2-VL-72B, and credits the reuse of its large pretrained InternViT encoder. The encoder's own training is not in the 120B figure. A scaling law fitted on VLM-stage tokens alone measures the cost of adaptation, not the cost of the model.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"Trained on 10× fewer tokens" is only meaningful if both models start from equally expensive parts. InternVL 2.5's comparison with Qwen2-VL is honest about this: it attributes the saving to a 6B encoder trained earlier. When you compare recipes, add up the pretraining of every reused tower, or at least name which parts were free.</p></aside>
+      </section>
+
+      <section id="vision-tower">
+        <h2>Scaling the vision tower on its own</h2>
+        <p>The first scaling studies in vision did not involve a language model at all. They asked how a vision encoder improves with model size, data and compute. Their answers set the encoders that VLMs still use.</p>
+
+        <h3>Supervised ViTs: a saturating frontier</h3>
+        <p>Zhai et al. (2021) trained Vision Transformers from 5M to 2B parameters on up to 3 billion labelled images (JFT-3B). They plotted error against training compute. The best models at each compute level lay on a frontier that a power law with a saturation term fits well. Three findings came out of the plot. Small models saturate: a ViT-Ti stops improving even with more data. Large models need more data: even 30–300M images were not enough to saturate the biggest ones. And with enough data, training a larger model for fewer steps beat training a smaller one for longer. Their 2B-parameter ViT-G reached 90.45% top-1 on ImageNet after fine-tuning.</p>
+        <p>Two later results refined this. Alabdulmohsin et al. (2023) fitted scaling laws for the shape of the network, not just its size. They found that compute-optimal ViTs should grow the MLP width fastest, then depth, then width. Their shape-optimised SoViT-400m/14 matched the much larger ViT-g/14 at equal pretraining compute, with less than half the inference cost. That 400M shape became SigLIP-So400m, the encoder inside PaliGemma, Idefics2, LLaVA-OneVision and many others. Dehghani et al. (2023) went the other way and trained a 22B-parameter ViT. It kept improving with scale, and it later became the encoder of PaLI-X.</p>
+
+        <figure class="fig wide" id="fig-encoder" data-fig>
+          <p class="fig-kicker">Figure 3 · animated · illustrative curves</p>
+          <p class="fig-title">Each encoder size saturates; the frontier keeps going</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="Log-log plot of error versus training compute for six encoder sizes. Each curve flattens at its own floor. The lower envelope of the curves forms a frontier. A shape-optimised 400M model sits below the curve of a larger model at the same compute."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 3.</strong> The structure Zhai et al. (2021) reported for supervised ViTs, drawn with illustrative constants. Each model size follows its own curve that flattens at a floor set by its capacity. The compute-optimal frontier is the envelope of these curves. A shape-optimised model (Alabdulmohsin et al., 2023) moves the frontier down without adding parameters.</figcaption>
+        </figure>
+
+        <h3>Contrastive encoders: the data distribution sets the slope</h3>
+        <p>Most VLM encoders are trained contrastively on image–text pairs, as in CLIP and ALIGN. Cherti et al. (2023) studied CLIP scaling with fully open data and code. They trained models from ViT-B/32 to ViT-g/14 on LAION subsets of 80M, 400M and 2B pairs, for up to 34B samples seen. Zero-shot classification and retrieval errors followed power laws in total compute.</p>
+        <p>The surprise was in the comparison with OpenAI's CLIP. The architectures and recipes were nearly the same. Yet OpenCLIP models on LAION scaled better on retrieval, and OpenAI's models on their private data scaled better on ImageNet classification. For ImageNet zero-shot error, the fitted exponents were about 0.11 for OpenCLIP and 0.16 for OpenAI CLIP. The authors attribute the difference to the training distribution. So an encoder scaling law is a property of the model and its data together.</p>
+        <p>Other studies moved different knobs. BASIC scaled data to 6.6B pairs, the model to 3B weights and the batch to 65,536. Li et al. (2023) found an "inverse scaling law" for CLIP training: larger encoders tolerate shorter image and text token sequences during training, which made large CLIP models much cheaper to train. SigLIP replaced the softmax contrastive loss with a sigmoid loss that does not need a global normalisation over the batch. SigLIP 2 added captioning-style and self-supervised losses to the same recipe. EVA-CLIP-18B pushed a CLIP encoder to 18B parameters. Meta CLIP 2 scaled CLIP to worldwide multilingual data and found that the English-only drop seen in earlier multilingual CLIPs (a "curse of multilinguality") could be avoided with a larger model (ViT-H/14) and more seen pairs. Going in the other direction, Li et al. (2024) studied CLIP under small budgets and found that smaller ViTs suit smaller datasets, while larger ViTs win only once the data is large.</p>
+
+        <h3>Beyond ten billion pairs</h3>
+        <p>Wang et al. (2025) built WebLI-100B, 100 billion image–text pairs, and trained SigLIP models on 1B, 10B and 100B unique examples with the same number of examples seen. On common Western-centric benchmarks such as ImageNet zero-shot and COCO retrieval, the gain from 10B to 100B was small. On tasks that need long-tail concepts, it was large. A ViT-L/16 trained for one epoch on 100B examples reached 41.7% on Dollar Street geolocalisation. The same model trained for ten epochs on 10B examples reached 35.9%, at the same compute. Low-resource languages such as Telugu also improved.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>A flat curve on standard benchmarks is not the same as a flat curve in capability. WebLI-100B's data scaling looked saturated on ImageNet and COCO and was clearly not saturated on cultural and multilingual tasks. The same paper found that quality filters such as CLIP-score filtering, which help standard benchmarks, can reduce cultural diversity. If your users are not the benchmark's users, measure on their distribution before concluding that more data no longer helps.</p></aside>
+
+        <h3>Does the encoder need language at all?</h3>
+        <p>Fan et al. (2025) asked whether self-supervised encoders trail CLIP in VLMs because they lack language supervision or because they were trained on different data. They trained DINOv2-style self-supervised models and CLIP models on the same 2 billion MetaCLIP images, from 1B to 7B parameters, and evaluated each as the encoder of a VLM on VQA. In this controlled setup the self-supervised models scaled better with model size and data than CLIP, and did not saturate at 7B. At scale they matched CLIP on VQA, including OCR and chart tasks once the data contained enough text-rich images.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Encoder quality inside a VLM is not a function of parameter count. Idefics2 found that EVA-CLIP-5B, ten times larger than SigLIP-So400m, gave about the same VLM performance and suggested it was under-trained. SoViT-400m matched a model 2.5× its size at equal compute. Web-SSL showed the training objective and data decide which encoders keep improving. So when a VLM needs a better encoder, the first lever is a better-trained encoder of a known shape, not a bigger one.</p></aside>
+      </section>
+
+      <section id="data-quality">
+        <h2>Quality, quantity and repetition</h2>
+        <p>Web image–text data is noisy. A common response is to filter it hard. LAION kept about 10% of the pairs it crawled. DataComp turned this into a benchmark: a fixed pool of 12.8 billion pairs, fixed training code and a fixed compute budget, so that only the filter changes. Its best baseline subset, DataComp-1B, trained a CLIP ViT-L/14 to 79.2% zero-shot ImageNet accuracy, 3.7 points above OpenAI's CLIP ViT-L/14. Data Filtering Networks (DFN) then trained a small model only to score pairs, and the resulting DFN-5B set trained a ViT-H to 84.4%.</p>
+        <p>These results seem to say "filter harder". Goyal et al. (2024) showed that the right amount of filtering depends on how much compute you have.</p>
+
+        <h3>Utility decays with repetition</h3>
+        <p>The argument starts from a simple observation. High-quality data is scarce. If you filter a pool down to its best 10%, a long training run will see that subset many times. Each repeat teaches less than the first view. Goyal et al. model this with a utility that halves every <span class="m">τ</span> repeats:</p>
+        <div class="eq center">
+          b<sub>k+1</sub> = b · (1/2)<sup>k / τ</sup>
+          <span class="an">b is the utility of a sample on its first view; k counts repeats; τ is the half-life in repeats</span>
+        </div>
+        <p>A small, clean pool starts with high utility per sample and runs out of fresh samples quickly. A large, noisy pool starts lower but stays fresh for longer. Plot accuracy against compute and the curves cross. In their experiment on a 128M-sample pool with ViT-B/32 models, LAION-style filtering to 10% gave the best accuracy early, then plateaued. Given enough training, even the unfiltered pool caught up and passed it.</p>
+
+        <figure class="fig wide" id="fig-filter" data-fig>
+          <p class="fig-kicker">Figure 4 · animated · illustrative curves</p>
+          <p class="fig-title">The best filter depends on the compute budget</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="Accuracy versus samples seen for three data pools: an aggressively filtered small pool, a mildly filtered medium pool and an unfiltered large pool. The aggressive pool wins at small compute, the mild pool in the middle and the unfiltered pool at large compute. An inset shows the utility of a sample halving with repeats."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 4.</strong> The quality–quantity trade-off of Goyal et al. (2024), simulated with their utility-decay model and illustrative constants. A pool of 128M samples is filtered to its top 10% (aggressive), top 30% (mild) or not at all. Repeats lose utility with a half-life of three epochs in this simulation. The best choice moves from aggressive to mild to no filtering as compute grows.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Data curation is not compute-agnostic. A filter tuned on a short run picks too small a subset for a long run, because the long run repeats that subset until it stops teaching. In practice, choose the filtering threshold together with the number of samples you will see, and loosen it as the planned run grows. The same logic explains why repeated text data loses value for language models (Muennighoff et al., 2023).</p></aside>
+        <p>Two more results complete the picture. DFN found that a filter model's own ImageNet accuracy does not predict how good a dataset it produces. A model trained on a small amount of high-quality data can be a better filter than a stronger classifier. And data quality can be raised by rewriting, not only by removing. Recaptioning web images with a strong captioner, as in Recap-DataComp-1B and in MM1's VeCap data, adds information per image without adding images. MM1 found that VeCap captions, only about 7% of its caption data, still gave a 2–4 point boost in few-shot performance.</p>
+        <p>Removing redundancy is a third lever. SemDeDup removed semantically near-duplicate pairs from LAION and trained to similar quality with less data. Sorscher et al. (2022) showed in theory and experiment that a good pruning metric can beat power-law data scaling. They also found that the best pruning rule depends on how much data you start with: keep easy examples when data is scarce and hard ones when it is abundant. Like Goyal et al., they find no filter that is right at every scale.</p>
+      </section>
+
+      <section id="fusion">
+        <h2>Scaling laws for mixed-modal and native models</h2>
+        <p>The encoder studies scale one tower in isolation. A different line of work trains one generative model over several modalities and asks how the modalities interact as the model grows. This is where the first true multimodal scaling laws come from.</p>
+
+        <h3>Competition and synergy between modalities</h3>
+        <p>Aghajanyan et al. (2023) trained over 250 decoder-only models on seven "modalities": text, images, image–text, speech, speech–text, code and molecules. Images were turned into discrete tokens by a VQ tokenizer, 1,024 tokens per image. Models ranged from 8M to 30B parameters, trained on 5 to 100 billion tokens.</p>
+        <p>Their question was simple. If you train one model on two modalities, is it better or worse than two separate models given the same per-modality data? They wrote the loss of a model trained on modalities <span class="m">i</span> and <span class="m">j</span> as the average of the two single-modality laws, plus an interaction term:</p>
+        <div class="eq center">
+          L(N, D<sub>i</sub>, D<sub>j</sub>) = ½ [L(N, D<sub>i</sub>) + L(N, D<sub>j</sub>)] − C<sub>i,j</sub> + A<sub>i,j</sub> / N<sup>α<sub>i,j</sub></sup> + B<sub>i,j</sub> / (|D<sub>i</sub>| + |D<sub>j</sub>|)<sup>β<sub>i,j</sub></sup>
+          <span class="an">C is the maximum benefit of sharing; the last two terms are the cost of sharing one set of weights and one optimisation</span>
+        </div>
+        <p>The shared model wins when the benefit term <span class="m">C<sub>i,j</sub></span> is larger than the two competition terms. Both competition terms shrink as the model and the data grow. So a pair of modalities can compete in a small model and help each other in a large one. The authors used the law to predict the scale at which competition between speech and text would vanish, around a 30B model trained on 45B tokens, and confirmed it with a 30B speech–text model.</p>
+
+        <figure class="fig wide" id="fig-synergy" data-fig>
+          <p class="fig-kicker">Figure 5 · animated · illustrative constants</p>
+          <p class="fig-title">From competition to synergy as the model grows</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="The loss of a jointly trained model minus the loss of separately trained models, plotted against model size. The competition term falls with size; the synergy constant shifts the curve down; the curve crosses zero at a crossover size. A second modality pair with weaker synergy does not cross zero in the plotted range."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 5.</strong> The interaction term of Aghajanyan et al. (2023) with illustrative constants. Above zero, sharing weights hurts (competition). Below zero, sharing helps (synergy). The crossover size depends on how much the two modalities have in common.</figcaption>
+        </figure>
+
+        <p>Chameleon took this approach to production scale. It is an early-fusion model: images become 1,024 discrete tokens per 512 × 512 image and are mixed with text in one transformer. The 34B model saw 9.2 trillion tokens over 2.1 epochs and used about 4.3 million GPU-hours. There is no pretrained tower to reuse, so the whole cost is paid in the run.</p>
+
+        <h3>Early fusion versus late fusion, at equal compute</h3>
+        <p>Most VLMs are late-fusion models: a separate image encoder feeds an LLM. Early-fusion models feed image patches almost directly into one shared transformer. Is late fusion better, or just convenient? Shukor et al. (2025) trained 457 native multimodal models from scratch, from 0.3B to 3B parameters and 250M to 400B tokens, on a mix of image captions, interleaved documents and text. They fitted Chinchilla-style laws to the average validation loss.</p>
+        <p>The loss fell with compute at almost exactly the same rate in both designs: <span class="m">L ∝ C<sup>−0.0492</sup></span> for early fusion and <span class="m">L ∝ C<sup>−0.0494</sup></span> for late fusion. The compute-optimal model size for early fusion grew as <span class="m">N<sub>opt</sub> ∝ C<sup>0.526</sup></span>, close to Chinchilla's balance. The designs differed in how they wanted the budget split. Late-fusion models wanted more parameters for a given budget. Early-fusion models wanted more training tokens. Early fusion was slightly better at small budgets and cheaper to train.</p>
+        <p>The same study added mixture-of-experts layers to the early-fusion model. The experts learned to specialise by modality, and the sparse model reached a lower loss at the same compute. Earlier work points the same way: LIMoE trained one sparse contrastive model for both images and text, and Mixture-of-Transformers gave each modality its own non-embedding weights while sharing attention, cutting the compute needed to reach a given loss. Its compute-optimal ratio of parameters to tokens fell as compute grew (the ratio <span class="m">N/D</span> scaled as <span class="m">C<sup>−0.312</sup></span>), so sparse models wanted to spend extra budget on data.</p>
+
+        <figure class="fig wide" id="fig-fusion" data-fig>
+          <p class="fig-kicker">Figure 6 · animated · reported exponents, illustrative intercepts</p>
+          <p class="fig-title">Early and late fusion: same slope, different split</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="Left: validation loss versus training FLOPs for early fusion, late fusion and mixture-of-experts models; the dense lines are nearly parallel. Right: the compute-optimal ratio of parameters to tokens versus FLOPs; late fusion sits above early fusion, and the mixture-of-experts ratio falls with compute."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 6.</strong> The exponents are those reported by Shukor et al. (2025): loss ∝ C<sup>−0.0492</sup> (early), C<sup>−0.0494</sup> (late), C<sup>−0.0474</sup> (MoE); N/D ∝ C<sup>0.053</sup> (early), C<sup>0.076</sup> (late), C<sup>−0.312</sup> (MoE). Intercepts are illustrative. The two dense designs reach the same loss for the same compute but want the budget split differently.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"No inherent advantage to late fusion" is a statement about models trained from scratch. In practice late fusion's advantage is the free pretrained LLM. Shukor et al. measured it: a native model needed fewer than 100B multimodal tokens to match an LLM-initialised one on captions, but up to 1T tokens on interleaved and text data. NaViL (Tian et al., 2025), studying native models under a data limit, likewise found that initialising from a pretrained LLM helped convergence. So under a fixed budget that does not include the LLM's pretraining, late fusion and LLM initialisation remain the cheap path to strong text ability.</p></aside>
+
+        <h3>How the data mixture moves the optimum</h3>
+        <p>The mixture of data types changes the law, not just the loss. In Shukor et al., interleaved data benefited more from larger models than caption data did. Wu et al. (2026) trained native mixture-of-experts models from scratch, from 71M to 3B active parameters, on mixtures with different shares of multimodal tokens. They fitted separate allocation laws for the language loss and the multimodal loss. The language law was stable across mixtures, with the compute-optimal model size growing roughly as <span class="m">C<sup>0.65</sup></span>. The multimodal law was not. As the multimodal share grew from 10% to 30%, its model-size exponent fell from 0.686 to 0.622, shifting the optimal budget toward more tokens. Shukor et al. (2025, a second paper) went one step further and fitted laws that include the domain weights themselves, so that small runs can predict the best mixture for an 8B model.</p>
+        <p>The practical rules in production recipes are cruder but point the same way. MM1 found a 5:5:1 ratio of captions, interleaved documents and text kept both few-shot and text performance. DeepSeek-VL found it needed at least 70% language data to protect the LLM. The site's article on <a href="../mixing-data-without-losing-capabilities/">mixing data without losing capabilities</a> covers why mixtures interfere.</p>
+
+        <h3>Scaling the encoder inside a native model</h3>
+        <p>NaViL (Tian et al., 2025) asked the encoder question inside an end-to-end trained model. With the LLM fixed, growing the visual encoder from 75M to 2.4B parameters gave diminishing returns: past some size, the loss barely moved. The LLM's capacity capped the benefit. Growing the LLM, by contrast, kept lowering the loss in the usual log-linear way. They defined the optimal encoder size for each LLM as the point where doubling the encoder stopped paying, and found that its logarithm grew linearly with the logarithm of the LLM size.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The vision encoder should grow with the LLM, but much more slowly. NaViL's log-linear relation, SmolVLM's preference for a 93M encoder with a 135M LLM, Qwen3-VL's 300M encoder for its 2B and 4B models, and InternVL3.5's use of a 300M encoder up to 30B and a 6B encoder only for its 38B and 241B models all point the same way. A family that pairs one encoder with every LLM size is over-spending at the small end or under-spending at the large end.</p></aside>
+      </section>
+
+      <section id="split">
+        <h2>How to split parameters between the towers</h2>
+        <p>Native-model studies are clean but small. Production VLMs are late-fusion models built from pretrained parts. For them, the scaling question becomes: given a family of encoders and a family of LLMs, which pair should I buy? There is no fitted law for this yet, but many ablations bear on it.</p>
+
+        <h3>The case for a big encoder</h3>
+        <p>PaLI (Chen et al., 2022) argued that vision had been under-scaled. Language models were already tens of billions of parameters, while the largest ViTs were a few billion. PaLI trained a 4B-parameter ViT-e and paired it with the 13B mT5-XXL. The authors reported that scaling the vision component gave a better return per parameter than scaling the language component, so PaLI-17B split its capacity fairly evenly between the modalities. PaLI-X continued the trend with the 22B ViT and a 32B UL2 backbone, and reported that scaling both components kept helping.</p>
+        <p>InternVL (Chen et al., 2023) made the same bet in open models: a 6B InternViT aligned progressively with LLMs. InternVL 2.5 later argued that a large encoder reduces how much multimodal data the model needs, and NVLM used the same InternViT-6B, frozen, for its 72B models.</p>
+
+        <h3>The case for a strong LLM</h3>
+        <p>Other studies found the LLM matters more. Idefics2 (Laurençon et al., 2024) fixed the backbone sizes, the data and the number of updates, then swapped parts. Replacing LLaMA-1-7B with Mistral-7B improved the average benchmark score by 5.1 points. Replacing CLIP-ViT-H with SigLIP-So400m improved it by 3.3. Their first finding reads: for a fixed number of parameters, the quality of the language model has a higher impact than the quality of the vision backbone. MM1 found that moving from ViT-L to ViT-H, a doubling of encoder parameters, added less than 1%, while raising resolution from 224 to 336 pixels added about 3%. Li et al. (2024), in a study titled "Are bigger encoders always better", found that enlarging the encoder alone did not reliably improve the VLM.</p>
+        <p>The "what transfers" study of Li et al. (2026) gives the most direct evidence for the LLM side. They trained over 150 VLMs on 34 LLMs from 7 families with one controlled recipe. A low-dimensional capability score extracted from the LLM's text benchmarks predicted the VLM's multimodal accuracy, and the fit extrapolated from backbones up to 8B to 72B. Base LLMs made better VLM backbones than their instruction-tuned versions.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The two camps are measuring different things. PaLI trained its own large encoders well and measured return per added parameter at a time when LLMs were already large. Idefics2 compared existing encoders, one of which (EVA-CLIP-5B) the authors suspected was under-trained, and measured at a fixed total size. Both can be right: a well-trained larger encoder helps, a large but poorly trained one does not, and once the encoder is decent the LLM is where extra parameters pay most. Read every "encoder versus LLM" ablation together with how each encoder was trained.</p></aside>
+
+        <h3>What the open families actually chose</h3>
+        <p>Figure 7 shows the split for fifteen published models. Three views tell three stories. As a share of parameters, the vision encoder is usually a few percent of a large model. On a log scale, encoders stay in a narrow band from 0.1B to 6B while LLMs span three orders of magnitude. As a share of training compute per image, the picture changes again: small models and models with large encoders or aggressive merging spend a large fraction of their compute on vision.</p>
+
+        <figure class="fig wide" id="fig-split" data-fig>
+          <p class="fig-kicker">Figure 7 · animated · reported parameter counts</p>
+          <p class="fig-title">Parameter split across published VLMs</p>
+          <div class="fig-tabs" role="group" aria-label="Views" data-tabs></div>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="Horizontal bars for fourteen VLMs showing vision encoder, connector and language model parameters, first as shares, then on a log scale, then as the share of per-image training compute spent in the vision encoder."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 7.</strong> Parameter counts are taken from each paper (connector sizes where reported; Flamingo's connector includes its 10B of cross-attention layers). The compute view uses N<sub>V</sub>·m² / (N<sub>V</sub>·m² + N<sub>L</sub>), with m² the patch-to-token merge factor, both towers trained, and text ignored. For the MoE model it uses the 22B active LLM parameters. Models whose resampler or encoder–decoder design does not fit this formula are marked n/a. SmolVLM's compute share assumes r = 4 merging; with r = 2 it would still be about 73%.</figcaption>
+        </figure>
+
+        <p>Table 1 collects the same models with the numbers a planner needs: the split, the connector, the visual tokens per image, the data at each stage and the compute, where reported. It follows the survey checklist used across this series. Per-family details are in <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 1 · Parameter split, visual tokens, data scale and reported compute</caption>
+            <thead><tr><th>Model</th><th>Vision encoder</th><th>Connector</th><th>LLM</th><th>Vision share of params</th><th>Visual tokens per image</th><th>Training data per stage</th><th>Reported compute</th></tr></thead>
+            <tbody>
+              <tr><td>Flamingo-80B (2022)</td><td>NFNet-F6, 435M, frozen</td><td>Perceiver resampler 194M + gated cross-attention 10B</td><td>Chinchilla 70B, frozen</td><td>0.5%</td><td>64 (resampler output)</td><td>Interleaved web pages plus image–text and video–text pairs</td><td>1,536 TPUv4 chips × 15 days</td></tr>
+              <tr><td>PaLI-17B (2022)</td><td>ViT-e, 3.9B</td><td>None: patch tokens enter the text encoder</td><td>mT5-XXL, 13B (encoder–decoder)</td><td>23%</td><td>One per patch; 224 px, then a 588 px phase</td><td>1.6B examples, one epoch at 224 px; 10M examples at 588 px</td><td>1,024 TPUv4 chips × 7 days</td></tr>
+              <tr><td>PaLI-X-55B (2023)</td><td>ViT-22B</td><td>None</td><td>UL2, 32B</td><td>~40%</td><td>One per patch; up to 756 px</td><td>Multi-stage mixture; resolution raised in sub-stages</td><td>Not reported</td></tr>
+              <tr><td>Qwen-VL (2023)</td><td>ViT-bigG, 1.9B</td><td>Cross-attention resampler, 0.08B</td><td>Qwen-7B, 7.7B</td><td>20%</td><td>256</td><td>1.4B pairs (cleaned from 5B); multi-task stage; SFT</td><td>Not reported</td></tr>
+              <tr><td>LLaVA-1.5-13B (2023)</td><td>CLIP ViT-L/14-336, 0.3B</td><td>2-layer MLP</td><td>Vicuna-13B</td><td>2%</td><td>576</td><td>558K alignment; 665K instruction</td><td>About 1 day on one 8×A100 node</td></tr>
+              <tr><td>DeepSeek-VL-7B (2024)</td><td>SigLIP-L + SAM-B hybrid</td><td>Hybrid VL adaptor</td><td>DeepSeek-LLM-7B</td><td>Not reported</td><td>576 for a 1024 px image</td><td>Joint pretraining kept ≥70% language data</td><td>5 days on 64 nodes × 8 A100</td></tr>
+              <tr><td>MM1-30B (2024)</td><td>ViT-H CLIP (DFN-5B), 378 px</td><td>C-Abstractor</td><td>In-house 30B</td><td>~2%</td><td>144</td><td>200k steps ≈ 400B tokens; captions / interleaved / text 45 / 45 / 10 in ablations</td><td>Not reported</td></tr>
+              <tr><td>Idefics2-8B (2024)</td><td>SigLIP-So400m</td><td>Perceiver resampler</td><td>Mistral-7B</td><td>~5%</td><td>64 (320 with image splitting)</td><td>~2 epochs ≈ 1.5B images and 225B text tokens</td><td>Not reported</td></tr>
+              <tr><td>Idefics3-8B (2024)</td><td>SigLIP-So400m</td><td>Pixel shuffle + MLP</td><td>Llama 3.1 8B</td><td>~5%</td><td>169 per 364 px tile</td><td>Multi-stage pretraining and SFT</td><td>5 days on 32 H100 nodes</td></tr>
+              <tr><td>PaliGemma 3B (2024)</td><td>SigLIP-So400m</td><td>Linear</td><td>Gemma-2B</td><td>~14%</td><td>256 / 1,024 / 4,096 at 224 / 448 / 896 px</td><td>1B examples (≈350B tokens); then 50M at 448 px and 10M at 896 px (≈90B tokens)</td><td>&lt;3 days on TPUv5e-256, then 15 h per stage-2 run</td></tr>
+              <tr><td>PaliGemma 2 28B (2024)</td><td>SigLIP-So400m</td><td>Linear</td><td>Gemma 2 27B</td><td>1.4%</td><td>256 / 1,024 / 4,096</td><td>Same three-stage recipe as PaliGemma</td><td>Relative only: 18.9× (224 px) to ~156× (896 px) the 3B-224px cost per example</td></tr>
+              <tr><td>LLaVA-OneVision-72B (2024)</td><td>SigLIP-So400m</td><td>2-layer MLP, 72M</td><td>Qwen2-72B</td><td>0.5%</td><td>729 per crop; up to 7,290</td><td>558K / 4M / 3.2M / 1.6M samples across four stages</td><td>Not reported</td></tr>
+              <tr><td>Molmo-72B (2024)</td><td>CLIP ViT-L/14-336</td><td>2×2 attention pooling + MLP</td><td>Qwen2-72B</td><td>0.4%</td><td>Pooled patches of a low-res view plus crops</td><td>712K images with dense captions; then a fine-tuning mixture</td><td>4.2K H100-h pretraining + 8.3K H100-h fine-tuning</td></tr>
+              <tr><td>NVLM-D-72B (2024)</td><td>InternViT-6B, frozen</td><td>Pixel shuffle + MLP</td><td>Qwen2-72B</td><td>~7%</td><td>256 per 448 px tile; 1–6 tiles + thumbnail</td><td>Pretraining, then SFT</td><td>Not reported</td></tr>
+              <tr><td>Qwen2-VL-72B (2024)</td><td>ViT, 675M (same for 2B, 7B, 72B)</td><td>2×2 merge + MLP</td><td>Qwen2-72B</td><td>0.9%</td><td>Variable: one per 28×28 px</td><td>~600B + 800B tokens of pretraining</td><td>Not reported</td></tr>
+              <tr><td>Qwen2.5-VL-72B (2025)</td><td>ViT, 32 layers, width 1,280 (windowed attention)</td><td>2×2 merge + MLP</td><td>Qwen2.5-72B</td><td>~0.9%</td><td>Variable: one per 28×28 px</td><td>1.5T (ViT only) + 2T + 0.6T tokens; SFT ≈ 2M entries, half text-only</td><td>Not reported</td></tr>
+              <tr><td>Qwen3-VL-235B-A22B (2025)</td><td>SigLIP2-So400m (300M SigLIP2-Large for 2B/4B)</td><td>2×2 MLP merger</td><td>Qwen3-235B-A22B (MoE)</td><td>0.2% of total</td><td>Variable (2×2 merged patches)</td><td>67B (merger only) + ~1T + ~1T + 100B tokens</td><td>Not reported</td></tr>
+              <tr><td>InternVL2.5-78B (2024)</td><td>InternViT-6B (5.5B)</td><td>Pixel unshuffle + MLP</td><td>Qwen2.5-72B</td><td>7%</td><td>256 per 448 px tile</td><td>≈120B tokens across stages</td><td>Not reported</td></tr>
+              <tr><td>InternVL3.5-8B (2025)</td><td>InternViT-300M</td><td>Pixel unshuffle + MLP</td><td>Qwen3-8B</td><td>3.5%</td><td>256 per 448 px tile (a router can compress further)</td><td>~250B tokens native pretraining; ~130B tokens SFT; RL</td><td>RL only: ~0.3K (MPO) to ~11K (GSPO, 2 episodes) GPU-h</td></tr>
+              <tr><td>SmolVLM-256M (2025)</td><td>SigLIP-B/16, 93M</td><td>Pixel shuffle + linear (paper finds r = 4 best for small models)</td><td>SmolLM2-135M</td><td>41%</td><td>1,024 patches per 512 px tile, merged 4:1 or 16:1</td><td>Multi-stage; video and image mixtures</td><td>Not reported</td></tr>
+              <tr><td>Chameleon-34B (2024)</td><td>None (VQ image tokenizer)</td><td>None</td><td>34B early-fusion transformer</td><td>n/a</td><td>1,024 per 512 px image</td><td>9.2T tokens (2.1 epochs)</td><td>4.28M GPU-h on up to 3,072 GPUs</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: compare the vision-share column with the visual-tokens column. The share of parameters falls as models grow, but the token count per image rises over time, from 64 and 256 to thousands with tiling and native resolution. Compute moved from the encoder's weights into the LLM's sequence. Percentages marked "~" are computed from the components named in the paper.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Encoders have barely scaled while LLMs grew a hundredfold. Across Table 1, the encoder stays between 0.1B and 6B parameters; the LLM ranges from 0.135B to 235B. The capacity that went into vision instead went into tokens: higher resolution, tiling, native aspect ratios. For a planner this means the main vision scaling knob in a late-fusion VLM is not <span class="m">N<sub>V</sub></span> but <span class="m">V</span>, and its cost is paid in the LLM.</p></aside>
+      </section>
+
+      <section id="tokens">
+        <h2>Visual tokens are a scaling axis</h2>
+        <p>If the encoder barely grows, what does scale the vision side? The number of visual tokens. More tokens means more pixels reach the LLM, which helps reading, counting and small objects. It also means a longer sequence through every LLM layer, in training and in every request. This section asks how to trade tokens against model size.</p>
+
+        <h3>Resolution beats encoder size, until it does not</h3>
+        <p>MM1's encoder ablations put image resolution first: going from 224 to 336 pixels added about 3% across metrics, more than doubling the encoder. Its connector ablations reached the same conclusion from the other side: the number of visual tokens and the resolution mattered most, and the connector type had little effect. In its fine-tuning experiments with sub-image splitting, MM1 saw roughly a 15% relative gain from 336 to 1,344 pixels, and a slight drop at 1,792 pixels, which the authors attribute to evaluation images being smaller than that.</p>
+        <p>Idefics2 found the opposite for its resampler: no gain beyond 64 visual tokens per image in its setup. The authors suggested that more tokens might pay off only with much longer training. Its image-splitting option, which raises the count to 320, did help text-heavy benchmarks such as TextVQA and DocVQA. So the value of a token depends on the task and on what the token carries.</p>
+
+        <h3>Model size versus resolution at equal cost</h3>
+        <p>PaliGemma 2 gives the cleanest controlled comparison. The same recipe was run with three LLM sizes (3B, 10B, 28B) and three resolutions (224, 448, 896 pixels, giving 256, 1,024 and 4,096 tokens). The paper reports the relative training cost per example. The 3B model at 896 pixels costs 23.5 units; the 28B model at 224 pixels costs 18.9. A small model at high resolution is more expensive to train than a large model at low resolution. The authors note that the encoder is small in parameters but the vision tokens dominate the LLM's compute.</p>
+        <p>The tasks split cleanly. Text, document, screen and chart understanding gained mainly from resolution. Multilingual captioning and tasks that need reasoning or world knowledge, such as AI2D, CountBenchQA and NLVR2, gained mainly from LLM size. Going from 10B to 28B often gave only small gains.</p>
+
+        <h3>An inference-optimal law</h3>
+        <p>Li et al. (2024) made the trade-off quantitative for deployment. Inference cost is roughly proportional to <span class="m">N · (Q + V)</span>, where <span class="m">Q</span> is the number of text tokens in the prompt and <span class="m">V</span> the number of visual tokens after compression. They trained LLaVA-style models on Qwen-1.5 LLMs from 0.5B to 14B parameters, compressed the visual tokens to between 1 and 576, and fitted the average error on nine benchmarks:</p>
+        <div class="eq center">
+          Y(N, V) = A / N<sup>α</sup> + B / V<sup>β</sup> + D
+          <span class="an">fitted α = 0.077 for LLM size and β = 0.015 for visual tokens, on visual reasoning benchmarks</span>
+        </div>
+        <p>Because α is about five times β, error grows much faster when you shrink the LLM than when you shrink the visual tokens. So for a fixed inference budget on visual reasoning tasks, the best choice was the largest LLM that fits, with very few visual tokens, often just one. The trade-off reversed for OCR and document tasks, where compression destroys the information and the optimum keeps as many tokens as possible. Long text prompts also shifted the optimum toward more visual tokens, because the text already dominates the sequence cost.</p>
+
+        <figure class="fig wide" id="fig-tokens">
+          <p class="fig-kicker">Figure 8 · interactive · α and β from Li et al. (2024), other constants illustrative</p>
+          <p class="fig-title">Spending a fixed inference budget on LLM size or on visual tokens</p>
+          <div class="seg" role="group" aria-label="Task type" data-seg="task"></div>
+          <div class="ctl-grid">
+            <div class="ctl"><label for="t-budget"><span>Inference budget N·(Q+V), B-param·tokens</span> <output id="o-budget"></output></label><input id="t-budget" type="range" min="0" max="100" step="1" /></div>
+            <div class="ctl"><label for="t-q"><span>Text tokens in the prompt Q</span> <output id="o-q"></output></label><input id="t-q" type="range" min="0" max="5" step="1" /></div>
+          </div>
+          <svg class="fig-svg" role="img" aria-label="Predicted error versus number of visual tokens along a fixed inference budget, with the implied LLM size on a second axis and the optimum marked."></svg>
+          <div class="readout" aria-live="polite"></div>
+          <figcaption><strong>Figure 8.</strong> Every point on the curve costs the same at inference: choosing more visual tokens forces a smaller LLM. For visual reasoning (α = 0.077, β = 0.015), the optimum sits at very few tokens and the largest LLM. In the illustrative OCR setting (β = 0.25, B tripled), the optimum moves to many tokens. LLM sizes outside 0.5B–72B are shaded as unavailable.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"One visual token" is an average over a benchmark mix that is mostly coarse visual reasoning, measured with one LLM family and one compression method. The same paper shows the opposite optimum for OCR. Zhuang et al. (2026) stress-tested how much text a vision token can carry and found a stable regime, an unstable regime and a collapse as the characters per token grow. The practical rule is to set the visual token budget per task type, not per model, and to test it on the densest inputs you expect.</p></aside>
+
+        <h3>Train-optimal and deploy-optimal VLMs</h3>
+        <p>The language-model lesson carries over with a twist. A deploy-optimal LLM is smaller and trained longer than a train-optimal one. A deploy-optimal VLM has a second lever: it can spend training compute on a model that works well with fewer visual tokens. Token compression, dynamic routing between resolutions and efficient encoders all trade a little training effort for a lot of serving cost. InternVL3.5's visual resolution router and FastVLM's hybrid encoder are examples. Post 16, <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>, covers these methods in detail. For scaling, the point is that the visual token count belongs in the scaling law, next to <span class="m">N</span> and <span class="m">D</span>.</p>
+      </section>
+
+      <section id="post-training">
+        <h2>Scaling post-training data and compute</h2>
+        <p>Pretraining is where scaling laws were born. Post-training is where most VLM recipes now spend their design effort. The data volumes vary over four orders of magnitude between open recipes, and there is only one fitted law so far.</p>
+
+        <h3>How much instruction data</h3>
+        <p>LLaVA-1.5 used 558K samples to align the connector and 665K for instruction tuning. LLaVA-OneVision grew this to four stages: 558K for alignment, 4M of high-quality knowledge data, 3.2M single-image instructions and 1.6M mixed single-image, multi-image and video samples. Cambrian-1 collected Cambrian-10M and curated it down to 7M. Qwen2.5-VL's SFT set has about 2 million entries, half of them text-only. InternVL3.5 reports about 130B tokens of SFT. Dataset efforts kept pushing the open supply: MAmmoTH-VL built 12M instruction pairs with rationales, Infinity-MM collected over 40M samples, and FineVision unified 24M samples from more than 200 sources with decontamination against 66 benchmarks.</p>
+        <p>More is not automatically better. Cambrian-1 capped the number of samples taken from any one source and varied the cap. A cap between 250K and 350K samples gave the best average; both lower and higher caps did worse. The authors describe this as an elbow in the data-balancing curve. The site's article on <a href="../teaching-a-language-model-to-follow-instructions/">instruction tuning</a> covers the language-side mechanics, and post 06, <a href="../index.html?series=vlms" data-series-pending="one-model-many-visual-skills/">One Model, Many Visual Skills</a>, covers visual instruction tuning.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Instruction data scale interacts with the choice of encoder. Cambrian-1 found that a self-supervised DINOv2 encoder, weak with 0.7M instruction samples, improved markedly with 5M samples and an unfrozen encoder, narrowing the gap to CLIP. An encoder ranking made with a small instruction set can therefore be wrong for the final recipe. Compare encoders at the instruction-data scale you will actually use.</p></aside>
+
+        <h3>A scaling law for supervised fine-tuning</h3>
+        <p>Zhang et al. (2026) fitted the first scaling law for VLM supervised fine-tuning. They trained 60 models from 50M to 8B parameters, saved 1,560 checkpoints and evaluated each on more than ten benchmarks. They argue that the SFT frontier is harder to compute than an LLM's, because model size, the LLM's pretraining tokens and the SFT tokens all interact. They proposed one law for teams that control their data and one for open models whose training data is unknown. They also report that training loss correlated strongly with downstream performance (R² = 0.98).</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>MM1 reported the opposite for pretraining: validation loss was not strongly correlated with downstream performance, so they fitted their learning-rate law to 8-shot benchmark scores instead. The two findings are compatible. In SFT the training data and the benchmarks are close in format; in pretraining on web captions they are not. Use loss as a proxy only after checking the correlation for your own stage and data.</p></aside>
+
+        <h3>Reinforcement learning and test-time compute</h3>
+        <p>RL stages are now standard, and some reports give their cost. InternVL3.5 compared RL methods on its 8B model. Offline preference optimisation (MPO) took about 0.3K GPU-hours. Online GSPO took about 5.5K GPU-hours for one episode and 11K for two. Their cascade of the two took about 5.8K and gave the best reasoning score. These are small numbers next to pretraining, but they buy most of the reasoning gains reported. The mechanics are in post 12, <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
+        <p>The last axis is compute at inference. InternVL 2.5 reported that chain-of-thought raised its 78B model's MMMU score from 66.4% to 70.1%. Thinking longer, cropping and zooming are a separate way to scale, with their own trade-offs. Post 13, <a href="../thinking-with-images/">Thinking With Images</a>, covers multimodal test-time scaling, and <a href="../how-models-improve-without-changing-their-weights/">How Models Improve Without Changing Their Weights</a> covers the language-model case.</p>
+      </section>
+
+      <section id="compute">
+        <h2>What open VLMs actually spend</h2>
+        <p>Scaling laws are about allocation. To reason about allocation, it helps to know the actual numbers. Few open VLM papers report compute, and they report it in different units: chip-days, GPU-hours, tokens or steps. Table 2 collects what is reported and converts it into an approximate FLOP count with a stated method.</p>
+        <p>Two conversion methods are used. When the token count is reported, the estimate is <span class="m">6 · N · D</span> with <span class="m">N</span> the total parameters, which overstates frozen stages. When only hardware time is reported, the estimate is chip-hours × peak bf16 throughput × 40% utilisation. Peak dense bf16 throughput is 312 TFLOP/s for an A100, 989 for an H100, 275 for a TPUv4 chip and 197 for a TPUv5e chip. These are order-of-magnitude estimates, not measurements.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 2 · Reported training compute and order-of-magnitude FLOP estimates</caption>
+            <thead><tr><th>Model</th><th>What the paper reports</th><th>Estimate method</th><th>Estimated FLOPs</th><th>Comment</th></tr></thead>
+            <tbody>
+              <tr><td>Prismatic 7B (controlled)</td><td>Under 9 hours on 8 A100</td><td>Hardware</td><td>~3 × 10<sup>19</sup></td><td>Single-stage training; the projector-only stage was found unnecessary</td></tr>
+              <tr><td>LLaVA-1.5-13B</td><td>About 1 day on one 8×A100 node</td><td>Hardware</td><td>~9 × 10<sup>19</sup></td><td>1.2M samples in total</td></tr>
+              <tr><td>PaliGemma 3B</td><td>≈350B tokens (stage 1) + ≈90B (stage 2)</td><td>6ND</td><td>~8 × 10<sup>21</sup></td><td>Consistent with &lt;3 days on 256 TPUv5e chips</td></tr>
+              <tr><td>Molmo-72B</td><td>4.2K + 8.3K H100-hours</td><td>Hardware</td><td>~2 × 10<sup>22</sup></td><td>High-quality captions instead of web-scale pairs</td></tr>
+              <tr><td>DeepSeek-VL-7B</td><td>5 days on 512 A100</td><td>Hardware</td><td>~3 × 10<sup>22</sup></td><td>Includes heavy language data in pretraining</td></tr>
+              <tr><td>InternVL2.5-78B</td><td>≈120B tokens</td><td>6ND</td><td>~6 × 10<sup>22</sup></td><td>Reuses a pretrained 6B encoder</td></tr>
+              <tr><td>PaLI-17B</td><td>1,024 TPUv4 × 7 days</td><td>Hardware</td><td>~7 × 10<sup>22</sup></td><td>Encoder frozen during main pretraining</td></tr>
+              <tr><td>MM1-30B</td><td>200k steps ≈ 400B tokens</td><td>6ND</td><td>~7 × 10<sup>22</sup></td><td>Pretraining only</td></tr>
+              <tr><td>Flamingo-80B</td><td>1,536 TPUv4 × 15 days</td><td>Hardware</td><td>~2 × 10<sup>23</sup></td><td>LM and encoder frozen; 10B new parameters trained</td></tr>
+              <tr><td>Qwen2-VL-72B</td><td>~1.4T tokens of pretraining</td><td>6ND</td><td>~6 × 10<sup>23</sup></td><td>Encoder of 675M is a small part</td></tr>
+              <tr><td>Qwen2.5-VL-72B</td><td>4.1T tokens of pretraining</td><td>6ND</td><td>~2 × 10<sup>24</sup></td><td>Upper bound: the first 1.5T trains only the encoder</td></tr>
+              <tr><td>Chameleon-34B</td><td>9.2T tokens; 4.28M GPU-hours</td><td>6ND and hardware agree</td><td>~2 × 10<sup>24</sup></td><td>Early fusion from scratch: the full pretraining cost</td></tr>
+              <tr><td>Reference: Qwen2.5-72B LLM</td><td>18T tokens of text pretraining</td><td>6ND</td><td>~8 × 10<sup>24</sup></td><td>The sunk cost under Qwen2.5-VL-72B and InternVL2.5-78B</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: compare each VLM with the LLM it was built on. The multimodal stage of most open VLMs costs between a few thousandths and a quarter of the LLM's own pretraining. Only native models pay the full price in the VLM run.</p>
+
+        <figure class="fig wide" id="fig-ladder" data-fig>
+          <p class="fig-kicker">Figure 9 · animated · order-of-magnitude estimates</p>
+          <p class="fig-title">The compute ladder of open VLMs</p>
+          <p class="fig-step-text" aria-live="polite"></p>
+          <svg class="fig-svg" role="img" aria-label="Log-scale bars of estimated training FLOPs for open VLMs from about 10 to the 19 to about 10 to the 24, compared with the pretraining compute of a 72B language model."></svg>
+          <div class="anim-controls" data-controls></div>
+          <figcaption><strong>Figure 9.</strong> Estimated training FLOPs from Table 2, on a log scale. Each step adds a group of models. The reference bar is the text pretraining of Qwen2.5-72B. Adapter-style VLMs sit five orders of magnitude below it; the largest multimodal pretraining runs reach a quarter of it; a native early-fusion model pays a comparable amount itself.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>For late-fusion VLMs, the largest compute decision is made before the VLM run starts: the choice of LLM. InternVL2.5-78B's multimodal training is under 1% of the FLOPs that went into its Qwen2.5-72B backbone; Qwen2.5-VL-72B's pretraining is roughly a quarter. A scaling law fitted only to the VLM stage therefore describes a small, cheap adjustment to a fixed, expensive prior. In practice, pick the strongest LLM you can serve, then spend the VLM budget on tokens per image and data quality, which are the knobs the VLM stage controls.</p></aside>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Low multimodal compute is not evidence that more would not help. Qwen2.5-VL raised its pretraining from 1.2T to 4.1T tokens between versions, and Qwen3-VL reports about 2.2T tokens of multimodal training while matching or surpassing comparable text-only backbones on language benchmarks in several cases. No published study has yet fitted how VLM-stage tokens trade against LLM size at fixed total cost.</p></aside>
+      </section>
+
+      <section id="studies">
+        <h2>The scaling studies side by side</h2>
+        <p>Table 3 lines up the studies discussed so far along the aspects this article introduced: what was scaled, what was measured, which fusion style was used, which data, what was found and where the finding stops. Read down the "what is scaled" column first. Almost every study scales one or two axes and fixes the rest.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 3 · Scaling studies relevant to VLMs</caption>
+            <thead><tr><th>Study</th><th>What is scaled</th><th>Objective measured</th><th>Fusion type</th><th>Data</th><th>Main finding</th><th>Caveat</th></tr></thead>
+            <tbody>
+              <tr><td>Henighan et al. 2020</td><td>N, C</td><td>Generative loss</td><td>One decoder over image or text tokens, incl. image→text and text→image</td><td>Images, video, captions, maths</td><td>Power law plus constant in every domain; N<sub>opt</sub> ∝ C<sup>≈0.7</sup> nearly universal</td><td>Low-resolution pixel tokens, not modern encoders</td></tr>
+              <tr><td>Zhai et al. 2021 (ViT)</td><td>Model size, images, compute</td><td>ImageNet fine-tune and few-shot error</td><td>Vision only (supervised)</td><td>JFT-3B</td><td>Saturating frontier; small models saturate; large models want more data</td><td>Proprietary labelled data</td></tr>
+              <tr><td>Alabdulmohsin et al. 2023</td><td>Width, depth, MLP size at fixed compute</td><td>Error on several tasks</td><td>Vision only</td><td>JFT</td><td>Shape-optimised 400M matches a 2.5× larger ViT at equal compute</td><td>Shape exponents fitted per setting</td></tr>
+              <tr><td>Cherti et al. 2023</td><td>Model, data, samples seen</td><td>Zero-shot classification and retrieval</td><td>Contrastive dual encoder</td><td>LAION-80M to 2B; up to 34B samples</td><td>Power laws in compute; slopes depend on the training distribution</td><td>Only CLIP-style evaluation</td></tr>
+              <tr><td>Li et al. 2023 (CLIPA)</td><td>Encoder size vs token length</td><td>Zero-shot accuracy</td><td>Contrastive</td><td>LAION</td><td>Larger encoders tolerate shorter training sequences</td><td>A training-cost result, not a capacity law</td></tr>
+              <tr><td>Aghajanyan et al. 2023</td><td>N (8M–30B), D (5–100B) per modality pair</td><td>Perplexity</td><td>Early fusion over discrete tokens, 7 modalities</td><td>Text, images, speech, code, molecules</td><td>Additive interaction term; competition turns into synergy at scale</td><td>VQ image tokens; perplexity only</td></tr>
+              <tr><td>Goyal et al. 2024</td><td>Pool quality × repeats × compute</td><td>Zero-shot accuracy</td><td>Contrastive</td><td>DataComp pools</td><td>Utility decays with repeats; best filter depends on compute</td><td>Small models (ViT-B/32)</td></tr>
+              <tr><td>Wang et al. 2025 (WebLI-100B)</td><td>Unique pairs: 1B, 10B, 100B at equal compute</td><td>Many benchmarks, incl. cultural and multilingual</td><td>Contrastive (SigLIP)</td><td>WebLI</td><td>Standard benchmarks saturate; long-tail and low-resource tasks keep improving</td><td>Private data; small gains on common benchmarks</td></tr>
+              <tr><td>Fan et al. 2025 (Web-SSL)</td><td>Encoder 1B–7B, data</td><td>VQA after VLM training</td><td>SSL or CLIP encoder, then late fusion</td><td>MC-2B, same images for both</td><td>SSL scales better than CLIP on matched data; no saturation at 7B</td><td>One VLM recipe for evaluation</td></tr>
+              <tr><td>Li et al. 2024 (inference-optimal)</td><td>LLM size N, visual tokens V at fixed inference cost</td><td>Average error, 9 benchmarks</td><td>Late fusion (LLaVA-NeXT recipe)</td><td>Qwen-1.5, 0.5B–14B</td><td>α ≈ 5β: spend on N, compress V hard, except OCR</td><td>One LLM family and one compressor</td></tr>
+              <tr><td>Steiner et al. 2024 (PaliGemma 2)</td><td>LLM size × resolution</td><td>Transfer metrics on 30+ tasks</td><td>Late fusion</td><td>Same three-stage recipe</td><td>Documents want resolution; reasoning and multilingual want LLM size</td><td>Not a fitted law</td></tr>
+              <tr><td>Shukor et al. 2025 (native)</td><td>N, D, C; 457 models, 0.3B–3B</td><td>Validation loss</td><td>Early, late, MoE</td><td>Interleaved, captions, text</td><td>Same loss exponent; late wants more parameters, early more tokens; MoE helps</td><td>Small scale; loss, not benchmarks</td></tr>
+              <tr><td>Shukor et al. 2025 (mixtures)</td><td>N, D, domain weights</td><td>Loss per domain</td><td>Native multimodal (also LLM and vision)</td><td>Multimodal mixtures</td><td>Mixture laws fitted on small runs predict the best mixture at 8B</td><td>Loss-based targets</td></tr>
+              <tr><td>Tian et al. 2025 (NaViL)</td><td>Encoder 75M–2.4B × LLM 0.5B–7B</td><td>Validation loss</td><td>Native, end-to-end</td><td>≈600M image–text pairs</td><td>Encoder gains capped by the LLM; optimal encoder grows log-linearly with LLM</td><td>Data-constrained regime</td></tr>
+              <tr><td>Wu et al. 2026</td><td>N, D, multimodal token share</td><td>Language and multimodal loss</td><td>Native from scratch (MoE)</td><td>Text plus multimodal</td><td>Language allocation stable; multimodal exponent falls as the multimodal share rises</td><td>MoE models up to 3B active</td></tr>
+              <tr><td>Zhang et al. 2026 (SFT law)</td><td>Model size, LLM pretraining tokens, SFT tokens</td><td>Training loss and 10+ benchmarks</td><td>Late fusion</td><td>60 models, 50M–8B</td><td>Fitted SFT laws; training loss tracks downstream (R² = 0.98)</td><td>SFT stage only</td></tr>
+              <tr><td>Li et al. 2026 (capability law)</td><td>LLM backbone capability</td><td>VLM benchmark accuracy</td><td>Late fusion</td><td>150+ VLMs on 34 LLMs, 7 families</td><td>Text capability score predicts VLM accuracy across families; base beats instruct</td><td>One controlled recipe</td></tr>
+              <tr><td>Zhuang et al. 2026</td><td>Text density per vision token</td><td>Recognition accuracy</td><td>Various VLMs</td><td>Rendered text</td><td>Stable, unstable and collapse phases; a probabilistic law in token load</td><td>OCR-style compression only</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: the "fusion type" column shows the gap. The fitted laws with compute-optimal allocations (Shukor, Wu, NaViL) are for native models trained end to end. The studies on late-fusion VLMs, which is what almost everyone ships, either fit a different quantity (inference cost, SFT loss, backbone capability) or report controlled ablations without a law.</p>
+      </section>
+
+      <section id="unknowns">
+        <h2>What is still unknown</h2>
+        <h3>No Chinchilla for late-fusion VLMs</h3>
+        <p>Nobody has published the late-fusion equivalent of Chinchilla: for a fixed total budget, how to choose the encoder size, the LLM size, the visual token count and the multimodal token count together. The native-model laws are the closest, but they start from random weights and stay below a few billion parameters. Production VLMs start from pretrained towers whose cost is sunk and whose quality varies by family. Li et al. (2026) suggest the right variable for the LLM may be a capability score, not a parameter count.</p>
+
+        <h3>From loss to capability</h3>
+        <p>A scaling law predicts loss. VLM users care about reading a chart or finding an object. MM1 found pretraining loss a poor guide to downstream scores, while the SFT study found a tight relation. Benchmarks also saturate unevenly: WebLI-100B's data scaling looked flat on ImageNet and steep on cultural tasks. Post 07, <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>, covers which benchmarks measure what, and why a single average hides these effects.</p>
+
+        <h3>Repeating images</h3>
+        <p>For text, Muennighoff et al. (2023) measured how the value of repeated tokens decays: up to about four epochs repeated data was almost as good as new data. For images, the data-filtering work measures a similar decay in contrastive training. For generative VLM pretraining, where the same image can appear with many captions, rewritten captions and generated questions, the effective number of unique examples is not well defined. High-quality caption sets such as PixMo-Cap, with 712K images, are small enough that long runs must repeat them, and nobody has fitted how their value decays.</p>
+
+        <h3>Tokens per image as a variable</h3>
+        <p>Every law above treats the number of visual tokens as fixed per experiment, or varies it only at inference. Native-resolution models such as Qwen2-VL see a different token count for every image. How a training run should allocate tokens across images of different difficulty, and how that interacts with model size, is open. So is the scaling of video, where the token count multiplies again by the number of frames; post 11, <a href="../index.html?series=vlms" data-series-pending="seeing-in-time/">Seeing in Time</a>, covers that case.</p>
+
+        <h3>What the encoder should learn at scale</h3>
+        <p>Web-SSL showed self-supervised encoders keep improving to 7B on matched data. Perception Encoder argued that the best features for a VLM are not at the encoder's output layer. AIMv2 trained encoders with an autoregressive multimodal objective and reported better multimodal understanding than CLIP and SigLIP. Which objective scales best as the encoder of a VLM, rather than as a stand-alone model, is not settled.</p>
+      </section>
+
+      <section id="planning">
+        <h2>A planning procedure</h2>
+        <p>Putting the evidence together gives a procedure for a late-fusion VLM under a fixed budget. Each step names the result it rests on.</p>
+        <ol class="plan-list">
+          <li><strong>Fix the deployment constraints first.</strong> The serving budget per request bounds <span class="m">N<sub>L</sub> · (Q + V)</span>. Decide it before choosing parts, because it rules out combinations (Li et al., 2024).</li>
+          <li><strong>Choose the LLM by capability, not size alone.</strong> Within the serving bound, the strongest base LLM is the largest lever (Idefics2; Li et al., 2026). Prefer a base checkpoint to an instruction-tuned one.</li>
+          <li><strong>Choose a well-trained encoder of modest size, matched to the LLM.</strong> Use the compute-share formula to check that the encoder does not dominate a small model (Figure 2; SmolVLM; NaViL).</li>
+          <li><strong>Set the visual token budget per task family.</strong> Document and OCR workloads need many tokens; coarse visual reasoning needs few (PaliGemma 2; Li et al., 2024). Budget the cost in the LLM, not in the encoder.</li>
+          <li><strong>Size the data filter to the run.</strong> A longer run needs a larger, less aggressively filtered pool, or rewritten captions (Goyal et al., 2024).</li>
+          <li><strong>Keep enough text in the mixture.</strong> Protect language ability with a substantial text share (MM1; DeepSeek-VL), and measure it.</li>
+          <li><strong>Fit hyperparameters on small runs.</strong> MM1 fitted its peak learning rate as a function of size on runs from 9M to 1.2B parameters and extrapolated to 30B: η = exp(−0.4214 ln N − 0.5535).</li>
+          <li><strong>Check that your proxy tracks your goal.</strong> Verify the loss–benchmark correlation at your stage before trusting loss curves (MM1; Zhang et al., 2026).</li>
+        </ol>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="key-list">
+          <li><strong>The encoder's compute share scales with the merge factor.</strong> Its share is N<sub>V</sub>·m² / (N<sub>V</sub>·m² + N<sub>L</sub>·(1 + T/V)): about 64% for Qwen2-VL-2B and under 4% for Qwen2-VL-72B. Small VLMs are vision-bound; large ones are sequence-bound. <a href="#budget">→ budget</a></li>
+          <li><strong>A frozen LLM is not free.</strong> When the connector below it trains, it still costs about 4 of 6 FLOPs per parameter per token. Its savings are mostly memory. <a href="#budget">→ budget</a></li>
+          <li><strong>Reported VLM tokens hide sunk cost.</strong> InternVL2.5-78B's ≈120B tokens and Qwen2-VL's 1.4T are not comparable without counting the encoders and LLMs they reuse. <a href="#budget">→ budget</a></li>
+          <li><strong>Encoder quality is not encoder size.</strong> A shape-optimised 400M ViT matches a 2.5× larger one, and a 5B CLIP encoder matched a 400M SigLIP inside Idefics2. <a href="#vision-tower">→ vision tower</a></li>
+          <li><strong>Saturated benchmarks can hide unsaturated capability.</strong> Going from 10B to 100B pairs barely moved ImageNet but raised Dollar Street geolocalisation from 35.9% to 41.7% at equal compute. <a href="#vision-tower">→ vision tower</a></li>
+          <li><strong>The best data filter depends on the compute budget.</strong> Repeated high-quality data loses utility, so long runs need larger, less filtered pools. <a href="#data-quality">→ data</a></li>
+          <li><strong>Early and late fusion scale at the same rate but want different splits.</strong> Late fusion wants more parameters, early fusion more tokens; late fusion's practical edge is the free pretrained LLM. <a href="#fusion">→ fusion</a></li>
+          <li><strong>The encoder should grow with the LLM, slowly.</strong> NaViL's log-linear optimum and the size-dependent encoder choices of Qwen3-VL and InternVL3.5 agree. <a href="#fusion">→ fusion</a></li>
+          <li><strong>"Encoder versus LLM" ablations disagree because encoders were trained differently.</strong> A well-trained larger encoder helps; a large under-trained one does not. <a href="#split">→ split</a></li>
+          <li><strong>Vision capacity moved from encoder weights into tokens.</strong> Encoders stayed between 0.1B and 6B while token counts per image rose into the thousands. <a href="#split">→ split</a></li>
+          <li><strong>At equal inference cost, LLM size usually beats visual tokens, except for reading.</strong> In Li et al., α ≈ 5β for visual reasoning; OCR reverses the optimum. <a href="#tokens">→ tokens</a></li>
+          <li><strong>A small model at high resolution can cost more than a large model at low resolution.</strong> PaliGemma 2's 3B at 896 px costs 23.5 units per example; its 28B at 224 px costs 18.9. <a href="#tokens">→ tokens</a></li>
+          <li><strong>Loss is a good proxy in SFT and a weak one in pretraining.</strong> R² = 0.98 for SFT versus MM1's weak pretraining correlation. <a href="#post-training">→ post-training</a></li>
+          <li><strong>For late-fusion VLMs the biggest compute decision is the LLM.</strong> The multimodal stage costs from under 1% to about a quarter of the backbone's pretraining. <a href="#compute">→ compute</a></li>
+        </ul>
+        <p>The next post, <a href="../index.html?series=vlms" data-series-pending="one-model-many-visual-skills/">One Model, Many Visual Skills</a>, picks up where the budget ends: how post-training turns a pretrained VLM into one that follows instructions across many visual tasks.</p>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a></li><li><a href="../teaching-language-models-to-see/">Teaching Language Models to See</a></li><li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li></ul></nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Scaling laws for language and generative models</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2001.08361" target="_blank" rel="noopener noreferrer">Scaling Laws for Neural Language Models</a> · Kaplan et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2203.15556" target="_blank" rel="noopener noreferrer">Training Compute-Optimal Large Language Models</a> · Hoffmann et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2010.14701" target="_blank" rel="noopener noreferrer">Scaling Laws for Autoregressive Generative Modeling</a> · Henighan et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2305.16264" target="_blank" rel="noopener noreferrer">Scaling Data-Constrained Language Models</a> · Muennighoff et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2401.00448" target="_blank" rel="noopener noreferrer">Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws</a> · Sardana et al., 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Scaling vision encoders</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2106.04560" target="_blank" rel="noopener noreferrer">Scaling Vision Transformers</a> · Zhai et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2305.13035" target="_blank" rel="noopener noreferrer">Getting ViT in Shape: Scaling Laws for Compute-Optimal Model Design</a> · Alabdulmohsin et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2302.05442" target="_blank" rel="noopener noreferrer">Scaling Vision Transformers to 22 Billion Parameters</a> · Dehghani et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener noreferrer">Learning Transferable Visual Models From Natural Language Supervision (CLIP)</a> · Radford et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2102.05918" target="_blank" rel="noopener noreferrer">Scaling Up Visual and Vision-Language Representation Learning With Noisy Text Supervision (ALIGN)</a> · Jia et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2111.10050" target="_blank" rel="noopener noreferrer">Combined Scaling for Zero-shot Transfer Learning (BASIC)</a> · Pham et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2212.07143" target="_blank" rel="noopener noreferrer">Reproducible scaling laws for contrastive language-image learning</a> · Cherti et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2305.07017" target="_blank" rel="noopener noreferrer">An Inverse Scaling Law for CLIP Training</a> · Li, Wang &amp; Xie, 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.08197" target="_blank" rel="noopener noreferrer">Scaling (Down) CLIP: A Comprehensive Analysis of Data, Architecture, and Training Strategies</a> · Li, Xie &amp; Cubuk, 2024</li>
+            <li><a href="https://arxiv.org/abs/2303.15343" target="_blank" rel="noopener noreferrer">Sigmoid Loss for Language Image Pre-Training (SigLIP)</a> · Zhai et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2502.14786" target="_blank" rel="noopener noreferrer">SigLIP 2: Multilingual Vision-Language Encoders with Improved Semantic Understanding, Localization, and Dense Features</a> · Tschannen et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2402.04252" target="_blank" rel="noopener noreferrer">EVA-CLIP-18B: Scaling CLIP to 18 Billion Parameters</a> · Sun et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.07617" target="_blank" rel="noopener noreferrer">Scaling Pre-training to One Hundred Billion Data for Vision Language Models</a> · Wang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2507.22062" target="_blank" rel="noopener noreferrer">Meta CLIP 2: A Worldwide Scaling Recipe</a> · Chuang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.01017" target="_blank" rel="noopener noreferrer">Scaling Language-Free Visual Representation Learning (Web-SSL)</a> · Fan et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2411.14402" target="_blank" rel="noopener noreferrer">Multimodal Autoregressive Pre-training of Large Vision Encoders (AIMv2)</a> · Fini et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2504.13181" target="_blank" rel="noopener noreferrer">Perception Encoder: The best visual embeddings are not at the output of the network</a> · Bolya et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Data quality, filtering and repetition</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2404.07177" target="_blank" rel="noopener noreferrer">Scaling Laws for Data Filtering — Data Curation cannot be Compute Agnostic</a> · Goyal et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2304.14108" target="_blank" rel="noopener noreferrer">DataComp: In search of the next generation of multimodal datasets</a> · Gadre et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.17425" target="_blank" rel="noopener noreferrer">Data Filtering Networks</a> · Fang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.16671" target="_blank" rel="noopener noreferrer">Demystifying CLIP Data (MetaCLIP)</a> · Xu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2210.08402" target="_blank" rel="noopener noreferrer">LAION-5B: An open large-scale dataset for training next generation image-text models</a> · Schuhmann et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2303.09540" target="_blank" rel="noopener noreferrer">SemDeDup: Data-efficient learning at web-scale through semantic deduplication</a> · Abbas et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2206.14486" target="_blank" rel="noopener noreferrer">Beyond neural scaling laws: beating power law scaling via data pruning</a> · Sorscher et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2406.08478" target="_blank" rel="noopener noreferrer">What If We Recaption Billions of Web Images with LLaMA-3?</a> · Li et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Mixed-modal and native multimodal scaling</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2301.03728" target="_blank" rel="noopener noreferrer">Scaling Laws for Generative Mixed-Modal Language Models</a> · Aghajanyan et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2405.09818" target="_blank" rel="noopener noreferrer">Chameleon: Mixed-Modal Early-Fusion Foundation Models</a> · Chameleon Team, 2024</li>
+            <li><a href="https://arxiv.org/abs/2504.07951" target="_blank" rel="noopener noreferrer">Scaling Laws for Native Multimodal Models</a> · Shukor et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2507.09404" target="_blank" rel="noopener noreferrer">Scaling Laws for Optimal Data Mixtures</a> · Shukor et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2510.08565" target="_blank" rel="noopener noreferrer">NaViL: Rethinking Scaling Properties of Native Multimodal Large Language Models under Data Constraints</a> · Tian et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2607.22043" target="_blank" rel="noopener noreferrer">Scaling Native Multimodal Pre-Training From Scratch</a> · Wu et al., 2026</li>
+            <li><a href="https://arxiv.org/abs/2411.04996" target="_blank" rel="noopener noreferrer">Mixture-of-Transformers: A Sparse and Scalable Architecture for Multi-Modal Foundation Models</a> · Liang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2206.02770" target="_blank" rel="noopener noreferrer">Multimodal Contrastive Learning with LIMoE: the Language-Image Mixture of Experts</a> · Mustafa et al., 2022</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Parameter split, resolution and visual tokens</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2411.03312" target="_blank" rel="noopener noreferrer">Inference Optimal VLMs Need Fewer Visual Tokens and More Parameters</a> · Li, Goyal, Semedo &amp; Kolter, 2024 (first version titled "Inference Optimal VLMs Need Only One Visual Token but Larger Models")</li>
+            <li><a href="https://arxiv.org/abs/2408.00620" target="_blank" rel="noopener noreferrer">Are Bigger Encoders Always Better in Vision Large Models?</a> · Li et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2608.00013" target="_blank" rel="noopener noreferrer">What Transfers from Text to Vision? Capability Scaling Laws and Transfer Dynamics for VLMs</a> · Li et al., 2026</li>
+            <li><a href="https://arxiv.org/abs/2602.02539" target="_blank" rel="noopener noreferrer">How Much Information Can a Vision Token Hold? A Scaling Law for Recognition Limits in VLMs</a> · Zhuang et al., 2026</li>
+            <li><a href="https://arxiv.org/abs/2412.13303" target="_blank" rel="noopener noreferrer">FastVLM: Efficient Vision Encoding for Vision Language Models</a> · Vasu et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>VLM model reports used for splits, data and compute</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener noreferrer">Flamingo: a Visual Language Model for Few-Shot Learning</a> · Alayrac et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2209.06794" target="_blank" rel="noopener noreferrer">PaLI: A Jointly-Scaled Multilingual Language-Image Model</a> · Chen et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2305.18565" target="_blank" rel="noopener noreferrer">PaLI-X: On Scaling up a Multilingual Vision and Language Model</a> · Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.09199" target="_blank" rel="noopener noreferrer">PaLI-3 Vision Language Models: Smaller, Faster, Stronger</a> · Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2308.12966" target="_blank" rel="noopener noreferrer">Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading, and Beyond</a> · Bai et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">Visual Instruction Tuning (LLaVA)</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.03744" target="_blank" rel="noopener noreferrer">Improved Baselines with Visual Instruction Tuning (LLaVA-1.5)</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2402.07865" target="_blank" rel="noopener noreferrer">Prismatic VLMs: Investigating the Design Space of Visually-Conditioned Language Models</a> · Karamcheti et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.05525" target="_blank" rel="noopener noreferrer">DeepSeek-VL: Towards Real-World Vision-Language Understanding</a> · Lu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.09611" target="_blank" rel="noopener noreferrer">MM1: Methods, Analysis &amp; Insights from Multimodal LLM Pre-training</a> · McKinzie et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.02246" target="_blank" rel="noopener noreferrer">What matters when building vision-language models? (Idefics2)</a> · Laurençon et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.12637" target="_blank" rel="noopener noreferrer">Building and better understanding vision-language models: insights and future directions (Idefics3)</a> · Laurençon et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2407.07726" target="_blank" rel="noopener noreferrer">PaliGemma: A versatile 3B VLM for transfer</a> · Beyer et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.03555" target="_blank" rel="noopener noreferrer">PaliGemma 2: A Family of Versatile VLMs for Transfer</a> · Steiner et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.16860" target="_blank" rel="noopener noreferrer">Cambrian-1: A Fully Open, Vision-Centric Exploration of Multimodal LLMs</a> · Tong et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.03326" target="_blank" rel="noopener noreferrer">LLaVA-OneVision: Easy Visual Task Transfer</a> · Li et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.17146" target="_blank" rel="noopener noreferrer">Molmo and PixMo: Open Weights and Open Data for State-of-the-Art Vision-Language Models</a> · Deitke et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.11402" target="_blank" rel="noopener noreferrer">NVLM: Open Frontier-Class Multimodal LLMs</a> · Dai et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2312.14238" target="_blank" rel="noopener noreferrer">InternVL: Scaling up Vision Foundation Models and Aligning for Generic Visual-Linguistic Tasks</a> · Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2412.05271" target="_blank" rel="noopener noreferrer">Expanding Performance Boundaries of Open-Source Multimodal Models with Model, Data, and Test-Time Scaling (InternVL 2.5)</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2508.18265" target="_blank" rel="noopener noreferrer">InternVL3.5: Advancing Open-Source Multimodal Models in Versatility, Reasoning, and Efficiency</a> · Wang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2409.12191" target="_blank" rel="noopener noreferrer">Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener noreferrer">Qwen2.5-VL Technical Report</a> · Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2511.21631" target="_blank" rel="noopener noreferrer">Qwen3-VL Technical Report</a> · Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.15115" target="_blank" rel="noopener noreferrer">Qwen2.5 Technical Report</a> · Qwen Team, 2024</li>
+            <li><a href="https://arxiv.org/abs/2504.05299" target="_blank" rel="noopener noreferrer">SmolVLM: Redefining small and efficient multimodal models</a> · Marafioti et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Post-training data and scaling</h3>
+          <ul>
+            <li><a href="https://aclanthology.org/2026.acl-long.603/" target="_blank" rel="noopener noreferrer">Scaling Law for Multimodal Large Language Model Supervised Fine-Tuning</a> · Zhang et al., ACL 2026</li>
+            <li><a href="https://arxiv.org/abs/2412.05237" target="_blank" rel="noopener noreferrer">MAmmoTH-VL: Eliciting Multimodal Reasoning with Instruction Tuning at Scale</a> · Guo et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.18558" target="_blank" rel="noopener noreferrer">Infinity-MM: Scaling Multimodal Performance with Large-Scale and High-Quality Instruction Data</a> · Gu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2510.17269" target="_blank" rel="noopener noreferrer">FineVision: Open Data Is All You Need</a> · Wiedmann et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Companion articles on this site</h3>
+          <ul>
+            <li><a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a> · the language-model case in full</li>
+            <li><a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a> · data mixtures and interference</li>
+            <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> · patches, resolution and connectors</li>
+            <li><a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a> · fusion designs</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>How Vision-Language Models Scale</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/">https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026vlmscaling,
+  author       = {Srinivasan, Anirudh},
+  title        = {How Vision-Language Models Scale},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; How Vision-Language Models Scale</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+
+    <script>
+    (function () {
+      'use strict';
+      var RM = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      var C = { ink: '#14171a', soft: '#474e53', muted: '#7b8388', rule: '#cac6bd', paper: '#f7f6f3', blue: '#0b5ea8', orange: '#d66f00', green: '#2f8f5b', red: '#b8432f', lblue: '#d4e3f1', lorange: '#f7e0c6', grid: '#e6e3dc', white: '#fffefb' };
+
+      /* ---------- small utilities ---------- */
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function mix(a, b, t) {
+        if (b === undefined) return a;
+        if (a === undefined || a === null) return b;
+        if (typeof b === 'number') return typeof a === 'number' ? a + (b - a) * t : b;
+        if (Array.isArray(b)) return b.map(function (v, i) { return mix(Array.isArray(a) ? a[i] : undefined, v, t); });
+        if (b && typeof b === 'object') { var o = {}; for (var k in b) o[k] = mix(a[k], b[k], t); return o; }
+        return t < 0.5 ? a : b;
+      }
+      function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      function f1(v) { return (+v).toFixed(1); }
+      var FSK = 1;
+      function T(x, y, s, o) { o = o || {}; return '<text x="' + f1(x) + '" y="' + f1(y) + '" font-size="' + f1((o.fs || 13) * FSK) + '" text-anchor="' + (o.a || 'start') + '" fill="' + (o.c || C.ink) + '" font-weight="' + (o.w || 400) + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '"' + (o.extra || '') + '>' + s + '</text>'; }
+      function R(x, y, w, h, o) { o = o || {}; return '<rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(Math.max(0, w)) + '" height="' + f1(Math.max(0, h)) + '" fill="' + (o.f || 'none') + '" stroke="' + (o.s || 'none') + '" stroke-width="' + (o.sw || 1) + '" rx="' + (o.rx || 0) + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>'; }
+      function L(x1, y1, x2, y2, o) { o = o || {}; return '<line x1="' + f1(x1) + '" y1="' + f1(y1) + '" x2="' + f1(x2) + '" y2="' + f1(y2) + '" stroke="' + (o.s || C.ink) + '" stroke-width="' + (o.sw || 1) + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>'; }
+      function PL(pts, o) { o = o || {}; if (!pts || pts.length < 2) return ''; return '<polyline points="' + pts.map(function (p) { return f1(p[0]) + ',' + f1(p[1]); }).join(' ') + '" fill="none" stroke="' + (o.s || C.ink) + '" stroke-width="' + (o.sw || 2) + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '" stroke-linejoin="round" stroke-linecap="round"' + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : '') + '/>'; }
+      function PG(pts, o) { o = o || {}; return '<polygon points="' + pts.map(function (p) { return f1(p[0]) + ',' + f1(p[1]); }).join(' ') + '" fill="' + (o.f || C.ink) + '" stroke="' + (o.s || 'none') + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '"/>'; }
+      function CI(x, y, r, o) { o = o || {}; return '<circle cx="' + f1(x) + '" cy="' + f1(y) + '" r="' + f1(r) + '" fill="' + (o.f || C.ink) + '" stroke="' + (o.s || 'none') + '" stroke-width="' + (o.sw || 1) + '" opacity="' + (o.op == null ? 1 : clamp(o.op, 0, 1).toFixed(3)) + '"/>'; }
+      function ARROW(x1, y1, x2, y2, o) {
+        o = o || {}; var a = Math.atan2(y2 - y1, x2 - x1), h = o.h || 8;
+        return L(x1, y1, x2 - Math.cos(a) * h * 0.6, y2 - Math.sin(a) * h * 0.6, o) + PG([[x2, y2], [x2 - Math.cos(a - 0.45) * h, y2 - Math.sin(a - 0.45) * h], [x2 - Math.cos(a + 0.45) * h, y2 - Math.sin(a + 0.45) * h]], { f: o.s || C.ink, op: o.op });
+      }
+      function sup(e) { return '<tspan dy="-5" font-size="72%">' + e + '</tspan><tspan dy="5"></tspan>'; }
+      function sci(v) { if (!(v > 0)) return '0'; var e = Math.floor(Math.log10(v)), m = v / Math.pow(10, e); if (m >= 9.95) { m = 1; e += 1; } return m.toFixed(1) + '×10' + sup(e); }
+      function sciH(v) { if (!(v > 0)) return '0'; var e = Math.floor(Math.log10(v)), m = v / Math.pow(10, e); if (m >= 9.95) { m = 1; e += 1; } return m.toFixed(1) + '×10<sup>' + e + '</sup>'; }
+      function lin(v, a, b, p, q) { return p + (v - a) / (b - a) * (q - p); }
+
+      /* ---------- the one shared stepper ---------- */
+      var figs = {};
+      window.__figs = figs;
+      function stepper(id, cfg) {
+        var root = document.getElementById(id); if (!root) return null;
+        var svg = root.querySelector('svg.fig-svg');
+        var textEl = root.querySelector('.fig-step-text');
+        var ctl = root.querySelector('[data-controls]');
+        ctl.setAttribute('role', 'group');
+        ctl.setAttribute('aria-label', 'Animation controls');
+        ctl.innerHTML = '<button type="button" data-action="prev" aria-label="Previous step">Previous</button>' +
+          '<button type="button" data-action="play" aria-pressed="false" aria-label="Play animation">Play</button>' +
+          '<button type="button" data-action="next" aria-label="Next step">Next</button>' +
+          '<button type="button" data-speed="0.5" aria-pressed="false" aria-label="Play at half speed">0.5x</button>' +
+          '<button type="button" data-speed="1" aria-pressed="true" aria-label="Play at normal speed">1x</button>' +
+          '<button type="button" data-speed="2" aria-pressed="false" aria-label="Play at double speed">2x</button>' +
+          '<span class="anim-status" aria-live="polite"></span>';
+        var playBtn = ctl.querySelector('[data-action="play"]');
+        var status = ctl.querySelector('.anim-status');
+        var n = cfg.steps.length, i = 0, cur = null, playing = !RM, speed = 1, timer = 0, raf = 0, visible = false;
+        function lay() { return root.clientWidth < 640 ? cfg.narrow : cfg.wide; }
+        function paint(p) {
+          var l = lay(), vb = p.vb || [0, 0, l.w, l.h];
+          FSK = l.fsk || 1;
+          svg.setAttribute('viewBox', vb.map(function (v) { return (+v).toFixed(1); }).join(' '));
+          svg.innerHTML = cfg.draw(p, l);
+        }
+        function target(k) { return cfg.state(k, lay()); }
+        function schedule() {
+          clearTimeout(timer);
+          if (playing && visible) timer = setTimeout(function () { go(i + 1); }, ((cfg.hold || 3000) + (cfg.dur || 1100)) / speed);
+        }
+        function setPlay(v) {
+          playing = v; playBtn.setAttribute('aria-pressed', String(v));
+          playBtn.textContent = v ? 'Pause' : 'Play';
+          playBtn.setAttribute('aria-label', v ? 'Pause animation' : 'Play animation');
+          schedule();
+        }
+        function go(k, instant) {
+          i = ((k % n) + n) % n;
+          status.textContent = 'Step ' + pad(i + 1) + ' / ' + pad(n);
+          if (textEl) textEl.innerHTML = cfg.steps[i];
+          var tgt = target(i);
+          cancelAnimationFrame(raf);
+          if (cfg.onStep) cfg.onStep(i);
+          if (RM || instant || !cur) { cur = tgt; paint(cur); schedule(); return; }
+          var from = cur, t0 = performance.now(), d = (cfg.dur || 1100) / speed;
+          function tick(now) {
+            var t = Math.min(1, (now - t0) / d);
+            cur = mix(from, tgt, ease(t)); paint(cur);
+            if (t < 1) raf = requestAnimationFrame(tick); else cur = tgt;
+          }
+          raf = requestAnimationFrame(tick); schedule();
+        }
+        ctl.addEventListener('click', function (e) {
+          var b = e.target.closest('button'); if (!b) return;
+          if (b.dataset.action === 'prev') { setPlay(false); go(i - 1); }
+          else if (b.dataset.action === 'next') { setPlay(false); go(i + 1); }
+          else if (b.dataset.action === 'play') { setPlay(!playing); }
+          else if (b.dataset.speed) {
+            speed = +b.dataset.speed;
+            ctl.querySelectorAll('[data-speed]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+            schedule();
+          }
+        });
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver(function (es) { es.forEach(function (en) { visible = en.intersectionRatio >= 0.5; schedule(); }); }, { threshold: [0, 0.5, 1] }).observe(root);
+        } else { visible = true; }
+        var lastW = root.clientWidth;
+        window.addEventListener('resize', function () { if (Math.abs(root.clientWidth - lastW) > 2) { lastW = root.clientWidth; cur = null; go(i, true); } });
+        setPlay(playing); go(0, true);
+        var api = {
+          n: n,
+          go: function (k) { go(k, true); },
+          set: function (k) { setPlay(false); go(k); },
+          pause: function () { setPlay(false); },
+          frame: function (k, t) { var a = target(((k - 1) % n + n) % n), b = target(k); cur = mix(a, b, ease(t)); paint(cur); status.textContent = 'Step ' + pad(k + 1) + ' / ' + pad(n); if (textEl) textEl.innerHTML = cfg.steps[k]; },
+          between: function (a, b, t) { var A = target(a), B = target(b); cur = mix(A, B, ease(t)); paint(cur); if (textEl) textEl.innerHTML = cfg.steps[b]; status.textContent = 'Step ' + pad(b + 1) + ' / ' + pad(n); },
+          get i() { return i; }
+        };
+        figs[id] = api; return api;
+      }
+
+      /* =========================================================
+         Figure 1 · anatomy of one training sample's FLOPs
+         ========================================================= */
+      (function () {
+        var NV = 0.4e9, P = 1024, V = 256, TT = 200, MAXF = 2.2e13;
+        var W = {
+          w: 960, h: 590, img: [40, 50, 200], enc: [278, 75, 172, 150], out: [490, 50, 200], llm: [745, 75, 185, 150],
+          seq: [40, 330, 890], bars: { lx: 40, x: 200, w: 690, y: [400, 450, 500], lab: 'side' }
+        };
+        var N = {
+          w: 420, h: 880, fsk: 1.25, img: [20, 60, 150], enc: [212, 66, 190, 140], out: [20, 300, 150], llm: [212, 305, 190, 140],
+          seq: [20, 512, 380], bars: { lx: 20, x: 20, w: 300, y: [600, 680, 760], lab: 'top' }
+        };
+        function fl(kv, kl, nl) { return { vis: kv * NV * P, lf: kl * nl * (V + TT) }; }
+        function base(l) {
+          return { grid: 0, enc: 0, out: 0, merge: 0, seq: 0, llm: 0, vis: 0, lf: 0, bv: 0, bl: 0, tot: 0, ef: 0, lfz: 0, nls: '7B', kv: '6', kl: '6', tag: 0, vb: [0, 0, l.w, l.h] };
+        }
+        function zoom(l) {
+          if (l === W) return [380, 20, 420, 258];
+          return [0, 230, 215, 450];
+        }
+        function state(k, l) {
+          var s = base(l), f;
+          if (k >= 1) s.grid = 1;
+          if (k >= 2) { s.enc = 1; s.bv = 1; f = fl(6, 6, 7e9); s.vis = f.vis; }
+          if (k >= 3) { s.out = 1; s.merge = 1; }
+          if (k === 3) { if (l === W) s.vb = zoom(l); s.tag = 1; }
+          if (k >= 4) { s.tag = k === 4 ? 1 : 0; }
+          if (k >= 5) s.seq = 1;
+          if (k >= 6) { s.llm = 1; s.bl = 1; s.tot = 1; s.lf = f.lf; }
+          if (k === 7) { s.ef = 1; s.kv = '2'; s.vis = fl(2, 6, 7e9).vis; }
+          if (k === 8) { s.ef = 1; s.lfz = 1; s.kv = '2'; s.kl = '4'; f = fl(2, 4, 7e9); s.vis = f.vis; s.lf = f.lf; }
+          if (k === 9) { s.nls = '0.5B'; f = fl(6, 6, 0.5e9); s.vis = f.vis; s.lf = f.lf; }
+          return s;
+        }
+        var scene = function (r, c) {
+          if ((r - 1.3) * (r - 1.3) + (c - 5.6) * (c - 5.6) < 1.7) return '#e9a35a';
+          if (r >= 6 - (c > 3 ? (c - 3) * 0.35 : 0) + (c < 3 ? 0.4 : 0)) return '#8db99a';
+          if (r >= 5 && c < 4) return '#a9c9a8';
+          return r < 2 ? '#b9d3ea' : (r < 4 ? '#cfe0ef' : '#dfeaf4');
+        };
+        function draw(p, l) {
+          var s = '', i, j;
+          var im = l.img, cs = im[2] / 8;
+          // image + patch grid
+          s += T(im[0], im[1] - 14, 'Image · 448 × 448 px', { fs: 13, c: C.soft });
+          for (i = 0; i < 8; i++) for (j = 0; j < 8; j++) s += R(im[0] + j * cs, im[1] + i * cs, cs, cs, { f: scene(i, j) });
+          for (i = 1; i < 8; i++) { s += L(im[0] + i * cs, im[1], im[0] + i * cs, im[1] + im[2], { s: C.white, sw: 1.6, op: p.grid }); s += L(im[0], im[1] + i * cs, im[0] + im[2], im[1] + i * cs, { s: C.white, sw: 1.6, op: p.grid }); }
+          s += R(im[0], im[1], im[2], im[2], { s: C.ink, sw: 1 });
+          s += T(l === W ? im[0] + im[2] / 2 : im[0], im[1] + im[2] + 22, l === W ? 'P = (448/14)² = 1,024 patches' : 'P = 1,024 patches', { fs: 12.5, a: l === W ? 'middle' : 'start', op: p.grid, w: 600 });
+          // encoder
+          var e = l.enc;
+          s += ARROW(im[0] + im[2] + 8, e[1] + e[3] / 2, e[0] - 6, e[1] + e[3] / 2, { s: C.muted, sw: 1.5, op: 0.3 + 0.7 * p.grid });
+          s += R(e[0], e[1], e[2], e[3], { f: p.enc > 0.01 ? '#e2edf7' : C.white, s: C.blue, sw: 1 + 2 * p.enc, rx: 4 });
+          s += T(e[0] + e[2] / 2, e[1] + 32, 'Vision encoder', { fs: 14, a: 'middle', w: 600, c: C.blue });
+          s += T(e[0] + e[2] / 2, e[1] + 56, 'N' + '<tspan dy="4" font-size="70%">V</tspan><tspan dy="-4"> = 0.4B</tspan>', { fs: 13, a: 'middle' });
+          s += T(e[0] + e[2] / 2, e[1] + 84, p.kv + (l === W ? ' FLOPs / param / patch' : ' FLOPs/param/patch'), { fs: 11.5, a: 'middle', c: C.soft, op: p.enc });
+          s += R(e[0] + 12, e[1] + e[3] - 34, e[2] - 24, 22, { f: C.lblue, s: C.blue, op: p.ef, rx: 3 });
+          s += T(e[0] + e[2] / 2, e[1] + e[3] - 18, l === W ? 'frozen: forward only' : 'frozen: forward', { fs: 11.5, a: 'middle', c: C.blue, op: p.ef, w: 600 });
+          // output grid with merge
+          var o = l.out, oc = o[2] / 8, m = p.merge;
+          s += T(o[0], o[1] - 14, m > 0.5 ? (l === W ? 'Merged 2 × 2 → V = 256 tokens' : '2×2 merge → 256 tokens') : (l === W ? 'Encoder output · 1,024 features' : 'Encoder output: 1,024'), { fs: 13, c: C.soft, op: p.out });
+          if (l === W) s += ARROW(e[0] + e[2] + 6, e[1] + e[3] / 2, o[0] - 8, e[1] + e[3] / 2, { s: C.muted, sw: 1.5, op: p.out });
+          else s += ARROW(e[0] + 40, e[1] + e[3] + 8, o[0] + o[2] + 6, o[1] + 20, { s: C.muted, sw: 1.5, op: p.out });
+          for (i = 0; i < 8; i++) for (j = 0; j < 8; j++) {
+            var gx = o[0] + Math.floor(j / 2) * oc * 2 + oc, gy = o[1] + Math.floor(i / 2) * oc * 2 + oc;
+            var cx = o[0] + j * oc + oc / 2, cy = o[1] + i * oc + oc / 2;
+            var x = cx + (gx - cx) * m * 0.55, y = cy + (gy - cy) * m * 0.55, sz = oc * (0.84 - 0.25 * m);
+            var shade = ['#9bbfe0', '#7fadd8', '#6aa0d2', '#8fb7dd'][(i + 2 * j) % 4];
+            s += R(x - sz / 2, y - sz / 2, sz, sz, { f: shade, op: p.out * (1 - m * 0.95) });
+          }
+          for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) s += R(o[0] + j * oc * 2 + 3, o[1] + i * oc * 2 + 3, oc * 2 - 6, oc * 2 - 6, { f: C.blue, op: p.out * m * 0.85, rx: 2 });
+          s += R(o[0], o[1], o[2], o[2], { s: C.rule, op: p.out });
+          s += R(o[0] + o[2] / 2 - 46, o[1] + o[2] / 2 - 22, 92, 34, { f: C.paper, s: C.ink, op: p.tag, rx: 4 });
+          s += T(o[0] + o[2] / 2, o[1] + o[2] / 2 + 3, '4 → 1', { fs: 20, a: 'middle', w: 700, c: C.ink, op: p.tag });
+          // LLM
+          var g = l.llm;
+          if (l === W) s += ARROW(o[0] + o[2] + 8, g[1] + g[3] / 2, g[0] - 6, g[1] + g[3] / 2, { s: C.muted, sw: 1.5, op: p.seq });
+          else s += ARROW(o[0] + o[2] + 8, g[1] + g[3] / 2, g[0] - 6, g[1] + g[3] / 2, { s: C.muted, sw: 1.5, op: p.seq });
+          s += R(g[0], g[1], g[2], g[3], { f: p.llm > 0.01 ? '#fbeedd' : C.white, s: C.orange, sw: 1 + 2 * p.llm, rx: 4 });
+          s += T(g[0] + g[2] / 2, g[1] + 32, 'Language model', { fs: 14, a: 'middle', w: 600, c: C.orange });
+          s += T(g[0] + g[2] / 2, g[1] + 56, 'N<tspan dy="4" font-size="70%">L</tspan><tspan dy="-4"> = ' + p.nls + '</tspan>', { fs: 13, a: 'middle' });
+          s += T(g[0] + g[2] / 2, g[1] + 84, p.kl + (l === W ? ' FLOPs / param / token' : ' FLOPs/param/token'), { fs: 11.5, a: 'middle', c: C.soft, op: p.llm });
+          s += R(g[0] + 12, g[1] + g[3] - 34, g[2] - 24, 22, { f: C.lorange, s: C.orange, op: p.lfz, rx: 3 });
+          s += T(g[0] + g[2] / 2, g[1] + g[3] - 18, l === W ? 'frozen: still backprops' : 'frozen, backprops', { fs: 11.5, a: 'middle', c: C.orange, op: p.lfz, w: 600 });
+          // sequence strip
+          var q = l.seq, vw = q[2] * V / (V + TT);
+          s += T(q[0], q[1] - 10, l === W ? 'LLM input: V + T = 456 tokens per sample' : 'LLM input: 456 tokens', { fs: 13, c: C.soft, op: p.seq });
+          s += R(q[0], q[1], vw - 3, 26, { f: C.lblue, s: C.blue, op: p.seq });
+          s += R(q[0] + vw, q[1], q[2] - vw, 26, { f: C.lorange, s: C.orange, op: p.seq });
+          for (i = 1; i < 16; i++) s += L(q[0] + i * (vw - 3) / 16, q[1] + 4, q[0] + i * (vw - 3) / 16, q[1] + 22, { s: C.blue, op: p.seq * 0.35 });
+          for (i = 1; i < 12; i++) s += L(q[0] + vw + i * (q[2] - vw) / 12, q[1] + 4, q[0] + vw + i * (q[2] - vw) / 12, q[1] + 22, { s: C.orange, op: p.seq * 0.35 });
+          s += T(q[0] + 8, q[1] + 18, '256 visual', { fs: 12, c: C.blue, op: p.seq, w: 600 });
+          s += T(q[0] + vw + 8, q[1] + 18, '200 text', { fs: 12, c: C.orange, op: p.seq, w: 600 });
+          // bars
+          var b = l.bars, tot = p.vis + p.lf, sh = tot > 0 ? p.vis / tot : 0;
+          var rows = [['Vision encoder', p.vis, C.blue, p.bv], ['Language model', p.lf, C.orange, p.bl]];
+          rows.forEach(function (r, k) {
+            var y = b.y[k], wv = b.w * r[1] / MAXF;
+            if (b.lab === 'side') s += T(b.lx, y + 15, r[0], { fs: 13, op: r[3] });
+            else s += T(b.lx, y - 8, r[0], { fs: 13, op: r[3] });
+            s += R(b.x, y, wv, 20, { f: r[2], op: r[3] * 0.9 });
+            s += T(b.x + wv + 8, y + 15, (r[1] / 1e12).toFixed(1) + ' TFLOPs', { fs: 12.5, op: r[3], w: 600 });
+          });
+          var y3 = b.y[2];
+          if (b.lab === 'side') s += T(b.lx, y3 + 15, 'Share of total', { fs: 13, op: p.tot });
+          else s += T(b.lx, y3 - 8, 'Share of total', { fs: 13, op: p.tot });
+          s += R(b.x, y3, b.w * sh, 20, { f: C.blue, op: p.tot * 0.9 });
+          s += R(b.x + b.w * sh, y3, b.w * (1 - sh), 20, { f: C.orange, op: p.tot * 0.9 });
+          s += T(b.x, y3 + 40, 'vision ' + Math.round(sh * 100) + '% · LLM ' + Math.round((1 - sh) * 100) + '%' + (l === W ? ' · total ' + (tot / 1e12).toFixed(1) + ' TFLOPs per sample' : ''), { fs: 12.5, op: p.tot, w: 600 });
+          return s;
+        }
+        stepper('fig-anatomy', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000, dur: 1200,
+          steps: [
+            'One training sample: a 448 × 448 image and 200 text tokens. We will count the FLOPs it costs.',
+            'Cut the image into 14 × 14-pixel patches: (448 / 14)² = 1,024 patches. Each patch is one encoder token.',
+            'The 0.4B vision encoder runs on every patch. Trained, it costs about 6 × N<sub>V</sub> FLOPs per patch: 2.5 TFLOPs for this image.',
+            'Zoom in: a 2 × 2 merge (pixel shuffle) folds four neighbouring patch features into one token.',
+            'So the LLM receives 1,024 / 4 = 256 visual tokens, a quarter of what the encoder processed.',
+            'Text tokens join the sequence: 256 visual + 200 text = 456 tokens per sample.',
+            'The 7B LLM costs about 6 × N<sub>L</sub> FLOPs per token: 19 TFLOPs. The vision encoder is about 11% of the total.',
+            'Freeze the encoder: it still runs forward (2 × N<sub>V</sub> per patch) but needs no backward pass. Its cost drops to a third.',
+            'Freeze the LLM too and train only the connector. Gradients must still flow back through the LLM, so it costs about 4 × N<sub>L</sub> per token, not 2×.',
+            'Swap in a 0.5B LLM with everything trained. Now the vision encoder is about 64% of the compute.'
+          ]
+        });
+      })();
+
+      /* =========================================================
+         Figure 2 · interactive compute calculator
+         ========================================================= */
+      (function () {
+        var root = document.getElementById('fig-calc'); if (!root) return;
+        var NV = [0.093, 0.3, 0.4, 0.675, 1, 2, 5.5, 22], NVL = ['93M', '300M', '400M', '675M', '1B', '2B', '5.5B', '22B'];
+        var NL = [0.135, 0.5, 1.5, 2.6, 7.6, 13, 22, 32, 72], NLL = ['135M', '0.5B', '1.5B', '2.6B', '7.6B', '13B', '22B', '32B', '72B'];
+        var st = { nv: 2, nl: 4, res: 448, img: 1, txt: 256, p: 14, m: 2, mode: 'both' };
+        var presets = [
+          { k: 'LLaVA-1.5-13B', v: { nv: 1, nl: 5, res: 336, img: 1, txt: 256, p: 14, m: 1, mode: 'encfrozen' } },
+          { k: 'PaliGemma 3B · 896 px', v: { nv: 2, nl: 3, res: 896, img: 1, txt: 256, p: 14, m: 1, mode: 'both' } },
+          { k: 'Qwen2-VL-2B · 1008 px', v: { nv: 3, nl: 2, res: 1008, img: 1, txt: 256, p: 14, m: 2, mode: 'both' } },
+          { k: 'Qwen2-VL-72B · 1008 px', v: { nv: 3, nl: 8, res: 1008, img: 1, txt: 256, p: 14, m: 2, mode: 'both' } },
+          { k: 'InternVL2.5-78B · 6 tiles + thumbnail', v: { nv: 6, nl: 8, res: 448, img: 7, txt: 256, p: 14, m: 2, mode: 'both' } },
+          { k: 'SmolVLM-256M-like', v: { nv: 0, nl: 0, res: 512, img: 4, txt: 256, p: 16, m: 4, mode: 'both' } }
+        ];
+        var $ = function (s) { return root.querySelector(s); };
+        var inputs = { nv: $('#c-nv'), nl: $('#c-nl'), res: $('#c-res'), img: $('#c-img'), txt: $('#c-txt') };
+        var pbox = root.querySelector('[data-presets]');
+        pbox.innerHTML = presets.map(function (p, i) { return '<button type="button" class="fig-btn" data-preset="' + i + '" aria-pressed="false">' + p.k + '</button>'; }).join('');
+        function seg(name, opts) {
+          var box = root.querySelector('[data-seg="' + name + '"]');
+          box.innerHTML = opts.map(function (o) { return '<button type="button" class="fig-btn" data-v="' + o[0] + '" aria-pressed="false">' + o[1] + '</button>'; }).join('');
+          box.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; var v = b.dataset.v; st[name] = isNaN(+v) ? v : +v; clearPreset(); update(); });
+        }
+        seg('p', [[14, '14 px'], [16, '16 px']]);
+        seg('m', [[1, '1 × 1'], [2, '2 × 2'], [3, '3 × 3'], [4, '4 × 4']]);
+        seg('mode', [['both', 'both trained'], ['encfrozen', 'encoder frozen'], ['bothfrozen', 'connector only']]);
+        function clearPreset() { pbox.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); }); }
+        pbox.addEventListener('click', function (e) {
+          var b = e.target.closest('button'); if (!b) return;
+          var p = presets[+b.dataset.preset]; for (var k in p.v) st[k] = p.v[k];
+          pbox.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          update();
+        });
+        Object.keys(inputs).forEach(function (k) { inputs[k].addEventListener('input', function () { st[k] = +inputs[k].value; clearPreset(); update(); }); });
+        var svg = root.querySelector('svg.fig-svg'), out = root.querySelector('.readout');
+        var cur = null, raf = 0;
+        function compute() {
+          var nv = NV[st.nv] * 1e9, nl = NL[st.nl] * 1e9;
+          var side = Math.floor(st.res / st.p), P = side * side, V = Math.max(1, Math.floor(side / st.m) * Math.floor(side / st.m));
+          var kv = st.mode === 'both' ? 6 : 2, kl = st.mode === 'bothfrozen' ? 4 : 6;
+          var vis = kv * nv * P * st.img, seqT = V * st.img + st.txt, llm = kl * nl * seqT;
+          return { P: P, V: V, vis: vis, llm: llm, seqT: seqT, vt: V * st.img, txt: st.txt, kv: kv, kl: kl };
+        }
+        function draw(d) {
+          var narrow = root.clientWidth < 640, w = narrow ? 420 : 960, h = narrow ? 240 : 180;
+          FSK = narrow ? 1.25 : 1;
+          var x0 = narrow ? 14 : 200, bw = narrow ? 392 : 700, s = '';
+          var tot = d.vis + d.llm, sh = tot ? d.vis / tot : 0, tsh = d.seqT ? d.vt / d.seqT : 0;
+          var y1 = narrow ? 30 : 20, y2 = narrow ? 146 : 106;
+          s += T(narrow ? 14 : 20, narrow ? y1 - 12 : y1 + 19, 'Compute per sample', { fs: 13, w: 600 });
+          s += R(x0, y1, bw * sh, 28, { f: C.blue, op: 0.9 }) + R(x0 + bw * sh, y1, bw * (1 - sh), 28, { f: C.orange, op: 0.9 });
+          s += T(x0, y1 + 50, 'vision ' + (sh * 100).toFixed(sh < 0.1 ? 1 : 0) + '%', { fs: 13, c: C.blue, w: 600 });
+          s += T(x0 + bw, y1 + 50, 'LLM ' + ((1 - sh) * 100).toFixed(sh > 0.9 ? 1 : 0) + '%', { fs: 13, c: C.orange, w: 600, a: 'end' });
+          s += T(narrow ? 14 : 20, narrow ? y2 - 12 : y2 + 19, 'Tokens in the LLM', { fs: 13, w: 600 });
+          s += R(x0, y2, bw * tsh, 28, { f: C.lblue, s: C.blue }) + R(x0 + bw * tsh, y2, bw * (1 - tsh), 28, { f: C.lorange, s: C.orange });
+          s += T(x0, y2 + 50, Math.round(d.vt).toLocaleString('en-US') + ' visual', { fs: 13, c: C.blue, w: 600 });
+          s += T(x0 + bw, y2 + 50, Math.round(d.txt).toLocaleString('en-US') + ' text', { fs: 13, c: C.orange, w: 600, a: 'end' });
+          svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h); svg.innerHTML = s;
+        }
+        function readout(d) {
+          var tot = d.vis + d.llm;
+          out.innerHTML =
+            '<div>Patches per image<b>' + d.P.toLocaleString('en-US') + '</b></div>' +
+            '<div>Visual tokens per image<b>' + d.V.toLocaleString('en-US') + '</b></div>' +
+            '<div>LLM sequence per sample<b>' + d.seqT.toLocaleString('en-US') + '</b></div>' +
+            '<div>Encoder FLOPs / sample<b>' + sciH(d.vis) + '</b></div>' +
+            '<div>LLM FLOPs / sample<b>' + sciH(d.llm) + '</b></div>' +
+            '<div>1B samples would cost<b>' + sciH(tot * 1e9) + ' FLOPs</b></div>';
+        }
+        function syncUI() {
+          inputs.nv.value = st.nv; inputs.nl.value = st.nl; inputs.res.value = st.res; inputs.img.value = st.img; inputs.txt.value = st.txt;
+          $('#o-nv').textContent = NVL[st.nv]; $('#o-nl').textContent = NLL[st.nl]; $('#o-res').textContent = st.res + ' px';
+          $('#o-img').textContent = st.img; $('#o-txt').textContent = st.txt;
+          ['p', 'm', 'mode'].forEach(function (n) { root.querySelectorAll('[data-seg="' + n + '"] button').forEach(function (b) { b.setAttribute('aria-pressed', String(String(st[n]) === b.dataset.v)); }); });
+        }
+        function update() {
+          syncUI(); var d = compute(); readout(d);
+          cancelAnimationFrame(raf);
+          if (RM || !cur) { cur = d; draw(d); return; }
+          var from = cur, t0 = performance.now();
+          (function tick(now) { var t = Math.min(1, (now - t0) / 450); cur = mix(from, d, ease(t)); draw(cur); if (t < 1) raf = requestAnimationFrame(tick); else cur = d; })(t0);
+        }
+        window.addEventListener('resize', function () { if (cur) draw(cur); });
+        update();
+      })();
+
+      /* =========================================================
+         Figure 3 · encoder scaling frontier (illustrative)
+         ========================================================= */
+      (function () {
+        var sizes = [{ n: 'Ti', x0: 0, E: 0.38 }, { n: 'S', x0: 0.4, E: 0.28 }, { n: 'B', x0: 0.9, E: 0.21 }, { n: 'L', x0: 1.5, E: 0.15 }, { n: 'g', x0: 2.1, E: 0.12 }, { n: 'G', x0: 2.6, E: 0.10 }];
+        var XMAX = 5, YMIN = Math.log10(0.09), YMAX = Math.log10(1.0);
+        function err(sz, x) { return sz.E + 0.5 * Math.pow(10, -0.45 * (x - sz.x0)); }
+        var W = { w: 960, h: 520, x0: 90, x1: 900, y0: 30, y1: 440 }, N = { w: 420, h: 560, fsk: 1.25, x0: 62, x1: 392, y0: 24, y1: 460 };
+        function X(l, x) { return lin(x, 0, XMAX, l.x0, l.x1); }
+        function Y(l, e) { return lin(Math.log10(e), YMAX, YMIN, l.y0, l.y1); }
+        function state(k, l) {
+          var s = { pr: [0, 0, 0, 0, 0, 0], fr: 0, ti: 0, gg: 0, so: 0, vb: [0, 0, l.w, l.h] };
+          if (k >= 1) { s.pr[0] = 1; s.pr[1] = 1; }
+          if (k >= 2) { s.pr[2] = 1; s.pr[3] = 1; }
+          if (k >= 3) { s.pr[4] = 1; s.pr[5] = 1; }
+          if (k >= 4) s.fr = 1;
+          if (k === 5) { s.ti = 1; s.vb = l === W ? [440, 40, 510, 276] : [150, 50, 270, 347]; }
+          if (k === 6) s.gg = 1;
+          if (k >= 7) s.so = 1;
+          return s;
+        }
+        function draw(p, l) {
+          var s = '', k, x;
+          // axes
+          s += L(l.x0, l.y1, l.x1, l.y1, { s: C.ink }) + L(l.x0, l.y0, l.x0, l.y1, { s: C.ink });
+          for (k = 0; k <= 5; k++) { x = X(l, k); s += L(x, l.y1, x, l.y1 + 5) + T(x, l.y1 + 20, ['1×', '10×', '100×', '10' + sup(3) + '×', '10' + sup(4) + '×', '10' + sup(5) + '×'][k], { fs: 12, a: 'middle', c: C.soft }); s += L(x, l.y0, x, l.y1, { s: C.grid }); }
+          [0.1, 0.15, 0.2, 0.3, 0.5, 1.0].forEach(function (e) { var y = Y(l, e); s += L(l.x0 - 5, y, l.x0, y) + T(l.x0 - 8, y + 4, e.toFixed(2), { fs: 12, a: 'end', c: C.soft }) + L(l.x0, y, l.x1, y, { s: C.grid }); });
+          s += T((l.x0 + l.x1) / 2, l.y1 + 40, 'training compute (relative, log scale)', { fs: 12.5, a: 'middle', c: C.soft });
+          s += T(l.x0 + 6, l.y0 + 14, 'error (log scale)', { fs: 12.5, c: C.soft });
+          // curves
+          var ends = [];
+          sizes.forEach(function (sz, i) {
+            var pr = p.pr[i]; if (pr <= 0.001) return;
+            var pts = [], xe = sz.x0 + (XMAX - sz.x0) * pr;
+            for (x = sz.x0; x <= xe + 1e-9; x += 0.04) pts.push([X(l, x), Y(l, err(sz, x))]);
+            var col = ['#9dbfe0', '#7eabd6', '#5b93c9', '#3d7dbb', '#2268ab', '#0b4f8f'][i];
+            var hi = (i === 0 ? p.ti : 0) + (i === 5 ? p.gg : 0);
+            s += PL(pts, { s: col, sw: 2.2 + 1.8 * hi });
+            var last = pts[pts.length - 1];
+            ends.push({ x: last[0], y: last[1], n: sz.n, c: col, op: pr > 0.95 ? 1 : 0 });
+          });
+          ends.sort(function (a, b) { return a.y - b.y; });
+          for (k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 14) ends[k].y = ends[k - 1].y + 14;
+          ends.forEach(function (e2) { s += T(e2.x + 6, e2.y + 4, e2.n, { fs: 13, w: 700, c: e2.c, op: e2.op }); });
+          // frontier
+          if (p.fr > 0.001) {
+            var fp = [], xe2 = XMAX * p.fr;
+            for (x = 0; x <= xe2 + 1e-9; x += 0.03) { var m = 9; sizes.forEach(function (sz) { if (x >= sz.x0) m = Math.min(m, err(sz, x)); }); fp.push([X(l, x), Y(l, m) + 3]); }
+            s += PL(fp, { s: C.orange, sw: 3, dash: '7 5' });
+            s += T(X(l, l === W ? 0.7 : 0.3), Y(l, l === W ? 0.16 : 0.115), l === W ? 'compute-optimal frontier' : 'optimal frontier', { fs: 13, c: C.orange, w: 600, op: p.fr });
+          }
+          // Ti saturation highlight
+          if (p.ti > 0.001) {
+            var ty = Y(l, 0.38);
+            s += R(X(l, 3.0), ty - 22, X(l, 5) - X(l, 3.0), 34, { s: C.red, sw: 1.5, dash: '4 3', op: p.ti, rx: 4 });
+            s += T(X(l, 4.0), ty - 30, 'Ti: flat at its own floor', { fs: 12.5, a: 'middle', c: C.red, w: 600, op: p.ti });
+          }
+          if (p.gg > 0.001) {
+            var gx = X(l, 2.75), gy = Y(l, err(sizes[5], 2.75));
+            s += CI(gx, gy, 7, { f: 'none', s: C.red, sw: 2, op: p.gg });
+            s += T(gx + 12, gy - 10, 'G with too little compute: worse than L', { fs: 12.5, c: C.red, w: 600, op: p.gg, a: l === W ? 'start' : 'end', extra: l === W ? '' : ' dx="-20"' });
+          }
+          if (p.so > 0.001) {
+            var sx = X(l, 3.0), gyy = Y(l, err(sizes[4], 3.0)), sy = Y(l, 0.24);
+            s += CI(sx, gyy, 5, { f: '#2268ab', op: p.so });
+            s += PG([[sx, sy - 8], [sx + 8, sy], [sx, sy + 8], [sx - 8, sy]], { f: C.orange, op: p.so });
+            s += L(sx, gyy + 6, sx, sy - 9, { s: C.orange, dash: '3 3', op: p.so });
+            s += R(sx - (l === W ? 178 : 150), sy + 8, l === W ? 166 : 138, 22, { f: C.paper, op: p.so * 0.92 }) + T(sx - 14, sy + 24, l === W ? 'shape-optimised 400M' : 'shape-opt. 400M', { fs: 12.5, c: C.orange, w: 600, op: p.so, a: 'end' });
+            s += R(sx - (l === W ? 162 : 150), gyy - 26, l === W ? 150 : 138, 22, { f: C.paper, op: p.so * 0.92 }) + T(sx - 14, gyy - 10, l === W ? 'ViT-g, same compute' : 'ViT-g, same C', { fs: 12, c: '#2268ab', w: 600, op: p.so, a: 'end' });
+          }
+          return s;
+        }
+        stepper('fig-encoder', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000,
+          steps: [
+            'Training compute on the horizontal axis, error on the vertical axis, both on log scales. Each curve will be one model size trained for longer and longer.',
+            'The two smallest models improve quickly at first, then flatten.',
+            'Base and Large models start later (they cost more per step) but reach lower error.',
+            'The largest models need the most compute before they pay off, and have the lowest floors.',
+            'The best error at each compute level traces a frontier: a power law with a saturation term.',
+            'Zoom in: the smallest model is stuck at its floor. More data or compute cannot help it; capacity is the bottleneck.',
+            'The opposite mistake: a giant model given too little compute sits above the frontier.',
+            'Shape matters too. A shape-optimised 400M ViT matched the larger ViT-g at the same compute (Alabdulmohsin et al., 2023).'
+          ]
+        });
+      })();
+
+      /* =========================================================
+         Figure 4 · data filtering vs compute (illustrative)
+         ========================================================= */
+      (function () {
+        var pools = [{ n: 'Top 10% (aggressive)', S: 12.8e6, b: 1.0, c: C.red }, { n: 'Top 30% (mild)', S: 38e6, b: 0.72, c: C.orange }, { n: 'No filtering', S: 128e6, b: 0.45, c: C.blue }];
+        var TAU = 3, X0 = 6.8, X1 = 9.6;
+        function U(n, S, b) { var u = 0, k = 0; while (n > k * S && k < 4000) { u += b * Math.pow(0.5, k / TAU) * Math.min(S, n - k * S); k++; } return u; }
+        function acc(n, pl) { return 0.75 - 0.9 * Math.pow(U(n, pl.S, pl.b) / 1e6, -0.3); }
+        var cache = pools.map(function (pl) { var a = []; for (var x = X0; x <= X1 + 1e-9; x += 0.035) a.push([x, acc(Math.pow(10, x), pl)]); return a; });
+        var W = { w: 960, h: 500, x0: 80, x1: 690, y0: 30, y1: 420, ix: 740, iy: 70, iw: 200, ih: 240 };
+        var N = { w: 420, h: 720, fsk: 1.25, x0: 56, x1: 402, y0: 24, y1: 400, ix: 50, iy: 520, iw: 340, ih: 150 };
+        function X(l, x) { return lin(x, X0, X1, l.x0, l.x1); }
+        function Y(l, a) { return lin(a, 0.05, 0.62, l.y1, l.y0); }
+        function best(x) { var bi = 0, bv = -9; pools.forEach(function (pl, i) { var v = acc(Math.pow(10, x), pl); if (v > bv) { bv = v; bi = i; } }); return bi; }
+        function state(k, l) {
+          var s = { pr: [0, 0, 0], cx: 7.0, co: 0, ins: 0, vb: [0, 0, l.w, l.h], bi: 0 };
+          if (k >= 1) s.pr[0] = 1; if (k >= 2) s.pr[1] = 1; if (k >= 3) s.pr[2] = 1;
+          if (k === 4) { s.co = 1; s.cx = 7.0; }
+          if (k === 5) { s.co = 1; s.cx = 8.1; }
+          if (k === 6) { s.co = 1; s.cx = 9.3; }
+          if (k >= 7) { s.ins = 1; s.co = 0; s.cx = 9.3; }
+          return s;
+        }
+        function draw(p, l) {
+          var s = '', k;
+          s += L(l.x0, l.y1, l.x1, l.y1) + L(l.x0, l.y0, l.x0, l.y1);
+          [7, 8, 9].forEach(function (e) { var x = X(l, e); s += L(x, l.y0, x, l.y1, { s: C.grid }) + L(x, l.y1, x, l.y1 + 5) + T(x, l.y1 + 20, '10' + sup(e), { fs: 12, a: 'middle', c: C.soft }); });
+          [0.1, 0.2, 0.3, 0.4, 0.5, 0.6].forEach(function (a) { var y = Y(l, a); s += L(l.x0, y, l.x1, y, { s: C.grid }) + T(l.x0 - 8, y + 4, a.toFixed(1), { fs: 12, a: 'end', c: C.soft }); });
+          s += T((l.x0 + l.x1) / 2, l.y1 + 40, 'samples seen (log scale)', { fs: 12.5, a: 'middle', c: C.soft });
+          s += T(l.x0 + 6, l.y0 + 14, 'zero-shot accuracy', { fs: 12.5, c: C.soft });
+          pools.forEach(function (pl, i) {
+            var pr = p.pr[i]; if (pr <= 0.001) return;
+            var arr = cache[i], m = Math.max(2, Math.round(arr.length * pr)), pts = arr.slice(0, m).map(function (q) { return [X(l, q[0]), Y(l, q[1])]; });
+            s += PL(pts, { s: pl.c, sw: 2.6 });
+            var lx = l.x1 - (l === W ? 230 : 200), ly = l.y1 - 78 + i * 22;
+            s += R(lx, ly - 9, 18, 4, { f: pl.c, op: pr }) + T(lx + 24, ly - 3, pl.n, { fs: 12.5, op: pr, c: C.ink });
+          });
+          if (p.co > 0.001) {
+            var cx = X(l, p.cx), bi = best(p.cx);
+            s += L(cx, l.y0 + 70, cx, l.y1, { s: C.ink, sw: 1.5, dash: '5 4', op: p.co });
+            var by = Y(l, acc(Math.pow(10, p.cx), pools[bi]));
+            s += CI(cx, by, 6, { f: pools[bi].c, op: p.co });
+            var lbl = 'best here: ' + ['aggressive', 'mild', 'no filter'][bi];
+            var anchor = cx > (l.x0 + l.x1) / 2 ? 'end' : 'start';
+            s += T(cx + (anchor === 'end' ? -10 : 10), by + 26, lbl, { fs: 13, w: 700, c: pools[bi].c, op: p.co, a: anchor });
+          }
+          if (p.ins > 0.001) {
+            s += R(l.ix - 10, l.iy - 34, l.iw + 20, l.ih + 60, { f: C.white, s: C.rule, op: p.ins });
+            s += T(l.ix, l.iy - 14, 'Utility on the k-th view', { fs: 12, w: 600, op: p.ins });
+            var bw = l.iw / 6;
+            for (k = 0; k < 6; k++) {
+              var u = Math.pow(0.5, k / TAU), bh = (l.ih - 30) * u * p.ins;
+              s += R(l.ix + k * bw + 4, l.iy + l.ih - 20 - bh, bw - 8, bh, { f: k === 0 ? C.blue : '#7fadd8', op: p.ins });
+              s += T(l.ix + k * bw + bw / 2, l.iy + l.ih - 4, 'k=' + (k + 1), { fs: 11.5, a: 'middle', c: C.soft, op: p.ins });
+              s += T(l.ix + k * bw + bw / 2, l.iy + l.ih - 26 - bh, u.toFixed(2), { fs: 11.5, a: 'middle', op: p.ins });
+            }
+          }
+          return s;
+        }
+        stepper('fig-filter', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000,
+          steps: [
+            'Start from a 128M-sample web pool. Train on a filtered subset and plot accuracy against samples seen.',
+            'Top 10%: each sample is worth the most, but there are only 12.8M of them. Once they repeat, gains slow and stop.',
+            'Top 30%: lower quality per sample, three times as many before repeats begin.',
+            'No filtering: the lowest quality per sample, but ten times more fresh data than the top 10%.',
+            'At a small budget, aggressive filtering wins: the run never repeats its best data.',
+            'At a medium budget, the top 10% is repeated many times and the mild filter takes the lead.',
+            'At a large budget, fresh data beats repeated data and the unfiltered pool wins.',
+            'Why: in Goyal et al.\'s model a sample\'s utility halves every τ repeats (τ = 3 here).'
+          ]
+        });
+      })();
+
+      /* =========================================================
+         Figure 5 · competition to synergy (illustrative)
+         ========================================================= */
+      (function () {
+        var XA = 7, XB = 10.5, YA = -0.45, YB = 1.1, D = 0.15, C1 = 0.35, C2 = 0.2;
+        function comp(x) { return 0.9 * Math.pow(10, -0.35 * (x - 7)); }
+        var W = { w: 960, h: 500, x0: 90, x1: 900, y0: 30, y1: 420 }, N = { w: 420, h: 560, fsk: 1.25, x0: 62, x1: 405, y0: 24, y1: 460 };
+        function X(l, x) { return lin(x, XA, XB, l.x0, l.x1); }
+        function Y(l, y) { return lin(y, YB, YA, l.y0, l.y1); }
+        var XSTAR = 7 + Math.log10(Math.pow(0.9 / (C1 - D), 1 / 0.35));
+        function state(k, l) {
+          var s = { pc: 0, ad: 0, sc: 0, sh: 0, p2: 0, vb: [0, 0, l.w, l.h] };
+          if (k >= 1) s.pc = 1; if (k >= 2) s.ad = 1; if (k >= 3) s.sc = 1; if (k >= 4) s.sh = 1; if (k >= 5) s.p2 = 1;
+          return s;
+        }
+        function draw(p, l) {
+          var s = '', x;
+          var z = Y(l, 0);
+          s += R(l.x0, l.y0, l.x1 - l.x0, z - l.y0, { f: '#f6e3df', op: 0.55 }) + R(l.x0, z, l.x1 - l.x0, l.y1 - z, { f: '#dcefe3', op: 0.25 + 0.5 * p.sh });
+          s += L(l.x0, l.y1, l.x1, l.y1) + L(l.x0, l.y0, l.x0, l.y1);
+          [7, 8, 9, 10].forEach(function (e) { var xx = X(l, e); s += L(xx, l.y1, xx, l.y1 + 5) + T(xx, l.y1 + 20, '10' + sup(e), { fs: 12, a: 'middle', c: C.soft }); });
+          [-0.4, 0, 0.5, 1.0].forEach(function (v) { var y = Y(l, v); s += T(l.x0 - 8, y + 4, (v > 0 ? '+' : '') + v.toFixed(1), { fs: 12, a: 'end', c: C.soft }); });
+          s += L(l.x0, z, l.x1, z, { s: C.ink, sw: 1.5 });
+          if (l === W) s += T(l.x0 + 8, z + 18, 'equal to separate models', { fs: 12, c: C.soft });
+          s += T(l.x1 - 6, l.y0 + (l === W ? 18 : 44), 'competition: sharing hurts', { fs: 13, a: 'end', c: C.red, w: 600 });
+          s += T(l.x1 - 6, l.y1 - 12, 'synergy: sharing helps', { fs: 13, a: 'end', c: C.green, w: 600 });
+          s += T((l.x0 + l.x1) / 2, l.y1 + 40, 'parameters N (log scale)', { fs: 12.5, a: 'middle', c: C.soft });
+          s += T(l.x0 + 6, l.y0 + 14, 'L(joint) − L(separate)', { fs: 12.5, c: C.soft });
+          function curve(cc, pr, sub) {
+            var pts = [], xe = XA + (XB - XA) * pr;
+            for (x = XA; x <= xe + 1e-9; x += 0.03) { var v = comp(x) + p.ad * D - sub * cc; pts.push([X(l, x), Y(l, clamp(v, YA, YB))]); }
+            return pts;
+          }
+          if (p.pc > 0.001) {
+            s += PL(curve(C1, p.pc, 0).map(function (q, i) { return q; }), { s: C.red, sw: 2, op: 1 - 0.65 * p.sc, dash: p.sc > 0.5 ? '5 4' : '' });
+            s += T(X(l, 7.35), Y(l, clamp(comp(7.35) + p.ad * D, YA, YB)) - 8, 'A/N' + sup('α') + (p.ad > 0.5 ? ' + B/D' + sup('β') : ''), { fs: 12.5, c: C.red, w: 600, op: 1 - 0.6 * p.sc });
+          }
+          if (p.sc > 0.001) {
+            s += PL(curve(C1, 1, p.sc), { s: C.ink, sw: 3 });
+            s += T(X(l, 7.6), Y(l, comp(7.6) + D - C1 * p.sc) - 12, '− C (shared information)', { fs: 12.5, w: 700, op: p.sc });
+          }
+          if (p.sh > 0.001) {
+            var xs = X(l, XSTAR);
+            s += CI(xs, z, 7, { f: C.green, op: p.sh });
+            s += T(xs + (l === W ? 10 : -8), z + 24, 'crossover N*', { fs: 13, w: 700, c: C.green, op: p.sh, a: l === W ? 'start' : 'end' });
+          }
+          if (p.p2 > 0.001) {
+            var pts2 = []; for (x = XA; x <= XA + (XB - XA) * p.p2 + 1e-9; x += 0.03) pts2.push([X(l, x), Y(l, clamp(comp(x) + D - C2, YA, YB))]);
+            s += PL(pts2, { s: C.muted, sw: 2.4, dash: '7 5' });
+            s += T(X(l, 10.4), Y(l, 0.2), l === W ? 'weaker synergy: never crosses here' : 'weaker synergy: no crossing', { fs: 12, a: 'end', c: C.soft, op: p.p2 });
+          }
+          return s;
+        }
+        stepper('fig-synergy', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000,
+          steps: [
+            'Measure a jointly trained two-modality model against two separate models with the same data. Above zero, sharing hurts. Below zero, it helps.',
+            'Sharing weights costs capacity: a competition term A/N<sup>α</sup> that shrinks as the model grows.',
+            'Sharing one optimisation also costs: a data term B/D<sup>β</sup> adds on top, fixed here because D is fixed.',
+            'The two modalities also share information: a constant benefit C<sub>i,j</sub> pulls the whole curve down.',
+            'Past a crossover size, competition is smaller than the shared benefit, and the joint model is better than two separate ones.',
+            'A pair with less in common (smaller C) needs a much larger model before it crosses, or never does in practice.',
+            'Aghajanyan et al. predicted the speech–text crossover near a 30B model on 45B tokens and confirmed it with a trained model.'
+          ]
+        });
+      })();
+
+      /* =========================================================
+         Figure 6 · early vs late fusion scaling (exponents from Shukor et al.)
+         ========================================================= */
+      (function () {
+        var lines = [
+          { n: 'early fusion', c: C.blue, A: [3.6, -0.0492], B: [0.008, 0.053], dash: '' },
+          { n: 'late fusion', c: C.orange, A: [3.66, -0.0494], B: [0.010, 0.076], dash: '' },
+          { n: 'early fusion + MoE', c: C.green, A: [3.45, -0.0474], B: [0.03, -0.312], dash: '6 4' }
+        ];
+        var W = { w: 960, h: 480, a: [80, 440, 40, 400], b: [570, 930, 40, 400] };
+        var N = { w: 420, h: 920, fsk: 1.25, a: [64, 400, 40, 380], b: [64, 400, 520, 860] };
+        function px(r, x) { return lin(x, 18, 24, r[0], r[1]); }
+        function state(k, l) {
+          var s = { pa: [0, 0, 0], pb: [0, 0, 0], ex: 0, bo: 0, ao: 1, vb: [0, 0, l.w, l.h] };
+          if (k >= 1) s.pa[0] = 1; if (k >= 2) s.pa[1] = 1; if (k >= 3) { s.pa[2] = 1; s.ex = 1; }
+          if (k >= 4) s.bo = 1; if (k >= 5) s.pb[0] = 1; if (k >= 6) s.pb[1] = 1; if (k >= 7) s.pb[2] = 1;
+          s.ao = (k >= 4 && k <= 7) ? 0.35 : 1;
+          return s;
+        }
+        function panel(l, r, kind, op) {
+          var s = '';
+          s += L(r[0], r[3], r[1], r[3], { op: op }) + L(r[0], r[2], r[0], r[3], { op: op });
+          for (var e = 18; e <= 24; e += 2) { var x = px(r, e); s += L(x, r[3], x, r[3] + 5, { op: op }) + T(x, r[3] + 20, '10' + sup(e), { fs: 12, a: 'middle', c: C.soft, op: op }); }
+          s += T((r[0] + r[1]) / 2, r[3] + 40, 'training FLOPs', { fs: 12.5, a: 'middle', c: C.soft, op: op });
+          if (kind === 'a') {
+            [2.0, 2.5, 3.0, 3.5].forEach(function (v) { var y = lin(v, 1.7, 3.8, r[3], r[2]); s += L(r[0], y, r[1], y, { s: C.grid, op: op }) + T(r[0] - 8, y + 4, v.toFixed(1), { fs: 12, a: 'end', c: C.soft, op: op }); });
+            s += T(r[0] + 6, r[2] - 12, 'validation loss', { fs: 12.5, c: C.soft, op: op });
+          } else {
+            [0, 0.01, 0.02, 0.03].forEach(function (v) { var y = lin(v, 0, 0.035, r[3], r[2]); s += L(r[0], y, r[1], y, { s: C.grid, op: op }) + T(r[0] - 8, y + 4, v.toFixed(2), { fs: 12, a: 'end', c: C.soft, op: op }); });
+            s += T(r[0] + 6, r[2] - 12, 'compute-optimal N / D', { fs: 12.5, c: C.soft, op: op });
+          }
+          return s;
+        }
+        function draw(p, l) {
+          var s = '';
+          s += panel(l, l.a, 'a', p.ao);
+          s += panel(l, l.b, 'b', Math.max(0.25, p.bo));
+          lines.forEach(function (ln, i) {
+            var pr = p.pa[i], pts = [], x;
+            if (pr > 0.001) {
+              for (x = 18; x <= 18 + 6 * pr + 1e-9; x += 0.05) pts.push([px(l.a, x), lin(ln.A[0] * Math.pow(10, ln.A[1] * (x - 18)), 1.7, 3.8, l.a[3], l.a[2])]);
+              s += PL(pts, { s: ln.c, sw: 2.6, dash: ln.dash, op: 0.15 + 0.85 * p.ao });
+              var ly = l.a[2] + 16 + i * 20;
+              var lx2 = l === W ? l.a[1] - 300 : l.a[0] + 10, ly2 = (l === W ? l.a[2] + 14 : l.a[3] - 74) + i * (l === W ? 22 : 24);
+              s += R(lx2, ly2 - 6, 18, 4, { f: ln.c, op: pr * (0.3 + 0.7 * p.ao) }) + T(lx2 + 24, ly2, (l === W ? ln.n : ['early', 'late', 'early + MoE'][i]) + (p.ex > 0.5 ? ' · C' + sup(ln.A[1].toFixed(4).replace('-', '−')) : ''), { fs: 12, op: pr * (0.3 + 0.7 * p.ao), c: p.ex > 0.5 ? ln.c : C.ink, w: p.ex > 0.5 ? 600 : 400 });
+            }
+            pr = p.pb[i]; pts = [];
+            if (pr > 0.001) {
+              for (x = 18; x <= 18 + 6 * pr + 1e-9; x += 0.05) pts.push([px(l.b, x), lin(clamp(ln.B[0] * Math.pow(10, ln.B[1] * (x - 18)), 0, 0.035), 0, 0.035, l.b[3], l.b[2])]);
+              s += PL(pts, { s: ln.c, sw: 2.6, dash: ln.dash });
+              var endv = clamp(ln.B[0] * Math.pow(10, ln.B[1] * 6 * pr), 0, 0.035);
+              s += T(px(l.b, 18 + 6 * pr) - 4, lin(endv, 0, 0.035, l.b[3], l.b[2]) + (i === 2 ? -10 : -10), 'N/D ∝ C' + sup((ln.B[1] > 0 ? '' : '−') + Math.abs(ln.B[1]).toFixed(3)), { fs: 12, a: 'end', c: ln.c, w: 600, op: pr > 0.95 ? 1 : 0 });
+            }
+          });
+          return s;
+        }
+        stepper('fig-fusion', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000,
+          steps: [
+            'Left panel: validation loss against training compute for native multimodal models trained from scratch.',
+            'Early fusion: image patches go almost directly into one transformer. Loss falls as C<sup>−0.0492</sup>.',
+            'Late fusion, with a separate image encoder: C<sup>−0.0494</sup>. At equal compute, the two designs are nearly indistinguishable.',
+            'Adding mixture-of-experts layers to early fusion lowers the loss at the same compute.',
+            'Right panel: how each design wants the budget split, as the compute-optimal ratio of parameters to tokens.',
+            'Early fusion: the ratio grows slowly with compute (C<sup>0.053</sup>), close to Chinchilla balance.',
+            'Late fusion sits higher and grows faster (C<sup>0.076</sup>): it wants more parameters for the same budget.',
+            'The sparse model reverses the trend (C<sup>−0.312</sup>): extra budget should go to more training tokens.',
+            'Same slope, different split. Exponents are those reported by Shukor et al. (2025); intercepts are illustrative.'
+          ]
+        });
+      })();
+
+      /* =========================================================
+         Figure 7 · parameter split across published models
+         ========================================================= */
+      (function () {
+        // name, vision B, connector B, LLM B, merge factor m² (null = n/a), active LLM params for compute
+        var rows = [
+          ['SmolVLM-256M', 0.093, 0, 0.135, 16], ['Qwen2-VL-2B', 0.675, 0, 1.5, 4], ['PaliGemma 2 3B', 0.4, 0, 2.6, 1],
+          ['Qwen-VL', 1.9, 0.08, 7.7, null], ['InternVL3.5-8B', 0.3, 0, 8.2, 4], ['LLaVA-1.5-13B', 0.3, 0, 13, 1],
+          ['PaLI-17B', 3.9, 0, 13, null], ['PaliGemma 2 28B', 0.4, 0, 27.3, 1], ['PaLI-X-55B', 22, 0, 32, null],
+          ['Molmo-72B', 0.3, 0, 72, 4], ['Qwen2-VL-72B', 0.675, 0, 72, 4], ['LLaVA-OV-72B', 0.4, 0.072, 72.7, 1],
+          ['InternVL2.5-78B', 5.5, 0, 72.7, 4], ['Flamingo-80B', 0.435, 10.2, 70, null], ['InternVL3.5-241B', 5.5, 0, 235.1, 4, 22]
+        ];
+        var nr = rows.length;
+        var W = { w: 960, h: 40 + nr * 30 + 50, lx: 196, x: 206, bw: 600, top: 40, rh: 30, side: true };
+        var N = { w: 420, h: 40 + nr * 46 + 50, fsk: 1.25, lx: 10, x: 10, bw: 360, top: 40, rh: 46, side: false };
+        var LOG0 = Math.log10(0.05), LOG1 = Math.log10(300);
+        function geom(r, l, v) { // v: 0 share, 1 log, 2 compute
+          var tot = r[1] + r[2] + r[3], bw = l.bw, h = l.side ? 18 : 16;
+          if (v === 0) return { v: [0, 0, bw * r[1] / tot, h], c: [bw * r[1] / tot, 0, bw * r[2] / tot, h], l: [bw * (r[1] + r[2]) / tot, 0, bw * r[3] / tot, h] };
+          if (v === 1) { var pv = bw * (Math.log10(r[1]) - LOG0) / (LOG1 - LOG0), pl = bw * (Math.log10(r[3]) - LOG0) / (LOG1 - LOG0); return { v: [0, 0, pv, h / 2 - 1], c: [0, h / 2, 0, 0], l: [0, h / 2 + 1, pl, h / 2 - 1] }; }
+          if (r[4] == null) return { v: [0, 0, 0, h], c: [0, 0, 0, h], l: [0, 0, 0, h] };
+          var la = r[5] || r[3], s = r[1] * r[4] / (r[1] * r[4] + la);
+          return { v: [0, 0, bw * s, h], c: [bw * s, 0, 0, h], l: [bw * s, 0, bw * (1 - s), h] };
+        }
+        function state(k, l) {
+          var view = k <= 1 ? 0 : (k === 2 ? 1 : 2);
+          var s = { rev: k === 0 ? 5 : nr, g: rows.map(function (r) { return geom(r, l, view); }), w: [view === 0 ? 1 : 0, view === 1 ? 1 : 0, view === 2 ? 1 : 0], hs: k === 4 ? 1 : 0, hm: k === 5 ? 1 : 0 };
+          return s;
+        }
+        function pct(v) { return v < 0.01 ? (v * 100).toFixed(1) + '%' : (v < 0.1 ? (v * 100).toFixed(1) + '%' : Math.round(v * 100) + '%'); }
+        function draw(p, l) {
+          var s = '';
+          var axY = l.top - 14;
+          // axis labels per view
+          var x0 = l.x;
+          [0, 0.5, 1].forEach(function (f) { s += T(x0 + l.bw * f, axY, Math.round(f * 100) + '%', { fs: 11.5, a: f === 0 ? 'start' : (f === 1 ? 'end' : 'middle'), c: C.soft, op: p.w[0] + p.w[2] }); });
+          [0.1, 1, 10, 100].forEach(function (v) { var xx = x0 + l.bw * (Math.log10(v) - LOG0) / (LOG1 - LOG0); s += T(xx, axY, v >= 1 ? v + 'B' : '0.1B', { fs: 11.5, a: 'middle', c: C.soft, op: p.w[1] }); s += L(xx, l.top - 6, xx, l.top + nr * l.rh - 6, { s: C.grid, op: p.w[1] }); });
+          rows.forEach(function (r, i) {
+            var op = clamp(p.rev - i, 0, 1); if (op <= 0.001) return;
+            var y = l.top + i * l.rh + (l.side ? 0 : 16), g = p.g[i];
+            var hl = (p.hs && i <= 1) || (p.hm && i === nr - 1);
+            if (hl) s += R(0, y - (l.side ? 6 : 22), l.w, l.rh, { f: '#fbeedd', op: op });
+            if (l.side) s += T(l.lx, y + 13, r[0], { fs: 12.5, a: 'end', op: op, w: hl ? 700 : 400 });
+            else s += T(l.lx, y - 4, r[0], { fs: 12.5, op: op, w: hl ? 700 : 400 });
+            if (r[4] == null) s += R(x0, y, l.bw, l.side ? 18 : 16, { s: C.rule, dash: '4 4', op: op * p.w[2] });
+            s += R(x0 + g.v[0], y + g.v[1], g.v[2], g.v[3], { f: C.blue, op: op });
+            s += R(x0 + g.c[0], y + g.c[1], g.c[2], g.c[3], { f: C.muted, op: op });
+            s += R(x0 + g.l[0], y + g.l[1], g.l[2], g.l[3], { f: C.orange, op: op * 0.9 });
+            var tot = r[1] + r[2] + r[3];
+            var ex = x0 + Math.max(g.v[0] + g.v[2], g.l[0] + g.l[2]) + 8, ty = y + 13;
+            var labS = 'vision ' + pct(r[1] / tot);
+            var labL = r[1] + 'B / ' + r[3] + 'B';
+            var la = r[5] || r[3];
+            var labC = r[4] == null ? 'n/a' : pct(r[1] * r[4] / (r[1] * r[4] + la)) + ' vision';
+            if (l.side) {
+              s += T(x0 + l.bw + 8, ty, labS, { fs: 11.5, c: C.blue, op: op * p.w[0] });
+              s += T(Math.min(ex, x0 + l.bw + 8), ty, labL, { fs: 11.5, c: C.soft, op: op * p.w[1] });
+              s += T(x0 + l.bw + 8, ty, labC, { fs: 11.5, c: r[4] == null ? C.muted : C.blue, op: op * p.w[2], w: 600 });
+            } else {
+              s += T(l.w - 10, y - 4, labS, { fs: 11.5, a: 'end', c: C.blue, op: op * p.w[0] });
+              s += T(l.w - 10, y - 4, labL, { fs: 11.5, a: 'end', c: C.soft, op: op * p.w[1] });
+              s += T(l.w - 10, y - 4, labC, { fs: 11.5, a: 'end', c: r[4] == null ? C.muted : C.blue, op: op * p.w[2], w: 600 });
+            }
+          });
+          var ly = l.top + nr * l.rh + (l.side ? 14 : 22);
+          s += R(x0, ly, 14, 10, { f: C.blue }) + T(x0 + 20, ly + 9, 'vision encoder', { fs: 12 });
+          s += R(x0 + 140, ly, 14, 10, { f: C.muted }) + T(x0 + 160, ly + 9, 'connector', { fs: 12 });
+          s += R(x0 + 250, ly, 14, 10, { f: C.orange }) + T(x0 + 270, ly + 9, 'LLM', { fs: 12 });
+          return s;
+        }
+        var api = stepper('fig-split', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3400,
+          steps: [
+            'Share of parameters, small models first. In SmolVLM-256M the encoder is 41% of the model; in Qwen2-VL-2B it is 31%.',
+            'Across all fifteen models, the encoder share falls as the LLM grows: under 1% for most 72B models. PaLI and PaLI-X are the exceptions that scaled vision on purpose.',
+            'Log scale, encoder above and LLM below in each row: encoders sit between 0.1B and 22B, mostly under 1B; LLMs span 0.135B to 235B.',
+            'Share of per-image training compute in the encoder, N<sub>V</sub>·m² / (N<sub>V</sub>·m² + N<sub>L</sub>). The merge factor m² multiplies the encoder\'s weight.',
+            'Small models are vision-bound: SmolVLM (≥70% for either merge factor the paper tested) and Qwen2-VL-2B (64%).',
+            'A mixture-of-experts LLM activates only 22B parameters per token, so InternVL3.5-241B spends about half its per-image compute in its 6B encoder.'
+          ],
+          onStep: function (k) { var tb = document.querySelectorAll('#fig-split [data-tabs] button'); tb.forEach(function (b) { var v = +b.dataset.v; b.setAttribute('aria-pressed', String((k <= 1 && v === 1) || (k === 2 && v === 2) || (k >= 3 && v === 3))); }); }
+        });
+        var tabs = document.querySelector('#fig-split [data-tabs]');
+        if (tabs && api) {
+          tabs.innerHTML = '<button type="button" class="fig-btn" data-v="1" aria-pressed="true">Share of parameters</button><button type="button" class="fig-btn" data-v="2" aria-pressed="false">Parameters (log)</button><button type="button" class="fig-btn" data-v="3" aria-pressed="false">Share of compute</button>';
+          tabs.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; api.set(+b.dataset.v); });
+        }
+      })();
+
+      /* =========================================================
+         Figure 8 · inference-optimal trade-off (interactive)
+         ========================================================= */
+      (function () {
+        var root = document.getElementById('fig-tokens'); if (!root) return;
+        var QS = [0, 16, 50, 200, 500, 1000];
+        var tasks = { reason: { A: 1, a: 0.077, B: 1, b: 0.015, n: 'visual reasoning' }, ocr: { A: 1, a: 0.077, B: 3, b: 0.25, n: 'OCR-like (illustrative)' } };
+        var st = { task: 'reason', budget: 46, q: 2 };
+        var bud = root.querySelector('#t-budget'), qin = root.querySelector('#t-q');
+        var segBox = root.querySelector('[data-seg="task"]');
+        segBox.innerHTML = '<button type="button" class="fig-btn" data-v="reason" aria-pressed="true">Visual reasoning (fitted α, β)</button><button type="button" class="fig-btn" data-v="ocr" aria-pressed="false">OCR-like (illustrative β)</button>';
+        segBox.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; st.task = b.dataset.v; update(); });
+        bud.addEventListener('input', function () { st.budget = +bud.value; update(); });
+        qin.addEventListener('input', function () { st.q = +qin.value; update(); });
+        var svg = root.querySelector('svg.fig-svg'), out = root.querySelector('.readout');
+        var NS = 120, VMAX = Math.log10(4096);
+        function F() { return Math.pow(10, 2.5 + 2.5 * st.budget / 100); }
+        function compute() {
+          var tk = tasks[st.task], Q = QS[st.q], f = F(), pts = [], best = null;
+          for (var i = 0; i < NS; i++) {
+            var lv = VMAX * i / (NS - 1), V = Math.pow(10, lv), Nb = f / (Q + V);
+            var y = tk.A * Math.pow(Nb, -tk.a) + tk.B * Math.pow(V, -tk.b);
+            var ok = Nb >= 0.5 && Nb <= 72;
+            pts.push([lv, y, ok ? 1 : 0, Nb]);
+            if (ok && (!best || y < best[1])) best = [lv, y, Nb, V];
+          }
+          return { pts: pts, best: best, Q: Q, f: f };
+        }
+        var cur = null, raf = 0;
+        function draw(d) {
+          var narrow = root.clientWidth < 640, l = narrow ? { w: 420, h: 400, x0: 16, x1: 405, y0: 30, y1: 330 } : { w: 960, h: 400, x0: 40, x1: 920, y0: 30, y1: 330 };
+          var ys = d.pts.map(function (q) { return q[1]; }), ymin = Math.min.apply(null, ys), ymax = Math.max.apply(null, ys), padY = (ymax - ymin) * 0.12 + 1e-4;
+          var Ymin = ymin - padY, Ymax = ymax + padY;
+          FSK = narrow ? 1.25 : 1;
+          function X(lv) { return lin(lv, 0, VMAX, l.x0, l.x1); }
+          function Y(v) { return lin(v, Ymin, Ymax, l.y1, l.y0); }
+          var s = '';
+          s += L(l.x0, l.y1, l.x1, l.y1) + L(l.x0, l.y0, l.x0, l.y1);
+          [1, 4, 16, 64, 256, 1024, 4096].forEach(function (v) { var x = X(Math.log10(v)); s += L(x, l.y0, x, l.y1, { s: C.grid }) + ((narrow && (v === 4 || v === 64)) ? '' : T(x, l.y1 + 18, String(v), { fs: 12, a: v === 1 ? 'start' : (v === 4096 ? 'end' : 'middle'), c: C.soft })); });
+          s += T((l.x0 + l.x1) / 2, l.y1 + 40, narrow ? 'visual tokens V (log scale)' : 'visual tokens V (log scale); the LLM size N shrinks as V grows', { fs: 12.5, a: 'middle', c: C.soft });
+          s += T(l.x0, l.y0 - 8, 'predicted error (relative, lower is better)', { fs: 12.5, c: C.soft });
+          // infeasible shading
+          var seg = [], segs = [];
+          d.pts.forEach(function (q) { if (q[2] < 0.5) { seg.push(q); } else if (seg.length) { segs.push(seg); seg = []; } });
+          if (seg.length) segs.push(seg);
+          segs.forEach(function (sg) { var xa = X(sg[0][0]), xb = X(sg[sg.length - 1][0]); s += R(xa, l.y0, Math.max(2, xb - xa), l.y1 - l.y0, { f: '#ebe8e2', op: 0.8 }); if (xb - xa > 90) s += T((xa + xb) / 2, l.y0 + 18, sg[0][3] > 72 ? 'needs N > 72B' : 'needs N < 0.5B', { fs: 12, a: 'middle', c: C.muted }); });
+          var okPts = [], allPts = d.pts.map(function (q) { return [X(q[0]), Y(q[1])]; });
+          s += PL(allPts, { s: C.muted, sw: 1.6, dash: '4 4' });
+          var run = [];
+          d.pts.forEach(function (q, i) { if (q[2] >= 0.5) run.push(allPts[i]); else { if (run.length > 1) okPts.push(run); run = []; } });
+          if (run.length > 1) okPts.push(run);
+          okPts.forEach(function (r) { s += PL(r, { s: C.orange, sw: 3 }); });
+          // N labels along curve
+          [1, 16, 256, 4096].forEach(function (v) {
+            var lv = Math.log10(v), i = Math.round(lv / VMAX * (NS - 1)), q = d.pts[i];
+            var nb = q[3]; var lab = nb >= 1 ? 'N=' + (nb >= 100 ? Math.round(nb) : nb.toFixed(nb >= 10 ? 0 : 1)) + 'B' : 'N=' + Math.round(nb * 1000) + 'M';
+            s += T(X(lv) + (v === 4096 ? -4 : 4), Y(q[1]) - 10, lab, { fs: 11.5, c: C.soft, a: v === 4096 ? 'end' : 'start' });
+          });
+          if (d.best) {
+            var bx = X(d.best[0]), by = Y(d.best[1]);
+            s += CI(bx, by, 7, { f: C.blue });
+            s += T(bx + (bx > (l.x0 + l.x1) / 2 ? -12 : 12), by + 26, 'optimum', { fs: 13, w: 700, c: C.blue, a: bx > (l.x0 + l.x1) / 2 ? 'end' : 'start' });
+          }
+          svg.setAttribute('viewBox', '0 0 ' + l.w + ' ' + l.h); svg.innerHTML = s;
+        }
+        function readout(d) {
+          var b = d.best;
+          out.innerHTML = '<div>Budget N·(Q+V)<b>' + Math.round(d.f).toLocaleString('en-US') + ' B·tok</b></div>' +
+            '<div>Optimal visual tokens<b>' + (b ? Math.round(b[3]).toLocaleString('en-US') : 'none feasible') + '</b></div>' +
+            '<div>Optimal LLM size<b>' + (b ? (b[2] >= 10 ? Math.round(b[2]) : b[2].toFixed(1)) + 'B' : '—') + '</b></div>' +
+            '<div>Task setting<b>' + tasks[st.task].n + '</b></div>';
+        }
+        function update() {
+          bud.value = st.budget; qin.value = st.q;
+          root.querySelector('#o-budget').textContent = Math.round(F()).toLocaleString('en-US');
+          root.querySelector('#o-q').textContent = QS[st.q];
+          segBox.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === st.task)); });
+          var d = compute(); readout(d);
+          cancelAnimationFrame(raf);
+          if (RM || !cur) { cur = d; draw(d); return; }
+          var from = cur, t0 = performance.now();
+          (function tick(now) { var t = Math.min(1, (now - t0) / 450); var m = mix(from, d, ease(t)); m.best = t < 1 ? mix(from.best, d.best, ease(t)) : d.best; if (!from.best || !d.best) m.best = d.best; draw(m); if (t < 1) raf = requestAnimationFrame(tick); else cur = d; })(t0);
+        }
+        window.addEventListener('resize', function () { if (cur) draw(cur); });
+        update();
+      })();
+
+      /* =========================================================
+         Figure 9 · compute ladder (estimates)
+         ========================================================= */
+      (function () {
+        var rows = [
+          ['Qwen2.5-72B text pretraining', 24.9, 0], ['Prismatic 7B', 19.5, 1], ['LLaVA-1.5-13B', 19.94, 1],
+          ['PaliGemma 3B', 21.9, 2], ['Molmo-72B', 22.25, 2], ['DeepSeek-VL-7B', 22.44, 2], ['InternVL2.5-78B', 22.75, 2], ['PaLI-17B', 22.83, 2], ['MM1-30B', 22.86, 2],
+          ['Flamingo-80B', 23.34, 3], ['Qwen2-VL-72B', 23.78, 3], ['Qwen2.5-VL-72B', 24.25, 3], ['Chameleon-34B (native)', 24.27, 4]
+        ];
+        var nr = rows.length, X0 = 19, X1 = 25.3;
+        var W = { w: 960, h: 60 + nr * 32 + 50, lx: 236, x: 246, bw: 660, top: 44, rh: 32, side: true };
+        var N = { w: 420, h: 60 + nr * 48 + 50, fsk: 1.25, lx: 10, x: 10, bw: 330, top: 44, rh: 48, side: false };
+        var gc = [C.ink, '#7fadd8', C.blue, '#0b4f8f', C.green];
+        function state(k, l) {
+          var s = { g: [1, k >= 1 ? 1 : 0, k >= 2 ? 1 : 0, k >= 3 ? 1 : 0, k >= 4 ? 1 : 0], an: k >= 5 ? 1 : 0, vb: [0, 0, l.w, l.h] };
+          return s;
+        }
+        function draw(p, l) {
+          var s = '';
+          function X(v) { return l.x + l.bw * (v - X0) / (X1 - X0); }
+          for (var e = 19; e <= 25; e++) { var x = X(e); s += L(x, l.top - 8, x, l.top + nr * l.rh, { s: C.grid }) + (l.side || e % 2 === 1 ? T(x, l.top - 14, '10' + sup(e), { fs: 12, a: e === 19 && !l.side ? 'start' : 'middle', c: C.soft }) : ''); }
+          rows.forEach(function (r, i) {
+            var g = p.g[r[2]]; var y = l.top + i * l.rh + (l.side ? 4 : 18);
+            var op = Math.min(1, g * 1.4);
+            if (l.side) s += T(l.lx, y + 14, r[0], { fs: 12.5, a: 'end', op: 0.25 + 0.75 * op, w: i === 0 ? 700 : 400 });
+            else s += T(l.lx, y - 4, r[0], { fs: 12.5, op: 0.25 + 0.75 * op, w: i === 0 ? 700 : 400 });
+            var wv = (X(r[1]) - l.x) * g;
+            s += R(l.x, y, wv, 18, { f: gc[r[2]], op: 0.9 });
+            s += T(l.x + wv + 6, y + 14, '~' + sciPlain(r[1]), { fs: 11.5, op: g > 0.95 ? 1 : 0, c: C.soft });
+          });
+          if (p.an > 0.001) {
+            var refX = X(24.9), yb = l.top + (l.side ? 4 : 18);
+            s += L(refX, yb + 18, refX, l.top + nr * l.rh, { s: C.ink, dash: '4 4', op: p.an });
+            [[6, '≈0.7% of its backbone', C.blue], [11, '≈23% of its backbone', '#0b4f8f']].forEach(function (a) {
+              var r = rows[a[0]], y = l.top + a[0] * l.rh + (l.side ? 4 : 18);
+              if (l.side) {
+                s += R(X(r[1]) + 2, y - 1, 170, 20, { f: C.paper, op: p.an });
+                s += T(X(r[1]) + 6, y + 14, a[1], { fs: 11.5, w: 700, c: a[2], op: p.an });
+              } else {
+                s += T(l.w - 10, y - 4, a[1], { fs: 11.5, w: 700, c: a[2], op: p.an, a: 'end' });
+              }
+            });
+          }
+          return s;
+        }
+        function sciPlain(lg) { var e = Math.floor(lg), m = Math.pow(10, lg - e); if (m >= 9.5) { m = 1; e++; } return Math.round(m) + '×10' + sup(e); }
+        stepper('fig-ladder', {
+          wide: W, narrow: N, state: state, draw: draw, hold: 3000,
+          steps: [
+            'The reference: pretraining Qwen2.5-72B on 18T text tokens, about 8×10<sup>24</sup> FLOPs. Every late-fusion VLM below inherits a backbone of this kind.',
+            'Adapter-style recipes: LLaVA-1.5 and Prismatic train in hours to a day on one node, about five orders of magnitude below the backbone.',
+            'Mid-scale multimodal pretraining: PaliGemma, Molmo, DeepSeek-VL, InternVL 2.5, PaLI and MM1 sit around 10<sup>22</sup>–10<sup>23</sup> FLOPs.',
+            'Large multimodal pretraining: Flamingo, Qwen2-VL and Qwen2.5-VL, whose 4.1T tokens approach 2×10<sup>24</sup>.',
+            'A native early-fusion model has no backbone to inherit: Chameleon-34B spends about as much as the largest multimodal stage, from scratch.',
+            'Relative to its backbone, InternVL2.5-78B\'s multimodal training is under 1%; Qwen2.5-VL-72B\'s is roughly a quarter.'
+          ]
+        });
+      })();
+    })();
+    </script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>

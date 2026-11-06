@@ -244,7 +244,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">04 of 20 &middot; Pretraining</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../the-vlm-architecture-gallery/"><span>Previous &middot; 03</span><strong>The VLM Architecture Gallery</strong></a><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Next &middot; 13</span><strong>Thinking With Images</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../the-vlm-architecture-gallery/"><span>Previous &middot; 03</span><strong>The VLM Architecture Gallery</strong></a><a class="ml-series-nav__link" href="../how-vision-language-models-scale/"><span>Next &middot; 05</span><strong>How Vision-Language Models Scale</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -619,7 +619,7 @@
           <figcaption><strong>Figure 7.</strong> Change the image size, patch size, token merging, caption length and language-model size. Visual tokens follow N_v = &lceil;H/P&rceil; &middot; &lceil;W/P&rceil; / r&sup2;, with the grid rounded up to a multiple of r. Language-model FLOPs use 6 &times; parameters &times; tokens and ignore attention and the vision encoder, so they are a lower bound. The bottom strip shows how many samples fit in one packed context.</figcaption>
         </figure>
 
-        <p>This arithmetic is the starting point for compute-optimal choices about model size, data and resolution. Those are the subject of the next article, <a href="../index.html?series=vlms" data-series-pending="how-vision-language-models-scale/">How Vision-Language Models Scale</a>. Methods that cut the token count after the encoder, such as pooling, pixel shuffle and token pruning, are covered in <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
+        <p>This arithmetic is the starting point for compute-optimal choices about model size, data and resolution. Those are the subject of the next article, <a href="../how-vision-language-models-scale/">How Vision-Language Models Scale</a>. Methods that cut the token count after the encoder, such as pooling, pixel shuffle and token pruning, are covered in <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
 
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>MM1's connector ablations found that "number of visual tokens and image resolution matters most, while the type of VL connector has little effect". Idefics2 found that a learned pooling to 64 tokens matched more tokens in its setting. These two results agree once you see that both are about token budget, not connector design. More tokens help when they carry information the task needs, such as small text. Extra tokens on a simple photo mostly add cost. Spend design effort on how many tokens each data type gets, rather than on the connector's internal shape.</p></aside>
       </section>
@@ -786,7 +786,7 @@
           <li>Molmo built a strong model with a standard architecture and unusually good caption data.</li>
         </ul>
         <p>Architecture still matters, in a specific way. It decides what each visual token costs and how many tokens each image gets. Native resolution, token merging and tiling change the cost of high-resolution data, and so change which data mixtures are affordable. Some architectures also differ in kind: Fuyu fed image patches straight into the decoder with no separate encoder, and NVLM compared decoder-only, cross-attention and hybrid designs under one training recipe. But the recurring lesson of the ablations is that architecture choices show up mainly through their effect on data and compute.</p>
-        <p>That conclusion sets up the next two questions. First, at a fixed compute budget, how should you split it between model size, data and resolution? That is the subject of <a href="../index.html?series=vlms" data-series-pending="how-vision-language-models-scale/">How Vision-Language Models Scale</a>. Second, pretraining gives a model that sees. It does not yet give a model that answers questions, follows instructions and handles many visual tasks at once. That is post-training, the subject of <a href="../index.html?series=vlms" data-series-pending="one-model-many-visual-skills/">One Model, Many Visual Skills</a>.</p>
+        <p>That conclusion sets up the next two questions. First, at a fixed compute budget, how should you split it between model size, data and resolution? That is the subject of <a href="../how-vision-language-models-scale/">How Vision-Language Models Scale</a>. Second, pretraining gives a model that sees. It does not yet give a model that answers questions, follows instructions and handles many visual tasks at once. That is post-training, the subject of <a href="../index.html?series=vlms" data-series-pending="one-model-many-visual-skills/">One Model, Many Visual Skills</a>.</p>
       </section>
 
       <section id="key">
