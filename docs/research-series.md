@@ -5,10 +5,11 @@ page and a hub blog post) and one blog post per publication or system under it.
 
 | # | Interest | Research page anchor | Thesis post | Members |
 |---|---|---|---|---|
-| 01 | Sovereign foundation models | `research.html#sovereign-foundation-models` | `building-sovereign-foundation-models` (in progress) | Patram, Patram-Bench |
+| 01 | Sovereign foundation models | `research.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
 | 02 | Grounded document intelligence | `research.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
-| 03 | VLM infrastructure | `research.html#vlm-infrastructure` | `building-vlm-infrastructure-at-scale` (in progress) | Patram-Ingest, guest lecture, vLLM Meetup talk |
+| 03 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | Patram-Ingest, guest lecture, vLLM Meetup talk |
 
+The theses for sovereign foundation models and VLM infrastructure will be written by the author; do not draft them.
 New publications go under the interest they test. Patram-Bench belongs to sovereign foundation models.
 
 ## Grounded Document Intelligence series
@@ -28,14 +29,14 @@ thesis post. Writing rules: `docs/blog-writing-guide.md`. Page rules: `docs/styl
 
 | # | Post | Slug | Status |
 |---|---|---|---|
-| 01 | Building Sovereign Foundation Models (thesis) | `building-sovereign-foundation-models` | In progress |
-| 02 | Patram-Bench | `patram-bench-indian-document-understanding` | In progress |
+| 01 | Thesis | — | Waiting for the author |
+| 02 | Patram-Bench | `patram-bench-indian-document-understanding` | Draft, held for the author's review |
 
 ## VLM Infrastructure series
 
 | # | Post | Slug | Status |
 |---|---|---|---|
-| 01 | Building VLM Infrastructure at Scale (thesis) | `building-vlm-infrastructure-at-scale` | In progress |
+| 01 | Thesis | — | Waiting for the author |
 
 ## Conventions
 
