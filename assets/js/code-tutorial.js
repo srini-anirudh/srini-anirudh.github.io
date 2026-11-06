@@ -937,6 +937,24 @@
   }
 
   /* ------------------------------------------------------------------------
+     Wide figures: say so when a stage scrolls sideways, until it is scrolled to the end
+     ------------------------------------------------------------------------ */
+  function initStageHint(stage) {
+    const hint = el("p", "ct-figure__hint", "Swipe sideways to see the whole figure &rarr;");
+    hint.hidden = true;
+    stage.after(hint);
+    const update = () => {
+      const hidden = stage.scrollWidth - stage.clientWidth - stage.scrollLeft;
+      hint.hidden = hidden <= 4;
+    };
+    stage.addEventListener("scroll", update, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(update).observe(stage);
+    // Figures draw after this script runs, so check again once the page has loaded.
+    window.addEventListener("load", update);
+    update();
+  }
+
+  /* ------------------------------------------------------------------------
      Boot
      ------------------------------------------------------------------------ */
   function boot() {
@@ -947,6 +965,7 @@
     document.querySelectorAll("table.shape-table").forEach(initShapeTable);
     document.querySelectorAll(".repo-tree pre").forEach(initRepoTree);
     initBuildSteps();
+    document.querySelectorAll(".ct-figure__stage").forEach(initStageHint);
     document.documentElement.classList.add("ct-ready");
   }
 
