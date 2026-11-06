@@ -44,7 +44,7 @@
 
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
-    <link rel="stylesheet" type="text/css" href="assets/css/about.css?v=journey4" />
+    <link rel="stylesheet" type="text/css" href="assets/css/about.css?v=journey5" />
     <link rel="stylesheet" href="assets/css/stars.css" />
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
@@ -791,14 +791,18 @@
             <a class="ee-all" href="research.html" target="_self">All research &rarr;</a>
 
             <h4>Working across</h4>
-            <ul class="ee-stack">
-              <li>Data</li>
-              <li>Models
-                <small>Architecture &middot; pre-training &middot; post-training</small>
-              </li>
-              <li>Evals and benchmarks</li>
-              <li>Infra</li>
-            </ul>
+            <div class="ee-pyramid">
+              <div class="ee-pyramid-shape">
+                <ul class="ee-pyramid-tiers" aria-label="Stages, from the top: evals and benchmarks, models, data">
+                  <li class="ee-tier-evals">Evals and benchmarks</li>
+                  <li class="ee-tier-models">Models
+                    <small><span>Architecture &middot;</span> <span>pre-training &middot;</span> <span>post-training</span></small>
+                  </li>
+                  <li class="ee-tier-data">Data</li>
+                </ul>
+              </div>
+              <div class="ee-pyramid-infra">Infra<small>across all stages</small></div>
+            </div>
           </article>
         </div>
 

@@ -1903,31 +1903,115 @@ body.dark-mode .ee-interests span {
   font-size: 15px;
 }
 
-.ee-stack {
-  display: flex;
-  flex-wrap: wrap;
+.ee-pyramid {
+  --tier-bg: var(--surface-strong);
+  --tier-line: var(--line);
+  --tint-1: rgba(11, 94, 168, 0.05);
+  --tint-2: rgba(11, 94, 168, 0.1);
+  --tint-3: rgba(11, 94, 168, 0.16);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+body.dark-mode .ee-pyramid {
+  --tier-bg: #0b2238;
+  --tier-line: #23496a;
+  --tint-1: rgba(111, 183, 255, 0.04);
+  --tint-2: rgba(111, 183, 255, 0.09);
+  --tint-3: rgba(111, 183, 255, 0.15);
+}
+
+/* The filter outlines the clipped tiers, which a border can't do on the slopes. */
+.ee-pyramid-shape {
+  filter:
+    drop-shadow(1px 0 0 var(--tier-line))
+    drop-shadow(-1px 0 0 var(--tier-line))
+    drop-shadow(0 1px 0 var(--tier-line))
+    drop-shadow(0 -1px 0 var(--tier-line));
+}
+
+/* One silhouette over all tiers, so the slope stays straight at any width. */
+.ee-pyramid-tiers {
+  display: grid;
+  grid-template-rows: 70px 92px 62px;
   gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+  clip-path: polygon(32% 0, 68% 0, 100% 100%, 0 100%);
 }
 
-.ee-stack li {
-  padding: 5px 10px;
+.ee-pyramid-tiers li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
   color: var(--text);
-  border: 1px solid var(--line);
+  background: var(--tier-bg);
+  text-align: center;
   font-size: 15px;
-  line-height: 1.3;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
-.ee-stack small {
+.ee-pyramid-tiers small {
   display: block;
+  max-width: 62%;
+  margin-top: 3px;
   color: var(--text-soft);
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-wrap: balance;
 }
 
-body.dark-mode .ee-stack li {
-  border-color: #23496a;
+.ee-pyramid-tiers small span {
+  white-space: nowrap;
+}
+
+.ee-pyramid-tiers .ee-tier-evals {
+  padding: 0 34%;
+  background: linear-gradient(var(--tint-1), var(--tint-1)), var(--tier-bg);
+}
+
+.ee-pyramid-tiers .ee-tier-models {
+  background: linear-gradient(var(--tint-2), var(--tint-2)), var(--tier-bg);
+}
+
+.ee-pyramid-tiers .ee-tier-data {
+  background: linear-gradient(var(--tint-3), var(--tint-3)), var(--tier-bg);
+}
+
+.ee-pyramid-infra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text);
+  background: linear-gradient(var(--tint-2), var(--tint-2)), var(--tier-bg);
+  border: 1px solid var(--tier-line);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ee-pyramid-infra small {
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+@media (max-width: 480px) {
+  .ee-pyramid { grid-template-columns: minmax(0, 1fr) 38px; }
+  .ee-pyramid-tiers { grid-template-rows: 74px 100px 56px; }
+  .ee-pyramid-tiers li { font-size: 14px; }
+  .ee-pyramid-tiers small { max-width: 66%; font-size: 12px; }
+  .ee-pyramid-tiers .ee-tier-evals { padding: 0 30%; }
 }
 
 .iith-archive-links {
