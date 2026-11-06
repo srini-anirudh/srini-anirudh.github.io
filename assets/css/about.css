@@ -1995,3 +1995,47 @@ body.dark-mode .iith-archive-links a {
   }
 }
 
+
+/* Grouped exploration: projects by area, and the course list. */
+.exploration-details-body {
+  padding-top: 16px;
+}
+.exploration-details-body > .exploration-area:first-child {
+  margin-top: 0;
+}
+.exploration-area {
+  margin: 22px 0 10px;
+  color: var(--text-soft);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.course-intro {
+  margin: 0 0 16px;
+  color: var(--text-soft);
+}
+.course-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 32px;
+}
+.course-group .exploration-area {
+  margin-top: 0;
+}
+.course-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.course-list li {
+  padding: 3px 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+@media (max-width: 768px) {
+  .course-groups {
+    grid-template-columns: 1fr;
+  }
+}
