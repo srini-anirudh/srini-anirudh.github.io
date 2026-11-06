@@ -182,6 +182,10 @@ body.dark-mode .arxiv-button:focus {
  * Mobile
 */
 
+/* The menu toggle exists only on narrow screens. Hide it on desktop so article-level
+   classes such as .bar can never resize it. */
+.nav-toggle { display: none; }
+
 @media (max-width: 768px) {
   .nav-container {
     flex-direction: column;
@@ -252,8 +256,12 @@ body.dark-mode .arxiv-button:focus {
 
   /* Style for each bar */
   .nav-toggle .bar {
+    display: block;
+    position: static;
     width: 100%;
     height: 3px;
+    margin: 0;
+    padding: 0;
     background-color: var(--blue-dark);
     transition: all 0.3s ease;
   }
