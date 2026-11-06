@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_blank" />
+    <title>Talks | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="description" content="Talks and guest lectures by Anirudh Srinivasan on vLLM, durable execution, and large-scale offline VLM inference." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/talks.html" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass by Anirudh Srinivasan" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Talks | Anirudh Srinivasan" />
+    <meta property="og:description" content="Talks and guest lectures on vLLM and large-scale VLM inference." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/talks.html" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/paper-doclayoutvl.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Talks | Anirudh Srinivasan" />
+    <meta name="twitter:description" content="Talks and guest lectures on vLLM and large-scale VLM inference." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/assets/images/paper-doclayoutvl.png" />
+    <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="assets/css/stars.css" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=1" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1.9.4/css/academicons.min.css"
+      integrity="sha512-IW0nhlW5MgNydsXJO40En2EoCkTTjZhI3yuODrZIc8cQ4h1XcF53PsqDHa09NqnkXuIe0Oiyyj171BqZFwISBw=="
+      crossorigin="anonymous"
+      media="all"
+      onload="this.media='all';"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  </head>
+
+  <body class="talks-page">
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="index.html" target="_self">Home</a></li>
+          <li><a href="research.html" target="_self">Research</a></li>
+          <li><a href="blogs/index.html" target="_self">Blogs</a></li>
+          <li><a href="projects.html" target="_self">Projects</a></li>
+          <li><a href="talks.html" class="active" target="_self">Talks</a></li>
+          <li>
+            <a
+              href="assets/pdfs/Anirudh_Srinivasan_Resume.pdf"
+            >
+              Resume
+            </a>
+          </li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <section class="page-section">
+        <h1>Talks</h1>
+        <p>Guest lectures and conference talks on serving vLLM at scale and building durable offline inference engines.</p>
+      </section>
+
+      <section class="talk-list">
+        <article class="talk-card" id="programming-for-ai">
+          <div class="talk-meta"><span class="talk-date">Nov 5, 2026</span><span class="talk-venue">IIIT Hyderabad</span></div>
+          <h2>vLLM and Patram-Ingest</h2>
+          <p class="talk-event">Guest lecture · Programming AI Accelerators, a course by
+            <a href="https://scholar.google.co.in/citations?user=3HKjt_IAAAAJ&amp;hl=en">Prof. P. J. Narayanan</a></p>
+          <p>Building production-grade offline VLM inference engines at scale: a tour of how vLLM works, then how Patram-Ingest keeps GPUs busy, survives crashes, and runs graphs of stages.</p>
+          <a class="talk-button" href="talks/programming-for-ai-lecture/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
+        </article>
+
+        <article class="talk-card" id="vllm-meetup-mumbai">
+          <div class="talk-meta"><span class="talk-date">Oct 24, 2026</span><span class="talk-venue">IIT Bombay, Mumbai</span></div>
+          <h2>Durable execution around vLLM for large-scale data generation</h2>
+          <p class="talk-event">Invited speaker · <a href="https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/">vLLM Meetup Mumbai 2026</a></p>
+          <p>How Patram-Ingest wraps vLLM in durable execution so weeks-long generation runs over 100M+ examples survive node failures and lent-out GPUs.</p>
+          <a class="talk-button" href="talks/patram-ingest-slides/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email">
+        <i class="fas fa-envelope"></i>
+        anirudhsrinivasan.tms@gmail.com
+      </a>
+      <a href="https://github.com/srini-anirudh" title="GitHub">
+        <i class="fab fa-github"></i>
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn">
+        <i class="fab fa-linkedin"></i>
+        LinkedIn
+      </a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar">
+        <i class="ai ai-google-scholar"></i>
+        Google Scholar
+      </a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter">
+        <i class="fab fa-x-twitter"></i>
+        X
+      </a>
+      <a href="assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume">
+        <i class="ai ai-cv"></i>
+        Resume
+      </a>
+    </footer>
+
+    <script src="assets/js/scripts.js"></script>
+    <script src="assets/js/stars.js"></script>
+  </body>
+</html>
