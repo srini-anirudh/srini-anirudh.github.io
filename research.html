@@ -109,134 +109,15 @@
           ECCV, and ICDAR.
         </p>
         <nav class="interest-map" aria-label="Research interests">
-          <a href="#sovereign-foundation-models" target="_self"><span>01</span><strong>Sovereign foundation models</strong><em>Patram and Patram-Bench</em></a>
-          <a href="#grounded-document-intelligence" target="_self"><span>02</span><strong>Grounded document intelligence</strong><em>lossless pages, answers that point to evidence</em></a>
-          <a href="#vlm-infrastructure" target="_self"><span>03</span><strong>VLM infrastructure</strong><em>the full stack, storage to evaluation</em></a>
+          <a href="#grounded-document-intelligence" target="_self"><span>01</span><strong>Grounded document intelligence</strong><em>lossless pages, answers that point to evidence</em></a>
+          <a href="#vlm-infrastructure" target="_self"><span>02</span><strong>VLM infrastructure</strong><em>the full stack, storage to evaluation</em></a>
+          <a href="#sovereign-foundation-models" target="_self"><span>03</span><strong>Sovereign foundation models</strong><em>Patram and Patram-Bench</em></a>
         </nav>
-      </section>
-
-      <section class="research-interest" id="sovereign-foundation-models" aria-labelledby="sovereign-foundation-models-title">
-        <header class="interest-head">
-          <p class="interest-kicker">Research interest 01</p>
-          <h2 id="sovereign-foundation-models-title">Sovereign foundation models</h2>
-          <p>Patram, India&rsquo;s first VLM for document understanding, and Patram-Bench.</p>
-        </header>
-        
-
-        <section class="research-card" id="patram">
-        <div class="research-card-image">
-          <img src="assets/images/project-patram.png" alt="Patram" class="research-media" />
-        </div>
-        <div class="research-card-content">
-          <a href="https://bharatgen.com/products/patram/">
-            <span class="papertitle">Patram: India's First VLM for Document Understanding</span>
-          </a>
-          <br />
-          <em>Launched at BharatGen Summit '25</em>
-          <br />
-          <button onclick="window.open('https://bharatgen.com/products/patram/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            website
-          </button>
-          <button
-            onclick="window.open('https://drive.google.com/file/d/1PaWJNOwIY0mddwTxvSW0MGIsIG_nbKAi/view?usp=sharing', '_blank')"
-            class="arxiv-button"
-          >
-            <i class="fas fa-image"></i>
-            poster
-          </button>
-          <button onclick="window.open('https://youtu.be/fsSsciHn0zU?si=sBFVImcQAQy4sVDv', '_blank')" class="arxiv-button">
-            <i class="fab fa-youtube"></i>
-            video
-          </button>
-          <button onclick="window.open('https://huggingface.co/bharatgenai/patram-7b-instruct', '_blank')" class="arxiv-button">
-            <i class="fas fa-face-smile"></i>
-            HF
-          </button>
-          <button type="button" onclick="copyBibtex('patram')" data-bibtex-key="patram" class="arxiv-button">
-            <i class="fas fa-quote-right"></i>
-            cite
-          </button>
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>
-                Patram is a vision-language model for Indian document understanding, built over BharatDocs, a large
-                Indian document corpus with 20M+ documents and 250M+ pages across English and 22 Indian languages.
-              </p>
-              <ul class="project-points">
-                <li>Pre-trained on 1M+ images for captioning, followed by 500K VQA annotations across 20+ document VQA task types.</li>
-                <li>
-                  Built a multi-stage Synthetic QA pipeline using Qwen2.5-VL-72B-Instruct for extractive and abstractive
-                  QA, followed by verification and deduplication.
-                </li>
-                <li>Achieved state-of-the-art performance on key DocVQA benchmarks, including DocVQA and VisualMRC.</li>
-              </ul>
-            </div>
-          </details>
-        </div>
-      </section>
-
-        <section class="research-card" id="patrambench">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/paper-patrambench-thumb.jpg"
-            alt="PatramBench"
-            class="research-media"
-            data-image="assets/images/paper-patrambench.jpeg"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="https://patrambench.github.io/">
-            <span class="papertitle">
-              Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document
-              Understanding
-            </span>
-          </a>
-          <br />
-          <strong>Anirudh Srinivasan</strong>*, Pratyush Jena*, Arya Topale, Venkata Kesav Venna, Ravi Kiran
-          Sarvadevabhatla
-          <br />
-          <a href="https://icdar2026.org/index.php/program-detail/#:~:text=Patram%2DBench" target="_blank" rel="noopener noreferrer"><em>Poster at ICDAR '26</em></a>, pp. 626-642
-          <br />
-          <button onclick="window.open('https://patrambench.github.io/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            website
-          </button>
-          <button onclick="window.open('https://link.springer.com/chapter/10.1007/978-3-032-36033-5_37', '_blank')" class="arxiv-button">
-            <i class="fas fa-file-pdf"></i>
-            paper
-          </button>
-          <button onclick="window.open('assets/pdfs/PatramBench-Poster.pdf', '_blank')" class="arxiv-button">
-            <i class="fas fa-image"></i>
-            poster
-          </button>
-          <button type="button" onclick="copyBibtex('patrambench')" data-bibtex-key="patrambench" class="arxiv-button">
-            <i class="fas fa-quote-right"></i>
-            bibtex
-          </button>
-          <br />
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>
-                A comprehensive Indian document understanding benchmark with 52,607 documents, 23 languages, 13 domains,
-                71 classes, 52 tasks, and 2.4M+ QA annotations across OCR, parsing, layout, and multi-hop DocVQA. It
-                also introduces multilingual robustness metrics and evaluates 29+ VLMs.
-              </p>
-            </div>
-          </details>
-        </div>
-      </section>
       </section>
 
       <section class="research-interest" id="grounded-document-intelligence" aria-labelledby="grounded-document-intelligence-title">
         <header class="interest-head">
-          <p class="interest-kicker">Research interest 02</p>
+          <p class="interest-kicker">Research interest 01</p>
           <h2 id="grounded-document-intelligence-title">Grounded document intelligence</h2>
           <p>Turning pages into text without losing information, and grounding answers in the page with masks.</p>
         </header>
@@ -343,6 +224,75 @@
                 An agentic document parsing workflow that generates visually faithful HTML from documents. It combines
                 a segmenter, router and specialist agents, a reading-order agent, and a reflection agent, reaching 93%
                 visual fidelity and strong scores on VFDR-Bench.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+        <section class="research-card" id="doclayoutvl">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-doclayoutvl-thumb.jpg"
+            alt="DocLayoutVL"
+            class="research-media"
+            data-image="assets/images/paper-doclayoutvl.png"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://doclayoutvl.github.io/">
+            <span class="papertitle">
+              DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation
+            </span>
+          </a>
+          <br />
+          <strong>Anirudh Srinivasan</strong>*, Venkata Kesav Venna*, Srihari Bandarupalli*, R Raghuveer, Sai
+          Madhusudan Gunda, Ravi Kiran Sarvadevabhatla
+          <br />
+          <a href="https://eccv.ecva.net/virtual/2026/poster/4756" target="_blank" rel="noopener noreferrer"><em>Poster at ECCV '26</em></a>, pp. 275-296
+          <br />
+          <button onclick="window.open('https://doclayoutvl.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('https://doclayoutvl.github.io/walkthrough.html', '_blank')" class="arxiv-button">
+            <i class="fas fa-route"></i>
+            walkthrough
+          </button>
+          <button onclick="window.open('https://media.eventhosts.cc/Conferences/ECCV2026/pdfs/7331.pdf', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-pdf"></i>
+            paper
+          </button>
+          <button onclick="window.open('https://doclayoutvl.github.io/slides/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('https://eccv.ecva.net/media/PosterPDFs/ECCV%202026/4756.png', '_blank')" class="arxiv-button">
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button onclick="window.open('https://www.youtube.com/watch?v=qwHDyxsCD2E', '_blank')" class="arxiv-button">
+            <i class="fab fa-youtube"></i>
+            video
+          </button>
+          <button type="button" onclick="copyBibtex('doclayoutvl')" data-bibtex-key="doclayoutvl" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            bibtex
+          </button>
+          <button onclick="window.open('blogs/doclayout-vl-promptable-layout-segmentation/', '_self')" class="arxiv-button" data-blog-post="doclayout-vl-promptable-layout-segmentation">
+            <i class="fas fa-pen-nib"></i>
+            blog
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>
+                Reframes document layout understanding as promptable, open-set hierarchical segmentation. The system
+                generates layout trees and dense masks using a VLM plus segmentation model with hierarchy-aware
+                grounding, trained on 2.5M documents, 400K+ labels, and 80M masks.
               </p>
             </div>
           </details>
@@ -492,80 +442,11 @@
           </details>
         </div>
       </section>
-
-        <section class="research-card" id="doclayoutvl">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/paper-doclayoutvl-thumb.jpg"
-            alt="DocLayoutVL"
-            class="research-media"
-            data-image="assets/images/paper-doclayoutvl.png"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="https://doclayoutvl.github.io/">
-            <span class="papertitle">
-              DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation
-            </span>
-          </a>
-          <br />
-          <strong>Anirudh Srinivasan</strong>*, Venkata Kesav Venna*, Srihari Bandarupalli*, R Raghuveer, Sai
-          Madhusudan Gunda, Ravi Kiran Sarvadevabhatla
-          <br />
-          <a href="https://eccv.ecva.net/virtual/2026/poster/4756" target="_blank" rel="noopener noreferrer"><em>Poster at ECCV '26</em></a>, pp. 275-296
-          <br />
-          <button onclick="window.open('https://doclayoutvl.github.io/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            website
-          </button>
-          <button onclick="window.open('https://doclayoutvl.github.io/walkthrough.html', '_blank')" class="arxiv-button">
-            <i class="fas fa-route"></i>
-            walkthrough
-          </button>
-          <button onclick="window.open('https://media.eventhosts.cc/Conferences/ECCV2026/pdfs/7331.pdf', '_blank')" class="arxiv-button">
-            <i class="fas fa-file-pdf"></i>
-            paper
-          </button>
-          <button onclick="window.open('https://doclayoutvl.github.io/slides/', '_blank')" class="arxiv-button">
-            <i class="fas fa-file-powerpoint"></i>
-            slides
-          </button>
-          <button onclick="window.open('https://eccv.ecva.net/media/PosterPDFs/ECCV%202026/4756.png', '_blank')" class="arxiv-button">
-            <i class="fas fa-image"></i>
-            poster
-          </button>
-          <button onclick="window.open('https://www.youtube.com/watch?v=qwHDyxsCD2E', '_blank')" class="arxiv-button">
-            <i class="fab fa-youtube"></i>
-            video
-          </button>
-          <button type="button" onclick="copyBibtex('doclayoutvl')" data-bibtex-key="doclayoutvl" class="arxiv-button">
-            <i class="fas fa-quote-right"></i>
-            bibtex
-          </button>
-          <button onclick="window.open('blogs/doclayout-vl-promptable-layout-segmentation/', '_self')" class="arxiv-button" data-blog-post="doclayout-vl-promptable-layout-segmentation">
-            <i class="fas fa-pen-nib"></i>
-            blog
-          </button>
-          <br />
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>
-                Reframes document layout understanding as promptable, open-set hierarchical segmentation. The system
-                generates layout trees and dense masks using a VLM plus segmentation model with hierarchy-aware
-                grounding, trained on 2.5M documents, 400K+ labels, and 80M masks.
-              </p>
-            </div>
-          </details>
-        </div>
-      </section>
       </section>
 
       <section class="research-interest" id="vlm-infrastructure" aria-labelledby="vlm-infrastructure-title">
         <header class="interest-head">
-          <p class="interest-kicker">Research interest 03</p>
+          <p class="interest-kicker">Research interest 02</p>
           <h2 id="vlm-infrastructure-title">VLM infrastructure</h2>
           <p>The whole stack that builds sovereign vision foundation models, from storage to evaluation.</p>
         </header>
@@ -618,6 +499,125 @@
             </details>
           </div>
         </section>
+      </section>
+
+      <section class="research-interest" id="sovereign-foundation-models" aria-labelledby="sovereign-foundation-models-title">
+        <header class="interest-head">
+          <p class="interest-kicker">Research interest 03</p>
+          <h2 id="sovereign-foundation-models-title">Sovereign foundation models</h2>
+          <p>Patram, India&rsquo;s first VLM for document understanding, and Patram-Bench.</p>
+        </header>
+        
+
+        <section class="research-card" id="patram">
+        <div class="research-card-image">
+          <img src="assets/images/project-patram.png" alt="Patram" class="research-media" />
+        </div>
+        <div class="research-card-content">
+          <a href="https://bharatgen.com/products/patram/">
+            <span class="papertitle">Patram: India's First VLM for Document Understanding</span>
+          </a>
+          <br />
+          <em>Launched at BharatGen Summit '25</em>
+          <br />
+          <button onclick="window.open('https://bharatgen.com/products/patram/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button
+            onclick="window.open('https://drive.google.com/file/d/1PaWJNOwIY0mddwTxvSW0MGIsIG_nbKAi/view?usp=sharing', '_blank')"
+            class="arxiv-button"
+          >
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button onclick="window.open('https://youtu.be/fsSsciHn0zU?si=sBFVImcQAQy4sVDv', '_blank')" class="arxiv-button">
+            <i class="fab fa-youtube"></i>
+            video
+          </button>
+          <button onclick="window.open('https://huggingface.co/bharatgenai/patram-7b-instruct', '_blank')" class="arxiv-button">
+            <i class="fas fa-face-smile"></i>
+            HF
+          </button>
+          <button type="button" onclick="copyBibtex('patram')" data-bibtex-key="patram" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            cite
+          </button>
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>
+                Patram is a vision-language model for Indian document understanding, built over BharatDocs, a large
+                Indian document corpus with 20M+ documents and 250M+ pages across English and 22 Indian languages.
+              </p>
+              <ul class="project-points">
+                <li>Pre-trained on 1M+ images for captioning, followed by 500K VQA annotations across 20+ document VQA task types.</li>
+                <li>
+                  Built a multi-stage Synthetic QA pipeline using Qwen2.5-VL-72B-Instruct for extractive and abstractive
+                  QA, followed by verification and deduplication.
+                </li>
+                <li>Achieved state-of-the-art performance on key DocVQA benchmarks, including DocVQA and VisualMRC.</li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </section>
+
+        <section class="research-card" id="patrambench">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-patrambench-thumb.jpg"
+            alt="PatramBench"
+            class="research-media"
+            data-image="assets/images/paper-patrambench.jpeg"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://patrambench.github.io/">
+            <span class="papertitle">
+              Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document
+              Understanding
+            </span>
+          </a>
+          <br />
+          <strong>Anirudh Srinivasan</strong>*, Pratyush Jena*, Arya Topale, Venkata Kesav Venna, Ravi Kiran
+          Sarvadevabhatla
+          <br />
+          <a href="https://icdar2026.org/index.php/program-detail/#:~:text=Patram%2DBench" target="_blank" rel="noopener noreferrer"><em>Poster at ICDAR '26</em></a>, pp. 626-642
+          <br />
+          <button onclick="window.open('https://patrambench.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('https://link.springer.com/chapter/10.1007/978-3-032-36033-5_37', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-pdf"></i>
+            paper
+          </button>
+          <button onclick="window.open('assets/pdfs/PatramBench-Poster.pdf', '_blank')" class="arxiv-button">
+            <i class="fas fa-image"></i>
+            poster
+          </button>
+          <button type="button" onclick="copyBibtex('patrambench')" data-bibtex-key="patrambench" class="arxiv-button">
+            <i class="fas fa-quote-right"></i>
+            bibtex
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>
+                A comprehensive Indian document understanding benchmark with 52,607 documents, 23 languages, 13 domains,
+                71 classes, 52 tasks, and 2.4M+ QA annotations across OCR, parsing, layout, and multi-hop DocVQA. It
+                also introduces multilingual robustness metrics and evaluates 29+ VLMs.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
       </section>
     </main>
 

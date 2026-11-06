@@ -5,9 +5,9 @@ page and a hub blog post) and one blog post per publication or system under it.
 
 | # | Interest | Research page anchor | Thesis post | Members |
 |---|---|---|---|---|
-| 01 | Sovereign foundation models | `research.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
-| 02 | Grounded document intelligence | `research.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
-| 03 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | The whole Patram stack (storage to evaluation, from guest lecture slide 2); one card: Patram-Ingest, linking the guest lecture slides |
+| 01 | Grounded document intelligence | `research.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
+| 02 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | The whole Patram stack (storage to evaluation, from guest lecture slide 2); one card: Patram-Ingest, linking the guest lecture slides |
+| 03 | Sovereign foundation models | `research.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
 
 The theses for sovereign foundation models and VLM infrastructure will be written by the author; do not draft them.
 New publications go under the interest they test. Patram-Bench belongs to sovereign foundation models.
@@ -25,18 +25,18 @@ thesis post. Writing rules: `docs/blog-writing-guide.md`. Page rules: `docs/styl
 | 04 | DoCoG | `docog-grounded-chain-of-thought` | DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA | ECCV 2026, Spotlight | Published |
 | 05 | DocLayout-VL | `doclayout-vl-promptable-layout-segmentation` | DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation | ECCV 2026, Poster | Published |
 
+## VLM Infrastructure series
+
+| # | Post | Slug | Status |
+|---|---|---|---|
+| 01 | Thesis | — | Waiting for the author |
+
 ## Sovereign Foundation Models series
 
 | # | Post | Slug | Status |
 |---|---|---|---|
 | 01 | Thesis | — | Waiting for the author |
 | 02 | Patram-Bench | `patram-bench-indian-document-understanding` | Draft, held for the author's review |
-
-## VLM Infrastructure series
-
-| # | Post | Slug | Status |
-|---|---|---|---|
-| 01 | Thesis | — | Waiting for the author |
 
 ## Conventions
 
