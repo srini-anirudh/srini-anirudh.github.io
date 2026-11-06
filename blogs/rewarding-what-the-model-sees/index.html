@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT
+    Every animated figure in this article is driven by one shared stepper (see the
+    script at the end of the page): Previous / Play-Pause / Next, 0.5x / 1x / 2x with
+    aria-pressed, a live "Step NN / TT" status, autoplay only while the figure is on
+    screen, pause on manual interaction (resume only through Play), and
+    prefers-reduced-motion support (no autoplay, no tweening, every state reachable).
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Reinforcement learning for vision-language models from first principles: what a verifiable visual reward looks like, which parameters RL changes, perception versus reasoning, process rewards, reward hacking and zero-advantage groups." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Rewarding What the Model Sees: Reinforcement Learning for Vision-Language Models" />
+    <meta property="og:description" content="Verifiable rewards work for maths and code. What does a checkable answer look like when the evidence is an image, and what does the reward actually change inside a VLM?" />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Rewarding What the Model Sees: Reinforcement Learning for Vision-Language Models" />
+    <meta name="twitter:description" content="What a verifiable reward looks like for images, which weights RL changes, and how visual rewards get hacked." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/preview.png" />
+    <title>Reinforcement Learning for Vision-Language Models: Rewarding What the Model Sees | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/" },
+        "headline": "Rewarding What the Model Sees",
+        "description": "Reinforcement learning for vision-language models from first principles: what a verifiable visual reward looks like, which parameters RL changes, perception versus reasoning, process rewards, reward hacking and zero-advantage groups.",
+        "image": "https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["reinforcement learning", "vision-language models", "reward design", "GRPO", "RLVR", "reward hacking"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#vlms" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --blue: #0b5ea8;
+        --orange: #d66f00;
+        --green: #2f8f5b;
+        --red: #b8432f;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article additions ---------- */
+      .article-content a { color: var(--blue); text-underline-offset: 3px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 8px; }
+      .lede { font-size: 20.5px; color: var(--ink-soft); }
+      .eq { margin: 22px 0; padding: 14px 18px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 16px/1.8 var(--mono); }
+      .eq.center { text-align: center; }
+      .eq .an { display: block; margin-top: 6px; color: var(--muted); font: italic 13px/1.5 var(--body); text-align: left; }
+      .eq sub, .eq sup { font-size: 0.72em; }
+      .m { font: 0.92em/1 var(--mono); }
+
+      .callout { margin: 28px 0; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); }
+      .callout p { margin: 0 0 10px; font-size: 17.5px; }
+      .callout p:last-child { margin-bottom: 0; }
+      .callout .callout-label { margin: 0 0 6px; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .callout-insight { border-left-color: var(--blue); }
+      .callout-insight .callout-label { color: var(--blue); }
+      .callout-nuance { border-left-color: var(--orange); }
+      .callout-nuance .callout-label { color: #a95700; }
+
+      .keylist { padding-left: 0 !important; list-style: none; }
+      .keylist li { margin: 0 0 14px; padding: 12px 16px; background: var(--paper-bright); border: 1px solid var(--rule); font-size: 17.5px; }
+      .keylist li b.kind { display: inline-block; margin-right: 8px; font: 600 10.5px/1 var(--mono); letter-spacing: 0.13em; text-transform: uppercase; }
+      .keylist li b.kind.i { color: var(--blue); }
+      .keylist li b.kind.n { color: #a95700; }
+
+      /* ---------- light figures ---------- */
+      .vfig { position: relative; width: min(1080px, calc(100vw - 40px)); margin: 40px 0 34px calc(50% - min(540px, 50vw - 20px)); padding: 18px 20px 16px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .vfig-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 10px; }
+      .vfig-num { color: var(--orange); font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .vfig-title { color: var(--ink); font: 700 17px/1.3 var(--display); }
+      .vfig-stage { overflow-x: auto; overflow-y: hidden; }
+      .vfig-stage svg { display: block; width: 100%; height: auto; }
+      .vfig figcaption { margin: 12px 0 0; color: var(--ink-soft); font: 15.5px/1.55 var(--body); }
+      .vfig figcaption b { font-weight: 600; color: var(--ink); }
+      .vfig-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+      .vfig-ctl button, .vfig-opt button { min-height: 36px; padding: 7px 11px; color: var(--ink); background: var(--paper-bright); border: 1px solid var(--ink); cursor: pointer; font: 600 11px/1 var(--mono); }
+      .vfig-ctl button:hover, .vfig-opt button:hover { background: #ecebe6; }
+      .vfig-ctl button[aria-pressed="true"], .vfig-opt button[aria-pressed="true"] { color: #fff; background: var(--orange); border-color: var(--orange); }
+      .vfig-ctl button[data-action="play-pause"][aria-pressed="true"] { background: var(--ink); border-color: var(--ink); }
+      .vfig-ctl button:focus-visible, .vfig-opt button:focus-visible, .vfig input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+      .vfig-status { margin-left: auto; color: var(--ink-soft); font: 11.5px/1.4 var(--mono); }
+      .vfig-opt { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 10px; font: 11.5px/1.4 var(--mono); color: var(--ink-soft); }
+      .vfig-opt .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+      .vfig-opt label { display: flex; align-items: center; gap: 8px; }
+      .vfig-opt input[type="range"] { width: 150px; accent-color: var(--orange); }
+      .vfig-opt output { min-width: 44px; color: var(--orange); font-weight: 600; }
+      .vfig svg text { font-family: var(--mono); }
+      .vfig svg .disp { font-family: var(--display); }
+      .vfig svg .drag { cursor: move; }
+      .vfig svg .handle { cursor: nwse-resize; }
+      .vfig svg .drag, .vfig svg .handle { touch-action: none; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .vfig { width: calc(100vw - 20px); margin-left: calc(50% - 50vw + 10px); padding: 14px 12px; }
+        .vfig-stage svg { min-width: 680px; }
+        .vfig-stage svg.narrow-ok { min-width: 0; }
+        .vfig-head::after { content: "Scroll the figure sideways to see all of it."; display: block; width: 100%; color: var(--muted); font: 11px/1.4 var(--mono); }
+        .vfig-status { margin-left: 0; width: 100%; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article rewarding-what-the-model-sees-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide &middot; Vision-language models</p>
+        <h1 class="article-title">Rewarding What the Model Sees</h1>
+        <p class="article-subtitle">Reinforcement learning for vision-language models. Verifiable rewards work when a maths answer or a program can be checked. This article asks what a checkable answer looks like when the evidence is an image, and what the reward actually changes inside the model.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Reinforcement learning</span><span>Vision-language models</span><span>Reward design</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>42 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">12 of 20 &middot; Reinforcement learning</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../seeing-in-time/"><span>Previous &middot; 11</span><strong>Seeing in Time</strong></a><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Next &middot; 13</span><strong>Thinking With Images</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#question">What can be checked in an image</a></li>
+          <li><a href="#policy">A vision-language model is already a policy</a></li>
+          <li><a href="#taxonomy">A taxonomy of visual rewards</a></li>
+          <li><a href="#why">Why vision suits verifiable rewards</a></li>
+          <li><a href="#boxes">Designing a box reward</a></li>
+          <li><a href="#lineage">How the field developed</a></li>
+          <li><a href="#parameters">Which parameters receive the gradient</a></li>
+          <li><a href="#perception">Perception RL and reasoning RL</a></li>
+          <li><a href="#credit">Credit assignment under a sparse reward</a></li>
+          <li><a href="#process">Process rewards for visual reasoning</a></li>
+          <li><a href="#hacking">How visual rewards get hacked</a></li>
+          <li><a href="#curriculum">Curriculum and the zero-advantage problem</a></li>
+          <li><a href="#practice">A checklist for a visual RL run</a></li>
+          <li><a href="#open">Open questions</a></li>
+          <li><a href="#insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <!-- ============================================================ 1 -->
+      <section id="question">
+        <h2>What can be checked in an image</h2>
+        <p class="lede">Reinforcement learning with verifiable rewards has a simple loop. A model writes an answer. A program checks it. The reward is one or zero.</p>
+        <p>That loop needs no human preference labels and no learned reward model. It produced the reasoning language models of 2025. If the loop is new to you, <a href="../how-reinforcement-learning-teaches-models-to-reason/">How Reinforcement Learning Teaches Models to Reason</a> builds it from the ground up. This article assumes you know it, along with PPO and GRPO from <a href="../reinforcement-learning-from-first-principles/">Reinforcement Learning from First Principles</a>.</p>
+        <p>Now give the same loop a photograph of a shelf and ask how many mugs are on it. Can a program still check the answer? Yes. A count is an integer.</p>
+        <p>Give it a scanned invoice and ask for the total. A total is a number, so it can be checked. Ask it to find the red car. The answer is a box, and a box can be compared with a reference box. Ask it to transcribe a receipt. Text can be compared with text by counting edits.</p>
+        <p>So many visual tasks already have answers a program can check. The first question of this article is what those checks look like, and which of them are safe to optimise.</p>
+        <p>There is a second question that has no counterpart in text-only RL. A vision-language model has two parts. A vision encoder turns pixels into vectors. A language model reasons over those vectors. <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> and <a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a> cover how the two are joined.</p>
+        <p>When the reward goes up, which part improved? The model may have learned to see more accurately. It may have learned to reason better over what it already saw. Or it may have learned to answer without looking. These are three different outcomes. A single reward number cannot tell them apart.</p>
+        <p>We will build the answer in order. First the policy and the training signal. Then the rewards, one family at a time, and the box reward in detail. Then the literature, organised by idea. Then the questions that are specific to vision. Which weights change? How do perception and reasoning differ? How does credit flow through a multi-step answer? How do rewards get hacked? How do we keep the learning signal alive?</p>
+      </section>
+
+      <!-- ============================================================ 2 -->
+      <section id="policy">
+        <h2>A vision-language model is already a policy</h2>
+        <p>A language model is a policy over tokens. At each step it picks the next token given everything so far. A vision-language model (VLM) is the same policy with one more input, the image:</p>
+        <div class="eq center">π<sub>θ</sub>( y<sub>t</sub> &nbsp;|&nbsp; <b>I</b>, x, y<sub>&lt;t</sub> )
+          <span class="an">I is the image (or several images, or video frames). x is the text prompt. y<sub>&lt;t</sub> is the response so far. θ now includes the vision encoder, the connector and the language model.</span></div>
+        <p>The state at step <i>t</i> is the image, the prompt and the tokens written so far. The action is the next token. The episode ends at the end-of-sequence token. Then a reward arrives for the whole response.</p>
+        <p>The objective is the one used for text. We want responses with high reward, and we do not want the policy to drift too far from a reference model:</p>
+        <div class="eq center">J(θ) = E<sub>(I, x) ∼ D</sub> &nbsp;E<sub>y ∼ π<sub>θ</sub></sub> [ R(I, x, y) ] &nbsp;−&nbsp; β · KL( π<sub>θ</sub> ‖ π<sub>ref</sub> )</div>
+        <p>GRPO estimates the gradient of this objective without a value network. For each prompt it samples a group of <i>K</i> responses. It scores each one. Then it compares each score with the group:</p>
+        <div class="eq center">A<sub>k</sub> = ( R<sub>k</sub> − mean(R<sub>1</sub> … R<sub>K</sub>) ) / ( std(R<sub>1</sub> … R<sub>K</sub>) + ε )
+          <span class="an">Every token of response k receives the same advantage A<sub>k</sub>. The derivation, and why the group mean is a valid baseline, is in the RLVR article linked above.</span></div>
+        <p>Nothing in this mathematics knows that one input is an image. Three things do change.</p>
+        <ul>
+          <li><strong>The environment is a fixed picture.</strong> The policy sees the image only through its visual tokens. It cannot look again or zoom in, unless it is given tools. <a href="../thinking-with-images/">Thinking With Images</a> covers models that can.</li>
+          <li><strong>The reward comes from a visual annotation.</strong> The checker compares the output with a box, a mask, a transcript, a table or a count.</li>
+          <li><strong>The parameters have more than one part.</strong> θ includes the vision encoder and the connector. Whether those parts receive the gradient is a design choice, and it matters.</li>
+        </ul>
+
+        <figure class="vfig" id="fig-grpo">
+          <div class="vfig-head"><span class="vfig-num">Figure 1</span><span class="vfig-title">One GRPO step on a visual question</span></div>
+          <div class="vfig-stage"></div>
+          <figcaption><b>Figure 1.</b> One prompt, one chart, eight sampled answers. A visual verifier checks each answer against the reference with a 5% numeric tolerance. The rewards are normalised inside the group into advantages. Rollouts that read the chart correctly are pushed up. Rollouts that misread it are pushed down. The image is the same for every rollout, so the comparison is between readings of the same pixels.</figcaption>
+        </figure>
+
+        <p>Watch the last stage of the figure. The baseline is the group mean. Every rollout in the group saw the same pixels. So the advantage compares different ways of reading the same chart. A rollout that reads the 2023 bar as 51 instead of 57 is pushed down relative to siblings that read it correctly.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The group baseline holds the image constant. This is a direct consequence of the advantage formula above: the mean is taken over responses to one image. A per-prompt baseline therefore removes how hard the image is and keeps only how well each rollout handled it. The practical implication is the other side of the same fact. If every rollout in a group fails on an image, or every rollout succeeds, all advantages are zero and that image teaches nothing. <a href="#curriculum">The curriculum section</a> turns this into a design rule.</p></aside>
+      </section>
+
+      <!-- ============================================================ 3 -->
+      <section id="taxonomy">
+        <h2>A taxonomy of visual rewards</h2>
+        <p>A verifiable reward is a function R(I, x, y) that a program can compute from the response and an annotation. Vision has more kinds of annotation than text. Each kind gives a different reward. We go from the simplest to the richest.</p>
+
+        <h3>Exact match</h3>
+        <p>The simplest check compares the answer string with the reference after normalising both:</p>
+        <div class="eq center">R = 1[ norm(y) = norm(y*) ]</div>
+        <p>It fits multiple-choice questions, yes/no questions and counts. "How many mugs?" has one right integer. The normaliser does a lot of quiet work. It decides whether "Three", "3" and "3 mugs" are the same answer. A normaliser that is too strict punishes correct answers. A normaliser that is too loose can be exploited, as we will see in the <a href="#hacking">hacking section</a>.</p>
+
+        <h3>Numeric tolerance</h3>
+        <p>A value read from a chart by eye is rarely exact. A bar that ends a little below the 60 gridline might be 57 or 58. So chart rewards accept an answer close to the reference:</p>
+        <div class="eq center">R = 1[ |ŷ − y*| ≤ τ · |y*| ]</div>
+        <p>ChartQA defined this "relaxed accuracy" with τ = 5%. Non-numeric answers still need an exact match. The tolerance is a statement about how precisely a person could read the chart. It is also a source of slack. A misreading inside the tolerance counts as correct.</p>
+
+        <h3>Boxes</h3>
+        <p>Grounding tasks ask for a box. The standard comparison is intersection over union (IoU):</p>
+        <div class="eq center">IoU(B, B*) = |B ∩ B*| / |B ∪ B*|</div>
+        <p>IoU is 1 for a perfect box and 0 for a box that does not overlap the target. It can be used directly as a dense reward, or thresholded into a pass/fail reward such as 1[IoU ≥ 0.5]. When an image has several objects, predictions must first be matched to targets. Perception-R1 matches them with the Hungarian algorithm before scoring, and found the matching essential for detection. Boxes are subtle enough to get their own section, <a href="#boxes">Designing a box reward</a>.</p>
+
+        <h3>Masks</h3>
+        <p>A mask is a set of pixels. IoU works on masks too. The Dice score is a common alternative:</p>
+        <div class="eq center">Dice(M, M*) = 2 |M ∩ M*| / ( |M| + |M*| )</div>
+        <p>Dice is always at least as large as IoU on the same pair, so a Dice threshold is a looser test than an IoU threshold at the same number. Most VLMs cannot write masks as text. A common workaround is to have the VLM write prompts for a segmentation model. Seg-Zero has the VLM output a box and two points. A frozen SAM2 turns them into a mask. The rewards check the box and the points. <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a> describes the same VLM-plus-SAM pattern for documents, and <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> covers grounding outputs in general.</p>
+
+        <h3>Points</h3>
+        <p>A click is a point. The simplest reward asks whether the point lands inside the target:</p>
+        <div class="eq center">R = 1[ p ∈ B* ] &nbsp;&nbsp;or&nbsp;&nbsp; R = 1[ p ∈ M* ]</div>
+        <p>UI-R1 and GUI-R1 use the box version for GUI clicks. A graded alternative decays with distance, for example R = max(0, 1 − ‖p − p*‖ / d). Perception-R1 uses a point-distance reward for counting, where the model points at each object.</p>
+
+        <h3>Text read from the image</h3>
+        <p>OCR outputs are long strings. Exact match is too harsh for them, because one wrong character fails a whole page. Edit distance gives partial credit. The character error rate (CER) is the number of character edits divided by the reference length. The word error rate (WER) does the same over words. A reward can be 1 − CER, clipped at zero.</p>
+        <p>ANLS, introduced with the ST-VQA benchmark, adds a threshold. It computes a normalised edit distance. If the distance is 0.5 or more, the score is 0. Below that, the score is one minus the distance. The authors chose 0.5 to separate two cases. A small distance means the right text with OCR mistakes, which deserves partial credit. A large distance means the wrong text was selected, which deserves none.</p>
+
+        <h3>Tables</h3>
+        <p>A table has structure as well as text. TEDS treats a table as an HTML tree and measures the tree edit distance to the reference, normalised to a similarity between 0 and 1. It penalises a cell placed in the wrong row as well as a misread number. Table-R1 uses TEDS directly as an RL reward for table recognition. Another option is execution: run a query on the predicted table and compare the result with the same query on the reference table.</p>
+
+        <h3>Structured extraction</h3>
+        <p>Key-value extraction asks for JSON, for example the vendor, date and total from an invoice. The reward has two parts. A gate checks that the output parses and follows the schema. A field score compares values. Field-level F1 is a natural choice, because it balances precision and recall. A recall-only score rewards emitting every possible field with guessed values. An RL study on medical visual information extraction used a reward that balances precision and recall for exactly this reason.</p>
+        <div class="eq center">R = 1[ valid schema ] · F1( fields(y), fields(y*) )</div>
+
+        <h3>Execution and rendering</h3>
+        <p>Some outputs are programs. Chart-to-code asks the model to write plotting code that reproduces a chart. The code can be run, and the rendered image compared with the original. MSRL combines three rewards. A rule-based score checks parts of the code. A second reward checks that the code runs. A visual reward renders the code and has a large VLM compare the result with the target. Code that fails to render gets zero. ChartMaster renders the code and combines attribute matching with a similarity between image features from a small CNN.</p>
+        <p>Unit tests are another kind of execution reward. olmOCR 2 generates many small tests for each synthetic training document, such as "this sentence appears", "this table cell is correct" and "these two passages appear in this order". The reward is the fraction of tests passed.</p>
+
+        <h3>Learned judges</h3>
+        <p>When no program can check the output, a model has to. Captions, open-ended descriptions and helpfulness all fall here. Large recipes such as Seed1.5-VL and MiMo-VL combine rule-based verifiers with reward models. Once the checker is a model, the reward is no longer verifiable in the strict sense. That territory is covered in <a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a>.</p>
+
+        <figure class="vfig" id="fig-gallery">
+          <div class="vfig-head"><span class="vfig-num">Figure 2</span><span class="vfig-title">Nine verifiers, each lighting up on its own task</span></div>
+          <div class="vfig-stage"></div>
+          <figcaption><b>Figure 2.</b> Each step brings one verifier into focus with a small example. Exact match compares a count. Numeric tolerance accepts 57.8 against 58 inside a 5% band. Box IoU compares two rectangles. Mask Dice compares two pixel sets. Point-in-region tests a click. ANLS scores a transcript with one typo. TEDS compares table trees. The JSON check gates on the schema, then scores fields. Render-and-compare runs the code and compares images.</figcaption>
+        </figure>
+
+        <p>The table below compares these families along the aspects that matter for training. "Density" means how much a reward distinguishes between nearly right and badly wrong. "Mostly trains" is a judgement about which skill the reward exercises. A reward on a chart answer exercises both reading and arithmetic, so it gets both labels.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 1 &middot; Visual reward families compared</caption>
+            <thead>
+              <tr><th scope="col">Reward</th><th scope="col">Verifiable by program</th><th scope="col">Density</th><th scope="col">Main hacking risk</th><th scope="col">Mostly trains</th><th scope="col">Typical tasks</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Exact match</th><td>Yes</td><td>Binary</td><td>Lenient normaliser or answer parser</td><td>Reasoning, counting</td><td>Multiple choice, yes/no, counts</td></tr>
+              <tr><th scope="row">Numeric tolerance</th><td>Yes</td><td>Binary, with slack</td><td>Misreadings inside the band pass</td><td>Reading and arithmetic</td><td>Chart QA, visual maths</td></tr>
+              <tr><th scope="row">Soft box IoU</th><td>Yes</td><td>Dense</td><td>Oversized box earns a floor of credit</td><td>Perception (localisation)</td><td>Referring expressions, detection</td></tr>
+              <tr><th scope="row">Thresholded IoU</th><td>Yes</td><td>Binary</td><td>Few: sparse on hard targets</td><td>Perception (localisation)</td><td>Grounding, detection</td></tr>
+              <tr><th scope="row">Mask IoU or Dice</th><td>Yes</td><td>Dense</td><td>Oversized mask, as with boxes</td><td>Perception (shape)</td><td>Reasoning segmentation</td></tr>
+              <tr><th scope="row">Point in region</th><td>Yes</td><td>Binary</td><td>Points drift to the centre of large targets</td><td>Perception (localisation)</td><td>GUI clicks, pointing</td></tr>
+              <tr><th scope="row">Point distance</th><td>Yes</td><td>Dense</td><td>Hedging between candidates</td><td>Perception</td><td>Counting by pointing</td></tr>
+              <tr><th scope="row">OCR edit distance or ANLS</th><td>Yes</td><td>Dense</td><td>Short safe outputs on hard text</td><td>Perception (reading)</td><td>OCR, scene-text VQA</td></tr>
+              <tr><th scope="row">Table TEDS</th><td>Yes</td><td>Dense</td><td>Correct structure, wrong cell text</td><td>Perception and layout</td><td>Table recognition</td></tr>
+              <tr><th scope="row">JSON schema and field F1</th><td>Yes</td><td>Dense</td><td>Valid but empty, or every field guessed</td><td>Reading and format</td><td>Key-value extraction</td></tr>
+              <tr><th scope="row">Unit tests on output</th><td>Yes</td><td>Dense (fraction passed)</td><td>Tests that miss what matters</td><td>Reading and layout</td><td>Document OCR</td></tr>
+              <tr><th scope="row">Render and compare</th><td>Partly: the comparison may be a model</td><td>Dense</td><td>Images that look similar to the scorer</td><td>Perception and code</td><td>Chart-to-code, SVG</td></tr>
+              <tr><th scope="row">Learned judge</th><td>No</td><td>Dense</td><td>Exploits the judge's preferences</td><td>Style, helpfulness</td><td>Captions, open-ended VQA</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>How to read this table.</strong> Read down the "Density" and "Main hacking risk" columns together. Every dense reward on this list has a characteristic cheap way to earn partial credit. The binary rewards avoid that, at the price of giving no signal when every attempt fails. Most of the design work in visual RL is choosing where to sit between those two failure modes.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>A dense reward is not automatically a better signal under GRPO. GRPO divides by the group's standard deviation. Suppose seven rollouts get an IoU of 0.30 and one gets 0.31. The spread is tiny, so after normalisation that one-point difference becomes an advantage of about +2.6 for one rollout and about −0.4 for the others. This follows from the formula alone. The practical implication: when a continuous reward has noise or meaningless small differences, threshold it, round it, or drop the division by the standard deviation. Then near-ties are not amplified into confident updates.</p></aside>
+      </section>
+
+      <!-- ============================================================ 4 -->
+      <section id="why">
+        <h2>Why vision suits verifiable rewards</h2>
+        <p>Computer vision spent two decades building datasets with machine-checkable labels. COCO has boxes and masks. RefCOCO has referring expressions paired with boxes. Document datasets have transcripts and tables. Chart datasets have numeric answers.</p>
+        <p>Supervised fine-tuning uses those labels as targets to copy. Reinforcement learning uses the same labels as checks. That is the whole conversion. A box annotation becomes an IoU reward. A transcript becomes an edit-distance reward. No preference data and no learned reward model are needed.</p>
+        <p>The difference between copying and checking matters in three ways.</p>
+        <p><strong>Many outputs can be right.</strong> SFT says "write these exact tokens". RL says "anything that passes the check is good". For a box, many slightly different boxes pass. For a reasoning question, many different explanations reach the right answer. RL does not penalise the model for choosing a different valid path.</p>
+        <p><strong>The model learns from its own outputs.</strong> SFT trains on outputs the model did not produce. RL trains on outputs sampled from the current policy, including its own mistakes. That is the standard argument from <a href="../reinforcement-learning-from-first-principles/">the RL article</a>, and it applies here unchanged.</p>
+        <p><strong>Small data can go far.</strong> Visual-RFT reported large gains in few-shot settings, with one to sixteen examples per category for fine-grained classification and detection. It beat SFT in every setting it reported. R1-V trained a 2B model on synthetic counting scenes and reported SuperCLEVR accuracy rising from 48.0% to 82.5% after 100 GRPO steps.</p>
+        <p>The most repeated finding is about generalisation. VLM-R1 compared RL with SFT on referring-expression grounding and tested out of domain. On LISA-Grounding, RL reached about 63.1 while SFT reached 54.8, below the starting model's 56.5. Seg-Zero found the same pattern for reasoning segmentation: SFT fell below its baseline on ReasonSeg, while RL improved on it. MM-Eureka reported that rule-based RL generalised better than SFT on its maths and science tasks.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>RL's advantage over SFT is largest where many outputs are acceptable. Perception-R1 reports that RL beat SFT most clearly on counting and detection, which it describes informally as high in "perceptual perplexity": many objects, many categories, many valid orderings of the output. The advantage was smaller on grounding and OCR, which have one right answer. The practical implication: for a single-answer reading task such as OCR, a well-tuned SFT model is a strong baseline. Spend RL compute first where the output space is large.</p></aside>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"RL generalises, SFT memorises" is a comparison under particular conditions. The SFT baselines in these papers usually train on the same few thousand examples, with no negative examples. The authors of "RL makes MLLMs see better than SFT" point out exactly this: their SFT and preference-trained models do not see equivalent supervision, because SFT never sees a wrong answer. The practical implication: when you compare the two on your own data, match the number of examples and the compute, and report both in-domain and out-of-domain results.</p></aside>
+      </section>
+
+      <!-- ============================================================ 5 -->
+      <section id="boxes">
+        <h2>Designing a box reward</h2>
+        <p>The box reward looks like the easiest case in the taxonomy. It hides the most instructive failure. Start with a concrete example.</p>
+        <p>The target box covers 20% of the image. The model outputs a box that covers the whole image. The whole-image box contains the target. So the intersection is the target, and the union is the whole image:</p>
+        <div class="eq center">IoU = |B*| / |B| = 0.20 / 1.00 = 0.20</div>
+        <p>A box that says nothing about where the object is earns 0.2. In general, any box that contains the target earns the target's share of that box. That is a floor of free credit.</p>
+        <p>Whether the floor matters depends on the rest of the group. Suppose the target is hard to find. Seven rollouts attempt a precise box and miss, each scoring 0. One rollout outputs a huge box and scores 0.2. The group mean is 0.025. The huge box gets the only positive advantage in the group. GRPO raises its probability.</p>
+        <p>So the hack is not that a huge box scores well. It scores badly. The hack is that it scores better than an honest miss. On hard examples, that is enough to pull the policy toward bigger boxes. GUI-G1 observed this directly in GUI grounding. Training with an IoU reward made the predicted boxes grow larger. Training with a "hit" reward, which only asks whether the box centre lands in the target, made boxes shrink. Each reward pushed box size in its own direction.</p>
+
+        <figure class="vfig" id="fig-iou">
+          <div class="vfig-head"><span class="vfig-num">Figure 3</span><span class="vfig-title">Box reward playground: drag the box, change the reward</span></div>
+          <div class="vfig-stage"></div>
+          <div class="vfig-opt">
+            <span class="grp" role="group" aria-label="Reward function">Reward:
+              <button type="button" data-mode="iou" aria-pressed="true">Soft IoU</button>
+              <button type="button" data-mode="thr" aria-pressed="false">IoU ≥ 0.5</button>
+              <button type="button" data-mode="giou" aria-pressed="false">GIoU</button>
+              <button type="button" data-mode="cov" aria-pressed="false">Coverage</button>
+            </span>
+          </div>
+          <figcaption><b>Figure 3.</b> Drag the orange box to move it. Drag its lower-right corner to resize it. Keyboard: focus the box and use the arrow keys to move it, or Shift and the arrow keys to resize it. The panel on the right shows the four rewards, and the advantage your box would receive in a group whose other seven rollouts all missed this hard target. Soft IoU gives a whole-image box a positive advantage. The threshold removes it. GIoU equals IoU whenever your box contains the target, so it adds no penalty there. Coverage, the fraction of the target covered, gives the whole-image box a perfect score.</figcaption>
+        </figure>
+
+        <p>Play with the figure and four lessons appear.</p>
+        <p><strong>Thresholding removes the floor.</strong> With 1[IoU ≥ 0.5], a containing box scores zero unless it is at most twice the target's area. The cost is sparsity. On a hard target, every rollout scores zero and the group teaches nothing.</p>
+        <p><strong>GIoU does not fix oversized boxes.</strong> GIoU subtracts a penalty based on the smallest box C that encloses both boxes: GIoU = IoU − |C \ (B ∪ B*)| / |C|. When the prediction contains the target, the enclosing box is the prediction itself, so the penalty is zero and GIoU equals IoU. GIoU helps elsewhere. It ranks misses: a near miss scores higher than a far miss, which gives the policy a direction when no rollout overlaps the target.</p>
+        <p><strong>Coverage alone is unsafe.</strong> A reward equal to the fraction of the target covered gives a whole-image box a perfect score. It must always be paired with a precision term.</p>
+        <p><strong>The fix is usually a second term.</strong> The published repairs all pair a recall-like signal with a precision-like signal.</p>
+        <ul>
+          <li>GUI-G1 added a box-size term that rewards matching the target's size, on top of the hit reward and the IoU reward.</li>
+          <li>The detection-focused Vision-R1 (Zhan and colleagues) combined a recall reward with a precision reward. The recall reward counts the fraction of ground-truth objects matched above an IoU threshold. The precision reward averages IoU over the predicted boxes. It also tightened its IoU thresholds as training progressed.</li>
+          <li>VLM-R1 found a multi-object version of the same problem in open-vocabulary detection. A plain mAP reward could be gamed by predicting every category in the prompt list, because COCO-style evaluation ignores categories that are absent from the image. Output length ballooned. Its fix multiplies mAP by min(1, L<sub>gt</sub> / L<sub>pred</sub>), so a prediction list longer than the ground truth is penalised.</li>
+          <li>V-Triune used a dynamic IoU reward. Its IoU threshold rises during training, through 0.85, then 0.95, then 0.99.</li>
+        </ul>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Under group-relative advantages, partial credit is judged against the group, not against zero. A strategy that earns a small, reliable reward beats an honest attempt that usually misses. GUI-G1's measurement, that IoU rewards made boxes grow, is this effect in practice. The practical implication: before training, compute the reward of the cheapest degenerate output (the whole image, the image centre, an empty answer, every category listed) on your training set. If the cheapest output beats a typical miss, the reward needs a precision term or a threshold.</p></aside>
+      </section>
+
+      <!-- ============================================================ 6 -->
+      <section id="lineage">
+        <h2>How the field developed</h2>
+        <p>The visual RL literature grew very fast in 2025. It is easiest to follow as four ideas, each building on the last. First, RL was applied to perception, with rewards copied from detection metrics. Second, it was applied to multimodal reasoning, copying the R1 recipe from text. Third, perception and reasoning were combined in single multi-domain runs. Fourth, RL became a standard stage in the open model families.</p>
+
+        <h3>Perception first: rewards copied from detection metrics</h3>
+        <p>The earliest public result was R1-V, a GitHub project released in February 2025. It trained Qwen2-VL-2B with GRPO on synthetic CLEVR scenes. The task was counting. The reward was an accuracy check plus a format check for think and answer tags. The repository also reported a detail that later papers echoed: at 2B scale, answering directly without the tags scored higher.</p>
+        <p>Visual-RFT made the perception framing explicit. It trained Qwen2-VL-2B and 7B with GRPO. For detection, the reward added the average IoU of matched boxes, a confidence reward and a format reward. The confidence reward scores each box by its stated confidence when it matched a target, and by one minus the confidence when it did not. For classification, the reward was accuracy plus format. It worked with very few examples.</p>
+        <p>VLM-R1 turned this into a framework. It trained Qwen2.5-VL-3B on referring-expression comprehension with an IoU reward, and on open-vocabulary detection with the length-aware reward from the previous section. It is the paper that documented both the out-of-domain advantage of RL over SFT and the "list every category" hack.</p>
+        <p>Two papers named Vision-R1 appeared in March 2025, and they are different. The one by Zhan and colleagues is a perception paper. It trained Qwen2.5-VL-7B and Griffon-G-7B on detection, visual grounding and referring expressions, with recall and precision rewards. It reported COCO mAP for Qwen2.5-VL-7B rising from 17.7 to 26.6. The one by Huang and colleagues is a reasoning paper, discussed below.</p>
+        <p>Perception-R1 (Yu and colleagues) asked which perception tasks benefit. It trained separate models for grounding, counting, OCR and detection, each with its own reward: IoU, point distance, edit distance, and a composite detection reward. It used Hungarian matching to pair predictions with targets. Its sharpest finding was about thinking. The variant with no explicit reasoning was better on all four tasks. On RefCOCO the no-thinking model scored 89.1 against 75.1 with thinking.</p>
+        <p>Seg-Zero carried the idea to masks. Qwen2.5-VL-3B writes a box and two points. A frozen SAM2 turns them into a mask. Five rewards check the thinking format, the answer format, the box IoU, the box corners and the points. Its ablation is unusually clean. On ReasonSeg, SFT scored 44.9, below the 47.6 baseline. RL without reasoning scored 51.3. RL with reasoning scored 53.8. Here, reasoning helped, but modestly.</p>
+        <p>Curr-ReFT added a curriculum over answer formats. It started with yes/no questions, moved to multiple choice, then to open-ended answers, each with its own reward.</p>
+
+        <h3>Reasoning: making a VLM think like R1</h3>
+        <p>The second line copied DeepSeek-R1 into vision. The target was multimodal maths and science, where answers are numbers or expressions that a maths checker can verify.</p>
+        <p>MM-Eureka was an early large-scale attempt. Its first version trained InternVL2.5 models with rule-based RL and reported what it called visual aha moments: reflective steps that appeared during RL without being taught. Its second version moved to Qwen2.5-VL-7B and 32B with GRPO, released the MMK12 dataset, and found that online filtering of prompts was essential. Without it, training collapsed. It also found that RL on maths transferred to physics, chemistry and biology questions.</p>
+        <p>Vision-R1 (Huang and colleagues) argued that RL alone struggles to produce long reasoning in a VLM. It first built about 200K multimodal chain-of-thought examples by "modality bridging": a VLM describes the image in text, and DeepSeek-R1 reasons over that text. After SFT on this data, the model overthought. Its correct answers tended to come from shorter chains. So the RL stage, Progressive Thinking Suppression Training, started with a short length limit and relaxed it later.</p>
+        <p>LMM-R1 took the opposite route. It first ran RL on text-only maths, then on multimodal data. Text-only RL transferred to multimodal reasoning. Multimodal-only RL hurt text reasoning and made responses much shorter. It used PPO with a critic, not GRPO, which is a reminder that the algorithm is not the essential ingredient.</p>
+        <p>Skywork R1V grafted a vision encoder onto a reasoning language model. It trained an MLP adapter between InternViT-6B and an R1-distilled 32B language model, then used iterative SFT and GRPO. Skywork R1V2 replaced the language model with QwQ-32B and combined preference optimisation (MPO) with GRPO. It also introduced a Selective Sample Buffer, discussed in the <a href="#curriculum">curriculum section</a>.</p>
+        <p>VL-Rethinker found that multimodal RL did not spontaneously produce long reflective reasoning. It added "forced rethinking", appending a trigger such as "Wait, does it seem right?" to some rollouts. OpenVLThinker alternated SFT and RL over several rounds. ThinkLite-VL and NoisyRollout focused on data and exploration. ThinkLite-VL selected hard examples using the number of tree-search iterations a model needed to solve them. NoisyRollout mixed rollouts from clean and noise-distorted images inside each group, while the policy update conditioned only on the clean image.</p>
+
+        <h3>Many domains in one run</h3>
+        <p>The third line put perception and reasoning into one RL run. V-Triune (the Orsta models) trained Qwen2.5-VL-7B and 32B jointly on eight perception and reasoning tasks, with task-specific verifiers and the dynamic IoU reward. Vision-G1 curated data from 46 sources across eight domains, selected examples with influence functions, filtered by difficulty, and trained in multiple rounds.</p>
+        <p>Technical reports from large labs describe the same structure at scale. Seed1.5-VL, whose weights are not public, ran RL with a different verifier per task. STEM answers went to a symbolic checker. Grounding and pointing used IoU. Instruction following used regular expressions. Synthetic visual puzzles had their own checks. MiMo-VL routed each task to its own reward through a "reward-as-a-service" layer. GLM-4.1V-Thinking trained across STEM, grounding, OCR, charts, documents, GUI agents and video with domain-specific verifiers.</p>
+
+        <h3>RL stages in the open model families</h3>
+        <p>By late 2025, an RL stage was a standard part of open VLM recipes. The details differ. The table below summarises what each technical report says about its RL stage. <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a> covers each family along the full checklist.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 2 &middot; RL in open-weight VLM families, as stated in their reports</caption>
+            <thead>
+              <tr><th scope="col">Family</th><th scope="col">RL stage</th><th scope="col">Algorithm</th><th scope="col">Reward sources</th><th scope="col">Domains with verifiers</th><th scope="col">Vision encoder in RL</th><th scope="col">Notable finding</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Qwen2.5-VL</th><td>Preference only</td><td>DPO</td><td>Preference pairs</td><td>None</td><td>Frozen (SFT and DPO)</td><td>No verifiable-reward stage</td></tr>
+              <tr><th scope="row">Qwen3-VL</th><td>Reasoning RL, then general RL</td><td>SAPO</td><td>Rules, code execution, model judges</td><td>Maths, code, grounding, puzzles, OCR, documents, counting, clocks</td><td>Not reported</td><td>Queries with pass rate above 90% filtered out; a tool-call reward was added after the model collapsed to one tool call</td></tr>
+              <tr><th scope="row">InternVL3</th><td>Preference only</td><td>MPO</td><td>Preference data (MMPR)</td><td>None</td><td>Not reported</td><td>Gains attributed to the algorithm more than the data</td></tr>
+              <tr><th scope="row">InternVL3.5</th><td>Cascade: offline, then online</td><td>MPO, then GSPO</td><td>Not reported for the online stage</td><td>Not reported</td><td>Not reported</td><td>Online queries kept at 0.2–0.8 accuracy; offline stage as warm-up</td></tr>
+              <tr><th scope="row">MiMo-VL</th><td>Mixed on-policy RL</td><td>On-policy GRPO variant</td><td>Rules per task, reward models</td><td>Maths, grounding (GIoU, point in box), counting, video grounding</td><td>Not reported</td><td>Reasoning pushes responses longer, grounding pushes them shorter</td></tr>
+              <tr><th scope="row">GLM-4.1V-Thinking</th><td>RL with curriculum sampling</td><td>GRPO</td><td>Domain verifiers, reward model</td><td>STEM, grounding, OCR, charts, documents, GUI, video</td><td>Not reported</td><td>A flawed multi-image reward collapsed training in all domains</td></tr>
+              <tr><th scope="row">Kimi-VL-Thinking</th><td>Long-CoT SFT, then RL</td><td>Online policy mirror descent</td><td>Correctness, length penalty</td><td>Not listed</td><td>Not reported</td><td>Curriculum and prioritised sampling by success rate</td></tr>
+              <tr><th scope="row">Keye-VL 1.5</th><td>General RL, then alignment RL</td><td>GSPO</td><td>Rules, VLM judge, reward model</td><td>Maths, science, puzzles, code, charts, grounding, counting</td><td>Not reported</td><td>Progressive hints make hard prompts learnable</td></tr>
+              <tr><th scope="row">LLaVA-OneVision-1.5</th><td>Answer-only RL, then long-CoT RL</td><td>GRPO</td><td>Rules per task</td><td>STEM, grounding (IoU), counting, OCR, SVG code, diagrams</td><td>Not reported</td><td>Short-answer data interleaved to prevent forgetting</td></tr>
+              <tr><th scope="row">Skywork-R1V3</th><td>RL after SFT</td><td>GRPO</td><td>Format, rule or model verifier</td><td>K-12 maths</td><td>Trained</td><td>Freezing the connector breaks training</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>How to read this table.</strong> The column to watch is "Vision encoder in RL". Almost every report leaves it blank. Combined with the next section, this is the biggest gap in what we know about visual RL. Molmo and Phi-4-multimodal report no RL stage for vision. Gemma 3 reports RL, but none of its rewards is vision-specific.</p>
+
+        <h3>The methods compared</h3>
+        <p>The research papers are compared below along the aspects introduced so far. "Not stated" means the paper does not say. Treat it as unknown, not as a default.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 3 &middot; Visual RL methods compared</caption>
+            <thead>
+              <tr><th scope="col">Method</th><th scope="col">Base model</th><th scope="col">Parameters trained in RL</th><th scope="col">Algorithm</th><th scope="col">Reward</th><th scope="col">Task domain</th><th scope="col">Focus</th><th scope="col">Key finding</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">R1-V</th><td>Qwen2-VL-2B</td><td>Not stated</td><td>GRPO</td><td>Accuracy, format</td><td>Counting, geometry</td><td>Perception</td><td>Direct answers beat tagged reasoning at 2B</td></tr>
+              <tr><th scope="row">Visual-RFT</th><td>Qwen2-VL-2B, 7B</td><td>Not stated</td><td>GRPO</td><td>IoU, confidence, format; accuracy for classes</td><td>Few-shot detection and classification</td><td>Perception</td><td>Beats SFT with 1–16 shots per category</td></tr>
+              <tr><th scope="row">VLM-R1</th><td>Qwen2.5-VL-3B</td><td>Not stated (framework supports all options)</td><td>GRPO</td><td>IoU; length-aware mAP</td><td>Referring expressions, detection</td><td>Perception</td><td>RL generalises out of domain; "list every category" hack</td></tr>
+              <tr><th scope="row">Vision-R1 (Zhan)</th><td>Qwen2.5-VL-7B, Griffon-G-7B</td><td>Not stated</td><td>GRPO with progressive rules</td><td>Recall, precision, format</td><td>Detection, grounding</td><td>Perception</td><td>Thresholds tightened over training</td></tr>
+              <tr><th scope="row">Perception-R1 (Yu)</th><td>Qwen2-VL-2B (Qwen2.5-VL-3B for detection)</td><td>Not stated</td><td>GRPO</td><td>IoU, point distance, edit distance, matched detection</td><td>Grounding, counting, OCR, detection</td><td>Perception</td><td>Explicit thinking did not help perception</td></tr>
+              <tr><th scope="row">Seg-Zero</th><td>Qwen2.5-VL-3B with frozen SAM2</td><td>Reasoning model only</td><td>GRPO</td><td>Format, box IoU, box and point distance</td><td>Reasoning segmentation</td><td>Perception</td><td>SFT fell below baseline; RL improved</td></tr>
+              <tr><th scope="row">MM-Eureka (v2)</th><td>Qwen2.5-VL-7B, 32B</td><td>Not stated</td><td>GRPO with online filtering</td><td>Accuracy, format</td><td>K-12 maths and science</td><td>Reasoning</td><td>Without online filtering, training collapsed</td></tr>
+              <tr><th scope="row">Vision-R1 (Huang)</th><td>Qwen2.5-VL-7B</td><td>Not stated</td><td>GRPO with length schedule</td><td>Hard format-and-answer</td><td>Multimodal maths</td><td>Reasoning</td><td>Cold start causes overthinking; length limit grows over training</td></tr>
+              <tr><th scope="row">LMM-R1</th><td>Qwen2.5-VL-3B</td><td>Not stated</td><td>PPO</td><td>Accuracy, format</td><td>Text maths, then multimodal</td><td>Reasoning</td><td>Text-only RL transfers to multimodal reasoning</td></tr>
+              <tr><th scope="row">Skywork R1V2</th><td>InternViT-6B, QwQ-32B</td><td>Ablated: adapter only was best</td><td>MPO and GRPO</td><td>Rules, reward model, format</td><td>Reasoning benchmarks</td><td>Reasoning</td><td>Selective Sample Buffer keeps advantages non-zero</td></tr>
+              <tr><th scope="row">VL-Rethinker</th><td>Qwen2.5-VL-7B, 32B, 72B</td><td>Not stated</td><td>GRPO with replay</td><td>Correctness</td><td>Maths and science</td><td>Reasoning</td><td>Share of useful queries fell from about 40% to below 20%</td></tr>
+              <tr><th scope="row">NoisyRollout</th><td>Qwen2.5-VL-7B, 32B</td><td>Vision encoder frozen</td><td>GRPO</td><td>Correctness and format</td><td>Geometry, maths</td><td>Reasoning</td><td>Noisy-image rollouts aid exploration</td></tr>
+              <tr><th scope="row">MAYE</th><td>Qwen2-VL-7B, Qwen2.5-VL-7B</td><td>Language model only</td><td>Reinforce++</td><td>Accuracy, language</td><td>Maths</td><td>Reasoning</td><td>Response length is sensitive to the random seed</td></tr>
+              <tr><th scope="row">V-Triune (Orsta)</th><td>Qwen2.5-VL-7B, 32B</td><td>Language model only (ablated)</td><td>GRPO</td><td>Task verifiers, dynamic IoU</td><td>Eight perception and reasoning tasks</td><td>Both</td><td>Training the encoder destabilised detection</td></tr>
+              <tr><th scope="row">Vision-G1</th><td>Qwen2.5-VL-7B</td><td>Language model only</td><td>GRPO</td><td>Accuracy</td><td>Eight domains, 46 sources</td><td>Reasoning</td><td>Difficulty band 0.2–0.8, multi-round curriculum</td></tr>
+              <tr><th scope="row">Visionary-R1</th><td>Qwen2.5-VL-3B</td><td>All parameters</td><td>GRPO</td><td>Accuracy, format, caption</td><td>General visual reasoning</td><td>Both</td><td>Caption-first format fights shortcuts</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><strong>How to read this table.</strong> Compare the "Focus" column with the "Key finding" column. The perception rows report findings about reward shape and thinking. The reasoning rows report findings about data, length and exploration. The rows marked "Both" are the ones that start asking what the reward changes inside the model, which is the subject of the next section.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Names in this area collide. There are two different papers called Vision-R1: a detection paper (arXiv 2503.18013) and a reasoning paper (arXiv 2503.06749). There are two called Perception-R1: a perception-policy paper (arXiv 2504.07954) and a paper about perception rewards for reasoning (arXiv 2506.07218). MM-Eureka changed its title and its base model between versions. The practical implication: cite by arXiv identifier and version, and check which paper a quoted number came from.</p></aside>
+      </section>
+
+      <!-- ============================================================ 7 -->
+      <section id="parameters">
+        <h2>Which parameters receive the gradient</h2>
+        <p>Text-only RL updates one network. A VLM has three parts: the vision encoder E, the connector P (also called the projector or adapter), and the language model. The visual tokens the language model reads are</p>
+        <div class="eq center">v = P( E( I ) )</div>
+        <p>and the policy is π( y | v, x ). There are three common choices for which parts the RL gradient updates.</p>
+        <p><strong>Language model only.</strong> E and P are frozen, so v is fixed for each image. RL cannot change what the model sees. It can change how the language model reads the fixed visual tokens: which ones it attends to, and what it concludes from them. MAYE, Vision-G1, NoisyRollout and V-Triune all train this way.</p>
+        <p><strong>Connector and language model.</strong> The encoder's features are fixed, but the mapping into the language model's space can move. This is the cheapest way to change what reaches the language model.</p>
+        <p><strong>Everything.</strong> The encoder itself can change its features. This is the only option under which RL could make the vision encoder better in its own right.</p>
+
+        <figure class="vfig" id="fig-grad">
+          <div class="vfig-head"><span class="vfig-num">Figure 4</span><span class="vfig-title">Where the reward's gradient flows</span></div>
+          <div class="vfig-stage"></div>
+          <div class="vfig-opt">
+            <span class="grp" role="group" aria-label="Trainable parameters">Trainable:
+              <button type="button" data-mode="llm" aria-pressed="true">LLM only</button>
+              <button type="button" data-mode="proj" aria-pressed="false">Connector + LLM</button>
+              <button type="button" data-mode="full" aria-pressed="false">Full model</button>
+            </span>
+          </div>
+          <figcaption><b>Figure 4.</b> The forward pass runs from the image to the answer. The verifier scores the answer. The advantage then flows backward through the blocks. Frozen blocks (grey, locked) stop the gradient. Switch the trainable set to see which blocks can change, and read the evidence attached to each choice.</figcaption>
+        </figure>
+
+        <p>What does the evidence say? It is thin, and it points in different directions.</p>
+        <p>V-Triune ablated the choice in a multi-task setting that included detection. Training the vision encoder produced much larger gradient norms than training only the language model, with large spikes. Detection performance collapsed after several dozen steps. The authors concluded that updating the encoder was not beneficial in their setting, and froze it.</p>
+        <p>Skywork R1V2 compared trainable sets on MMMU. Training only the adapter scored best (73.6). Training the adapter and the language model scored 72.1. Training the adapter and the vision encoder scored 72.3. Skywork R1V3 kept all modules trainable. It reported that freezing the vision encoder did not disrupt training, and that unfreezing it gave further gains. Freezing or removing the connector made training fail, with the output degenerating into repetitive text.</p>
+        <p>A third study approached the question from the encoder's side. "RL makes MLLMs see better than SFT" trained full models with preference optimisation (mostly DPO, with a GRPO check) and then detached the vision encoder. The RL-trained encoder scored higher than an SFT-trained one on ImageNet linear probing and on a segmentation probe. Its gradients, visualised with Grad-CAM, were more localised to the regions the question asked about.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The connector is the most sensitive part of the model under RL. In Skywork R1V2, training only the adapter beat every larger trainable set on MMMU. In Skywork R1V3, freezing the connector was the one choice that broke training. The two results come from the same family and point the same way. The practical implication: never freeze the connector by default. If stability or compute is limited, train the connector and the language model, and treat unfreezing the encoder as a separate experiment with careful gradient-norm monitoring, given the spikes V-Triune measured.</p></aside>
+
+        <h3>Can RL improve perception?</h3>
+        <p>The question has two meanings, and they have different answers.</p>
+        <p>The first meaning is about the encoder: can RL make the visual features better? This needs the encoder to receive gradients. The evidence from the preference-training study says yes, at least for DPO, and a small GRPO check pointed the same way. The V-Triune result says it can also destabilise training. Nobody has yet shown, under verifiable rewards at scale, a clean gain that comes from the encoder alone.</p>
+        <p>The second meaning is about the system: can RL make the model locate, read and count more accurately? Here the answer is clearly yes, even with a frozen encoder. Perception-R1's counting and detection gains, and Visual-RFT's few-shot detection gains, are perception gains at the system level. With a frozen encoder they must come from the language model learning to extract more from the same visual tokens. That is plausible, because the language model's layers do much of the work of reading visual tokens. <a href="../index.html?series=vlms" data-series-pending="what-happens-inside-a-vlm/">What Happens Inside a VLM</a> looks at that process directly.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The results above do not really disagree, because they measure different things. V-Triune measured detection stability under a joint multi-task run. Skywork measured a reasoning benchmark at 38B scale. The encoder study measured probe accuracy after preference training. The practical implication: the right trainable set depends on the reward. Localisation rewards with large, noisy gradients argue for a frozen encoder. Reasoning rewards on a large model leave room to unfreeze it. Report which you chose, because most papers do not.</p></aside>
+      </section>
+
+      <!-- ============================================================ 8 -->
+      <section id="perception">
+        <h2>Perception RL and reasoning RL</h2>
+        <p>Two skills hide behind a visual answer. Perception recovers facts from pixels: where the object is, what the text says, how many there are. Reasoning combines those facts over several steps. A chart question such as "How much did revenue grow from 2021 to 2023?" needs both. The model must read two bars, then subtract.</p>
+        <p>An outcome reward on the final answer mixes the two skills. If the score rises after RL, there are at least three explanations.</p>
+        <ul>
+          <li>Perception improved: the model reads the bars more accurately.</li>
+          <li>Reasoning improved: the model reads them as before, but subtracts and checks more reliably.</li>
+          <li>The image is being used less: the model has learned what answers are likely for this kind of question, and guesses better.</li>
+        </ul>
+        <p>These need to be separated experimentally. Several findings show why.</p>
+        <p><strong>Thinking does not help perception much.</strong> Perception-R1 found that removing explicit thinking improved all four perception tasks. R1-V found the same for counting at 2B. GUI-G1 adopted a short "fast thinking" template because longer chain-of-thought hurt GUI grounding. Seg-Zero is the exception, with a modest gain from reasoning on reasoning segmentation.</p>
+        <p><strong>Long reasoning can hurt perception.</strong> "More Thinking, Less Seeing?" measured eight multimodal reasoning models against their Qwen2.5-VL bases. The reasoning models had higher hallucination rates on perception-focused tasks. Longer reasoning chains went with less attention to the visual input.</p>
+        <p><strong>The two pull length in opposite directions.</strong> MiMo-VL reported that reasoning tasks push responses longer, while grounding and counting push them shorter. Mixed training did not always match training on one domain.</p>
+        <p><strong>After reasoning RL, perception errors dominate.</strong> PAPO analysed 200 errors of a GRPO-trained Qwen2.5-VL-3B and attributed 67% of them to perception. A second paper named Perception-R1 (Xiao and colleagues) used a McNemar test to argue that accuracy-only RL did not improve perception in multimodal reasoning.</p>
+        <p><strong>Reasoning gains can come from text alone.</strong> LMM-R1's text-only RL stage improved multimodal reasoning benchmarks. Such a gain cannot have come from better perception, because no image was involved.</p>
+
+        <figure class="vfig" id="fig-controls">
+          <div class="vfig-head"><span class="vfig-num">Figure 5</span><span class="vfig-title">Three controls that separate perception from reasoning</span></div>
+          <div class="vfig-stage"></div>
+          <figcaption><b>Figure 5.</b> The same evaluation run four ways, before and after RL. The first uses the real image. The second uses a blank image. The third gives the perceptual facts as text, an oracle for perception. The fourth is a perception probe that asks only for the facts. Each scenario shows a different way the headline score can rise. <b>The accuracy values are illustrative</b>, chosen to show the pattern each scenario produces, not measurements from a paper.</figcaption>
+        </figure>
+
+        <p>The figure shows a protocol. Run each evaluation four ways.</p>
+        <ol>
+          <li><strong>Real image.</strong> The normal score, A<sub>img</sub>.</li>
+          <li><strong>Blank image.</strong> Replace the image with a blank one. The score A<sub>blank</sub> measures what the model can answer from priors alone.</li>
+          <li><strong>Oracle perception.</strong> Give the needed facts as text, for example "2021: 42, 2023: 57". The score A<sub>oracle</sub> measures reasoning with perfect perception.</li>
+          <li><strong>Perception probe.</strong> Ask only for the facts: "What is the 2023 value?" The score P measures reading directly.</li>
+        </ol>
+        <p>Then read the gaps. A<sub>img</sub> − A<sub>blank</sub> is how much the image is used. A<sub>oracle</sub> − A<sub>img</sub> is how much imperfect perception costs. A rise in P is a perception gain. A rise in A<sub>oracle</sub> is a reasoning gain. A rise in A<sub>blank</sub> without a rise in P is a warning sign.</p>
+        <p>Visionary-R1 built one of these controls into training. Its output format asks the model to caption the image before reasoning. A caption reward checks whether the model can answer from its own caption alone. That rewards perception that is sufficient for the question.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Perception and reasoning want different response lengths. Perception-R1, R1-V and GUI-G1 all found short or no reasoning better for perception. MiMo-VL measured the opposite pull of reasoning tasks. "More Thinking, Less Seeing?" linked longer chains to less visual attention. The practical implication: in a mixed run, do not apply one length budget or one reasoning template to every task. Let perception tasks answer briefly, and track response length per domain, not in aggregate.</p></aside>
+      </section>
+
+      <!-- ============================================================ 9 -->
+      <section id="credit">
+        <h2>Credit assignment under a sparse reward</h2>
+        <p>Take the chart question again. A good response has five steps: find the 2021 bar, read 42, find the 2023 bar, read 57, subtract to get 15. The verifier sees only the last number. It returns one reward, R<sub>T</sub>, for the whole response. In GRPO, every token of the response gets the same advantage.</p>
+        <p>Consider two rollouts. The first reads 41 and 56, both wrong, and subtracts to 15. The errors cancel. It is rewarded, misreadings included. The second reads both bars correctly and then subtracts wrongly. It is penalised, correct readings included.</p>
+        <p>Outcome RL still works on average, because correct steps appear in rewarded rollouts more often than incorrect ones. But the signal for each step is weak. A short derivation shows how weak.</p>
+        <p>Suppose the answer is right only when all <i>n</i> steps are right, and step <i>i</i> is right with probability q<sub>i</sub>, independently. The probability of reward is the product of all q<sub>i</sub>. How much does getting step <i>j</i> right change the chance of reward?</p>
+        <div class="eq center">P(R = 1 | step j right) − P(R = 1 | step j wrong) = ∏<sub>i ≠ j</sub> q<sub>i</sub>
+          <span class="an">The credit a step can receive is scaled by the probability that every other step also went right.</span></div>
+        <p>With five steps each right 80% of the time, that factor is 0.8<sup>4</sup> ≈ 0.41. Each step's effect on the reward is less than half of what it would be if it were the only step. Add more steps and it shrinks geometrically. Lucky cancellations, and misreadings inside the numeric tolerance, add noise on top.</p>
+        <p>This is the same long-horizon problem that agents face over fifty tool calls. <a href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement Learning for Agents From First Principles</a> treats it in that setting. For visual reasoning, the special feature is that many steps are perceptual, and perceptual steps can often be checked on their own.</p>
+
+        <figure class="vfig" id="fig-credit">
+          <div class="vfig-head"><span class="vfig-num">Figure 6</span><span class="vfig-title">Sparse outcome reward versus step-level checks</span></div>
+          <div class="vfig-stage"></div>
+          <div class="vfig-opt">
+            <span class="grp" role="group" aria-label="Reward type">Reward:
+              <button type="button" data-mode="sparse" aria-pressed="true">Outcome only</button>
+              <button type="button" data-mode="process" aria-pressed="false">Step-level checks</button>
+            </span>
+          </div>
+          <figcaption><b>Figure 6.</b> Three rollouts answer a two-bar chart question. Under the outcome reward, each step inherits the final verdict. The rollout whose two misreadings cancel is rewarded at every step. The rollout that reads correctly but subtracts wrongly is penalised at every step. Under step-level checks, each reading step is scored against the chart's values and each arithmetic step against a calculator, so credit lands on the step that earned it.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>A numeric tolerance changes the credit picture. With ChartQA's 5% band, a misreading of 57 as 56 still yields an accepted answer, so the misreading is rewarded. The tolerance was designed for evaluation, where it forgives a reader. In training it also teaches the policy that small misreadings cost nothing. The practical implication: if you train on chart questions, consider a tighter tolerance for training than for evaluation, or add a check on the values read.</p></aside>
+      </section>
+
+      <!-- ============================================================ 10 -->
+      <section id="process">
+        <h2>Process rewards for visual reasoning</h2>
+        <p>If a sparse final reward spreads credit thinly, the natural fix is to check intermediate steps. Vision offers checks that text does not have, because many steps refer to something in the image. Five kinds of check are possible in principle.</p>
+        <ul>
+          <li><strong>The model looked at the right region.</strong> The step emits a box or point for its evidence. The check is an IoU or point-in-region test against an annotated evidence region.</li>
+          <li><strong>A quoted text span is correct.</strong> The step quotes text from the image. The check compares it with the transcript at that location.</li>
+          <li><strong>A grounded object is correct.</strong> The step names and boxes an object. The check compares both with the annotation.</li>
+          <li><strong>An intermediate calculation is correct.</strong> The step does arithmetic. A calculator checks it.</li>
+          <li><strong>The right evidence was selected.</strong> On a multi-page document, the cited page or region is the one that contains the answer.</li>
+        </ul>
+        <p>Each of these needs an annotation the outcome reward does not need. That cost is why the area is still open. The published work takes three routes.</p>
+
+        <h3>Learned process reward models</h3>
+        <p>VisualPRM trained an 8B multimodal process reward model on VisualPRM400K, and released VisualProcessBench, a benchmark with human step-level labels. Used for Best-of-N selection with InternVL2.5-78B, it improved results by 5.9 points across seven multimodal reasoning benchmarks. It was evaluated as a test-time selector, not as a training reward. A learned step scorer also inherits the hacking risks of any learned judge.</p>
+
+        <h3>Grounded reasoning formats</h3>
+        <p>A second route makes the reasoning itself point at the image. ViGoRL anchors each reasoning step to an (x, y) coordinate. GRIT interleaves boxes into the reasoning chain. Point-RFT trains on rationales grounded with points, and reported ChartQA rising from 70.88% to 90.04%, against 83.92% for text-only chain-of-thought with the same reinforcement fine-tuning. DeepEyes lets the model call a zoom tool inside its reasoning. <a href="../thinking-with-images/">Thinking With Images</a> covers these models in depth.</p>
+        <p>Look closely at what their rewards check. ViGoRL's format reward requires that every coordinate reference is valid, plus a task reward. It does not reward coordinate accuracy. GRIT's format reward checks that at least one box is present, and its own authors note that this does not constrain whether the boxed region is semantically right. DeepEyes gives a tool bonus only when the final answer is correct and a tool was used. In all three, the grounding is trained indirectly, through the outcome.</p>
+        <p>For documents, grounded chain-of-thought formats such as DoCoG, described in <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a>, tie each reading step to a mask on the page, while arithmetic steps carry no mask. That split is exactly what a step-level reward would need: a mask check for reading steps and a calculator for arithmetic steps.</p>
+
+        <h3>Perception-side signals</h3>
+        <p>A third route adds a signal about perception without labelling every step. Visionary-R1's caption reward checks that the model's own caption is sufficient to answer. The second Perception-R1 (Xiao and colleagues) adds a reward from a judge model that assesses the visual perception content of each response. PAPO adds a loss rather than a reward. It compares the policy's outputs on the real image with its outputs on a heavily masked copy, and pushes the two apart. That pushes the policy to depend on the image. It reported 30.5% fewer perception errors.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Most published "grounded reasoning" rewards check that grounding is present and well formed, not that it is correct. This is visible in the reward definitions of ViGoRL, GRIT and DeepEyes. The practical implication: a grounded chain from these methods is a useful visual trace, but not a verified one. If you need grounding you can trust, budget for evidence-region annotations and an IoU-style check at the step. Synthetic sources, such as rendered charts and generated documents, give those regions for free.</p></aside>
+      </section>
+
+      <!-- ============================================================ 11 -->
+      <section id="hacking">
+        <h2>How visual rewards get hacked</h2>
+        <p>Reward hacking means the policy raises the reward without doing the task the reward was meant to measure. In text-only RL the classic examples are answer-format tricks. Vision adds new ones, because the reward is computed from an image the policy can partly ignore. Here are the ones with evidence or a clear mechanism, from the most local to the most global.</p>
+
+        <figure class="vfig" id="fig-hacks">
+          <div class="vfig-head"><span class="vfig-num">Figure 7</span><span class="vfig-title">A gallery of visual reward hacks</span></div>
+          <div class="vfig-stage"></div>
+          <figcaption><b>Figure 7.</b> Six hacks, one per step. An oversized box collects partial IoU. A detector lists every category because absent categories cost nothing. A lenient parser accepts an answer that names several options. A blanked image still gets a confident, often correct, answer from priors. A chain of reasoning describes details that are not in the image. A tool-using policy collapses to one tool call. Each panel shows the exploit and the repair.</figcaption>
+        </figure>
+
+        <h3>Oversized boxes</h3>
+        <p>The <a href="#boxes">box section</a> derived this. A box that contains the target earns the target's share of the box. Under group normalisation that can beat an honest miss. GUI-G1 measured boxes growing under an IoU reward. The repairs are thresholds, precision terms and size terms.</p>
+
+        <h3>Listing every category</h3>
+        <p>VLM-R1 found that an mAP reward for open-vocabulary detection could be raised by predicting every category in the prompt, because COCO-style evaluation ignores categories absent from the image. Outputs grew long. The length-aware reward fixed it. The general lesson is that an evaluation metric becomes a reward only after checking what it ignores.</p>
+
+        <h3>Answer-parser exploits</h3>
+        <p>A parser that searches the whole response for the right answer will credit a response that names several answers, such as "B or C". A parser that accepts any number within tolerance will credit a hedged range. The policy finds these quickly, because every rollout is a probe of the parser. The defence is a strict parser that accepts exactly one answer in a fixed location, tested against adversarial strings before training. GLM-4.1V-Thinking reported the stakes: a flaw in the reward for its multi-image QA task let the model learn shortcuts that repeatedly fooled the verifier, and training collapsed across all domains.</p>
+
+        <h3>Ignoring the image</h3>
+        <p>Many visual questions can be answered from the text alone. MMStar showed this for evaluation: some models scored well above chance on MMMU without seeing images, for example 42.9% for GeminiPro. MathVerse found that removing the diagram improved some models. If the training set contains such questions, an outcome reward pays for the prior as readily as for perception. The defence is to filter training questions that a text-only model can answer, and to track the blank-image score from the <a href="#perception">previous section</a>.</p>
+
+        <h3>Learning the format instead of the task</h3>
+        <p>A format reward is easy to earn. Early in training, much of the reward increase can come from format alone. Vision-R1 (Huang) used a hard reward that gives 1 only when the format and the answer are both correct, so format earns nothing on its own. Perception-R1's finding that thinking tags hurt perception is a related warning: a required template can cost accuracy.</p>
+
+        <h3>Length that is not reasoning</h3>
+        <p>If longer responses are more often rewarded, length grows whether or not the extra tokens help. Vision-R1 (Huang) found that its cold-started model overthought, with correct answers coming from shorter chains, and constrained length early in RL. Kimi-VL added a length penalty. MAYE found that response length depends on the random seed, which is a reason to be careful about reading "the model learned to think longer" from a single run.</p>
+
+        <h3>Thinking that is not grounded</h3>
+        <p>A reasoning chain can describe objects that are not in the image and still reach the right answer. Nothing in an outcome reward penalises that. "More Thinking, Less Seeing?" measured more hallucination on perception tasks in reasoning models than in their bases. Skywork R1V2 reported that overly strong RL signals induced visual hallucination, and calibrated its reward thresholds in response.</p>
+
+        <h3>Tool collapse</h3>
+        <p>When RL trains a model to use visual tools, the tool use can collapse. The Qwen3-VL report describes its thinking-with-images agent collapsing to a single tool call to game the other rewards. A tool-calling reward was added to counter it. <a href="../index.html?series=vlms" data-series-pending="vlms-that-act/">VLMs That Act</a> picks up tool use in full.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>In a multi-domain run, one weak verifier is a risk to every domain. GLM-4.1V-Thinking reported that a flawed reward in one task, multi-image QA, led to collapse across all domains. The shared policy carries the exploit everywhere. The practical implication: audit each verifier on its own, with adversarial outputs and a small single-domain RL run, before it joins the mixture. Do not rely on the mixture to dilute a bad reward.</p></aside>
+      </section>
+
+      <!-- ============================================================ 12 -->
+      <section id="curriculum">
+        <h2>Curriculum and the zero-advantage problem</h2>
+        <p>Group-relative methods have a blind spot that matters a great deal for visual RL. If every rollout in a group gets the same reward, the standard deviation is zero, every advantage is zero, and the prompt contributes no policy gradient. Only the KL term remains.</p>
+        <p>How often does that happen? Take a prompt that the current policy solves with probability <i>p</i>. Sample <i>K</i> rollouts with a binary reward. All of them succeed with probability p<sup>K</sup>. All of them fail with probability (1 − p)<sup>K</sup>. So</p>
+        <div class="eq center">P(zero advantage) = p<sup>K</sup> + (1 − p)<sup>K</sup>
+          <span class="an">The probability that a group of K binary rewards carries no learning signal.</span></div>
+        <p>With K = 8 and p = 0.5, this is about 0.8%. Almost every group is useful. With p = 0.9 it is about 43%. With p = 0.95 it is about 66%. So as training succeeds and prompts get easier for the policy, more and more of each batch is wasted. The same happens at the hard end: with p = 0.05, about 66% of groups fail entirely.</p>
+        <p>This is the "vanishing advantages" problem, and it has been measured. VL-Rethinker reported that for its 72B model the share of queries with non-zero advantage fell from about 40% to below 20% during training. Skywork R1V2 reported a fall from about 60% to below 40%.</p>
+
+        <figure class="vfig" id="fig-zero">
+          <div class="vfig-head"><span class="vfig-num">Figure 8</span><span class="vfig-title">How difficulty decides how much of a batch can learn</span></div>
+          <div class="vfig-stage"></div>
+          <div class="vfig-opt">
+            <label>Mean pass rate <input type="range" min="0.03" max="0.97" step="0.01" value="0.5" data-k="mu" aria-label="Mean pass rate of the batch" /><output data-o="mu">0.50</output></label>
+            <label>Group size K <input type="range" min="2" max="32" step="1" value="8" data-k="K" aria-label="Group size K" /><output data-o="K">8</output></label>
+            <span class="grp" role="group" aria-label="Difficulty filter">Filter:
+              <button type="button" data-mode="none" aria-pressed="true">None</button>
+              <button type="button" data-mode="band" aria-pressed="false">Keep 0.2–0.8</button>
+            </span>
+          </div>
+          <figcaption><b>Figure 8.</b> Left: the curve p<sup>K</sup> + (1 − p)<sup>K</sup>, the chance that a prompt with pass rate p gives a zero-advantage group. Right: a batch of 200 prompts whose pass rates are spread around the chosen mean. Grey prompts give zero advantage in this sample. The headline counts the useful fraction. Play the animation to watch training make prompts easier, which shrinks the useful fraction, and then see a 0.2–0.8 difficulty filter restore it.</figcaption>
+        </figure>
+
+        <h3>Four families of fixes</h3>
+        <p><strong>Filter before training.</strong> Estimate each prompt's pass rate with the starting model and keep the middle. Vision-G1 sampled 16 rollouts and kept prompts with accuracy between 0.2 and 0.8. InternVL3.5's online RL data used the same band. Qwen3-VL sampled 16 responses and dropped queries with pass rates above 90%. ThinkLite-VL used tree-search effort as a difficulty score.</p>
+        <p><strong>Filter during training.</strong> Pass rates change as the policy learns, so a static filter goes stale. DAPO's dynamic sampling over-samples and discards groups whose accuracy is exactly 0 or 1 until the batch is full. MM-Eureka's online filtering does the same, and training collapsed without it. MiMo-VL and GLM-4.1V-Thinking use dynamic sampling as well. GLM-4.1V-Thinking re-estimates difficulty online and down-samples prompts that are too easy or too hard.</p>
+        <p><strong>Replay useful groups.</strong> VL-Rethinker's Selective Sample Replay keeps rollouts with non-zero advantage in a buffer and re-samples them in proportion to the advantage size. Skywork R1V2's Selective Sample Buffer does the same, and reported keeping the useful share above 60%.</p>
+        <p><strong>Make hard prompts learnable.</strong> Keye-VL 1.5 gives hard prompts progressive hints, with as little help as possible, until some rollouts succeed. NoisyRollout adds diversity by mixing rollouts on distorted images, annealing the distortion over training.</p>
+
+        <h3>Ordering the tasks</h3>
+        <p>A curriculum also orders what is learned. A natural ladder for vision runs from easy perception, to grounding, to single-step reasoning, to multi-step reasoning, to tool use. Each rung uses skills from the one below. Published curricula cover parts of this ladder.</p>
+        <ul>
+          <li>Curr-ReFT moved from yes/no answers to multiple choice to open-ended answers.</li>
+          <li>LLaVA-OneVision-1.5 ran answer-only RL first, then long chain-of-thought RL, interleaving short-answer examples to prevent forgetting.</li>
+          <li>LMM-R1 trained text reasoning first, then multimodal.</li>
+          <li>OpenVLThinker and Vision-G1 moved from medium to hard prompts over rounds.</li>
+          <li>Kimi-VL used curriculum and prioritised sampling by success rate.</li>
+        </ul>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Much of what is called curriculum in this literature is difficulty filtering, not task ordering. The evidence that filtering helps is strong: MM-Eureka's collapse without it, and the measured fall in useful queries in VL-Rethinker and Skywork R1V2. The evidence for a specific task order is weaker. No published ablation compares the full perception-to-tools ladder with a shuffled mixture. The practical implication: implement pass-rate filtering first, because it has the clearest support. Treat task ordering as a hypothesis to test.</p></aside>
+      </section>
+
+      <!-- ============================================================ 13 -->
+      <section id="practice">
+        <h2>A checklist for a visual RL run</h2>
+        <p>The previous sections suggest a short list of checks. Each item points back to the evidence.</p>
+        <ol>
+          <li><strong>Score the degenerate outputs.</strong> Compute the reward for a whole-image box, an empty answer, every category, and a hedged answer. If any beats a typical miss, fix the reward first. (<a href="#boxes">Box rewards</a>)</li>
+          <li><strong>Make the parser strict.</strong> Accept one answer in one place. Test it with adversarial strings. (<a href="#hacking">Hacking</a>)</li>
+          <li><strong>Remove text-answerable questions.</strong> Drop training items that a text-only model answers correctly. (<a href="#hacking">Hacking</a>)</li>
+          <li><strong>Filter by pass rate.</strong> Keep prompts the starting policy solves sometimes but not always, and refresh the estimate during training. (<a href="#curriculum">Curriculum</a>)</li>
+          <li><strong>Decide the trainable set on purpose.</strong> Keep the connector trainable. Unfreeze the encoder only as a monitored experiment. (<a href="#parameters">Parameters</a>)</li>
+          <li><strong>Separate the tasks' length budgets.</strong> Let perception tasks answer briefly. Track length per domain. (<a href="#perception">Perception and reasoning</a>)</li>
+          <li><strong>Audit each verifier alone.</strong> Run a small single-domain RL job per verifier before mixing. (<a href="#hacking">Hacking</a>)</li>
+          <li><strong>Report the controls.</strong> Publish blank-image, oracle-perception and perception-probe scores before and after RL, alongside the headline score. (<a href="#perception">Perception and reasoning</a>)</li>
+        </ol>
+      </section>
+
+      <!-- ============================================================ 14 -->
+      <section id="open">
+        <h2>Open questions</h2>
+        <p><strong>Does RL improve the encoder under verifiable rewards?</strong> The best evidence that RL improves visual features comes from preference training. The best evidence against comes from a detection-heavy multi-task run. A clean experiment with verifiable rewards, matched compute and a probe of the encoder is missing.</p>
+        <p><strong>Can step-level visual rewards scale?</strong> Checking that a step looked at the right region needs evidence annotations. Synthetic data, such as rendered charts and generated documents, provides them cheaply. Whether rewards on synthetic regions transfer to natural images is not known.</p>
+        <p><strong>How should domains be mixed?</strong> GLM-4.1V-Thinking reported less interference in RL than in SFT and cross-domain gains. MiMo-VL reported that mixed RL did not always match single-domain RL. The mixing question from <a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a> returns in RL form.</p>
+        <p><strong>What is a verifiable reward for open-ended visual tasks?</strong> Captions, visual explanations and scene descriptions have no single right answer. Today they fall back to learned judges. Structured checks, such as testing whether a caption lets a model answer a set of questions, are a partial bridge.</p>
+        <p><strong>How should RL results be reported?</strong> Most papers do not say which parameters were trained, and few report blank-image controls. Both are cheap to report. Benchmarks and metrics for VLMs are covered in <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>.</p>
+      </section>
+
+      <!-- ============================================================ 15 -->
+      <section id="insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="keylist">
+          <li><b class="kind i">Insight</b>The group baseline holds the image constant, so GRPO compares readings of the same pixels. Groups where every rollout agrees teach nothing. (<a href="#policy">Policy</a>)</li>
+          <li><b class="kind n">Nuance</b>Dividing by the group's standard deviation can turn tiny differences in a continuous reward into large advantages. Threshold or round noisy rewards. (<a href="#taxonomy">Taxonomy</a>)</li>
+          <li><b class="kind i">Insight</b>RL beats SFT most clearly where many outputs are acceptable, such as counting and detection. For single-answer reading tasks, SFT is a strong baseline. (<a href="#why">Why vision suits RL</a>)</li>
+          <li><b class="kind i">Insight</b>Partial credit is judged against the group. An oversized box that earns a little beats an honest miss, and GUI-G1 measured boxes growing under an IoU reward. GIoU does not fix this, because it equals IoU when the box contains the target. (<a href="#boxes">Box rewards</a>)</li>
+          <li><b class="kind i">Insight</b>The connector is the most sensitive part under RL. Training only the adapter scored best in Skywork R1V2, and freezing it broke training in R1V3. (<a href="#parameters">Parameters</a>)</li>
+          <li><b class="kind n">Nuance</b>Evidence on training the encoder conflicts because the studies used different rewards. Detection rewards destabilised it in V-Triune; preference training improved it in the encoder study. (<a href="#parameters">Parameters</a>)</li>
+          <li><b class="kind i">Insight</b>Perception and reasoning want different response lengths. Thinking rarely helped perception, and longer chains went with less visual attention. (<a href="#perception">Perception and reasoning</a>)</li>
+          <li><b class="kind i">Insight</b>Under an outcome reward, a step's credit is scaled by the probability that every other step went right, so credit fades geometrically with the number of steps. (<a href="#credit">Credit assignment</a>)</li>
+          <li><b class="kind i">Insight</b>Published grounded-reasoning rewards check that grounding is present, not that it is correct. (<a href="#process">Process rewards</a>)</li>
+          <li><b class="kind i">Insight</b>One flawed verifier collapsed every domain in GLM-4.1V-Thinking. Audit verifiers one at a time. (<a href="#hacking">Hacking</a>)</li>
+          <li><b class="kind n">Nuance</b>The case for difficulty filtering is strong. The case for a specific task order is still a hypothesis. (<a href="#curriculum">Curriculum</a>)</li>
+        </ul>
+        <p>You should now be able to look at a visual task and write down its reward, predict how that reward will be gamed, decide which parameters to train, and design the controls that tell you what the model actually learned. The next article, <a href="../thinking-with-images/">Thinking With Images</a>, takes the reasoning side further: models that zoom, crop and draw while they think, and how test-time compute scales for vision.</p>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-reinforcement-learning-teaches-models-to-reason/">How Reinforcement Learning Teaches Models to Reason</a></li><li><a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement Learning for Agents From First Principles</a></li><li><a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a></li></ul></nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Reinforcement learning foundations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noopener noreferrer">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a> &middot; Shao et al., 2024. Introduces GRPO.</li>
+            <li><a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener noreferrer">DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning</a> &middot; DeepSeek-AI, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.14476" target="_blank" rel="noopener noreferrer">DAPO: An Open-Source LLM Reinforcement Learning System at Scale</a> &middot; Yu et al., 2025. Dynamic sampling of groups with mixed outcomes.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Visual metrics used as rewards</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1902.09630" target="_blank" rel="noopener noreferrer">Generalized Intersection over Union: A Metric and A Loss for Bounding Box Regression</a> &middot; Rezatofighi et al., CVPR 2019.</li>
+            <li><a href="https://arxiv.org/abs/1905.13648" target="_blank" rel="noopener noreferrer">Scene Text Visual Question Answering</a> &middot; Biten et al., ICCV 2019. Defines ANLS with threshold 0.5.</li>
+            <li><a href="https://arxiv.org/abs/1911.10683" target="_blank" rel="noopener noreferrer">Image-based Table Recognition: Data, Model, and Evaluation</a> &middot; Zhong, ShafieiBavani and Jimeno Yepes, 2019. Introduces TEDS and PubTabNet.</li>
+            <li><a href="https://arxiv.org/abs/2203.10244" target="_blank" rel="noopener noreferrer">ChartQA: A Benchmark for Question Answering about Charts with Visual and Logical Reasoning</a> &middot; Masry et al., Findings of ACL 2022. Relaxed accuracy with a 5% tolerance.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>RL for visual perception</h3>
+          <ul>
+            <li><a href="https://github.com/StarsfieldAI/R1-V" target="_blank" rel="noopener noreferrer">R1-V: Reinforcing Super Generalization Ability in Vision Language Models with Less Than $3</a> &middot; Chen et al., GitHub repository, 2025 (originally Deep-Agent/R1-V).</li>
+            <li><a href="https://arxiv.org/abs/2503.01785" target="_blank" rel="noopener noreferrer">Visual-RFT: Visual Reinforcement Fine-Tuning</a> &middot; Liu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.07615" target="_blank" rel="noopener noreferrer">VLM-R1: A Stable and Generalizable R1-style Large Vision-Language Model</a> &middot; Shen et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.18013" target="_blank" rel="noopener noreferrer">Vision-R1: Evolving Human-Free Alignment in Large Vision-Language Models via Vision-Guided Reinforcement Learning</a> &middot; Zhan et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.07954" target="_blank" rel="noopener noreferrer">Perception-R1: Pioneering Perception Policy with Reinforcement Learning</a> &middot; Yu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.06520" target="_blank" rel="noopener noreferrer">Seg-Zero: Reasoning-Chain Guided Segmentation via Cognitive Reinforcement</a> &middot; Liu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.07065" target="_blank" rel="noopener noreferrer">Boosting the Generalization and Reasoning of Vision Language Models with Curriculum Reinforcement Learning</a> &middot; Deng et al., 2025 (Curr-ReFT).</li>
+            <li><a href="https://arxiv.org/abs/2505.15810" target="_blank" rel="noopener noreferrer">GUI-G1: Understanding R1-Zero-Like Training for Visual Grounding in GUI Agents</a> &middot; Zhou et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.21620" target="_blank" rel="noopener noreferrer">UI-R1: Enhancing Efficient Action Prediction of GUI Agents by Reinforcement Learning</a> &middot; Lu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.10458" target="_blank" rel="noopener noreferrer">GUI-R1: A Generalist R1-Style Vision-Language Action Model For GUI Agents</a> &middot; Luo et al., 2025.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>RL for multimodal reasoning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2503.07365" target="_blank" rel="noopener noreferrer">MM-Eureka: Exploring the Frontiers of Multimodal Reasoning with Rule-based Reinforcement Learning</a> &middot; Meng et al., 2025. Version 1 was titled “Exploring Visual Aha Moment with Rule-based Large-scale Reinforcement Learning”.</li>
+            <li><a href="https://arxiv.org/abs/2503.06749" target="_blank" rel="noopener noreferrer">Vision-R1: Incentivizing Reasoning Capability in Multimodal Large Language Models</a> &middot; Huang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.07536" target="_blank" rel="noopener noreferrer">LMM-R1: Empowering 3B LMMs with Strong Reasoning Abilities Through Two-Stage Rule-Based RL</a> &middot; Peng et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.05599" target="_blank" rel="noopener noreferrer">Skywork R1V: Pioneering Multimodal Reasoning with Chain-of-Thought</a> &middot; Peng et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.16656" target="_blank" rel="noopener noreferrer">Skywork R1V2: Multimodal Hybrid Reinforcement Learning for Reasoning</a> &middot; Wang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2507.06167" target="_blank" rel="noopener noreferrer">Skywork-R1V3 Technical Report</a> &middot; Skywork AI, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.08837" target="_blank" rel="noopener noreferrer">VL-Rethinker: Incentivizing Self-Reflection of Vision-Language Models with Reinforcement Learning</a> &middot; Wang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2503.17352" target="_blank" rel="noopener noreferrer">OpenVLThinker: Complex Vision-Language Reasoning via Iterative SFT-RL Cycles</a> &middot; Deng et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.07934" target="_blank" rel="noopener noreferrer">SoTA with Less: MCTS-Guided Sample Selection for Data-Efficient Visual Reasoning Self-Improvement</a> &middot; Wang et al., 2025 (ThinkLite-VL).</li>
+            <li><a href="https://arxiv.org/abs/2504.13055" target="_blank" rel="noopener noreferrer">NoisyRollout: Reinforcing Visual Reasoning with Data Augmentation</a> &middot; Liu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.02587" target="_blank" rel="noopener noreferrer">Rethinking RL Scaling for Vision Language Models: A Transparent, From-Scratch Framework and Comprehensive Evaluation Scheme</a> &middot; Ma et al., 2025 (MAYE).</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Multi-domain RL and model reports</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2505.18129" target="_blank" rel="noopener noreferrer">One RL to See Them All: Visual Triple Unified Reinforcement Learning</a> &middot; Ma et al., 2025 (V-Triune, Orsta).</li>
+            <li><a href="https://arxiv.org/abs/2508.12680" target="_blank" rel="noopener noreferrer">Vision-G1: Towards General Vision Language Reasoning with Multi-Domain Data Curation</a> &middot; Zha et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2505.07062" target="_blank" rel="noopener noreferrer">Seed1.5-VL Technical Report</a> &middot; ByteDance Seed, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2506.03569" target="_blank" rel="noopener noreferrer">MiMo-VL Technical Report</a> &middot; Xiaomi LLM-Core Team, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2507.01006" target="_blank" rel="noopener noreferrer">GLM-4.5V and GLM-4.1V-Thinking: Towards Versatile Multimodal Reasoning with Scalable Reinforcement Learning</a> &middot; GLM-V Team, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener noreferrer">Qwen2.5-VL Technical Report</a> &middot; Bai et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2511.21631" target="_blank" rel="noopener noreferrer">Qwen3-VL Technical Report</a> &middot; Bai et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.10479" target="_blank" rel="noopener noreferrer">InternVL3: Exploring Advanced Training and Test-Time Recipes for Open-Source Multimodal Models</a> &middot; Zhu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2508.18265" target="_blank" rel="noopener noreferrer">InternVL3.5: Advancing Open-Source Multimodal Models in Versatility, Reasoning, and Efficiency</a> &middot; Wang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2504.07491" target="_blank" rel="noopener noreferrer">Kimi-VL Technical Report</a> &middot; Kimi Team, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2501.12599" target="_blank" rel="noopener noreferrer">Kimi k1.5: Scaling Reinforcement Learning with LLMs</a> &middot; Kimi Team, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2509.01563" target="_blank" rel="noopener noreferrer">Kwai Keye-VL 1.5 Technical Report</a> &middot; Yang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2509.23661" target="_blank" rel="noopener noreferrer">LLaVA-OneVision-1.5: Fully Open Framework for Democratized Multimodal Training</a> &middot; An et al., 2025.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Structured outputs: documents, tables and charts</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2510.19817" target="_blank" rel="noopener noreferrer">olmOCR 2: Unit Test Rewards for Document OCR</a> &middot; Poznanski, Soldaini and Lo, 2025.</li>
+            <li><a href="https://arxiv.org/abs/2509.16889" target="_blank" rel="noopener noreferrer">Can GRPO Boost Complex Multimodal Table Understanding?</a> &middot; Kang et al., EMNLP 2025 (Table-R1).</li>
+            <li><a href="https://arxiv.org/abs/2506.13363" target="_blank" rel="noopener noreferrer">Efficient Medical VIE via Reinforcement Learning</a> &middot; Liu et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2508.13587" target="_blank" rel="noopener noreferrer">Breaking the SFT Plateau: Multimodal Structured Reinforcement Learning for Chart-to-Code Generation</a> &middot; Chen et al., 2025 (MSRL).</li>
+            <li><a href="https://arxiv.org/abs/2508.17608" target="_blank" rel="noopener noreferrer">ChartMaster: Advancing Chart-to-Code Generation with Real-World Charts and Chart Similarity Reinforcement Learning</a> &middot; Tan et al., 2025.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Which parameters change, and perception versus reasoning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2510.16333" target="_blank" rel="noopener noreferrer">RL makes MLLMs see better than SFT</a> &middot; Song et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2506.07218" target="_blank" rel="noopener noreferrer">Perception-R1: Advancing Multimodal Reasoning Capabilities of MLLMs via Visual Perception Reward</a> &middot; Xiao et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2507.06448" target="_blank" rel="noopener noreferrer">Perception-Aware Policy Optimization for Multimodal Reasoning</a> &middot; Wang et al., 2025 (PAPO).</li>
+            <li><a href="https://arxiv.org/abs/2505.14677" target="_blank" rel="noopener noreferrer">Visionary-R1: Mitigating Shortcuts in Visual Reasoning with Reinforcement Learning</a> &middot; Xia et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2505.21523" target="_blank" rel="noopener noreferrer">More Thinking, Less Seeing? Assessing Amplified Hallucination in Multimodal Reasoning Models</a> &middot; Liu et al., 2025.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Process rewards and grounded reasoning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2503.10291" target="_blank" rel="noopener noreferrer">VisualPRM: An Effective Process Reward Model for Multimodal Reasoning</a> &middot; Wang et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2505.23678" target="_blank" rel="noopener noreferrer">Grounded Reinforcement Learning for Visual Reasoning</a> &middot; Sarch et al., 2025 (ViGoRL).</li>
+            <li><a href="https://arxiv.org/abs/2505.15879" target="_blank" rel="noopener noreferrer">GRIT: Teaching MLLMs to Think with Images</a> &middot; Fan et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2505.19702" target="_blank" rel="noopener noreferrer">Point-RFT: Improving Multimodal Reasoning with Visually Grounded Reinforcement Finetuning</a> &middot; Ni et al., 2025.</li>
+            <li><a href="https://arxiv.org/abs/2505.14362" target="_blank" rel="noopener noreferrer">DeepEyes: Incentivizing “Thinking with Images” via Reinforcement Learning</a> &middot; Zheng et al., 2025.</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Shortcuts and image-free answers</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2403.20330" target="_blank" rel="noopener noreferrer">Are We on the Right Way for Evaluating Large Vision-Language Models?</a> &middot; Chen et al., 2024 (MMStar).</li>
+            <li><a href="https://arxiv.org/abs/2403.14624" target="_blank" rel="noopener noreferrer">MathVerse: Does Your Multi-modal LLM Truly See the Diagrams in Visual Math Problems?</a> &middot; Zhang et al., ECCV 2024.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Rewarding What the Model Sees</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/">https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026rewardingwhatthemodelsees,
+  author       = {Srinivasan, Anirudh},
+  title        = {Rewarding What the Model Sees},
+  year         = {2026},
+  month        = {Nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Rewarding What the Model Sees</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+/* =====================================================================
+   Shared stepper for every figure in this article.
+   One engine implements the animation contract: Previous / Play-Pause /
+   Next, 0.5x-1x-2x with aria-pressed, a live "Step NN / TT" status,
+   autoplay only while the figure is at least half visible, pause on any
+   manual interaction (resume only through Play), position preserved when
+   speed changes, and prefers-reduced-motion (no autoplay, no tweening,
+   every state reachable with Previous / Next).
+   Each figure is a pure function of an interpolated state object, so the
+   same code renders live playback, manual steps and preview capture.
+   ===================================================================== */
+(function () {
+  "use strict";
+  var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var NS = "http://www.w3.org/2000/svg";
+  var C = {
+    ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", paper: "#f7f6f3", paper2: "#efede9", paper3: "#e4e2dc",
+    blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f",
+    blueL: "#d6e4f1", orangeL: "#f7e3cc", greenL: "#d9eee1", redL: "#f4ddd7", grey: "#b9b5ac"
+  };
+  var FONT = '"IBM Plex Mono", ui-monospace, monospace';
+  var DISP = '"Bricolage Grotesque", system-ui, sans-serif';
+
+  function setA(e, a) { for (var k in a) { if (k === "text") e.textContent = a[k]; else e.setAttribute(k, a[k]); } return e; }
+  function el(tag, a, parent) { var e = document.createElementNS(NS, tag); if (a) setA(e, a); if (parent) parent.appendChild(e); return e; }
+  function T(parent, x, y, s, o) {
+    o = o || {};
+    var e = el("text", { x: x, y: y, "font-size": o.size || 16, fill: o.fill || C.ink, "text-anchor": o.anchor || "start", "font-weight": o.weight || 400 }, parent);
+    e.setAttribute("font-family", o.disp ? DISP : FONT);
+    if (o.italic) e.setAttribute("font-style", "italic");
+    e.textContent = s;
+    return e;
+  }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function seg(u, a, b) { return clamp((u - a) / (b - a), 0, 1); }
+  function stag(v, k, n, spread) { spread = spread === undefined ? 0.6 : spread; var start = n > 1 ? spread * k / (n - 1) : 0; return clamp((v * (1 + spread) - start), 0, 1); }
+  function isHex(s) { return typeof s === "string" && /^#[0-9a-f]{6}$/i.test(s); }
+  function hx(s) { var n = parseInt(s.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function mix(a, b, t) { var x = hx(a), y = hx(b); return "rgb(" + Math.round(lerp(x[0], y[0], t)) + "," + Math.round(lerp(x[1], y[1], t)) + "," + Math.round(lerp(x[2], y[2], t)) + ")"; }
+  function clone(o) { var r = {}; for (var k in o) { var v = o[k]; r[k] = Array.isArray(v) ? v.slice() : v; } return r; }
+  function interp(a, b, p) {
+    var r = {}, k;
+    for (k in a) r[k] = a[k];
+    for (k in b) {
+      var va = a[k], vb = b[k];
+      if (va === undefined) r[k] = vb;
+      else if (typeof va === "number" && typeof vb === "number") r[k] = va + (vb - va) * p;
+      else if (Array.isArray(va) && Array.isArray(vb) && va.length === vb.length) r[k] = va.map(function (x, i) { return typeof x === "number" ? x + (vb[i] - x) * p : (p < 0.5 ? x : vb[i]); });
+      else r[k] = p < 0.5 ? va : vb;
+    }
+    return r;
+  }
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+
+  var FIGS = window.__figs = {};
+
+  function Fig(id, cfg) {
+    var root = document.getElementById(id);
+    if (!root) return null;
+    var stageEl = root.querySelector(".vfig-stage");
+    var svg = el("svg", { viewBox: "0 0 " + cfg.w + " " + cfg.h, role: "img", "aria-label": cfg.alt }, stageEl);
+    svg.style.aspectRatio = cfg.w + " / " + cfg.h;
+    if (cfg.narrow) svg.setAttribute("class", "narrow-ok");
+
+    var ctl = document.createElement("div");
+    ctl.className = "vfig-ctl";
+    ctl.setAttribute("role", "group");
+    ctl.setAttribute("aria-label", "Animation controls");
+    ctl.innerHTML =
+      '<button type="button" data-action="previous" aria-label="Previous step">Previous</button>' +
+      '<button type="button" data-action="play-pause" aria-label="Play animation" aria-pressed="false">Play</button>' +
+      '<button type="button" data-action="next" aria-label="Next step">Next</button>' +
+      '<button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>' +
+      '<button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>' +
+      '<button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>' +
+      '<span class="vfig-status" aria-live="polite"></span>';
+    var opt = root.querySelector(".vfig-opt");
+    root.insertBefore(ctl, opt || root.querySelector("figcaption"));
+    var statusEl = ctl.querySelector(".vfig-status");
+    var playBtn = ctl.querySelector('[data-action="play-pause"]');
+
+    var stages = cfg.stages, n = stages.length;
+    var cum = [], acc = clone(cfg.init || {});
+    stages.forEach(function (s) { acc = clone(acc); for (var k in (s.s || {})) acc[k] = Array.isArray(s.s[k]) ? s.s[k].slice() : s.s[k]; cum.push(acc); });
+    var pins = {};
+    function target(i) {
+      var t = clone(cum[i]);
+      for (var k in pins) {
+        if (stages[i].s && Object.prototype.hasOwnProperty.call(stages[i].s, k)) delete pins[k];
+        else t[k] = pins[k];
+      }
+      return t;
+    }
+    var F = { i: 0, u: 1, speed: 1, playing: false, userPaused: false, root: root, svg: svg, C: C };
+    F.from = clone(cum[0]); F.to = clone(cum[0]); F.cur = clone(cum[0]);
+    var update = cfg.build(svg, F);
+
+    function render() {
+      var p = RM ? 1 : ease(clamp(F.u / (cfg.tw || 0.38), 0, 1));
+      F.cur = interp(F.from, F.to, p);
+      if (F.cur.cam) svg.setAttribute("viewBox", F.cur.cam.map(function (v) { return v.toFixed(2); }).join(" "));
+      update(F.cur, RM ? 1 : clamp(F.u, 0, 1), F.i, p);
+      statusEl.textContent = "Step " + pad2(F.i + 1) + " / " + pad2(n) + " · " + stages[F.i].name;
+    }
+    F.render = render;
+    var raf = null, last = 0;
+    function tick(ts) {
+      raf = null;
+      var dt = last ? Math.min(ts - last, 64) : 16;
+      last = ts;
+      var D = (stages[F.i].dur || cfg.dur || 3800) / F.speed;
+      F.u += dt / D;
+      if (F.u >= 1) {
+        if (F.playing) goTo((F.i + 1) % n);
+        else F.u = 1;
+      }
+      render();
+      if (F.playing || F.u < 1) raf = requestAnimationFrame(tick);
+      else last = 0;
+    }
+    function kick() { if (!raf) { last = 0; raf = requestAnimationFrame(tick); } }
+    function goTo(i) { F.from = clone(F.cur); F.i = i; F.to = target(i); F.u = 0; }
+    function setPlay(on) {
+      playBtn.textContent = on ? "Pause" : "Play";
+      playBtn.setAttribute("aria-label", on ? "Pause animation" : "Play animation");
+      playBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    function play() { F.playing = true; setPlay(true); kick(); }
+    function pause(user) { F.playing = false; if (user) F.userPaused = true; setPlay(false); }
+    F.play = play; F.pause = pause;
+    F.interact = function () { pause(true); };
+    F.step = function (d) { pause(true); goTo((F.i + d + n) % n); render(); kick(); };
+    F.go = function (i) { goTo(clamp(i, 0, n - 1)); render(); kick(); };
+    F.seek = function (i, u) {
+      pause(false);
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      F.from = target((i - 1 + n) % n); F.i = i; F.to = target(i); F.u = u; render();
+    };
+    F.set = function (obj) {
+      for (var k in obj) { pins[k] = obj[k]; F.cur[k] = obj[k]; F.to[k] = obj[k]; F.from[k] = obj[k]; }
+      render();
+    };
+    F.n = n;
+
+    ctl.querySelector('[data-action="previous"]').addEventListener("click", function () { F.step(-1); });
+    ctl.querySelector('[data-action="next"]').addEventListener("click", function () { F.step(1); });
+    playBtn.addEventListener("click", function () {
+      if (F.playing) pause(true);
+      else { F.userPaused = false; if (F.u >= 1) goTo((F.i + 1) % n); play(); }
+    });
+    ctl.querySelectorAll("[data-speed]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        F.speed = parseFloat(b.getAttribute("data-speed"));
+        ctl.querySelectorAll("[data-speed]").forEach(function (o) { o.setAttribute("aria-pressed", o === b ? "true" : "false"); });
+      });
+    });
+
+    if (!RM && "IntersectionObserver" in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting && e.intersectionRatio >= 0.5) { if (!F.userPaused && !F.playing) { F.u = 0; play(); } }
+          else if (F.playing) pause(false);
+        });
+      }, { threshold: [0, 0.5] });
+      io.observe(root);
+    }
+    F.u = 1;
+    render();
+    FIGS[id] = F;
+    return F;
+  }
+
+  /* small drawing helpers */
+  function rect(p, x, y, w, h, a) { var r = el("rect", { x: x, y: y, width: w, height: h }, p); if (a) setA(r, a); return r; }
+  function line(p, x1, y1, x2, y2, a) { var l = el("line", { x1: x1, y1: y1, x2: x2, y2: y2 }, p); if (a) setA(l, a); return l; }
+  function g(p, a) { return el("g", a || {}, p); }
+  function op(e, v) { e.setAttribute("opacity", clamp(v, 0, 1).toFixed(3)); }
+  function setRect(r, b) { r.setAttribute("x", b[0]); r.setAttribute("y", b[1]); r.setAttribute("width", Math.max(0, b[2])); r.setAttribute("height", Math.max(0, b[3])); }
+  function mug(p, x, y, w, h, fill) {
+    var gg = g(p);
+    rect(gg, x, y + h * 0.12, w * 0.74, h * 0.86, { rx: 6, fill: fill, stroke: C.ink, "stroke-width": 1.5 });
+    el("path", { d: "M" + (x + w * 0.74) + " " + (y + h * 0.32) + " q " + (w * 0.3) + " 0 " + (w * 0.24) + " " + (h * 0.24) + " q -" + (w * 0.04) + " " + (h * 0.2) + " -" + (w * 0.24) + " " + (h * 0.2), fill: "none", stroke: C.ink, "stroke-width": 3 }, gg);
+    return gg;
+  }
+  function boxIoU(a, b) {
+    var ix = Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]));
+    var iy = Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]));
+    var I = ix * iy, U = a[2] * a[3] + b[2] * b[3] - I;
+    return { I: I, U: U, iou: U > 0 ? I / U : 0 };
+  }
+  function gIoU(a, b) {
+    var r = boxIoU(a, b);
+    var cx0 = Math.min(a[0], b[0]), cy0 = Math.min(a[1], b[1]);
+    var cx1 = Math.max(a[0] + a[2], b[0] + b[2]), cy1 = Math.max(a[1] + a[3], b[1] + b[3]);
+    var Cc = (cx1 - cx0) * (cy1 - cy0);
+    return r.iou - (Cc - r.U) / Cc;
+  }
+  function advantages(r) {
+    var m = r.reduce(function (s, v) { return s + v; }, 0) / r.length;
+    var sd = Math.sqrt(r.reduce(function (s, v) { return s + (v - m) * (v - m); }, 0) / r.length);
+    return { mean: m, sd: sd, A: r.map(function (v) { return sd < 1e-9 ? 0 : (v - m) / sd; }) };
+  }
+  function fmt(v, d) { d = d === undefined ? 2 : d; var s = Math.abs(v).toFixed(d); return (v < -0.0005 ? "−" : "") + s; }
+  function fmtS(v, d) { return (v > 0.0005 ? "+" : "") + fmt(v, d); }
+  function check(p, x, y, ok, size) {
+    size = size || 1;
+    var e = el("path", { fill: "none", "stroke-width": 3 * size, "stroke-linecap": "round", "stroke-linejoin": "round" }, p);
+    if (ok) setA(e, { d: "M" + (x - 8 * size) + " " + y + " l " + (6 * size) + " " + (6 * size) + " l " + (11 * size) + " -" + (13 * size), stroke: C.green });
+    else setA(e, { d: "M" + (x - 7 * size) + " " + (y - 7 * size) + " l " + (14 * size) + " " + (14 * size) + " M" + (x + 7 * size) + " " + (y - 7 * size) + " l -" + (14 * size) + " " + (14 * size), stroke: C.red });
+    return e;
+  }
+  function wrapLines(parent, x, y, lines, o, lh) {
+    var out = [];
+    lines.forEach(function (s, k) { out.push(T(parent, x, y + k * (lh || 24), s, o)); });
+    return out;
+  }
+
+  /* =================================================================
+     Figure 1: one GRPO step on a visual question
+     ================================================================= */
+  Fig("fig-grpo", {
+    w: 960, h: 560, tw: 0.36, dur: 3900,
+    alt: "A bar chart with the question 'What was revenue in 2023?'. Eight sampled answers are checked against 57 with a 5% tolerance; five pass and three fail. Rewards become advantages of +0.77 for correct readings and -1.29 for misreadings.",
+    init: { cam: [0, 0, 960, 560], focus: 1, cards: 0, reads: 0, band: 0, checks: 0, rew: 0, stats: 0, adv: 0, upd: 0 },
+    stages: [
+      { name: "The prompt: one chart, one question", s: { cam: [-60, 0, 480, 280], focus: 1 } },
+      { name: "Sample K = 8 rollouts of the same image", s: { cam: [0, 0, 960, 560], cards: 1, focus: 0 } },
+      { name: "Each rollout reads the chart its own way", s: { reads: 1 } },
+      { name: "The verifier checks |answer − 57| ≤ 5%", s: { band: 1, checks: 1 } },
+      { name: "Rewards: 1 inside the band, 0 outside", s: { rew: 1 } },
+      { name: "Group mean and spread", s: { stats: 1 } },
+      { name: "Advantages: A = (R − mean) / std", s: { adv: 1 } },
+      { name: "Update: correct readings up, misreadings down", s: { upd: 1 }, dur: 4600 }
+    ],
+    build: function (svg) {
+      var vals = [35, 42, 49, 57], years = ["2020", "2021", "2022", "2023"];
+      function vy(v) { return 240 - v * 2.5; }
+      var chart = g(svg);
+      rect(chart, 14, 8, 330, 268, { fill: "#fff", stroke: C.rule });
+      T(chart, 28, 34, "Q: What was revenue in 2023?", { size: 17, weight: 600 });
+      for (var gv = 0; gv <= 70; gv += 10) {
+        line(chart, 70, vy(gv), 330, vy(gv), { stroke: gv % 20 === 0 ? "#dcd9d2" : "#ebe9e4", "stroke-width": 1 });
+        if (gv % 20 === 0) T(chart, 62, vy(gv) + 5, String(gv), { size: 15, fill: C.muted, anchor: "end" });
+      }
+      line(chart, 70, 240, 330, 240, { stroke: C.ink, "stroke-width": 1.5 });
+      var bars = [];
+      vals.forEach(function (v, k) {
+        var x = 88 + k * 62;
+        bars.push(rect(chart, x, vy(v), 44, 240 - vy(v), { fill: C.blue, opacity: 0.8 }));
+        T(chart, x + 22, 262, years[k], { size: 15, fill: C.soft, anchor: "middle" });
+      });
+      var bar23 = rect(chart, 88 + 3 * 62 - 4, vy(57) - 4, 52, 240 - vy(57) + 4, { fill: "none", stroke: C.orange, "stroke-width": 3 });
+      var band = rect(chart, 70, vy(59.85), 260, vy(54.15) - vy(59.85), { fill: C.green, opacity: 0 });
+      var bandLbl = T(chart, 326, vy(59.85) - 6, "accepted: 54.2–59.9", { size: 15, fill: C.green, anchor: "end", weight: 600 });
+
+      var R = [
+        ["bar ends under 60", 57, 1], ["top near the 50 line", 51, 0], ["between 55 and 60", 57, 1], ["rounds the top up", 58, 1],
+        ["reads the 2022 bar", 49, 0], ["reads it carefully", 57, 1], ["reads the 2021 bar", 42, 0], ["a little below 57", 56, 1]
+      ];
+      var rew = R.map(function (r) { return r[2]; });
+      var ad = advantages(rew);
+      var hdr = g(svg);
+      T(hdr, 712, 22, "check", { size: 15, fill: C.muted, anchor: "middle" });
+      T(hdr, 752, 22, "R", { size: 15, fill: C.muted, anchor: "middle" });
+      T(hdr, 856, 22, "advantage A", { size: 15, fill: C.muted, anchor: "middle" });
+      var links = g(svg), cards = [];
+      R.forEach(function (r, k) {
+        var y = 30 + k * 62;
+        var cg = g(svg);
+        var lk = el("path", { d: "M344 150 C 352 150, 352 " + (y + 26) + ", 360 " + (y + 26), fill: "none", stroke: C.blue, "stroke-width": 1.2, "stroke-dasharray": "3 4" }, links);
+        var bg = rect(cg, 360, y, 330, 52, { fill: "#fff", stroke: C.rule, rx: 3 });
+        T(cg, 372, y + 32, "#" + (k + 1), { size: 15, fill: C.muted });
+        var snip = T(cg, 408, y + 32, "", { size: 15, fill: C.soft });
+        var ans = T(cg, 678, y + 33, String(r[1]), { size: 20, weight: 600, anchor: "end" });
+        var ck = check(cg, 712, y + 28, r[2] === 1);
+        var rt = T(cg, 752, y + 33, String(r[2]), { size: 19, weight: 600, anchor: "middle", fill: r[2] ? C.green : C.red });
+        var A = ad.A[k];
+        var abar = rect(cg, 856, y + 16, 0, 20, { fill: A >= 0 ? C.green : C.red });
+        var at = T(cg, 954, y + 33, fmtS(A), { size: 16, weight: 600, anchor: "end", fill: A >= 0 ? C.green : C.red });
+        var tri = el("path", { d: A >= 0 ? "M346 " + (y + 34) + " l 7 -12 l 7 12 z" : "M346 " + (y + 20) + " l 7 12 l 7 -12 z", fill: A >= 0 ? C.green : C.red }, cg);
+        cards.push({ g: cg, lk: lk, bg: bg, snip: snip, s: r[0], ans: ans, ck: ck, rt: rt, abar: abar, at: at, tri: tri, A: A, ok: r[2] });
+      });
+      var zero = line(svg, 856, 26, 856, 530, { stroke: C.ink, "stroke-width": 1, "stroke-dasharray": "2 3" });
+      var st = g(svg);
+      rect(st, 14, 300, 330, 226, { fill: "#fff", stroke: C.rule });
+      T(st, 30, 330, "Group statistics", { size: 17, weight: 700, disp: true });
+      T(st, 30, 364, "rewards  1 0 1 1 0 1 0 1", { size: 16, fill: C.soft });
+      T(st, 30, 394, "mean R = 5/8 = " + ad.mean.toFixed(3), { size: 16 });
+      T(st, 30, 422, "std R  = " + ad.sd.toFixed(3), { size: 16 });
+      var st2 = g(st);
+      T(st2, 30, 456, "A(pass) = +0.375 / 0.484 = " + fmtS(ad.A[0]), { size: 15, fill: C.green, weight: 600 });
+      T(st2, 30, 482, "A(fail) = −0.625 / 0.484 = " + fmtS(ad.A[1]), { size: 15, fill: C.red, weight: 600 });
+      var st3 = T(st, 30, 512, "Every token of rollout k gets Aₖ.", { size: 15, fill: C.orange, weight: 600 });
+
+      return function (S, u) {
+        op(bar23, S.focus + S.reads * 0.9 - S.upd * 0.4);
+        op(band, S.band * 0.18); op(bandLbl, S.band);
+        op(hdr, S.checks);
+        cards.forEach(function (c, k) {
+          var a = stag(S.cards, k, 8, 0.7);
+          op(c.g, a);
+          c.g.setAttribute("transform", "translate(" + ((1 - ease(a)) * 40).toFixed(1) + ",0)");
+          op(c.lk, a * (1 - S.reads));
+          var rr = stag(S.reads, k, 8, 0.8);
+          var nch = Math.round(c.s.length * rr);
+          c.snip.textContent = c.s.slice(0, nch);
+          op(c.ans, rr > 0.95 ? 1 : 0);
+          op(c.ck, stag(S.checks, k, 8, 0.8));
+          op(c.rt, stag(S.rew, k, 8, 0.5));
+          var aa = stag(S.adv, k, 8, 0.5);
+          var w = Math.abs(c.A) * 50 * ease(aa);
+          c.abar.setAttribute("width", w.toFixed(1));
+          c.abar.setAttribute("x", (c.A >= 0 ? 856 : 856 - w).toFixed(1));
+          op(c.at, aa);
+          op(c.tri, S.upd);
+          c.bg.setAttribute("fill", S.upd > 0 ? mix("#ffffff", c.A >= 0 ? C.greenL : C.redL, S.upd) : "#ffffff");
+        });
+        op(zero, S.adv);
+        op(st, S.stats); op(st2, S.adv); op(st3, S.upd);
+      };
+    }
+  });
+
+  /* =================================================================
+     Figure 2: reward-type gallery
+     ================================================================= */
+  (function () {
+    var TW = 300, TH = 190;
+    var pos = [];
+    for (var r = 0; r < 3; r++) for (var c = 0; c < 3; c++) pos.push([15 + c * 315, 15 + r * 200]);
+    function camFor(k) { var p = pos[k], w = 560, h = w * 620 / 960; return [p[0] + TW / 2 - w / 2, p[1] + TH / 2 - h / 2, w, h]; }
+    var names = ["Exact match", "Numeric tolerance", "Box IoU", "Mask Dice", "Point in region", "OCR: ANLS", "Table: TEDS", "JSON: schema + F1", "Render and compare"];
+    var stages = names.map(function (nm, k) { return { name: nm, s: { cam: camFor(k), act: String(k) }, dur: 3600 }; });
+    stages.push({ name: "Nine verifiers, one idea: compare output with annotation", s: { cam: [0, 0, 960, 620], act: "all" }, dur: 4200 });
+    Fig("fig-gallery", {
+      w: 960, h: 620, tw: 0.3,
+      alt: "A three by three grid of verifier examples: exact match, numeric tolerance, box IoU, mask Dice, point in region, OCR ANLS, table TEDS, JSON schema and field F1, and render-and-compare. Each lights up in turn.",
+      init: { cam: [0, 0, 960, 620], act: "all" },
+      stages: stages,
+      build: function (svg) {
+        var tiles = [];
+        names.forEach(function (nm, k) {
+          var p = pos[k];
+          var tg = g(svg, { transform: "translate(" + p[0] + "," + p[1] + ")" });
+          var frame = rect(tg, 0, 0, TW, TH, { fill: "#fff", stroke: C.rule, "stroke-width": 1.5, rx: 3 });
+          T(tg, 12, 26, nm, { size: 17, weight: 700, disp: true });
+          tiles.push({ g: tg, frame: frame, up: null });
+        });
+        /* 0 exact match */
+        (function (t) {
+          var gg = t.g;
+          [18, 64, 110].forEach(function (x) { mug(gg, x, 64, 40, 50, C.blueL); });
+          T(gg, 12, 150, "Q: How many mugs?", { size: 15, fill: C.soft });
+          var a = T(gg, 170, 84, "ŷ = “three”", { size: 15 });
+          var b = T(gg, 170, 108, "norm → 3", { size: 15, fill: C.orange, weight: 600 });
+          var c = T(gg, 170, 132, "y* = 3", { size: 15, fill: C.blue });
+          var r = T(gg, 170, 172, "R = 1", { size: 20, weight: 700, fill: C.green });
+          t.up = function (q) { op(a, seg(q, 0, 0.25)); op(b, seg(q, 0.25, 0.5)); op(c, seg(q, 0.45, 0.65)); op(r, seg(q, 0.7, 0.9)); };
+        })(tiles[0]);
+        /* 1 numeric tolerance */
+        (function (t) {
+          var gg = t.g;
+          function px(v) { return 20 + (v - 50) * 16.25; }
+          rect(gg, px(55.1), 88, px(60.9) - px(55.1), 34, { fill: C.greenL });
+          line(gg, 20, 105, 280, 105, { stroke: C.ink, "stroke-width": 1.5 });
+          [50, 54, 58, 62, 66].forEach(function (v) { line(gg, px(v), 100, px(v), 110, { stroke: C.ink }); T(gg, px(v), 140, String(v), { size: 15, fill: C.muted, anchor: "middle" }); });
+          line(gg, px(58), 84, px(58), 126, { stroke: C.blue, "stroke-width": 2.5 });
+          T(gg, px(58), 78, "y* = 58", { size: 15, fill: C.blue, anchor: "middle", weight: 600 });
+          var mk = el("path", { d: "M0 0 l -8 -14 l 16 0 z", fill: C.orange }, gg);
+          var lab = T(gg, 12, 176, "", { size: 15, weight: 600 });
+          t.up = function (q) {
+            var v = lerp(50.5, 57.8, ease(seg(q, 0, 0.6)));
+            mk.setAttribute("transform", "translate(" + px(v).toFixed(1) + ",102)");
+            lab.textContent = "ŷ = " + v.toFixed(1) + (q > 0.65 ? "  within 5% → R = 1" : "");
+            lab.setAttribute("fill", q > 0.65 ? C.green : C.ink);
+          };
+        })(tiles[1]);
+        /* 2 box IoU */
+        (function (t) {
+          var gg = t.g, ref = [30, 52, 110, 84];
+          var inter = rect(gg, 0, 0, 0, 0, { fill: C.orangeL });
+          rect(gg, ref[0], ref[1], ref[2], ref[3], { fill: "none", stroke: C.blue, "stroke-width": 2.5, "stroke-dasharray": "6 4" });
+          var pr = rect(gg, 0, 0, 110, 84, { fill: "none", stroke: C.orange, "stroke-width": 2.5 });
+          var lab = T(gg, 168, 96, "", { size: 16, weight: 600 });
+          T(gg, 168, 72, "B* dashed", { size: 15, fill: C.blue });
+          T(gg, 168, 124, "|∩| / |∪|", { size: 15, fill: C.soft });
+          t.up = function (q) {
+            var x = lerp(160, 54, ease(seg(q, 0, 0.7))), y = lerp(100, 70, ease(seg(q, 0, 0.7)));
+            var b = [x, y, 110, 84];
+            setRect(pr, b);
+            var ix0 = Math.max(b[0], ref[0]), iy0 = Math.max(b[1], ref[1]), ix1 = Math.min(b[0] + b[2], ref[0] + ref[2]), iy1 = Math.min(b[1] + b[3], ref[1] + ref[3]);
+            setRect(inter, [ix0, iy0, ix1 - ix0, iy1 - iy0]);
+            lab.textContent = "IoU = " + boxIoU(b, ref).iou.toFixed(2);
+          };
+        })(tiles[2]);
+        /* 3 mask dice */
+        (function (t) {
+          var gg = t.g;
+          el("ellipse", { cx: 80, cy: 105, rx: 52, ry: 38, fill: C.blueL, stroke: C.blue, "stroke-width": 2 }, gg);
+          var pm = el("ellipse", { cx: 150, cy: 112, rx: 48, ry: 40, fill: C.orange, "fill-opacity": 0.25, stroke: C.orange, "stroke-width": 2 }, gg);
+          var lab = T(gg, 160, 172, "", { size: 16, weight: 600 });
+          T(gg, 160, 60, "2|M∩M*|", { size: 15, fill: C.soft });
+          T(gg, 160, 80, "────────", { size: 15, fill: C.soft });
+          T(gg, 160, 98, "|M|+|M*|", { size: 15, fill: C.soft });
+          function inE(x, y, cx, cy, rx, ry) { var a = (x - cx) / rx, b = (y - cy) / ry; return a * a + b * b <= 1; }
+          t.up = function (q) {
+            var cx = lerp(190, 96, ease(seg(q, 0, 0.7)));
+            pm.setAttribute("cx", cx.toFixed(1));
+            var I = 0, A = 0, B = 0;
+            for (var x = 20; x < 260; x += 3) for (var y = 60; y < 160; y += 3) {
+              var a = inE(x, y, 80, 105, 52, 38), b = inE(x, y, cx, 112, 48, 40);
+              if (a) A++; if (b) B++; if (a && b) I++;
+            }
+            lab.textContent = "Dice = " + (2 * I / (A + B)).toFixed(2);
+          };
+        })(tiles[3]);
+        /* 4 point in region */
+        (function (t) {
+          var gg = t.g;
+          rect(gg, 30, 70, 150, 54, { fill: C.blueL, stroke: C.blue, "stroke-width": 2, rx: 6 });
+          T(gg, 80, 103, "Submit", { size: 16, anchor: "middle", fill: C.blue, weight: 600 });
+          T(gg, 12, 150, "“click Submit”", { size: 15, fill: C.soft });
+          var ring = el("circle", { cx: 152, cy: 106, r: 6, fill: "none", stroke: C.orange, "stroke-width": 2 }, gg);
+          var dot = el("circle", { cx: 152, cy: 106, r: 6, fill: C.orange }, gg);
+          var lab = T(gg, 198, 104, "", { size: 16, weight: 700, fill: C.green });
+          var lab2 = T(gg, 198, 80, "p ∈ B*", { size: 15, fill: C.soft });
+          t.up = function (q) {
+            var y = lerp(40, 106, ease(seg(q, 0, 0.45)));
+            dot.setAttribute("cy", y.toFixed(1));
+            var rr = seg(q, 0.45, 0.85);
+            ring.setAttribute("r", (6 + rr * 22).toFixed(1)); op(ring, rr > 0 && rr < 1 ? 1 - rr : 0);
+            op(lab2, seg(q, 0.5, 0.7)); lab.textContent = q > 0.6 ? "R = 1" : "";
+          };
+        })(tiles[4]);
+        /* 5 OCR ANLS */
+        (function (t) {
+          var gg = t.g, ref = "TOTAL 42.50", pred = "TOTAL 42.5O";
+          T(gg, 12, 66, "y*", { size: 15, fill: C.blue });
+          T(gg, 12, 100, "ŷ", { size: 15, fill: C.orange });
+          var cells = [];
+          for (var i = 0; i < ref.length; i++) {
+            T(gg, 44 + i * 20, 66, ref[i], { size: 18, fill: C.blue, anchor: "middle", weight: 600 });
+            var bg = rect(gg, 34 + i * 20, 82, 20, 26, { fill: i === 10 ? C.redL : "none" });
+            var ch = T(gg, 44 + i * 20, 101, pred[i], { size: 18, fill: i === 10 ? C.red : C.ink, anchor: "middle", weight: 600 });
+            cells.push([bg, ch]);
+          }
+          var l1 = T(gg, 12, 140, "NL = 1/11 = 0.09 < 0.5", { size: 15, fill: C.soft });
+          var l2 = T(gg, 12, 172, "ANLS = 1 − 0.09 = 0.91", { size: 16, weight: 700, fill: C.green });
+          t.up = function (q) {
+            cells.forEach(function (c, i) { var a = seg(q, i * 0.04, i * 0.04 + 0.1); op(c[1], a); op(c[0], i === 10 ? seg(q, 0.5, 0.6) : 0); });
+            op(l1, seg(q, 0.55, 0.7)); op(l2, seg(q, 0.7, 0.85));
+          };
+        })(tiles[5]);
+        /* 6 table TEDS */
+        (function (t) {
+          var gg = t.g;
+          function tbl(x0, vals, diff, col) {
+            var tg = g(gg);
+            for (var r = 0; r < 3; r++) for (var c = 0; c < 2; c++) {
+              var bad = diff && r === 2 && c === 1;
+              rect(tg, x0 + c * 50, 46 + r * 28, 50, 28, { fill: bad ? C.redL : "#fff", stroke: col, "stroke-width": 1.2 });
+              T(tg, x0 + c * 50 + 25, 46 + r * 28 + 20, vals[r][c], { size: 15, anchor: "middle", fill: bad ? C.red : C.ink });
+            }
+            return tg;
+          }
+          tbl(16, [["yr", "rev"], ["2021", "42"], ["2023", "57"]], false, C.blue);
+          var p2 = tbl(150, [["yr", "rev"], ["2021", "42"], ["2023", "51"]], true, C.orange);
+          T(gg, 66, 150, "y*", { size: 15, fill: C.blue, anchor: "middle" });
+          T(gg, 200, 150, "ŷ", { size: 15, fill: C.orange, anchor: "middle" });
+          var lab = T(gg, 12, 178, "TEDS = 1 − 0.5/10 = 0.95", { size: 15, weight: 700, fill: C.green });
+          t.up = function (q) { op(p2, seg(q, 0, 0.4)); p2.setAttribute("transform", "translate(" + ((1 - ease(seg(q, 0, 0.4))) * 30).toFixed(1) + ",0)"); op(lab, seg(q, 0.6, 0.8)); };
+        })(tiles[6]);
+        /* 7 JSON */
+        (function (t) {
+          var gg = t.g;
+          var L = [["{\"vendor\": \"Acme\",", 1], [" \"date\": \"2026-03-11\",", 1], [" \"total\": 45.20}", 0]];
+          var rows = L.map(function (l, k) {
+            var tx = T(gg, 14, 62 + k * 26, l[0], { size: 15 });
+            var ck = check(gg, 272, 57 + k * 26, l[1] === 1, 0.8);
+            return [tx, ck];
+          });
+          var s1 = T(gg, 14, 148, "schema valid ✓   F1 = 2/3", { size: 15, fill: C.soft });
+          var s2 = T(gg, 14, 176, "R = 1 × 0.67 = 0.67", { size: 16, weight: 700, fill: C.orange });
+          t.up = function (q) { rows.forEach(function (r, k) { op(r[0], seg(q, k * 0.12, k * 0.12 + 0.15)); op(r[1], seg(q, 0.4 + k * 0.08, 0.5 + k * 0.08)); }); op(s1, seg(q, 0.6, 0.75)); op(s2, seg(q, 0.75, 0.9)); };
+        })(tiles[7]);
+        /* 8 render and compare */
+        (function (t) {
+          var gg = t.g;
+          T(gg, 12, 54, "plt.bar(x, [3, 5, 4])", { size: 15, fill: C.soft });
+          var arrow = el("path", { d: "M70 64 l 0 20 m -6 -8 l 6 8 l 6 -8", stroke: C.ink, "stroke-width": 2, fill: "none" }, gg);
+          function mini(x0, hs, col) { var mg = g(gg); rect(mg, x0, 90, 90, 60, { fill: "#fff", stroke: C.rule }); hs.forEach(function (h, k) { rect(mg, x0 + 12 + k * 24, 144 - h * 9, 16, h * 9, { fill: col }); }); return mg; }
+          var rend = mini(25, [3, 5, 4], C.orange);
+          mini(185, [3, 5, 4.2], C.blue);
+          T(gg, 230, 82, "target", { size: 15, fill: C.blue, anchor: "middle" });
+          var eq = T(gg, 147, 128, "≈", { size: 24, anchor: "middle", weight: 700 });
+          var lab = T(gg, 150, 178, "similarity score 0.9", { size: 15, weight: 700, fill: C.green, anchor: "middle" });
+          t.up = function (q) { op(arrow, seg(q, 0.1, 0.3)); op(rend, seg(q, 0.3, 0.55)); op(eq, seg(q, 0.55, 0.7)); op(lab, seg(q, 0.7, 0.85)); };
+        })(tiles[8]);
+
+        return function (S, u, i, p) {
+          var all = S.act === "all";
+          tiles.forEach(function (t, k) {
+            var active = all || S.act === String(k);
+            op(t.g, active ? 1 : 0.32);
+            t.frame.setAttribute("stroke", active && !all ? C.orange : C.rule);
+            t.frame.setAttribute("stroke-width", active && !all ? 3 : 1.5);
+            t.up(active && !all ? seg(u, 0.22, 0.85) : 1);
+          });
+        };
+      }
+    });
+  })();
+
+  /* =================================================================
+     Figure 3: IoU playground (interactive)
+     ================================================================= */
+  (function () {
+    var IMG = [30, 30, 480, 420];
+    var TGT = [290, 250, 140, 150];
+    var SIB = [[65, 60, 130, 140], [55, 70, 140, 130], [295, 60, 130, 135], [285, 52, 150, 148], [62, 255, 135, 140], [70, 262, 125, 130], [58, 245, 140, 152]];
+    var MODES = { iou: "Soft IoU", thr: "IoU ≥ 0.5", giou: "GIoU", cov: "Coverage" };
+    function rewardOf(b, mode) {
+      var r = boxIoU(b, TGT);
+      if (mode === "iou") return r.iou;
+      if (mode === "thr") return r.iou >= 0.5 ? 1 : 0;
+      if (mode === "giou") return gIoU(b, TGT);
+      return r.I / (TGT[2] * TGT[3]);
+    }
+    var F = Fig("fig-iou", {
+      w: 960, h: 480, tw: 0.42, dur: 4200,
+      alt: "Interactive box reward playground. A target mug has a dashed blue box. Seven sibling rollouts boxed the wrong mugs. Your orange box can be dragged and resized; the panel shows soft IoU, thresholded IoU, GIoU and coverage, and the advantage your box receives in the group.",
+      init: { box: [296, 258, 130, 140], mode: "iou" },
+      stages: [
+        { name: "A tight box: high IoU", s: { box: [296, 258, 130, 140], mode: "iou" } },
+        { name: "Shifted half a width: partial IoU", s: { box: [225, 225, 140, 150] } },
+        { name: "A miss: every rollout scores 0, no signal", s: { box: [64, 250, 140, 150] } },
+        { name: "Grow the box around the target", s: { box: [230, 190, 250, 250] } },
+        { name: "The whole image still earns IoU 0.10", s: { box: [30, 30, 480, 420] }, dur: 4800 },
+        { name: "Threshold at 0.5 removes the floor", s: { mode: "thr" } },
+        { name: "GIoU equals IoU for a containing box", s: { mode: "giou" }, dur: 4800 },
+        { name: "Coverage alone: the whole image scores 1", s: { mode: "cov" } },
+        { name: "A tight box under the threshold reward", s: { box: [296, 258, 130, 140], mode: "thr" } }
+      ],
+      build: function (svg, Fh) {
+        var scene = g(svg);
+        rect(scene, IMG[0], IMG[1], IMG[2], IMG[3], { fill: "#fbfaf7", stroke: C.ink, "stroke-width": 1.2 });
+        mug(scene, 80, 72, 100, 112, "#c9d6e3");
+        mug(scene, 310, 72, 100, 112, "#d8d2c4");
+        mug(scene, 80, 266, 100, 112, "#c8d9cc");
+        mug(scene, 308, 266, 104, 116, "#c4553f");
+        T(scene, 40, 470, "Prompt: “box the red mug”", { size: 16, fill: C.soft });
+        SIB.forEach(function (b) { rect(scene, b[0], b[1], b[2], b[3], { fill: "none", stroke: C.grey, "stroke-width": 1.5, "stroke-dasharray": "4 4" }); });
+        rect(scene, TGT[0], TGT[1], TGT[2], TGT[3], { fill: "none", stroke: C.blue, "stroke-width": 3, "stroke-dasharray": "8 5" });
+        T(scene, TGT[0] + TGT[2], TGT[1] - 8, "B*", { size: 16, fill: C.blue, anchor: "end", weight: 700 });
+        var inter = rect(scene, 0, 0, 0, 0, { fill: C.orange, opacity: 0.16 });
+        var bx = rect(scene, 0, 0, 10, 10, { fill: C.orange, "fill-opacity": 0.04, stroke: C.orange, "stroke-width": 3, class: "drag", tabindex: 0, role: "slider", "aria-label": "Your predicted box. Arrow keys move it; Shift and arrow keys resize it.", "aria-valuetext": "" });
+        var hd = rect(scene, 0, 0, 18, 18, { fill: C.orange, class: "handle" });
+        var youL = T(scene, 0, 0, "your box", { size: 15, fill: C.orange, weight: 600 });
+
+        var pnl = g(svg);
+        T(pnl, 540, 52, "Rewards for your box", { size: 18, weight: 700, disp: true });
+        var rows = {};
+        ["iou", "thr", "giou", "cov"].forEach(function (m, k) {
+          var y = 78 + k * 40;
+          var hl = rect(pnl, 532, y - 4, 420, 34, { fill: C.orangeL, opacity: 0 });
+          T(pnl, 542, y + 19, MODES[m], { size: 16 });
+          rect(pnl, 690, y + 6, 180, 14, { fill: C.paper3 });
+          var bar = rect(pnl, 690, y + 6, 0, 14, { fill: C.blue });
+          var val = T(pnl, 945, y + 19, "", { size: 16, weight: 600, anchor: "end" });
+          rows[m] = { hl: hl, bar: bar, val: val };
+        });
+        T(pnl, 540, 268, "Group of 8: seven siblings boxed the wrong mug", { size: 15, fill: C.soft });
+        var gb = [], gy0 = 356;
+        line(pnl, 548, gy0, 940, gy0, { stroke: C.ink });
+        for (var k = 0; k < 8; k++) {
+          var x = 560 + k * 48;
+          gb.push({ bar: rect(pnl, x, gy0, 32, 0, { fill: k === 7 ? C.orange : C.grey }), lab: T(pnl, x + 16, gy0 + 20, k === 7 ? "you" : "s" + (k + 1), { size: 15, anchor: "middle", fill: k === 7 ? C.orange : C.muted, weight: k === 7 ? 600 : 400 }) });
+        }
+        var advT = T(pnl, 540, 414, "", { size: 19, weight: 700 });
+        var noteT = T(pnl, 540, 446, "", { size: 15, fill: C.soft });
+        var noteT2 = T(pnl, 540, 468, "", { size: 15, fill: C.soft });
+
+        /* dragging */
+        var drag = null;
+        function pt(ev) { var m = svg.getScreenCTM().inverse(); var q = svg.createSVGPoint(); q.x = ev.clientX; q.y = ev.clientY; return q.matrixTransform(m); }
+        function cl(b) {
+          var w = clamp(b[2], 24, IMG[2]), h = clamp(b[3], 24, IMG[3]);
+          return [clamp(b[0], IMG[0], IMG[0] + IMG[2] - w), clamp(b[1], IMG[1], IMG[1] + IMG[3] - h), w, h];
+        }
+        function start(kind) {
+          return function (ev) {
+            ev.preventDefault(); Fh.interact();
+            var p0 = pt(ev); drag = { kind: kind, p0: p0, b0: Fh.cur.box.slice() };
+            svg.setPointerCapture && svg.setPointerCapture(ev.pointerId);
+          };
+        }
+        bx.addEventListener("pointerdown", start("move"));
+        hd.addEventListener("pointerdown", start("size"));
+        svg.addEventListener("pointermove", function (ev) {
+          if (!drag) return;
+          var p = pt(ev), dx = p.x - drag.p0.x, dy = p.y - drag.p0.y, b = drag.b0;
+          Fh.set({ box: cl(drag.kind === "move" ? [b[0] + dx, b[1] + dy, b[2], b[3]] : [b[0], b[1], b[2] + dx, b[3] + dy]) });
+        });
+        function end() { drag = null; }
+        svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+        bx.addEventListener("keydown", function (ev) {
+          var d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+          if (!d) return;
+          ev.preventDefault(); Fh.interact();
+          var b = Fh.cur.box.slice(), s = 10;
+          if (ev.shiftKey) { b[2] += d[0] * s; b[3] += d[1] * s; } else { b[0] += d[0] * s; b[1] += d[1] * s; }
+          Fh.set({ box: cl(b) });
+        });
+        Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) {
+          btn.addEventListener("click", function () { Fh.interact(); Fh.set({ mode: btn.getAttribute("data-mode") }); });
+        });
+
+        return function (S) {
+          var b = S.box, mode = S.mode;
+          setRect(bx, b); hd.setAttribute("x", b[0] + b[2] - 12); hd.setAttribute("y", b[1] + b[3] - 12);
+          youL.setAttribute("x", b[0] + 4); youL.setAttribute("y", b[1] + b[3] + 18 > 452 ? b[1] + b[3] - 8 : b[1] + b[3] + 18);
+          youL.setAttribute("text-anchor", "start");
+          var ix0 = Math.max(b[0], TGT[0]), iy0 = Math.max(b[1], TGT[1]), ix1 = Math.min(b[0] + b[2], TGT[0] + TGT[2]), iy1 = Math.min(b[1] + b[3], TGT[1] + TGT[3]);
+          setRect(inter, [ix0, iy0, ix1 - ix0, iy1 - iy0]);
+          ["iou", "thr", "giou", "cov"].forEach(function (m) {
+            var v = rewardOf(b, m), r = rows[m];
+            r.bar.setAttribute("width", (Math.abs(v) * 180).toFixed(1));
+            r.bar.setAttribute("fill", v < 0 ? C.red : (m === mode ? C.orange : C.blue));
+            r.val.textContent = fmt(v);
+            op(r.hl, m === mode ? 1 : 0);
+          });
+          var rs = SIB.map(function (sb) { return rewardOf(sb, mode); }); rs.push(rewardOf(b, mode));
+          var ad = advantages(rs);
+          gb.forEach(function (o, k) {
+            var v = rs[k], h = Math.abs(v) * 70;
+            o.bar.setAttribute("height", h.toFixed(1));
+            o.bar.setAttribute("y", (v >= 0 ? gy0 - h : gy0).toFixed(1));
+          });
+          var A = ad.A[7];
+          if (ad.sd < 1e-9) { advT.textContent = "All 8 rewards equal: A = 0, no signal"; advT.setAttribute("fill", C.muted); }
+          else { advT.textContent = "Your advantage A = " + fmtS(A); advT.setAttribute("fill", A > 0.01 ? C.green : (A < -0.01 ? C.red : C.muted)); }
+          var contains = b[0] <= TGT[0] && b[1] <= TGT[1] && b[0] + b[2] >= TGT[0] + TGT[2] && b[1] + b[3] >= TGT[1] + TGT[3];
+          var iou = boxIoU(b, TGT).iou;
+          noteT.textContent = contains ? "Box contains B*: IoU = |B*|/|B| = " + iou.toFixed(2) : (iou === 0 ? "No overlap: IoU = 0 at any distance." : "Partial overlap: IoU = " + iou.toFixed(2) + ".");
+          noteT2.textContent = mode === "cov" ? "Coverage: any box around B* scores 1." : (mode === "thr" ? "Pass/fail: no credit below 0.5." : (mode === "giou" ? "GIoU = IoU whenever B contains B*." : "Soft IoU: any overlap earns credit."));
+          bx.setAttribute("aria-valuetext", "IoU " + iou.toFixed(2) + ", reward " + fmt(rewardOf(b, mode)) + ", advantage " + fmt(A));
+          Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) { btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === mode ? "true" : "false"); });
+        };
+      }
+    });
+  })();
+
+  /* =================================================================
+     Figure 4: gradient flow
+     ================================================================= */
+  (function () {
+    var BL = [
+      { k: "img", x: 20, w: 110, t: ["Image", "I"] },
+      { k: "enc", x: 160, w: 150, t: ["Vision", "encoder E"] },
+      { k: "proj", x: 340, w: 120, t: ["Connector", "P"] },
+      { k: "llm", x: 490, w: 170, t: ["Language", "model"] },
+      { k: "ans", x: 690, w: 90, t: ["Answer", "“57”"] },
+      { k: "ver", x: 810, w: 130, t: ["Verifier", "R, A"] }
+    ];
+    var EVID = {
+      llm: ["LLM only. The visual tokens v = P(E(I)) are fixed for each image.", "RL can change how the language model reads them, not what it sees.", "Used by MAYE, Vision-G1, NoisyRollout and V-Triune. In V-Triune, training", "the encoder gave large, spiking gradient norms and detection collapsed."],
+      proj: ["Connector + LLM. The encoder's features are fixed; their mapping moves.", "Skywork R1V2 on MMMU: adapter only 73.6, adapter + LLM 72.1,", "adapter + encoder 72.3. Skywork R1V3: freezing or removing the", "connector made training fail, with repetitive output."],
+      full: ["Full model. The encoder itself can change its features.", "Skywork R1V3 kept every module trainable; unfreezing the encoder gave", "further gains. Preference-trained encoders also probed better than", "SFT-trained ones (“RL makes MLLMs see better than SFT”)."]
+    };
+    var DEPTH = { llm: 1, proj: 2, full: 3 };
+    Fig("fig-grad", {
+      w: 960, h: 410, tw: 0.55, dur: 3600,
+      alt: "Block diagram: image, vision encoder, connector, language model, answer and verifier. A forward pulse runs left to right, then the advantage flows backward and stops at the first frozen block. Buttons select which blocks are trainable.",
+      init: { fwd: 0, ver: 0, bwd: 0, mode: "llm", replay: 0 },
+      stages: [
+        { name: "Forward: pixels become visual tokens", s: { fwd: 1, ver: 0, bwd: 0, replay: 0, mode: "llm" } },
+        { name: "Forward: the language model writes the answer", s: { fwd: 2 } },
+        { name: "The verifier scores the answer", s: { ver: 1 } },
+        { name: "Backward: the advantage enters the language model", s: { bwd: 1 } },
+        { name: "Backward: does it reach the connector?", s: { bwd: 2 } },
+        { name: "Backward: does it reach the vision encoder?", s: { bwd: 3 } },
+        { name: "Unfreeze the connector", s: { mode: "proj", replay: 1 }, dur: 4400 },
+        { name: "Unfreeze the whole model", s: { mode: "full", replay: 1 }, dur: 4400 }
+      ],
+      build: function (svg, Fh) {
+        var y0 = 70, h = 110, cy = y0 + h / 2;
+        var lane = 220;
+        BL.forEach(function (b, k) { if (k > 0) { var px = BL[k - 1].x + BL[k - 1].w; el("path", { d: "M" + (px + 2) + " " + cy + " L" + (b.x - 4) + " " + cy + " m -8 -6 l 8 6 l -8 6", fill: "none", stroke: C.ink, "stroke-width": 1.6 }, svg); } });
+        var lanePath = line(svg, 225, lane, 875, lane, { stroke: C.orange, "stroke-width": 1.5, "stroke-dasharray": "5 5", opacity: 0.6 });
+        T(svg, 940, lane + 5, "← ∇", { size: 16, fill: C.orange, anchor: "end", weight: 600 });
+        var blocks = {};
+        BL.forEach(function (b) {
+          var bg = g(svg);
+          var r = rect(bg, b.x, y0, b.w, h, { rx: 6, fill: "#fff", stroke: C.ink, "stroke-width": 1.5 });
+          T(bg, b.x + b.w / 2, cy - 4, b.t[0], { size: 17, anchor: "middle", weight: 700, disp: true });
+          T(bg, b.x + b.w / 2, cy + 20, b.t[1], { size: 15, anchor: "middle", fill: C.soft });
+          var lock = g(bg);
+          rect(lock, b.x + b.w - 26, y0 + 12, 16, 12, { fill: C.muted, rx: 2 });
+          el("path", { d: "M" + (b.x + b.w - 23) + " " + (y0 + 12) + " v -4 a 5 5 0 0 1 10 0 v 4", fill: "none", stroke: C.muted, "stroke-width": 2 }, lock);
+          var tag = T(bg, b.x + b.w / 2, y0 - 10, "", { size: 15, anchor: "middle", weight: 600 });
+          var glow = rect(bg, b.x - 4, y0 - 4, b.w + 8, h + 8, { rx: 8, fill: "none", stroke: C.orange, "stroke-width": 4, opacity: 0 });
+          blocks[b.k] = { r: r, lock: lock, tag: tag, glow: glow, b: b };
+        });
+        var stopM = g(svg);
+        el("path", { d: "M-9 -9 l 18 18 M9 -9 l -18 18", stroke: C.red, "stroke-width": 3.5, "stroke-linecap": "round" }, stopM);
+        var stopT = T(stopM, 0, 30, "gradient stops", { size: 15, fill: C.red, anchor: "middle", weight: 600 });
+        var fdot = el("circle", { r: 9, fill: C.blue }, svg);
+        var bdot = el("circle", { r: 10, fill: C.orange }, svg);
+        var rv = T(svg, 875, y0 + h + 26, "R = 1   A = +0.77", { size: 15, anchor: "middle", fill: C.green, weight: 600 });
+        var ev = g(svg);
+        rect(ev, 20, 262, 920, 136, { fill: "#fff", stroke: C.rule });
+        var evL = wrapLines(ev, 38, 292, ["", "", "", ""], { size: 16 }, 28);
+        var fx = [75, 235, 400, 575, 735, 875];
+        var bx = { 0: 875, 1: 575, 2: 400, 3: 235 };
+        Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) {
+          btn.addEventListener("click", function () { Fh.interact(); Fh.set({ mode: btn.getAttribute("data-mode") }); });
+        });
+        return function (S, u) {
+          var depth = DEPTH[S.mode] || 1;
+          /* forward dot */
+          var f = S.fwd, fpos;
+          if (f <= 1) fpos = lerp(fx[0], fx[2], f); else fpos = lerp(fx[2], fx[4], f - 1);
+          if (S.ver > 0) fpos = lerp(fx[4], fx[5], S.ver);
+          fdot.setAttribute("cx", fpos.toFixed(1)); fdot.setAttribute("cy", cy + 36);
+          op(fdot, (f > 0.02 && S.bwd < 0.05) ? 1 - S.ver * 0.8 : 0);
+          op(rv, S.ver);
+          /* backward */
+          var bw = S.replay > 0.5 ? 3 * ease(seg(u, 0.05, 0.6)) : S.bwd;
+          var reach = Math.min(bw, depth);
+          var segI = Math.floor(reach), fr = reach - segI;
+          var bpos = segI >= 3 ? bx[3] : lerp(bx[segI], bx[segI + 1], fr);
+          bdot.setAttribute("cx", bpos.toFixed(1)); bdot.setAttribute("cy", lane);
+          op(bdot, bw > 0.02 ? 1 : 0);
+          op(lanePath, 0.25 + 0.5 * Math.min(1, bw));
+          var stopAt = depth < 3 && bw > depth + 0.05;
+          op(stopM, stopAt ? 1 : 0);
+          if (stopAt) stopM.setAttribute("transform", "translate(" + ((bx[depth] + bx[depth + 1]) / 2 + 20) + "," + lane + ")");
+          var order = { llm: 1, proj: 2, enc: 3 };
+          ["enc", "proj", "llm"].forEach(function (k) {
+            var o = blocks[k], trainable = order[k] <= depth, got = trainable && reach >= order[k] - 0.02;
+            o.r.setAttribute("fill", trainable ? "#fff" : C.paper3);
+            o.r.setAttribute("stroke", trainable ? C.ink : C.grey);
+            op(o.lock, trainable ? 0 : 1);
+            op(o.glow, got ? 1 : 0);
+            o.tag.textContent = trainable ? (got ? "∇ received" : "trainable") : "frozen";
+            o.tag.setAttribute("fill", trainable ? C.orange : C.muted);
+          });
+          ["img", "ans", "ver"].forEach(function (k) { op(blocks[k].lock, 0); });
+          var lines = EVID[S.mode] || EVID.llm;
+          evL.forEach(function (t, k) { t.textContent = lines[k]; t.setAttribute("fill", k === 0 ? C.ink : C.soft); t.setAttribute("font-weight", k === 0 ? 600 : 400); });
+          Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) { btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === S.mode ? "true" : "false"); });
+        };
+      }
+    });
+  })();
+
+  /* =================================================================
+     Figure 5: controls that separate perception from reasoning
+     ================================================================= */
+  Fig("fig-controls", {
+    w: 960, h: 480, tw: 0.45, dur: 4600,
+    alt: "Four evaluation conditions, real image, blank image, facts as text and perception probe, each with a before-RL and after-RL bar. Three scenarios show reading improving, reasoning improving, and the model leaning on priors. Values are illustrative.",
+    init: { b: [0, 0, 0, 0], a: [0, 0, 0, 0], hl: "", note: "", br: 0 },
+    stages: [
+      { name: "Before RL: four ways to run one evaluation", s: { b: [52, 30, 78, 64], a: [0, 0, 0, 0], hl: "", note: "Before RL. The facts-as-text score is the ceiling set by reasoning alone.", br: 0 } },
+      { name: "Scenario A: reading improved", s: { a: [63, 30, 79, 77], hl: "3", note: "A: the probe rises and facts-as-text barely moves. RL improved perception." } },
+      { name: "Scenario B: reasoning improved", s: { a: [61, 31, 90, 64], hl: "2", note: "B: facts-as-text rises and the probe is flat. RL improved reasoning." } },
+      { name: "Scenario C: the model leans on priors", s: { a: [60, 45, 78, 63], hl: "1", note: "C: the blank-image score rises with no probe gain. A warning sign." } },
+      { name: "Reading the gaps", s: { a: [63, 30, 79, 77], hl: "", br: 1, note: "Image use = real − blank. Perception cost = facts − real." }, dur: 5200 }
+    ],
+    build: function (svg) {
+      var cols = [150, 380, 610, 840], labels = ["Real image", "Blank image", "Facts as text", "Perception probe"];
+      var top = g(svg);
+      cols.forEach(function (cx, k) {
+        rect(top, cx - 70, 16, 140, 84, { fill: k === 1 ? C.paper3 : "#fff", stroke: C.rule });
+        if (k === 0) { [0, 1, 2, 3].forEach(function (j) { var hgt = [26, 34, 44, 54][j]; rect(top, cx - 52 + j * 28, 92 - hgt, 18, hgt, { fill: C.blue, opacity: 0.8 }); }); }
+        if (k === 2) { T(top, cx, 50, "2021: 42", { size: 16, anchor: "middle" }); T(top, cx, 76, "2023: 57", { size: 16, anchor: "middle" }); }
+        if (k === 3) { T(top, cx, 50, "Q: 2023", { size: 16, anchor: "middle" }); T(top, cx, 76, "value?", { size: 16, anchor: "middle" }); }
+        T(top, cx, 124, labels[k], { size: 16, anchor: "middle", weight: 600 });
+      });
+      function vy(v) { return 400 - v * 2.4; }
+      line(svg, 40, 400, 930, 400, { stroke: C.ink, "stroke-width": 1.5 });
+      [25, 50, 75, 100].forEach(function (v) { line(svg, 40, vy(v), 930, vy(v), { stroke: "#ebe9e4" }); T(svg, 36, vy(v) + 5, v + "%", { size: 15, fill: C.muted, anchor: "end" }); });
+      var hls = [], bb = [], ab = [], bt = [], at = [];
+      cols.forEach(function (cx, k) {
+        hls.push(rect(svg, cx - 66, 140, 132, 262, { fill: C.orangeL, opacity: 0 }));
+      });
+      cols.forEach(function (cx, k) {
+        bb.push(rect(svg, cx - 44, 400, 40, 0, { fill: C.grey }));
+        ab.push(rect(svg, cx + 4, 400, 40, 0, { fill: C.blue }));
+        bt.push(T(svg, cx - 24, 400, "", { size: 15, anchor: "middle", fill: C.soft }));
+        at.push(T(svg, cx + 24, 400, "", { size: 15, anchor: "middle", fill: C.blue, weight: 600 }));
+      });
+      var br = g(svg);
+      function bracket(x, v1, v2, lab, col) {
+        var gg = g(br);
+        el("path", { d: "M" + x + " " + vy(v1) + " h 10 V " + vy(v2) + " h -10", fill: "none", stroke: col, "stroke-width": 2.5 }, gg);
+        T(gg, x + 16, (vy(v1) + vy(v2)) / 2 + 5, lab, { size: 15, fill: col, weight: 600 });
+        return gg;
+      }
+      bracket(200, 63, 30, "image use 33", C.green);
+      bracket(660, 79, 63, "perception cost 16", C.red);
+      rect(svg, 40, 424, 16, 16, { fill: C.grey }); T(svg, 62, 438, "before RL", { size: 15, fill: C.soft });
+      rect(svg, 170, 424, 16, 16, { fill: C.blue }); T(svg, 192, 438, "after RL", { size: 15, fill: C.soft });
+      T(svg, 930, 438, "illustrative values, not measurements", { size: 15, fill: C.muted, anchor: "end", italic: true });
+      var note = T(svg, 40, 468, "", { size: 16, fill: C.orange, weight: 600 });
+      return function (S) {
+        cols.forEach(function (cx, k) {
+          var hb = S.b[k] * 2.4, ha = S.a[k] * 2.4;
+          bb[k].setAttribute("y", 400 - hb); bb[k].setAttribute("height", hb);
+          ab[k].setAttribute("y", 400 - ha); ab[k].setAttribute("height", ha);
+          bt[k].setAttribute("y", 394 - hb); bt[k].textContent = S.b[k] > 1 ? Math.round(S.b[k]) : "";
+          at[k].setAttribute("y", 394 - ha); at[k].textContent = S.a[k] > 1 ? Math.round(S.a[k]) : "";
+          op(hls[k], S.hl === String(k) ? 0.8 : 0);
+        });
+        op(br, S.br);
+        note.textContent = S.note;
+      };
+    }
+  });
+
+  /* =================================================================
+     Figure 6: sparse outcome reward vs step-level checks
+     ================================================================= */
+  (function () {
+    var COLS = [{ x: 222, t: "find 2021" }, { x: 342, t: "read 2021" }, { x: 462, t: "find 2023" }, { x: 582, t: "read 2023" }, { x: 702, t: "subtract" }];
+    var ROWS = [
+      { n: "Rollout A", d: "all correct", cells: ["2021 bar", "42", "2023 bar", "57", "57−42=15"], ok: [1, 1, 1, 1, 1], ans: "15", R: 1 },
+      { n: "Rollout B", d: "errors cancel", cells: ["2021 bar", "41", "2023 bar", "56", "56−41=15"], ok: [1, 0, 1, 0, 1], ans: "15", R: 1 },
+      { n: "Rollout C", d: "bad arithmetic", cells: ["2021 bar", "42", "2023 bar", "57", "57−42=13"], ok: [1, 1, 1, 1, 0], ans: "13", R: 0 }
+    ];
+    var ad = advantages(ROWS.map(function (r) { return r.R; }));
+    Fig("fig-credit", {
+      w: 960, h: 470, tw: 0.4, dur: 4000,
+      alt: "Three rollouts with five steps each answer a two-bar chart question. Under an outcome reward every step inherits the final advantage; under step-level checks each step is scored on its own.",
+      init: { cells: 0, out: 0, credit: 0, sweep: 0, mode: "sparse", hl: "" },
+      stages: [
+        { name: "The question and its true values", s: { cells: 0, out: 0, credit: 0, mode: "sparse", hl: "" } },
+        { name: "Three rollouts, five steps each", s: { cells: 1 } },
+        { name: "The outcome verifier sees only the answer", s: { out: 1 } },
+        { name: "Outcome reward: every step inherits A", s: { credit: 1, sweep: 1 }, dur: 4400 },
+        { name: "Rollout B: two misreadings, rewarded", s: { hl: "1", sweep: 0 } },
+        { name: "Rollout C: correct readings, penalised", s: { hl: "2" } },
+        { name: "Step-level checks score each step", s: { mode: "process", hl: "", sweep: 1 }, dur: 4400 },
+        { name: "Credit lands on the step that earned it", s: { hl: "12", sweep: 0 }, dur: 4600 }
+      ],
+      build: function (svg, Fh) {
+        T(svg, 20, 28, "Q: How much did revenue grow from 2021 to 2023?   true values: 42 and 57", { size: 16, weight: 600 });
+        COLS.forEach(function (c) { T(svg, c.x, 64, c.t, { size: 15, anchor: "middle", fill: C.muted }); });
+        T(svg, 806, 64, "answer", { size: 15, anchor: "middle", fill: C.muted });
+        T(svg, 864, 64, "R", { size: 15, anchor: "middle", fill: C.muted });
+        T(svg, 920, 64, "A", { size: 15, anchor: "middle", fill: C.muted });
+        var rows = ROWS.map(function (r, k) {
+          var y = 80 + k * 92;
+          var hl = rect(svg, 10, y - 6, 942, 76, { fill: "none", stroke: C.orange, "stroke-width": 3, rx: 4, opacity: 0 });
+          T(svg, 20, y + 30, r.n, { size: 16, weight: 700, disp: true });
+          T(svg, 20, y + 52, r.d, { size: 15, fill: C.soft });
+          var cells = r.cells.map(function (s, j) {
+            var cg = g(svg);
+            var bg = rect(cg, COLS[j].x - 56, y, 112, 64, { fill: "#fff", stroke: C.rule, rx: 3 });
+            var tx = T(cg, COLS[j].x, y + 38, s, { size: s.length > 6 ? 15 : 17, anchor: "middle", weight: 600, fill: r.ok[j] ? C.ink : C.red });
+            var ck = check(cg, COLS[j].x + 44, y + 14, r.ok[j] === 1, 0.6);
+            return { g: cg, bg: bg, ck: ck };
+          });
+          var outg = g(svg);
+          T(outg, 806, y + 39, r.ans, { size: 19, anchor: "middle", weight: 700 });
+          T(outg, 864, y + 39, String(r.R), { size: 19, anchor: "middle", weight: 700, fill: r.R ? C.green : C.red });
+          var at = T(svg, 920, y + 39, fmtS(ad.A[k]), { size: 16, anchor: "middle", weight: 700, fill: ad.A[k] > 0 ? C.green : C.red });
+          return { hl: hl, cells: cells, outg: outg, at: at, A: ad.A[k], ok: r.ok };
+        });
+        var note = g(svg);
+        rect(note, 10, 368, 942, 92, { fill: "#fff", stroke: C.rule });
+        var nl = wrapLines(note, 26, 400, ["", ""], { size: 16 }, 30);
+        var NOTES = {
+          sparse: ["Outcome reward: one number per rollout. GRPO gives every token the same A.", "B's misreadings are reinforced. C's correct readings are discouraged."],
+          process: ["Step-level checks: reads are compared with the chart, arithmetic with a calculator.", "B's two misreadings and C's subtraction are the only steps marked down."]
+        };
+        Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) {
+          btn.addEventListener("click", function () { Fh.interact(); Fh.set({ mode: btn.getAttribute("data-mode") }); });
+        });
+        return function (S, u) {
+          var proc = S.mode === "process";
+          var cr = S.sweep > 0.5 ? ease(seg(u, 0.1, 0.75)) * S.credit : S.credit;
+          rows.forEach(function (r, k) {
+            op(r.hl, S.hl.indexOf(String(k)) >= 0 ? 1 : 0);
+            r.cells.forEach(function (c, j) {
+              var a = stag(S.cells, j + k * 0.5, 7, 0.7);
+              op(c.g, a);
+              var lit = clamp(cr * 6 - (4 - j), 0, 1);
+              if (proc) lit = clamp(cr * 6 - j, 0, 1);
+              var good = proc ? r.ok[j] === 1 : r.A > 0;
+              c.bg.setAttribute("fill", mix("#ffffff", good ? C.greenL : C.redL, lit));
+              c.bg.setAttribute("stroke", lit > 0.5 ? (good ? C.green : C.red) : C.rule);
+              op(c.ck, proc ? lit : 0);
+            });
+            op(r.outg, S.out);
+            op(r.at, S.out * (proc ? 0.35 : 1));
+          });
+          var nn = NOTES[proc ? "process" : "sparse"];
+          nl[0].textContent = S.credit > 0.5 ? nn[0] : (S.out > 0.5 ? "The verifier compares the final answer with 15. It never sees the steps." : (S.cells > 0.5 ? "Each rollout locates two bars, reads two values and subtracts." : "Revenue grew from 42 to 57, so the right answer is 15."));
+          nl[1].textContent = S.credit > 0.5 ? nn[1] : (S.out > 0.5 ? "A and B both answer 15 and get R = 1. C answers 13 and gets R = 0." : "");
+          nl[1].setAttribute("fill", C.soft);
+          Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) { btn.setAttribute("aria-pressed", btn.getAttribute("data-mode") === S.mode ? "true" : "false"); });
+        };
+      }
+    });
+  })();
+
+  /* =================================================================
+     Figure 7: reward hacking gallery
+     ================================================================= */
+  (function () {
+    var H = [
+      { t: "1 · Oversized box", ev: "Evidence: GUI-G1 measured predicted boxes growing under an IoU reward." },
+      { t: "2 · Listing every category", ev: "Evidence: VLM-R1, open-vocabulary detection with an mAP reward." },
+      { t: "3 · Lenient answer parser", ev: "Evidence: GLM-4.1V-Thinking, a flawed multi-image QA reward collapsed every domain." },
+      { t: "4 · Answering without the image", ev: "Evidence: MMStar and MathVerse show many questions are answerable from text alone." },
+      { t: "5 · Thinking that is not grounded", ev: "Evidence: “More Thinking, Less Seeing?” and Skywork R1V2's hallucination findings." },
+      { t: "6 · Tool collapse", ev: "Evidence: the Qwen3-VL report, thinking-with-images RL collapsing to one tool call." }
+    ];
+    var init = { title: H[0].t, ev: H[0].ev };
+    H.forEach(function (h, k) { init["o" + k] = k === 0 ? 1 : 0; });
+    var stages = H.map(function (h, k) { var s = { title: h.t, ev: h.ev }; H.forEach(function (_, j) { s["o" + j] = j === k ? 1 : 0; }); return { name: h.t.replace(/^\d · /, ""), s: s, dur: 4800 }; });
+    Fig("fig-hacks", {
+      w: 960, h: 470, tw: 0.3,
+      alt: "Six reward hacks shown one at a time with their repairs: oversized boxes, listing every category, a lenient parser, answering a blanked image from priors, ungrounded reasoning, and collapse to a single tool call.",
+      init: init, stages: stages,
+      build: function (svg) {
+        var title = T(svg, 20, 30, "", { size: 20, weight: 700, disp: true });
+        rect(svg, 20, 48, 450, 360, { fill: "#fff", stroke: C.rule });
+        rect(svg, 490, 48, 450, 360, { fill: "#fff", stroke: C.rule });
+        rect(svg, 20, 48, 450, 4, { fill: C.orange });
+        rect(svg, 490, 48, 450, 4, { fill: C.blue });
+        T(svg, 36, 78, "EXPLOIT", { size: 15, weight: 600, fill: C.orange });
+        T(svg, 506, 78, "REPAIR", { size: 15, weight: 600, fill: C.blue });
+        var ev = T(svg, 20, 442, "", { size: 15, fill: C.soft, italic: true });
+        var P = [];
+        /* hack 0: oversized box */
+        (function () {
+          var L = g(svg), R = g(svg);
+          var img = [40, 96, 260, 200], tgt = [200, 200, 54, 66];
+          rect(L, img[0], img[1], img[2], img[3], { fill: "#fbfaf7", stroke: C.ink });
+          mug(L, 205, 206, 46, 54, "#c4553f");
+          rect(L, tgt[0], tgt[1], tgt[2], tgt[3], { fill: "none", stroke: C.blue, "stroke-width": 2.5, "stroke-dasharray": "6 4" });
+          var bx = rect(L, 0, 0, 0, 0, { fill: "none", stroke: C.orange, "stroke-width": 3 });
+          var r1 = T(L, 316, 140, "", { size: 16, weight: 600 });
+          T(L, 316, 172, "siblings: 0", { size: 15, fill: C.soft });
+          var r2 = T(L, 316, 204, "", { size: 16, weight: 700 });
+          wrapLines(L, 40, 336, ["A box that contains the target", "always earns |B*| / |B| > 0."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Threshold:  R = 1[IoU ≥ 0.5]", "  whole image → R = 0", "", "Precision term (Vision-R1, Zhan)", "Box-size term (GUI-G1)", "Rising IoU threshold (V-Triune)"], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) {
+            var q = ease(seg(u, 0.15, 0.7));
+            var b = [lerp(tgt[0] - 4, img[0], q), lerp(tgt[1] - 4, img[1], q), lerp(tgt[2] + 8, img[2], q), lerp(tgt[3] + 8, img[3], q)];
+            setRect(bx, b);
+            var iou = boxIoU(b, tgt).iou;
+            r1.textContent = "IoU = " + iou.toFixed(2);
+            r2.textContent = q > 0.95 ? "A > 0" : ""; r2.setAttribute("fill", C.green);
+          } });
+        })();
+        /* hack 1: every category */
+        (function () {
+          var L = g(svg), R = g(svg);
+          rect(L, 40, 96, 170, 150, { fill: "#fbfaf7", stroke: C.ink });
+          el("circle", { cx: 90, cy: 160, r: 28, fill: "#d8c7a6", stroke: C.ink }, L);
+          T(L, 90, 210, "cat", { size: 15, anchor: "middle", fill: C.soft });
+          mug(L, 145, 140, 40, 48, C.blueL);
+          T(L, 160, 210, "cup", { size: 15, anchor: "middle", fill: C.soft });
+          T(L, 40, 274, "find: cat, cup, dog, bus, kite, car", { size: 15, fill: C.soft });
+          var items = ["cat", "cup", "dog", "bus", "kite", "car"];
+          var outs = items.map(function (it, k) { return T(L, 236, 116 + k * 26, it + " [x1, y1, x2, y2]", { size: 15, fill: k < 2 ? C.ink : C.red }); });
+          var note = T(L, 236, 290, "absent classes: ignored by AP", { size: 15, fill: C.red, weight: 600 });
+          wrapLines(L, 40, 336, ["mAP unchanged, output 3× longer.", "Nothing in the reward says stop."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Length-aware reward (VLM-R1):", "", "R = mAP × min(1, L_gt / L_pred)", "  = mAP × min(1, 2 / 6)", "  = 0.33 × mAP", "", "Over-listing now costs reward."], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) { outs.forEach(function (o, k) { op(o, seg(u, 0.1 + k * 0.08, 0.18 + k * 0.08)); }); op(note, seg(u, 0.65, 0.8)); } });
+        })();
+        /* hack 2: parser */
+        (function () {
+          var L = g(svg), R = g(svg);
+          T(L, 40, 120, "Q: Which bar is tallest? (A/B/C/D)", { size: 15 });
+          rect(L, 40, 140, 400, 46, { fill: C.paper2, stroke: C.rule });
+          T(L, 56, 170, "<answer>B or C</answer>", { size: 17, weight: 600 });
+          var s1 = T(L, 40, 222, "parser: does “C” appear? yes", { size: 15, fill: C.soft });
+          var s2 = T(L, 40, 254, "R = 1", { size: 20, weight: 700, fill: C.green });
+          wrapLines(L, 40, 336, ["Every rollout probes the parser.", "Hedges that pass get reinforced."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Strict parser:", "  exactly one option letter", "  in one fixed location", "", "“B or C” → rejected → R = 0", "", "Test the parser with adversarial", "strings before training."], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) { op(s1, seg(u, 0.2, 0.4)); op(s2, seg(u, 0.45, 0.6)); } });
+        })();
+        /* hack 3: blank image */
+        (function () {
+          var L = g(svg), R = g(svg);
+          var frame = rect(L, 40, 96, 220, 150, { fill: "#fbfaf7", stroke: C.ink });
+          var bus = g(L);
+          rect(bus, 70, 130, 160, 90, { fill: "#c4553f", rx: 6 });
+          [0, 1, 2, 3].forEach(function (j) { rect(bus, 82 + j * 36, 142, 26, 22, { fill: "#f3e7d8" }); rect(bus, 82 + j * 36, 178, 26, 22, { fill: "#f3e7d8" }); });
+          var blank = rect(L, 40, 96, 220, 150, { fill: C.paper3, opacity: 0 });
+          var bl = T(L, 150, 178, "blank image", { size: 15, anchor: "middle", fill: C.muted });
+          T(L, 40, 274, "Q: What colour is the London", { size: 15 });
+          T(L, 40, 296, "   double-decker bus?", { size: 15 });
+          var a = T(L, 290, 178, "“Red” ✓", { size: 18, weight: 700, fill: C.green });
+          wrapLines(L, 40, 336, ["The prior answers it.", "An outcome reward pays the same."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Filter: drop training items that a", "text-only model answers correctly.", "", "Track: accuracy with a blank image,", "before and after RL.", "", "A rising blank-image score is a", "warning, not a gain."], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) { var q = seg(u, 0.15, 0.45); op(blank, q); op(bl, q); op(a, seg(u, 0.5, 0.65)); } });
+        })();
+        /* hack 4: ungrounded thinking */
+        (function () {
+          var L = g(svg), R = g(svg);
+          rect(L, 40, 96, 170, 150, { fill: "#fbfaf7", stroke: C.ink });
+          [[85, 150], [150, 150]].forEach(function (p) { el("circle", { cx: p[0], cy: p[1] - 22, r: 12, fill: "none", stroke: C.ink, "stroke-width": 2 }, L); el("path", { d: "M" + p[0] + " " + (p[1] - 10) + " v 34 m -14 -22 h 28 m -14 22 l -10 22 m 10 -22 l 10 22", fill: "none", stroke: C.ink, "stroke-width": 2 }, L); });
+          T(L, 40, 274, "Q: How many people?", { size: 15 });
+          var t1 = T(L, 226, 116, "<think> I see two", { size: 15 });
+          var t2 = T(L, 226, 140, "people near a", { size: 15 });
+          var t3 = T(L, 226, 164, "red door.", { size: 15, fill: C.red, weight: 600 });
+          var u3 = line(L, 226, 170, 306, 170, { stroke: C.red, "stroke-width": 2 });
+          var t4 = T(L, 226, 188, "So: 2 </think>", { size: 15 });
+          var t5 = T(L, 226, 222, "answer 2 ✓  R = 1", { size: 16, weight: 700, fill: C.green });
+          wrapLines(L, 40, 336, ["There is no door in the image.", "The reward never looks at the chain."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Check what the chain claims:", "  boxes against annotations", "  quoted text against OCR", "", "Or reward perception directly:", "  caption reward (Visionary-R1)", "  perception loss (PAPO)"], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) { [t1, t2, t3, t4].forEach(function (t, k) { op(t, seg(u, 0.1 + k * 0.1, 0.2 + k * 0.1)); }); op(u3, seg(u, 0.5, 0.6)); op(t5, seg(u, 0.6, 0.72)); } });
+        })();
+        /* hack 5: tool collapse */
+        (function () {
+          var L = g(svg), R = g(svg);
+          T(L, 40, 112, "tool calls per episode", { size: 15, fill: C.soft });
+          line(L, 60, 300, 440, 300, { stroke: C.ink });
+          line(L, 60, 130, 60, 300, { stroke: C.ink });
+          T(L, 440, 322, "training step →", { size: 15, fill: C.soft, anchor: "end" });
+          var vals = [4, 4.5, 4, 3.6, 3, 2.4, 1.8, 1.3, 1, 1, 1, 1];
+          var bars = vals.map(function (v, k) { return rect(L, 72 + k * 30, 300, 20, 0, { fill: k > 7 ? C.red : C.orange }); });
+          wrapLines(L, 40, 346, ["The policy settles on one call:", "enough to satisfy the format, no real look."], { size: 15, fill: C.soft }, 24);
+          wrapLines(R, 506, 124, ["Qwen3-VL added a reward for", "tool calling after this collapse.", "", "Watch the distribution of tool", "calls, not only the final reward."], { size: 16 }, 30);
+          P.push({ L: L, R: R, up: function (u) { bars.forEach(function (b, k) { var a = seg(u, 0.08 + k * 0.05, 0.16 + k * 0.05); var h = vals[k] * 34 * a; b.setAttribute("y", 300 - h); b.setAttribute("height", h); }); } });
+        })();
+        return function (S, u) {
+          title.textContent = S.title; ev.textContent = S.ev;
+          P.forEach(function (p, k) {
+            var o = S["o" + k];
+            op(p.L, o); op(p.R, o);
+            p.L.style.display = o < 0.01 ? "none" : ""; p.R.style.display = o < 0.01 ? "none" : "";
+            var active = S.title === H[k].t;
+            p.up(active ? u : 1);
+          });
+        };
+      }
+    });
+  })();
+
+  /* =================================================================
+     Figure 8: zero-advantage groups (interactive)
+     ================================================================= */
+  (function () {
+    var N = 200, Z = [], V = [];
+    var s = 12345;
+    function rnd() { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }
+    for (var i = 0; i < N; i++) { var u1 = 1 - rnd(), u2 = rnd(); Z.push(Math.sqrt(-2 * Math.log(u1)) * Math.cos(6.283185 * u2)); V.push(rnd()); }
+    var order = Z.map(function (z, i) { return i; }).sort(function (a, b) { return Z[a] - Z[b]; });
+    function logit(p) { return Math.log(p / (1 - p)); }
+    function sig(x) { return 1 / (1 + Math.exp(-x)); }
+    Fig("fig-zero", {
+      w: 960, h: 450, tw: 0.5, dur: 4200,
+      alt: "Left: the curve p to the K plus one minus p to the K. Right: 200 prompts coloured orange if their group of rollouts has mixed outcomes and grey if all outcomes are identical. Sliders set the mean pass rate and group size; a filter keeps pass rates between 0.2 and 0.8.",
+      init: { mu: 0.5, K: 8, filt: 0 },
+      stages: [
+        { name: "A balanced batch: most groups are mixed", s: { mu: 0.5, K: 8, filt: 0 } },
+        { name: "Training succeeds: prompts get easier", s: { mu: 0.75 } },
+        { name: "Easier still", s: { mu: 0.88 } },
+        { name: "Vanishing advantages", s: { mu: 0.94 } },
+        { name: "Filter to pass rates between 0.2 and 0.8", s: { filt: 1 } },
+        { name: "Larger groups rescue the edges", s: { K: 24, filt: 0 } },
+        { name: "Too hard: most groups fail together", s: { mu: 0.08, K: 8 } }
+      ],
+      build: function (svg, Fh) {
+        var X0 = 70, X1 = 430, Y0 = 60, Y1 = 340;
+        function px(p) { return X0 + p * (X1 - X0); }
+        function py(v) { return Y1 - v * (Y1 - Y0); }
+        var band = rect(svg, px(0.2), Y0, px(0.8) - px(0.2), Y1 - Y0, { fill: C.blueL, opacity: 0 });
+        line(svg, X0, Y1, X1, Y1, { stroke: C.ink, "stroke-width": 1.5 });
+        line(svg, X0, Y0, X0, Y1, { stroke: C.ink, "stroke-width": 1.5 });
+        [0, 0.25, 0.5, 0.75, 1].forEach(function (v) { T(svg, px(v), Y1 + 22, String(v), { size: 15, anchor: "middle", fill: C.muted }); T(svg, X0 - 8, py(v) + 5, String(v), { size: 15, anchor: "end", fill: C.muted }); line(svg, X0, py(v), X1, py(v), { stroke: "#ebe9e4" }); });
+        T(svg, (X0 + X1) / 2, Y1 + 48, "pass rate p of a prompt", { size: 15, anchor: "middle", fill: C.soft });
+        T(svg, X0 - 50, 36, "P(zero advantage) = pᴷ + (1 − p)ᴷ", { size: 16, weight: 600 });
+        var curve = el("path", { fill: "none", stroke: C.orange, "stroke-width": 3 }, svg);
+        var mline = line(svg, 0, Y0, 0, Y1, { stroke: C.blue, "stroke-width": 2, "stroke-dasharray": "5 4" });
+        var mlab = T(svg, 0, Y0 - 6, "", { size: 15, anchor: "middle", fill: C.blue, weight: 600 });
+        var dots = [];
+        for (var k = 0; k < N; k++) { var c = Math.floor(k / 10), r = k % 10; dots.push(el("circle", { cx: 528 + c * 20.5, cy: 72 + r * 20, r: 7.5 }, svg)); }
+        T(svg, 520, 44, "200 prompts, sorted by pass rate", { size: 15, fill: C.soft });
+        var hb = [];
+        line(svg, 520, 360, 930, 360, { stroke: C.ink });
+        for (var b = 0; b < 10; b++) { hb.push(rect(svg, 524 + b * 40.6, 360, 34, 0, { fill: C.blue, opacity: 0.75 })); }
+        T(svg, 520, 380, "0", { size: 15, fill: C.muted }); T(svg, 930, 380, "1", { size: 15, fill: C.muted, anchor: "end" });
+        T(svg, 725, 380, "histogram of pass rates", { size: 15, fill: C.muted, anchor: "middle" });
+        var head = T(svg, 520, 440, "", { size: 19, weight: 700 });
+        var kept = T(svg, 930, 408, "", { size: 15, fill: C.soft, anchor: "end" });
+        var lg = g(svg);
+        el("circle", { cx: 76, cy: 422, r: 7, fill: C.orange }, lg); T(lg, 90, 427, "mixed group: learns", { size: 15, fill: C.soft });
+        el("circle", { cx: 290, cy: 422, r: 7, fill: C.rule }, lg); T(lg, 304, 427, "all same: A = 0", { size: 15, fill: C.soft });
+        var muIn = Fh.root.querySelector('[data-k="mu"]'), kIn = Fh.root.querySelector('[data-k="K"]');
+        var muOut = Fh.root.querySelector('[data-o="mu"]'), kOut = Fh.root.querySelector('[data-o="K"]');
+        muIn.addEventListener("input", function () { Fh.interact(); Fh.set({ mu: parseFloat(muIn.value) }); });
+        kIn.addEventListener("input", function () { Fh.interact(); Fh.set({ K: parseFloat(kIn.value) }); });
+        Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) {
+          btn.addEventListener("click", function () { Fh.interact(); Fh.set({ filt: btn.getAttribute("data-mode") === "band" ? 1 : 0 }); });
+        });
+        return function (S) {
+          var K = S.K, Kr = Math.round(K), mu = clamp(S.mu, 0.02, 0.98), filtOn = S.filt > 0.5;
+          var d = "";
+          for (var j = 0; j <= 120; j++) { var p = j / 120; var v = Math.pow(p, K) + Math.pow(1 - p, K); d += (j ? "L" : "M") + px(p).toFixed(1) + " " + py(v).toFixed(1); }
+          curve.setAttribute("d", d);
+          op(band, S.filt * 0.9);
+          mline.setAttribute("x1", px(mu)); mline.setAttribute("x2", px(mu));
+          mlab.setAttribute("x", px(mu)); mlab.textContent = "mean " + mu.toFixed(2);
+          var hist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], useful = 0, keptN = 0;
+          order.forEach(function (idx, k) {
+            var p = sig(logit(mu) + 1.1 * Z[idx]);
+            hist[Math.min(9, Math.floor(p * 10))]++;
+            var keep = !filtOn || (p >= 0.2 && p <= 0.8);
+            var zero = V[idx] < Math.pow(p, Kr) + Math.pow(1 - p, Kr);
+            var dt = dots[k];
+            if (!keep) { dt.setAttribute("fill", "none"); dt.setAttribute("stroke", C.rule); dt.setAttribute("stroke-width", 1.2); }
+            else { keptN++; if (!zero) useful++; dt.setAttribute("fill", zero ? C.rule : C.orange); dt.setAttribute("stroke", "none"); }
+          });
+          hist.forEach(function (h, b) { var hh = Math.min(h * 0.6, 85); hb[b].setAttribute("y", 360 - hh); hb[b].setAttribute("height", hh); });
+          head.textContent = "Useful groups: " + Math.round(100 * useful / Math.max(1, keptN)) + "% of kept prompts";
+          kept.textContent = "kept " + keptN + " / " + N + "   K = " + Kr;
+          if (document.activeElement !== muIn) muIn.value = mu.toFixed(2);
+          if (document.activeElement !== kIn) kIn.value = Kr;
+          muOut.textContent = mu.toFixed(2); kOut.textContent = String(Kr);
+          Fh.root.querySelectorAll(".vfig-opt [data-mode]").forEach(function (btn) { btn.setAttribute("aria-pressed", (btn.getAttribute("data-mode") === "band") === filtOn ? "true" : "false"); });
+        };
+      }
+    });
+  })();
+})();
+
+</script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>

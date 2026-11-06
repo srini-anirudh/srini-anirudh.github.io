@@ -249,7 +249,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">13 of 20 &middot; Reasoning</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../seeing-in-time/"><span>Previous &middot; 11</span><strong>Seeing in Time</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../rewarding-what-the-model-sees/"><span>Previous &middot; 12</span><strong>Rewarding What the Model Sees</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -286,7 +286,7 @@
         <p>The short answer is: only as far as the first look allows. Reasoning tokens can rearrange, combine and check what the image encoding kept. They cannot add what the encoding threw away. When the missing piece is a pixel-level detail, the fix is not more thinking. The fix is looking again.</p>
         <p>That idea organises the whole post. We first split a visual answer into a perception stage and a reasoning stage. We show how to find out which stage failed. We then sort multimodal reasoning into three forms and trace how the field moved through them. After that, we prove the limit on what reasoning can recover, and we look at evidence that long reasoning can pull a model away from the image.</p>
         <p>The second half treats perception as something you can spend compute on at test time. We add perception and tools to the usual test-time compute axes. Then we cover active perception, search over image regions, visual verification, overthinking, and visual tools used as reasoning steps. The post ends with a comparison of the main methods.</p>
-        <p>This post extends two earlier posts on language models. <a href="../thinking-in-tokens/">Thinking in Tokens</a> explains chain of thought as serial compute. <a href="../how-models-improve-without-changing-their-weights/">How Models Improve Without Changing Their Weights</a> covers test-time scaling: sampling, search, verification and budget allocation. We reuse their results and do not re-derive them. For how pixels become tokens, see <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a>. For the reinforcement learning that trains most of these models, see <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
+        <p>This post extends two earlier posts on language models. <a href="../thinking-in-tokens/">Thinking in Tokens</a> explains chain of thought as serial compute. <a href="../how-models-improve-without-changing-their-weights/">How Models Improve Without Changing Their Weights</a> covers test-time scaling: sampling, search, verification and budget allocation. We reuse their results and do not re-derive them. For how pixels become tokens, see <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a>. For the reinforcement learning that trains most of these models, see <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
       </section>
 
       <section id="stages">
@@ -468,7 +468,7 @@
 
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Slow thinking appears to live in the language model. Virgo showed that text-only long-thought data was enough to give a VLM slow-thinking behaviour on multimodal problems, and possibly more effective than visual reasoning data. Several popular recipes also convert the image to text before reasoning. So a gain on multimodal math benchmarks says little about perception. Evaluate perception separately from reasoning when you compare reasoning VLMs.</p></aside>
         <h3>Reinforcement learning with verifiable rewards</h3>
-        <p>Next came reinforcement learning on problems with checkable answers. Kimi k1.5 trained a multimodal model with large-scale RL and reported 74.9 on MathVista. MM-Eureka applied rule-based RL to a curated multimodal math set. Vision-R1 combined its cold start with GRPO and a schedule that suppresses overlong thinking early in training. The algorithms and reward design are the subject of the previous post, <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
+        <p>Next came reinforcement learning on problems with checkable answers. Kimi k1.5 trained a multimodal model with large-scale RL and reported 74.9 on MathVista. MM-Eureka applied rule-based RL to a curated multimodal math set. Vision-R1 combined its cold start with GRPO and a schedule that suppresses overlong thinking early in training. The algorithms and reward design are the subject of the previous post, <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
 
         <h3>Looking again, as a trained skill</h3>
         <p>In April 2025, OpenAI described o3 and o4-mini as able to "think with images". The models can crop, zoom and rotate an input image inside their chain of thought. OpenAI reported 95.7% on V*Bench, a benchmark of small details in high-resolution images. It also listed limitations: reasoning chains that are too long with redundant image operations, perception errors even when the tool use is correct, and inconsistent behaviour across repeated attempts.</p>
@@ -684,7 +684,7 @@
           <span class="row">max<sub>θ</sub> &nbsp;𝔼[ 1{<i>y</i> = <i>Y</i>*} − λ · cost(<i>a</i><sub>1:K</sub>) ]</span>
           <span class="note">Visual processing becomes a sequence of decisions. This is a partially observed decision problem: the model never sees the full-resolution image at once.</span>
         </div>
-        <p>This turns visual processing into a policy, which is why reinforcement learning shows up everywhere in this area. The reward is usually only the final answer, sometimes with a format term and a cost term. The RL machinery is covered in <a href="../reinforcement-learning-from-first-principles/">Reinforcement Learning from First Principles</a> and, for VLMs, in <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
+        <p>This turns visual processing into a policy, which is why reinforcement learning shows up everywhere in this area. The reward is usually only the final answer, sometimes with a format term and a cost term. The RL machinery is covered in <a href="../reinforcement-learning-from-first-principles/">Reinforcement Learning from First Principles</a> and, for VLMs, in <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
 
         <h3>Four ways to decide where to look</h3>
         <p><strong>A separate search module.</strong> V* (Wu and Xie, 2023) was the first clear statement of the idea for VLMs. Its framework, SEAL, pairs a question-answering VLM with a visual search model. When the VLM cannot find a target, it names what it needs. The search model then looks for it, guided by the language model's knowledge of where such things usually are. A plaque, for example, is usually near a door. Found targets go into a visual working memory that the VLM reads. The same paper introduced V*Bench, built around small details in high-resolution images.</p>
@@ -937,7 +937,7 @@
           <li><a href="../thinking-in-tokens/">Thinking in Tokens</a></li>
           <li><a href="../how-models-improve-without-changing-their-weights/">How Models Improve Without Changing Their Weights</a></li>
           <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li>
+          <li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li>
           <li><a href="../index.html?series=vlms" data-series-pending="vlms-that-act/">VLMs That Act</a></li>
           <li><a href="../index.html?series=vlms" data-series-pending="what-happens-inside-a-vlm/">What Happens Inside a VLM</a></li>
         </ul>
