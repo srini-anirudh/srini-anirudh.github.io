@@ -31,7 +31,29 @@ How every new article on this site should be researched, written and illustrated
 - Add a short note on how to read the table and what pattern to notice.
 - Keep wide tables inside a horizontally scrollable container.
 
-## 4. Write so it is easy to read
+## 4. Highlight non-trivial insights and nuances
+
+- The reader should leave with insights they could not get from an abstract. Make them easy to find.
+- A non-trivial insight is counterintuitive, or not obvious from the headline result, or a consequence that only
+  shows up when two ideas are combined. It is backed by evidence (an ablation, a measurement, a derivation) and
+  ends with what it means in practice.
+  - Not an insight: "Data quality matters."
+  - An insight: "In MM1's ablations, image resolution and token count mattered more than the connector design.
+    So effort on the connector pays less than effort on resolution."
+- A nuance is a qualification that changes how a result should be used: where a finding stops holding, a hidden
+  confound, a metric that rewards the wrong thing, or a case where two papers seem to disagree and why.
+- Mark them visibly with two callouts, used sparingly (about one per major section):
+  ```html
+  <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>...</p></aside>
+  <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>...</p></aside>
+  ```
+  Style: bright-paper background, 1px rule border, a 3px left border (blue for Insight, orange for Nuance),
+  mono uppercase label.
+- Near the end, add a short section that collects the most important insights and nuances of the article, each
+  in one or two sentences with a link back to the section that supports it.
+- Never invent an insight to fill a box. If the evidence is weak, say so in the box, or leave the box out.
+
+## 5. Write so it is easy to read
 
 - Use simple language. Prefer common words over technical ones when both are accurate. Define a term the first
   time it appears.
@@ -50,7 +72,7 @@ How every new article on this site should be researched, written and illustrated
 - Headings are plain and descriptive, in sentence case. Say what the section is about. Avoid cute, clever or
   clickbait headings.
 
-## 5. Explain visually
+## 6. Explain visually
 
 - Every major idea gets a figure. Figures should explain, not decorate.
 - Animations must be high quality: multi-stage, smooth eased transitions, staged reveals, tracked highlights,
@@ -65,7 +87,7 @@ How every new article on this site should be researched, written and illustrated
 - Keep pages fast: inline SVG and CSS, no heavy libraries, no iframes of other pages, no oversized images.
 - Check layout at desktop and mobile widths. No clipped labels, overlapping text, or horizontal page scroll.
 
-## 6. Before publishing
+## 7. Before publishing
 
 - References are the last section, grouped by topic, and every title links to the primary source.
 - Add a short "Continue reading" block of genuinely related posts before References.
