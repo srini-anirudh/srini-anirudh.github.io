@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=8" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=9" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -111,7 +111,7 @@
         <nav class="interest-map" aria-label="Research interests">
           <a href="#sovereign-foundation-models" target="_self"><span>01</span><strong>Sovereign foundation models</strong><em>Patram and Patram-Bench</em></a>
           <a href="#grounded-document-intelligence" target="_self"><span>02</span><strong>Grounded document intelligence</strong><em>lossless pages, answers that point to evidence</em></a>
-          <a href="#vlm-infrastructure" target="_self"><span>03</span><strong>VLM infrastructure</strong><em>Patram-Ingest, talks and lecture</em></a>
+          <a href="#vlm-infrastructure" target="_self"><span>03</span><strong>VLM infrastructure</strong><em>the full stack, storage to evaluation</em></a>
         </nav>
       </section>
 
@@ -551,77 +551,57 @@
         <header class="interest-head">
           <p class="interest-kicker">Research interest 03</p>
           <h2 id="vlm-infrastructure-title">VLM infrastructure</h2>
-          <p>Offline VLM inference at scale with Patram-Ingest.</p>
+          <p>The whole stack that builds sovereign vision foundation models, from storage to evaluation.</p>
         </header>
-        
 
-        <section class="research-card" id="programming-ai-accelerators">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/talk-ai-accelerators-thumb.jpg"
-            alt="Building production-grade offline VLM inference engines at scale"
-            class="research-media"
-            data-image="assets/images/talk-ai-accelerators.jpg"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="talks/programming-ai-accelerators/" target="_self">
-            <span class="papertitle">Building production-grade offline VLM inference engines at scale</span>
-          </a>
-          <br />
-          <em>Guest lecture</em>, Programming AI Accelerators, a course by <a href="https://scholar.google.co.in/citations?user=3HKjt_IAAAAJ&amp;hl=en">Prof. P. J. Narayanan</a> &middot; IIIT Hyderabad &middot; Nov 5, 2026
-          <br />
-          <button onclick="window.open('talks/programming-ai-accelerators/', '_blank')" class="arxiv-button">
-            <i class="fas fa-file-powerpoint"></i>
-            slides
-          </button>
-          <br />
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>A tour of how vLLM works, then how Patram-Ingest keeps GPUs busy, survives crashes, and runs graphs of stages.</p>
-            </div>
-          </details>
-        </div>
-      </section>
+        <figure class="infra-stack" aria-label="The Patram stack, read from the bottom up">
+          <ol>
+            <li><span>Evaluation</span><strong>PatramBench &middot; Patram-Eval</strong></li>
+            <li><span>Models</span><strong>Patram Suite</strong></li>
+            <li><span>Training infrastructure</span><strong>Patram-Core</strong></li>
+            <li class="is-focus"><span>Training data generation</span><strong>Patram-Ingest</strong></li>
+            <li class="is-split"><div><span>Raw data collection</span><strong>Patram-Scraper &middot; Synthetic docs</strong></div><div><span>Annotation &amp; visualization</span><strong>DarshinAI</strong></div></li>
+            <li><span>Storage</span><strong>Patram-FS &middot; Patram-DB</strong></li>
+          </ol>
+          <figcaption>The stack, read from the bottom up. <a href="talks/programming-ai-accelerators/#2" target="_blank" rel="noopener">From the guest lecture, slide 2 &rarr;</a></figcaption>
+        </figure>
 
-        <section class="research-card" id="vllm-meetup-mumbai">
-        <div class="research-card-image">
-          <img
-            src="assets/images/thumbnails/talk-vllm-mumbai-thumb.jpg"
-            alt="Durable execution around vLLM for large-scale data generation"
-            class="research-media"
-            data-image="assets/images/talk-vllm-mumbai.jpg"
-          />
-        </div>
-        <div class="research-card-content">
-          <a href="talks/patram-ingest-slides/" target="_self">
-            <span class="papertitle">Durable execution around vLLM for large-scale data generation</span>
-          </a>
-          <br />
-          <em>Invited talk</em>, <a href="https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/">vLLM Meetup Mumbai 2026</a> &middot; IIT Bombay &middot; Oct 24, 2026
-          <br />
-          <button onclick="window.open('talks/patram-ingest-slides/', '_blank')" class="arxiv-button">
-            <i class="fas fa-file-powerpoint"></i>
-            slides
-          </button>
-          <button onclick="window.open('https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/', '_blank')" class="arxiv-button">
-            <i class="fas fa-globe"></i>
-            event
-          </button>
-          <br />
-          <details class="research-details">
-            <summary class="abstract-toggle">
-              description <i class="fas fa-chevron-down"></i>
-            </summary>
-            <div class="research-abstract">
-              <p>How Patram-Ingest wraps vLLM in durable execution so weeks-long generation runs over 100M+ examples survive node failures and lent-out GPUs.</p>
-            </div>
-          </details>
-        </div>
-      </section>
+        <section class="research-card" id="patram-ingest">
+          <div class="research-card-image">
+            <img
+              src="assets/images/thumbnails/talk-ai-accelerators-thumb.jpg"
+              alt="Patram-Ingest: Durable execution around vLLM for large-scale data generation"
+              class="research-media"
+              data-image="assets/images/talk-ai-accelerators.jpg"
+            />
+          </div>
+          <div class="research-card-content">
+            <a href="talks/programming-ai-accelerators/" target="_self">
+              <span class="papertitle">Patram-Ingest: Durable execution around vLLM for large-scale data generation</span>
+            </a>
+            <br />
+            <em>Guest lecture</em>, Programming AI Accelerators, IIIT Hyderabad &middot; also presented at the <a href="talks.html#vllm-meetup-mumbai" target="_self">vLLM Meetup Mumbai 2026</a>
+            <br />
+            <button onclick="window.open('talks/programming-ai-accelerators/', '_blank')" class="arxiv-button">
+              <i class="fas fa-file-powerpoint"></i>
+              slides
+            </button>
+            <br />
+            <details class="research-details">
+              <summary class="abstract-toggle">
+                description <i class="fas fa-chevron-down"></i>
+              </summary>
+              <div class="research-abstract">
+                <p>
+                  Patram-Ingest wraps vLLM in durable execution so data-generation runs that last weeks keep GPUs busy,
+                  survive crashes and node failures, and run graphs of stages. It generates training data at the scale a
+                  foundation model needs: 100TB+ of image data, 100M+ training examples and 100B+ tokens of model output
+                  on 500+ GPUs.
+                </p>
+              </div>
+            </details>
+          </div>
+        </section>
       </section>
     </main>
 

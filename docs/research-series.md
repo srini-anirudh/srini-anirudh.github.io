@@ -7,7 +7,7 @@ page and a hub blog post) and one blog post per publication or system under it.
 |---|---|---|---|---|
 | 01 | Sovereign foundation models | `research.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
 | 02 | Grounded document intelligence | `research.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
-| 03 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | Patram-Ingest, guest lecture, vLLM Meetup talk |
+| 03 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | The whole Patram stack (storage to evaluation, from guest lecture slide 2); one card: Patram-Ingest, linking the guest lecture slides |
 
 The theses for sovereign foundation models and VLM infrastructure will be written by the author; do not draft them.
 New publications go under the interest they test. Patram-Bench belongs to sovereign foundation models.
