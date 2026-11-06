@@ -275,7 +275,7 @@
     <nav class="ml-series-nav" aria-label="Grounded Document Intelligence series">
       <a class="ml-series-nav__identity" href="../../research.html#grounded-document-intelligence">Grounded Document Intelligence</a>
       <span class="ml-series-nav__position">04 of 05 &middot; Grounded reasoning</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../m3grounder-mask-based-document-grounding/"><span>Previous &middot; 03</span><strong>M3Grounder</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../m3grounder-mask-based-document-grounding/"><span>Previous &middot; 03</span><strong>M3Grounder</strong></a><a class="ml-series-nav__link" href="../doclayout-vl-promptable-layout-segmentation/"><span>Next &middot; 05</span><strong>DocLayout-VL</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -705,7 +705,7 @@
         <ul>
           <li><a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a>: tokens do not interact. Each answer span's token goes through three small heads to give phrase, line and block masks.</li>
           <li><strong>DoCoG</strong>: tokens interact <em>along a chain</em>. GIM lets every pointer in a reasoning chain read every other pointer and the segmenter's features.</li>
-          <li><a href="../doclayout-vl-promptable-layout-understanding/">DocLayout-VL</a>: tokens interact <em>along a tree</em>. Its Hierarchical Grounding Contextualizer restricts attention to parents, children and siblings, so regions in different branches do not merge.</li>
+          <li><a href="../doclayout-vl-promptable-layout-segmentation/">DocLayout-VL</a>: tokens interact <em>along a tree</em>. Its Hierarchical Grounding Contextualizer restricts attention to parents, children and siblings, so regions in different branches do not merge.</li>
         </ul>
         <p>The data side follows the same principle in every paper: build the document's structure first, then let a language model cite element IDs, never coordinates. And the division of labour is the thread through all of it. The language model reasons and decides what needs evidence. GIM makes the pointers agree. SAM draws. The anchor loss exists because that division is real: once the parts are separate, training one of them has to respect the interface to the others.</p>
         <p>The next post, on DocLayout-VL, takes the grounding tokens from a chain to a tree, and from answering questions about a page to parsing the page itself.</p>
@@ -726,7 +726,7 @@
         </ul>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li><li><a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a></li><li><a href="../doclayout-vl-promptable-layout-understanding/">DocLayout-VL</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../teaching-a-model-what-we-prefer/">Teaching a Model What We Prefer</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li><li><a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a></li><li><a href="../doclayout-vl-promptable-layout-segmentation/">DocLayout-VL</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../teaching-a-model-what-we-prefer/">Teaching a Model What We Prefer</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>

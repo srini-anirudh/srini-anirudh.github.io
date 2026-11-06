@@ -23,7 +23,7 @@ thesis post. Writing rules: `docs/blog-writing-guide.md`. Page rules: `docs/styl
 | 02 | REPLICA | `replica-visually-faithful-document-reconstruction` | REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction | ICDAR 2026, Oral | Published |
 | 03 | M3Grounder | `m3grounder-mask-based-document-grounding` | M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA | CVPR 2026, Poster | Published |
 | 04 | DoCoG | `docog-grounded-chain-of-thought` | DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA | ECCV 2026, Spotlight | Published |
-| 05 | DocLayout-VL | `doclayout-vl-promptable-layout-understanding` | DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Understanding | ECCV 2026, Poster | In progress |
+| 05 | DocLayout-VL | `doclayout-vl-promptable-layout-segmentation` | DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Understanding | ECCV 2026, Poster | Published |
 
 ## Sovereign Foundation Models series
 
