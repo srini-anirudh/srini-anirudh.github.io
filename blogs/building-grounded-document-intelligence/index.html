@@ -3,21 +3,21 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Two bets behind my research: a text form of documents that loses nothing (REPLICA and FID-HTML), and grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
+    <meta name="description" content="A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" />
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
     <meta property="og:title" content="Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL" />
-    <meta property="og:description" content="Two bets behind my research: a text form of documents that loses nothing (REPLICA and FID-HTML), and grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
+    <meta property="og:description" content="A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png" />
     <meta property="article:published_time" content="2026-11-06" />
     <meta property="article:modified_time" content="2026-11-06" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL" />
-    <meta name="twitter:description" content="Two bets behind my research: a text form of documents that loses nothing (REPLICA and FID-HTML), and grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
+    <meta name="twitter:description" content="A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png" />
     <title>Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL | Anirudh Srinivasan</title>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
@@ -34,7 +34,7 @@
         "@id": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/#article",
         "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" },
         "headline": "Building Grounded Document Intelligence",
-        "description": "Two bets behind my research: a text form of documents that loses nothing (REPLICA and FID-HTML), and grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop.",
+        "description": "A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop.",
         "image": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png",
         "datePublished": "2026-11-06",
         "dateModified": "2026-11-06",
@@ -106,7 +106,7 @@
       }
     .fig-card { margin: 34px 0 38px; padding: 18px 18px 14px; background: var(--paper-bright); border: 1px solid var(--rule); }
       .fig-card.wide, .fig-live { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
-      #fig-ladder, #fig-loop, #fig-label { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      #fig-ladder, #fig-loop, #fig-label, #fig-frontier { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
       .fig-label { margin: 0 0 14px !important; color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
       .fig-canvas { position: relative; }
       .fig-card figcaption { margin-top: 12px; color: var(--ink-soft); font-size: 15.5px; font-style: italic; line-height: 1.5; }
@@ -451,6 +451,28 @@
       .gain-bar.g0 { background: #c5cacd; } .gain-bar.g1 { background: #7fa9cf; } .gain-bar.g2 { background: #0b5ea8; }
       .gain-val { font: 700 14px var(--mono); text-align: right; }
       .gain-stage { margin: 4px 0 0 !important; font: 600 12.5px var(--mono); color: #0b5ea8; }
+      .frontier-svg { display: block; width: 100%; height: auto; }
+      .frontier-svg text { font-family: var(--display); }
+      .frontier-svg .fs { opacity: 0; transition: opacity .5s ease; }
+      .frontier-svg .fs.shown { opacity: 1; }
+      .frontier-svg .fs.old .blob { opacity: 0; }
+      .frontier-svg .blob { transition: opacity .5s ease; }
+      .sota-wrap { margin: 8px 0 30px; overflow-x: auto; border: 1px solid var(--rule); background: var(--paper-bright); }
+      .sota-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 15px; }
+      .sota-table caption { padding: 12px 14px; text-align: left; color: var(--muted); font: 600 11px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+      .sota-table th, .sota-table td { padding: 10px 12px; border-top: 1px solid var(--rule); text-align: left; vertical-align: top; line-height: 1.4; }
+      .sota-table thead th { color: var(--muted); font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+      .sota-table tbody th { font-weight: 600; color: var(--ink); }
+      .sota-table td { font: 13px/1.45 var(--mono); color: var(--ink-soft); }
+      .sota-table td small { display: block; color: var(--muted); font-size: 11px; }
+      .sota-table td.ours { color: #0b5ea8; font-weight: 700; font-size: 15px; }
+      .firstbox { margin: 24px 0 28px; padding: 16px 20px; background: #f3f8fd; border: 1px solid #cfe0f1; border-left: 3px solid #0b5ea8; }
+      .firstbox p { margin: 0 !important; }
+      .fb-k { color: #0b5ea8; font: 600 11px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+      .fb-k + p { margin-top: 4px !important; }
+      .fb-cap { margin-bottom: 12px !important; font-weight: 600; font-size: 17px; line-height: 1.45; }
+      .fb-sota { font-size: 16px; line-height: 1.5; color: var(--ink-soft); }
+      .firsts li { margin-bottom: 6px; }
       .embed-canvas { position: relative; overflow: hidden; background: #fff; border: 1px solid var(--rule); }
       .embed-inner { position: absolute; top: 0; left: 0; transform-origin: top left; }
       .embed-inner iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
@@ -520,36 +542,43 @@
       <nav class="toc" aria-labelledby="toc-heading">
         <h2 id="toc-heading">Contents</h2>
         <ol>
-          <li><a href="#two-bets">Two bets, one loop</a></li>
-          <li><a href="#information-loss">Every conversion throws something away</a></li>
-          <li><a href="#all-four-axes">Downstream work needs all four axes</a></li>
-          <li><a href="#format">If the format does not require it, no model writes it</a></li>
-          <li><a href="#replica">REPLICA: rebuilding the page with agents</a></li>
-          <li><a href="#measured">Scored on the axes nobody scored</a></li>
-          <li><a href="#labelled">A rebuilt page is a labelled page</a></li>
-          <li><a href="#coordinates">Coordinates are the wrong thing to generate</a></li>
-          <li><a href="#vlm-sam">Let the VLM say what, let SAM draw where</a></li>
-          <li><a href="#m3grounder">M3Grounder: one pointer, three zoom levels</a></li>
-          <li><a href="#docog">DoCoG: reasoning where every step points</a></li>
-          <li><a href="#doclayoutvl">DocLayout-VL: the whole page as a tree of masks</a></li>
-          <li><a href="#recipe">One recipe, three conversations</a></li>
-          <li><a href="#data-vs-design">Data gets you in, the design gets you there</a></li>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#information-loss">Information loss in document conversion</a></li>
+          <li><a href="#all-four-axes">What downstream systems need</a></li>
+          <li><a href="#format">Why existing formats fall short</a></li>
+          <li><a href="#replica">REPLICA: agentic document reconstruction</a></li>
+          <li><a href="#measured">Evaluation on VFDR-Bench</a></li>
+          <li><a href="#labelled">From reconstruction to training data</a></li>
+          <li><a href="#coordinates">The limits of coordinate-based grounding</a></li>
+          <li><a href="#vlm-sam">Combining a VLM with SAM</a></li>
+          <li><a href="#m3grounder">M3Grounder: grounded document VQA</a></li>
+          <li><a href="#docog">DoCoG: grounded chain-of-thought</a></li>
+          <li><a href="#doclayoutvl">DocLayout-VL: layout understanding</a></li>
+          <li><a href="#recipe">A shared architecture</a></li>
+          <li><a href="#data-vs-design">Data versus architecture</a></li>
+          <li><a href="#sota">State of the art</a></li>
           <li><a href="#loop">Closing the loop</a></li>
-          <li><a href="#talk">See it as a talk</a></li>
+          <li><a href="#talk">The talk</a></li>
           <li><a href="#references">References</a></li>
         </ol>
       </nav>
 
-      <section id="two-bets">
-        <h2>Two bets, one loop</h2>
-        <p>This post is about two bets, and about why the second one only works because of the first.</p>
-        <p><strong>Bet one: a document needs a text form that loses nothing.</strong> Almost everything we do with documents at scale (search, retrieval, translation, archiving, and above all generating training data) runs on a <em>text</em> version of the page, not on the pixels. But every common way of turning a page into text throws information away. If the text form is lossy, everything built on it inherits the loss. So the first job is a text representation that keeps everything on the page: the words, the structure, where things sit, and how they look.</p>
-        <p><strong>Bet two: grounding should be a mask, not a string of coordinates.</strong> When we ask a vision-language model to show its evidence, the usual approach makes it type out bounding-box coordinates as text. That is brittle. Vision-language models are very good at producing answers; SAM is very good at turning a prompt into a precise mask. The right model uses both strengths, joined end to end, and trained end to end, with the language model telling the segmenter <em>what</em> to mask and <em>at what granularity</em>.</p>
-        <p>The two bets meet in a loop, and the loop is the whole story. REPLICA turns a page into a complete text form. That text form lets us generate grounded training data at scale without anyone drawing a box. The data trains three grounding models. And the last of them, DocLayout-VL, feeds back into REPLICA: it takes over REPLICA's first stage, where an ensemble of layout detectors used to sit. The system that made the data is improved by a model trained on that data. Step through the figure to see how the pieces connect; the rest of the post walks the loop in order.</p>
-        <p>One theme runs through every system in this story: <strong>split the work between modules, and give each module the job it is best at.</strong> Agents where judgment is needed, tools where determinism is enough. A language model to decide what, a segmenter to decide where. Watch for it in each section.</p>
+      <section id="overview">
+        <h2>Overview</h2>
+        <p>This post summarises two years of work on document intelligence at BharatGen and IIIT Hyderabad. It rests on two ideas, and the second depends on the first.</p>
+        <p><strong>First, a document needs a text representation that loses nothing.</strong> Almost everything we do with documents at scale (search, retrieval, translation, archiving, and above all generating training data) runs on a <em>text</em> version of the page, not on the pixels. But every common way of turning a page into text throws information away. If the text form is lossy, everything built on it inherits the loss. So the first job is a text representation that keeps everything on the page: the words, the structure, where things sit, and how they look.</p>
+        <p><strong>Second, grounding should be a mask, not a string of coordinates.</strong> When we ask a vision-language model to show its evidence, the usual approach makes it type out bounding-box coordinates as text. That is brittle. Vision-language models are very good at producing answers; SAM is very good at turning a prompt into a precise mask. The right model uses both strengths, joined end to end, and trained end to end, with the language model telling the segmenter <em>what</em> to mask and <em>at what granularity</em>.</p>
+        <p>The two ideas connect in a loop. REPLICA turns a page into a complete text form. That text form lets us generate grounded training data at scale without anyone drawing a box. The data trains three grounding models. And the last of them, DocLayout-VL, feeds back into REPLICA: it takes over REPLICA's first stage, where an ensemble of layout detectors used to sit. The system that made the data is improved by a model trained on that data. Figure 1 shows the loop; the rest of the post follows it in order.</p>
+        <p>Along the way, each model introduces a capability that did not exist before, and each sets the state of the art on its task:</p>
+        <ul class="firsts">
+          <li><strong>M3Grounder</strong>: mask-based, multi-span, multi-granular grounded document VQA.</li>
+          <li><strong>DoCoG</strong>: step-wise, multi-type grounded chain-of-thought VQA, with every intermediate step grounded.</li>
+          <li><strong>DocLayout-VL</strong>: open-set, hierarchical and promptable document layout understanding.</li>
+        </ul>
+        <p>A single design principle runs through all four systems: <strong>divide the work between modules and give each module the task it does best</strong>. Agents handle judgment and tools handle deterministic steps; a language model decides what to ground and a segmenter decides where. Each system section ends with a short summary of who does what.</p>
 
         <figure class="fig-card" id="fig-loop">
-          <p class="fig-label">Figure 1 &middot; How the pieces fit together</p>
+          <p class="fig-label">Figure 1 &middot; The research loop</p>
           <div class="fig-canvas">
             <svg class="loop-svg" viewBox="0 0 1000 400" role="img" aria-labelledby="fig-loop-title">
               <title id="fig-loop-title">A document page goes through REPLICA to become FID-HTML, which feeds downstream workflows and data engines; the data trains VLM plus SAM models, which in turn improve REPLICA.</title>
@@ -617,7 +646,7 @@
       </section>
 
       <section id="information-loss">
-        <h2>Every conversion throws something away</h2>
+        <h2>Information loss in document conversion</h2>
         <p>Start with what a page actually holds. Take an invoice. It has <strong>text</strong>: the words and numbers. It has <strong>hierarchy</strong>: a header, a table with rows and columns, a totals block. It has <strong>geometry</strong>: the two-column header, the amounts aligned under their column. And it has <strong>appearance</strong>: the bold total, a cancelled line that is struck through, a red <em>OVERDUE</em> stamp.</p>
         <p>Now convert it, one layer at a time. OCR-style text keeps every word but turns the page into a wall of prose: the total looks like the fine print. Markdown-style output recovers the heading and the table, a big step for machines, but there is still no page: nothing says which number sits under which column. Adding position brings the layout back. Only the last layer brings back the strikethrough and the stamp, and those carry meaning: the cancelled line is not owed, and the invoice is overdue. Drop the appearance and the document says something different.</p>
 
@@ -752,7 +781,7 @@
       </section>
 
       <section id="all-four-axes">
-        <h2>Downstream work needs all four axes</h2>
+        <h2>What downstream systems need</h2>
         <p>Why insist on a text form at all, instead of just keeping the image? Because the text form is what everything else runs on. Translation, retrieval and search, archiving, accessibility and, most importantly for this post, large-scale data generation, all consume text. A language model cannot cite a pixel, but it can cite an element of a document it can read.</p>
         <p>The catch is that different uses need different parts of the page. Search mostly needs the words. Retrieval that chunks by section needs the hierarchy too. Translating a form so that it still looks like the form needs everything. And generating grounded training data needs to know exactly where each element sits. Pick a representation below and see which uses it can actually serve.</p>
 
@@ -791,14 +820,14 @@
       </section>
 
       <section id="format">
-        <h2>If the format does not require it, no model writes it</h2>
+        <h2>Why existing formats fall short</h2>
         <p>Before building a system, we checked how strong existing ones do on all four axes. They fail in the same place. Marker, a solid pipeline tool, flattens three columns into one. GPT-5 gets most of the words right, then drifts on placement, font and column count. Qwen3-VL does the same. Every one of them roughly passes text and structure, and every one fails geometry and appearance.</p>
         <p>That is not a model failure; it is a format failure. Markdown and plain text have no way to write down a coordinate or a font colour, so that information cannot survive no matter how good the model is. Generic HTML <em>can</em> express position and style, but a <code>div</code> with no style is perfectly valid HTML. Position and style are optional, and what is optional gets left out. What a format does not require, a system does not produce.</p>
         <p>So we changed the target. <strong>FID-HTML</strong> is ordinary HTML that a browser renders and a model can read, with one rule: every element must carry its position and its style, inline. It records six things: text at word and block level, nesting, semantic tags (<code>table</code>, <code>li</code>, <code>td</code>), absolute and relative positions, styling (size, colour, weight, italics, strikethrough) and figures with generated alt-text. Fidelity stops being a hope and becomes a property of the format.</p>
       </section>
 
       <section id="replica">
-        <h2>REPLICA: rebuilding the page with agents</h2>
+        <h2>REPLICA: agentic document reconstruction</h2>
         <p>Asking one model to detect, read, order and style an entire page in one pass, with no way to check its own output, is asking too much. REPLICA splits the job into four questions, and uses agents where judgment is needed and plain tools where determinism is enough.</p>
         <ol class="stage-list">
           <li><strong>Segment.</strong> How do we divide the page? A detector ensemble proposes regions; a labelling agent fixes mis-segmented ones; a grouping agent builds the layout tree, binding captions to figures and nesting lists.</li>
@@ -817,7 +846,7 @@
             <dt>Browser + reflection agent</dt><dd>render the page and judge it against the source</dd>
           </dl>
         </div>
-        <p>Notice the weakest link in that list: the detectors at the start. They are an ensemble of off-the-shelf layout models, and everything downstream inherits their mistakes. Keep that in mind; the story comes back to it at the end.</p>
+        <p>The weakest link in that list is the first: the detectors are an ensemble of off-the-shelf layout models, and every later stage inherits their mistakes. We return to this in the final section.</p>
         <p>Here is the whole pipeline on a Telugu newspaper, the kind of page that argues hardest for agents: there is no fixed reading order, so the grouping agent outlines each article and the reading-order agent reads story by story instead of top to bottom.</p>
 
         <figure class="fig-card fig-live" id="fig-pipeline">
@@ -828,7 +857,7 @@
       </section>
 
       <section id="measured">
-        <h2>Scored on the axes nobody scored</h2>
+        <h2>Evaluation on VFDR-Bench</h2>
         <p>You cannot score position or appearance against a Markdown reference, so no benchmark had done it. We built <strong>VFDR-Bench</strong>: 5,000 real documents (newspapers, government records, textbooks and exam papers, invoices with handwriting and stamps, archival pages, magazines), every one annotated in FID-HTML by trained annotators. Text and structure keep their standard metrics. For geometry we introduced <strong>GPS</strong> and <strong>LPS</strong>, which score where every block and every line lands and penalise both missed and invented boxes. For appearance, <strong>VFS</strong> has a vision-language model judge the rendered page against the reference. The two new metrics agree with seven expert annotators at a Pearson correlation above 0.8.</p>
 
         <figure class="fig-card" id="fig-results">
@@ -860,12 +889,12 @@
           <figcaption>Text extraction is largely solved across the field, so it is left out here. Geometry is where every baseline collapses. GPT-5's appearance score is high, but at 0.43 GPS its pages look good without being the source page.</figcaption>
         </figure>
 
-        <p>REPLICA reaches 0.86 overall. With an 8B backbone it beats Qwen3-VL-30B by 39% at 3.75 times smaller: breaking the job into checked stages beats brute-force scale. The limits are real too. REPLICA works one page at a time, so a table that runs across a page break can fragment. It recovers bold, italics, underline and colour reliably, but not the exact font family. And the refine loop renders in a browser several times, which costs latency.</p>
+        <p>REPLICA reaches 0.86 overall, the best of all sixteen methods, ahead of GPT-5 and Gemini. With an 8B backbone it beats Qwen3-VL-30B by 39% at 3.75 times smaller: breaking the job into checked stages beats brute-force scale. The limits are real too. REPLICA works one page at a time, so a table that runs across a page break can fragment. It recovers bold, italics, underline and colour reliably, but not the exact font family. And the refine loop renders in a browser several times, which costs latency.</p>
       </section>
 
       <section id="labelled">
-        <h2>A rebuilt page is a labelled page</h2>
-        <p>Here is where the two bets meet. Every page REPLICA rebuilds comes out labelled by construction: each element has an ID, its text, its place in the tree, its box and its style, all explicit. That turns REPLICA into a data engine.</p>
+        <h2>From reconstruction to training data</h2>
+        <p>This is where the two ideas meet. Every page REPLICA rebuilds comes out labelled by construction: each element has an ID, its text, its place in the tree, its box and its style, all explicit. That turns REPLICA into a data engine.</p>
         <p>To make grounded question-answer data, we do not ask a model to look at an image and write coordinates. We give a language model the FID-HTML, which is exactly the kind of text it reads well, and ask it to write a question and cite the <em>element ID</em> that holds the answer. The ID maps straight back to a box in the FID-HTML, and SAM turns the box into a mask. Perception happens first and is checked; the language model only does what it is good at.</p>
 
         <div class="roles">
@@ -908,12 +937,12 @@
           <div class="fig-controls" data-stepper="label"></div>
           <figcaption>The data engine behind all three grounding models: about 2M grounded QA pairs for M3Grounder, 1.5M step-wise QA for DoCoG and 80M masks for DocLayout-VL.</figcaption>
         </figure>
-        <p>That gives us data with exact evidence at scale. The question is what kind of model should learn from it, and that is the second bet.</p>
+        <p>That gives us data with exact evidence at scale. The remaining question is what kind of model should learn from it.</p>
       </section>
 
       <section id="coordinates">
-        <h2>Coordinates are the wrong thing to generate</h2>
-        <p>Now the second bet. To show its evidence, a vision-language model is usually trained to write a box as text, something like <code>&lt;box&gt;212, 88, 410, 236&lt;/box&gt;</code>, one token after another. That breaks in four ways.</p>
+        <h2>The limits of coordinate-based grounding</h2>
+        <p>To show its evidence, a vision-language model is usually trained to write a box as text, something like <code>&lt;box&gt;212, 88, 410, 236&lt;/box&gt;</code>, one token after another. That breaks in four ways.</p>
         <ul>
           <li><strong>It is expensive.</strong> A polygon that follows a curved line of text takes hundreds of tokens.</li>
           <li><strong>It is unanchored.</strong> The numbers are just next-token predictions. Nothing ties them to the pixels, so they can be hallucinated like any other text.</li>
@@ -922,7 +951,7 @@
         </ul>
 
         <figure class="fig-card" id="fig-coords">
-          <p class="fig-label">Figure 7 &middot; Grounding &ldquo;River Thames&rdquo;: typed coordinates against a mask</p>
+          <p class="fig-label">Figure 7 &middot; Grounding &ldquo;River Thames&rdquo;: coordinates as text versus a mask</p>
           <div class="fig-canvas">
             <div class="cmp-grid">
               <div class="cmp-col">
@@ -955,7 +984,7 @@
       </section>
 
       <section id="vlm-sam">
-        <h2>Let the VLM say what, let SAM draw where</h2>
+        <h2>Combining a VLM with SAM</h2>
         <p>The fix is a division of labour. A vision-language model is good at reading a page and producing an answer. SAM is good at one thing: given a prompt, produce a precise mask of any shape. Neither does the other's job well. So we join them.</p>
         <p>The language model answers as usual, and wherever it cites evidence it emits a special grounding token. That token's hidden state goes through a few small heads that turn it into prompts for SAM, and SAM returns masks. Nothing is ever typed as a coordinate. The whole thing is a single model and is trained <strong>end to end</strong>: the mask loss flows back through SAM's prompts into the language model, so the language model learns to put into each token exactly what the segmenter needs.</p>
         <p>That token is the interface, and it carries two kinds of signal. It says <strong>what</strong> to mask: which span, which wedge, which region. And it says <strong>at what granularity</strong>: the phrase, the line it sits on, or the whole block. The three models below are three versions of this idea; what changes between them is how these tokens talk to each other.</p>
@@ -971,8 +1000,14 @@
       </section>
 
       <section id="m3grounder">
-        <h2>M3Grounder: one pointer, three zoom levels</h2>
+        <h2>M3Grounder: grounded document VQA</h2>
         <p>M3Grounder (CVPR 2026) answers a document question and drops a <code>[GROUND]</code> token after each span it cites. One answer can point at several places, and each place can be a curved river, a logo or a table row. From one token, three small heads produce three SAM prompts, and therefore three nested masks: the <strong>phrase</strong>, the <strong>line</strong> and the <strong>block</strong>. On a bank statement that is the difference between citing the number, redacting the transaction row and chunking the whole table. Grounding adds about 63 ms per sample.</p>
+        <aside class="firstbox">
+          <p class="fb-k">First of its kind</p>
+          <p class="fb-cap">Mask-based, multi-span, multi-granular grounded document VQA. One answer can cite several regions, each as a pixel mask, at phrase, line and block level at once.</p>
+          <p class="fb-k">State of the art</p>
+          <p class="fb-sota">79.0 grounding F1 on GDQA-Bench, against 43.4 for Gemini-2.5-Pro. Best prior method beaten on every other benchmark: BoundingDocs 70.0 &rarr; 81.4, DOGR-Bench 66.4 &rarr; 73.3, MMDocBench 49.4 &rarr; 68.2.</p>
+        </aside>
         <p>Two losses encode what we know about documents. A bleed loss stops masks from spilling onto icons and graphics around the text, and a hierarchy loss keeps the phrase inside the line and the line inside the block. Watch a full forward pass:</p>
 
         <figure class="fig-card fig-live" id="fig-m3g">
@@ -985,7 +1020,7 @@
       </section>
 
       <section id="docog">
-        <h2>DoCoG: reasoning where every step points</h2>
+        <h2>DoCoG: grounded chain-of-thought</h2>
         <p>M3Grounder grounds an answer. But some questions need more than one look. Ask a medical bill &ldquo;how much should I pay for the blood test?&rdquo; and the answer, $27.50, is printed nowhere: it is $50 for the test, minus a 5% premium-member discount, minus a $20 claim. Grounding alone has nothing to point at. Chain-of-thought alone says &ldquo;the test costs $50&rdquo; without showing which cell it read. You need both: a chain of reasoning in which every step that reads the page points at what it read.</p>
 
         <figure class="fig-card" id="fig-chain">
@@ -1009,7 +1044,24 @@
           <figcaption>Reading steps emit grounding tokens, each becoming a mask on the bill; arithmetic steps do not. The answer itself is printed nowhere, which is exactly why the steps have to be grounded.</figcaption>
         </figure>
 
-        <p>In a chain the pointers are no longer independent. If one step points at the label &ldquo;HDFC Bank&rdquo; and its pie wedge, the next step's value must come from that same wedge. Projected one at a time, nothing makes them agree. So DoCoG (ECCV 2026, Spotlight) adds one more module with one more job. GIM sits between the language model and SAM, and its only task is to make a chain's grounding tokens agree with each other before they become masks. The language model still decides what; SAM still draws where.</p>
+        <aside class="firstbox">
+          <p class="fb-k">First of its kind</p>
+          <p class="fb-cap">Step-wise, multi-type grounded chain-of-thought VQA: every intermediate reasoning step is grounded with masks, across text, tables, charts and flowcharts.</p>
+          <p class="fb-k">State of the art</p>
+          <p class="fb-sota">Best on both axes of DoCoG-Bench at once: 85.8 answer quality and 81.9 grounding. Gemini 3 Pro answers well (84.2) but grounds at 11.4. General QA stays intact: ChartQA 92.7, TabFact 89.4, DocVQA 93.4, best of its size on 8 of 10 benchmarks.</p>
+        </aside>
+        <p>In a chain the pointers are no longer independent. If one step points at the label &ldquo;HDFC Bank&rdquo; and its pie wedge, the next step's value must come from that same wedge. Projected one at a time, nothing makes them agree. So DoCoG (ECCV 2026, Spotlight) adds one more module with one more job: the <strong>Grounding Interaction Module (GIM)</strong>, which sits between the language model and SAM.</p>
+        <h3>Why a separate module, and not a bigger language model?</h3>
+        <p>The language model is the wrong place to make pointers agree, for two reasons. It is a causal decoder: when it writes the grounding token in step one, it cannot see the tokens it will write in step two, so it cannot adjust the first pointer to stay consistent with the second. And it reasons over its own, coarser view of the image, not over the features the segmenter will actually use to draw the mask.</p>
+        <p>GIM fixes both. It takes all the grounding states of a chain together and runs three refinement blocks over them. In each block, <strong>self-attention</strong> lets every pointer see every other pointer in both directions, so related pointers (a label and its wedge, a value and its column) can settle on the same region. <strong>Cross-attention</strong> then lets each pointer look directly at the segmenter's own visual features, so it is checked against the pixels before it becomes a prompt. The output is a set of grounding-aware prompts, one per pointer, that SAM can turn into masks that agree with each other.</p>
+        <div class="roles">
+          <p class="roles-h">Who does what in DoCoG</p>
+          <dl>
+            <dt>Vision-language model</dt><dd>reasons step by step and decides which steps need evidence</dd>
+            <dt>GIM</dt><dd>makes the pointers of one chain consistent with each other and with the pixels</dd>
+            <dt>SAM</dt><dd>draws one mask per pointer</dd>
+          </dl>
+        </div>
         <p>Training happens in two stages. Supervised fine-tuning on 1.5M step-wise QA teaches the format. But it checks one token at a time against one reference chain, so a right answer reached through the wrong evidence is never penalised. Preference training compares whole chains and prefers the one whose evidence is right. In that stage only the language model is trained while GIM and SAM stay frozen, and done naively the grounding states drift and the masks collapse into blobs. An anchor loss keeps each GIM-refined grounding embedding close to its supervised value. The result is the best of both on DoCoG-Bench: 85.8 answer quality and 81.9 grounding, where Gemini 3 Pro reaches 84.2 on answers but only 11.4 on grounding. Click any <code>[GND]</code> in the examples to replay its mask:</p>
 
         <figure class="fig-card fig-live" id="fig-docog">
@@ -1020,10 +1072,16 @@
       </section>
 
       <section id="doclayoutvl">
-        <h2>DocLayout-VL: the whole page as a tree of masks</h2>
+        <h2>DocLayout-VL: layout understanding</h2>
         <p>The first two models ground answers to questions. The last one grounds the page itself. Layout tools today predict a flat list of rectangles from a fixed set of labels. Real pages break all three assumptions: seals are round and wedges are wedges, every domain has its own vocabulary (&ldquo;premium breakdown&rdquo;, &ldquo;authorization signature&rdquo;), and a page is a tree, not a list: a newspaper is a masthead and a grid of articles, each with a headline, images and captions.</p>
         <p>So DocLayout-VL (ECCV 2026) emits a layout token per node of the tree, and SAM turns each into a mask. The prompt defines the vocabulary, so the labels are open-set, and you can ask for any region in words. Try a few:</p>
 
+        <aside class="firstbox">
+          <p class="fb-k">First of its kind</p>
+          <p class="fb-cap">Open-set, hierarchical and promptable document layout understanding: any label vocabulary, the full layout tree, and any region asked for in words, each region as a mask, in one model.</p>
+          <p class="fb-k">State of the art</p>
+          <p class="fb-sota">79.4 overall on HOPLay-Docs-Bench, against 37.2 for Gemini 3 Pro, the best zero-shot model. On the hierarchical track: 77.5 against 6.9. Zero-shot on classic benchmarks it is competitive with per-dataset detectors: PubLayNet 96.5, M6Docs 76.9, IndicDLP 77.5 mAP.</p>
+        </aside>
         <figure class="fig-card" id="fig-prompt">
           <p class="fig-label">Figure 11 &middot; Ask for any region in words</p>
           <div class="fig-canvas">
@@ -1057,7 +1115,18 @@
           <figcaption>Examples from DocLayout-VL. The same model answers all four; only the prompt changes.</figcaption>
         </figure>
 
-        <p>Again the new module has one job. HGC makes each layout token attend only to its parent, children and siblings. A headline stays with its own article and a dish with its own menu section, so regions from different branches never merge. The losses carry M3Grounder's two document priors over to the tree: enclosure becomes containment (a child's mask stays inside its parent, siblings do not overlap) and bleed becomes background (masks stay off whitespace). Training follows a curriculum: flat layouts to learn to see regions, then hierarchies to learn structure, then instructions to learn to be asked. On our HOPLay-Docs-Bench it reaches 79.4 overall, and on the hierarchical track 77.5 against 6.9 for Gemini 3 Pro.</p>
+        <h3>Why HGC: attention that follows the tree</h3>
+        <p>Again the new module has one job. A newspaper page has dozens of headlines, images and captions that look alike. If every layout token can attend to every other one, a caption is as likely to pull towards the photo in the next article as towards its own. The <strong>Hierarchical Grounding Contextualizer (HGC)</strong> is a stack of attention layers between the language model and SAM in which each layout token attends only to its parent, its children and its siblings, while top-level regions still exchange page-wide context. A headline stays with its own article and a dish with its own menu section, so regions from different branches never merge. Where GIM lets pointers along a chain agree, HGC lets pointers in a tree agree, and it knows the structure to respect because the language model has just written it.</p>
+        <p>The module earns its place. On the hierarchical track, the backbone alone, predicting boxes as text, reaches 32.5 open mIoU. Adding SAM as the segmenter brings it to 58.3, adding HGC to 69.2, and the structure-aware losses to 77.5. Training on more data does not close the gap to the full model: architecture matters more than scale here.</p>
+        <div class="roles">
+          <p class="roles-h">Who does what in DocLayout-VL</p>
+          <dl>
+            <dt>Vision-language model</dt><dd>reads the prompt and the page, and writes the layout tree with one token per region</dd>
+            <dt>HGC</dt><dd>refines each region token in the context of its parent, children and siblings</dd>
+            <dt>SAM</dt><dd>draws one mask per region</dd>
+          </dl>
+        </div>
+        <p>The losses carry M3Grounder's two document priors over to the tree: enclosure becomes containment (a child's mask stays inside its parent, siblings do not overlap) and bleed becomes background (masks stay off whitespace). Training follows a curriculum: flat layouts to learn to see regions, then hierarchies to learn structure, then instructions to learn to be asked. On our HOPLay-Docs-Bench it reaches 79.4 overall, and on the hierarchical track 77.5 against 6.9 for Gemini 3 Pro.</p>
 
         <figure class="fig-card fig-live" id="fig-dlvl">
           <p class="fig-label">Figure 12 &middot; DocLayout-VL&rsquo;s forward pass</p>
@@ -1069,11 +1138,11 @@
       </section>
 
       <section id="recipe">
-        <h2>One recipe, three conversations</h2>
+        <h2>A shared architecture</h2>
         <p>Put the three models side by side and they are one recipe: a vision-language model writes text and grounding tokens, and SAM turns tokens into masks, trained end to end. What changes is how the tokens talk to each other before they reach SAM.</p>
 
         <figure class="fig-card" id="fig-recipe">
-          <p class="fig-label">Figure 13 &middot; How the grounding tokens talk</p>
+          <p class="fig-label">Figure 13 &middot; How the grounding tokens interact</p>
           <div class="fig-canvas">
             <div class="prompt-tabs recipe-tabs" role="tablist" aria-label="Choose a model">
               <button type="button" role="tab" aria-selected="true" data-r="0">M3Grounder</button>
@@ -1099,11 +1168,11 @@
       </section>
 
       <section id="data-vs-design">
-        <h2>Data gets you in, the design gets you there</h2>
+        <h2>Data versus architecture</h2>
         <p>Is the gain from the data or from the architecture? We can separate the two, because all three papers use the same 8B backbone. Zero-shot, it barely grounds at all. Fine-tuned on our data alone, it gets most of the way into the task. The VLM + SAM design closes the rest of the gap, by 18 to 34 points.</p>
 
         <figure class="fig-card" id="fig-gain">
-          <p class="fig-label">Figure 14 &middot; The same 8B backbone: zero-shot, with our data, with our model</p>
+          <p class="fig-label">Figure 14 &middot; One 8B backbone: zero-shot, fine-tuned on our data, and our full model</p>
           <div class="fig-canvas">
             <div class="gain">
               <div class="gain-row"><span class="gain-name">M3Grounder <small>grounding F1</small></span><span class="gain-track"><span class="gain-bar" data-v="12.8,60.6,79.0"></span></span><span class="gain-val"></span></div>
@@ -1119,14 +1188,51 @@
         <p>Two other things made it possible. Data engines that rebuild first and then cite element IDs, so masks are never typed as coordinates: 2M grounded QA, 1.5M step-wise QA plus 20K preference pairs, and 80M masks on 2.5M pages. And full fine-tuning of 8B backbones on 32 to 64 H100s.</p>
       </section>
 
+      <section id="sota">
+        <h2>State of the art</h2>
+        <p>Each paper opened a capability that did not exist before, and each set the state of the art on its task, ahead of frontier models such as GPT-5 and Gemini. Step through the figure: the grey shape is what frontier vision-language models cover today, and each paper pushes the frontier out along its own axis.</p>
+
+        <figure class="fig-card" id="fig-frontier">
+          <p class="fig-label">Figure 15 &middot; Pushing the frontier, one paper at a time</p>
+          <div class="fig-canvas">
+            <svg class="frontier-svg" viewBox="0 0 1240 440" role="img" aria-label="Frontier VLMs form a small blob; each of our papers pushes it outward along its own axis">
+    <circle cx="480" cy="215" r="42.5" fill="none" stroke="#e3e8ee" stroke-width="1.2"/><circle cx="480" cy="215" r="85.0" fill="none" stroke="#e3e8ee" stroke-width="1.2"/><circle cx="480" cy="215" r="127.5" fill="none" stroke="#e3e8ee" stroke-width="1.2"/><circle cx="480" cy="215" r="170.0" fill="none" stroke="#e3e8ee" stroke-width="1.2"/><line x1="480" y1="215" x2="480.0" y2="45.0" stroke="#dde5ec" stroke-width="1.5"/><line x1="480" y1="215" x2="641.7" y2="162.5" stroke="#dde5ec" stroke-width="1.5"/><line x1="480" y1="215" x2="579.9" y2="352.5" stroke="#dde5ec" stroke-width="1.5"/><line x1="480" y1="215" x2="380.1" y2="352.5" stroke="#dde5ec" stroke-width="1.5"/><line x1="480" y1="215" x2="318.3" y2="162.5" stroke="#dde5ec" stroke-width="1.5"/>
+    <path class="base-blob" d="M480.0 141.2 C490.0 145.5 494.4 176.2 500.8 186.4 C507.1 196.7 516.5 196.2 518.2 202.6 C519.8 209.0 510.6 214.3 510.5 224.9 C510.3 235.5 522.3 259.5 517.2 266.2 C512.1 272.9 495.9 260.4 480.0 265.2 C464.1 269.9 433.9 299.3 422.0 294.8 C410.2 290.3 421.8 258.8 408.7 238.2 C395.7 217.5 338.6 183.7 343.9 170.8 C349.2 157.8 417.8 165.5 440.5 160.6 C463.2 155.7 470.0 136.9 480.0 141.2 Z" fill="#7d8b99" fill-opacity=".30" stroke="#7d8b99" stroke-width="2.5" stroke-linejoin="round"/>
+    <g class="fs" data-f="1"><path class="blob" d="M480.0 141.2 C490.0 145.5 494.4 176.2 500.8 186.4 C507.1 196.7 516.5 196.2 518.2 202.6 C519.8 209.0 510.6 214.3 510.5 224.9 C510.3 235.5 522.3 257.0 517.2 266.2 C512.1 275.3 500.5 268.7 480.0 279.9 C459.5 291.1 408.3 339.5 394.1 333.3 C379.8 327.1 403.1 269.8 394.7 242.7 C386.3 215.6 336.2 184.5 343.9 170.8 C351.5 157.1 417.8 165.5 440.5 160.6 C463.2 155.7 470.0 136.9 480.0 141.2 Z" fill="#05539C" fill-opacity=".16" stroke="#05539C" stroke-width="3.5" stroke-linejoin="round"/><text x="364" y="399" text-anchor="end" font-size="13" font-weight="800" fill="#B7791F">REPLICA</text><rect x="850" y="92" width="380" height="58" rx="12" fill="#fff" stroke="#B7791F" stroke-width="2"/><text x="870" y="117" font-size="16" font-weight="800" fill="#B7791F">REPLICA</text><text x="870" y="137" font-size="14" fill="#39485a">rebuild the page, faithfully</text></g>
+    <g class="fs" data-f="2"><path class="blob" d="M480.0 80.7 C493.7 85.0 505.4 150.9 511.8 171.3 C518.1 191.6 518.4 193.7 518.2 202.6 C517.9 211.5 510.6 214.3 510.5 224.9 C510.3 235.5 522.3 257.0 517.2 266.2 C512.1 275.3 500.5 268.7 480.0 279.9 C459.5 291.1 408.3 339.5 394.1 333.3 C379.8 327.1 403.1 269.8 394.7 242.7 C386.3 215.6 338.1 187.0 343.9 170.8 C349.7 154.6 406.8 160.4 429.4 145.4 C452.1 130.4 466.3 76.4 480.0 80.7 Z" fill="#05539C" fill-opacity=".16" stroke="#05539C" stroke-width="3.5" stroke-linejoin="round"/><text x="480" y="41" text-anchor="middle" font-size="13" font-weight="800" fill="#05539C">M3Grounder</text><rect x="850" y="166" width="380" height="58" rx="12" fill="#fff" stroke="#05539C" stroke-width="2"/><text x="870" y="191" font-size="16" font-weight="800" fill="#05539C">M3Grounder</text><text x="870" y="211" font-size="14" fill="#39485a">point at the evidence with masks</text></g>
+    <g class="fs" data-f="3"><path class="blob" d="M480.0 80.7 C496.8 81.0 507.8 131.2 529.8 146.4 C551.9 161.6 610.8 157.3 612.4 172.0 C614.1 186.6 555.6 218.7 539.7 234.4 C523.8 250.1 527.1 258.6 517.2 266.2 C507.2 273.8 500.5 268.7 480.0 279.9 C459.5 291.1 408.4 339.4 394.1 333.3 C379.7 327.1 402.7 270.2 393.9 243.0 C385.1 215.8 335.4 186.3 341.3 169.9 C347.1 153.6 405.8 159.6 429.0 144.7 C452.1 129.9 463.2 80.4 480.0 80.7 Z" fill="#05539C" fill-opacity=".16" stroke="#05539C" stroke-width="3.5" stroke-linejoin="round"/><text x="667" y="178" text-anchor="start" font-size="13" font-weight="800" fill="#7C3AED">DoCoG</text><text x="292" y="178" text-anchor="end" font-size="13" font-weight="800" fill="#7C3AED">DoCoG</text><rect x="850" y="240" width="380" height="58" rx="12" fill="#fff" stroke="#7C3AED" stroke-width="2"/><text x="870" y="265" font-size="16" font-weight="800" fill="#7C3AED">DoCoG</text><text x="870" y="285" font-size="14" fill="#39485a">ground every reasoning step</text></g>
+    <g class="fs" data-f="4"><path class="blob" d="M480.0 80.7 C496.8 81.0 507.8 131.2 529.8 146.4 C551.9 161.6 607.2 156.2 612.4 172.0 C617.6 187.8 569.7 215.9 560.8 241.3 C552.0 266.6 572.8 314.1 559.3 324.2 C545.9 334.4 507.5 300.7 480.0 302.2 C452.5 303.7 408.4 343.1 394.1 333.3 C379.7 323.4 402.7 270.2 393.9 243.0 C385.1 215.8 335.4 186.3 341.3 169.9 C347.1 153.6 405.8 159.6 429.0 144.7 C452.1 129.9 463.2 80.4 480.0 80.7 Z" fill="#05539C" fill-opacity=".16" stroke="#05539C" stroke-width="3.5" stroke-linejoin="round"/><text x="596" y="399" text-anchor="start" font-size="13" font-weight="800" fill="#0E7C61">DocLayout-VL</text><rect x="850" y="314" width="380" height="58" rx="12" fill="#fff" stroke="#0E7C61" stroke-width="2"/><text x="870" y="339" font-size="16" font-weight="800" fill="#0E7C61">DocLayout-VL</text><text x="870" y="359" font-size="14" fill="#39485a">parse the whole page as a tree</text></g>
+    <text x="480" y="22" text-anchor="middle" font-size="15" font-weight="700" fill="#16222e">grounded answers</text><text x="667" y="159" text-anchor="start" font-size="15" font-weight="700" fill="#16222e">grounded reasoning</text><text x="596" y="380" text-anchor="start" font-size="15" font-weight="700" fill="#16222e">whole-page structure</text><text x="364" y="380" text-anchor="end" font-size="15" font-weight="700" fill="#16222e">faithful reconstruction</text><text x="292" y="159" text-anchor="end" font-size="15" font-weight="700" fill="#16222e">answer quality</text>
+    <g font-size="14" font-weight="700"><rect x="20" y="380" width="16" height="16" rx="4" fill="#7d8b99" fill-opacity=".5"/><text x="44" y="393" fill="#52616f">frontier VLMs</text>
+    <rect x="20" y="406" width="16" height="16" rx="4" fill="#05539C" fill-opacity=".5"/><text x="44" y="419" fill="#05539C">ours</text></g>
+  </svg>
+          </div>
+          <div class="fig-controls" data-stepper="frontier"></div>
+          <figcaption>A qualitative picture of coverage, not a measurement. The measured results are in the table below.</figcaption>
+        </figure>
+
+        <div class="sota-wrap">
+          <table class="sota-table">
+            <caption>First-of-their-kind capabilities and their results</caption>
+            <thead><tr><th scope="col">Capability</th><th scope="col">Model</th><th scope="col">Benchmark</th><th scope="col">Ours</th><th scope="col">Best other</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Visually faithful document reconstruction</th><td>REPLICA<br><small>ICDAR 2026 &middot; Oral</small></td><td>VFDR-Bench, global position (GPS)</td><td class="ours">0.86</td><td>0.43 <small>best of 15 baselines</small></td></tr>
+              <tr><th scope="row">Mask-based, multi-span, multi-granular grounded document VQA</th><td>M3Grounder<br><small>CVPR 2026</small></td><td>GDQA-Bench, grounding F1</td><td class="ours">79.0</td><td>43.4 <small>Gemini-2.5-Pro</small></td></tr>
+              <tr><th scope="row">Step-wise, multi-type grounded chain-of-thought VQA</th><td>DoCoG<br><small>ECCV 2026 &middot; Spotlight</small></td><td>DoCoG-Bench, answer / grounding</td><td class="ours">85.8 / 81.9</td><td>84.2 / 11.4 <small>Gemini 3 Pro</small></td></tr>
+              <tr><th scope="row">Open-set, hierarchical, promptable layout understanding</th><td>DocLayout-VL<br><small>ECCV 2026</small></td><td>HOPLay-Docs-Bench, overall</td><td class="ours">79.4</td><td>37.2 <small>Gemini 3 Pro</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section id="loop">
         <h2>Closing the loop</h2>
         <p>Here is how the stories connect, start to finish. Every common way of turning a page into text loses information, so we built a text form that loses nothing: FID-HTML, produced by REPLICA, with agents and tools each doing the part they are good at. Because that text form is complete, a language model can write grounded questions by citing elements instead of typing coordinates, and REPLICA becomes a data engine. That data trains models that split grounding the same way: the language model decides what, SAM draws where, and a small module in between decides how the pointers relate: not at all in M3Grounder, along a chain in DoCoG, along a tree in DocLayout-VL.</p>
-        <p>And then the last model comes home. DocLayout-VL feeds into REPLICA, in place of the ensemble of layout detectors in its Segment stage. A model trained on REPLICA's own output now improves REPLICA, which produces better data, which trains better models. Go back to Figure 1 and play it to the end: that last arrow is the closed loop, and it is the whole story.</p>
+        <p>Finally, DocLayout-VL feeds back into REPLICA, in place of the ensemble of layout detectors in its Segment stage. A model trained on REPLICA's own output now improves REPLICA, which produces better data, which trains better models. This is the last arrow in Figure 1, and it is what makes the work a closed loop rather than a sequence of papers.</p>
       </section>
 
       <section id="talk">
-        <h2>See it as a talk</h2>
+        <h2>The talk</h2>
         <p>This post is the written version of an hour-long talk, <em>Building Grounded Document Intelligence</em>. The <a href="../../research/docai-talk/" target="_blank" rel="noopener">full deck</a> runs in the browser with all of its animations (arrow keys step through it, <kbd>G</kbd> shows an overview). Each paper's own page is on the <a href="../../research.html">research tab</a>.</p>
       </section>
 
@@ -1300,6 +1406,18 @@
           }, { ms: 2800, hold: 4200 });
           fit();
           setTimeout(fit, 300);
+        })();
+
+        /* Frontier figure, ported from the talk */
+        (function () {
+          const groups = [...document.querySelectorAll("#fig-frontier .fs")];
+          stepper("frontier", ["Frontier VLMs today", "+ REPLICA: faithful reconstruction", "+ M3Grounder: grounded answers", "+ DoCoG: grounded reasoning", "+ DocLayout-VL: whole-page structure"], (i) => {
+            groups.forEach((g) => {
+              const k = +g.dataset.f;
+              g.classList.toggle("shown", k <= i);
+              g.classList.toggle("old", k < i);
+            });
+          }, { ms: 2400, hold: 4400 });
         })();
 
         /* Figure 3: which uses each representation can serve */
