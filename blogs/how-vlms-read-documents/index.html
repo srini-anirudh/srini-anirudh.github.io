@@ -597,7 +597,7 @@
 
         <h3>Many pages</h3>
         <p>Real documents are long. MP-DocVQA extended DocVQA to multi-page documents and proposed Hi-VT5, which summarizes each page and also predicts which page holds the answer. DUDE added varied multi-page, multi-domain documents with harder question types. DocOwl2's 324-token pages exist to make multi-page input affordable. MMLongBench-Doc is the most demanding: 1,062 questions over 130 PDFs averaging 49.4 pages, with 33.2% of questions needing evidence from several pages and 22.8% designed to be unanswerable.</p>
-        <p>When a document is too long for any context, the usual answer is retrieval: find the right pages first, then read them. ColPali showed that page images can be embedded and retrieved directly, without extracting text. The <a href="../index.html?series=vlms" data-series-pending="searching-with-pixels/">post on multimodal retrieval</a> covers that design.</p>
+        <p>When a document is too long for any context, the usual answer is retrieval: find the right pages first, then read them. ColPali showed that page images can be embedded and retrieved directly, without extracting text. The <a href="../searching-with-pixels/">post on multimodal retrieval</a> covers that design.</p>
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>More pixels are not always better for long documents. In MMLongBench-Doc, the best model, GPT-4o, reached only 42.7 F1. And 12 of the 14 VLMs tested scored worse than their own language-model counterparts given lossy OCR text of the same documents. For long documents, a good parse followed by a text model can beat feeding page images. This is another argument for getting the text representation right.</p></aside>
       </section>
 
@@ -709,7 +709,7 @@
           <li><a href="../when-language-must-point/">When Language Must Point</a></li>
           <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li>
           <li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="searching-with-pixels/">Searching With Pixels</a></li>
+          <li><a href="../searching-with-pixels/">Searching With Pixels</a></li>
         </ul>
       </nav>
 
