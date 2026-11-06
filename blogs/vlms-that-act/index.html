@@ -358,7 +358,7 @@
         <h3>What is different about screens</h3>
         <ul class="plain">
           <li><strong>Targets are small.</strong> A toolbar icon may be 16 to 24 pixels wide on a screen that is thousands of pixels wide. In a photo, objects usually cover a larger share of the image.</li>
-          <li><strong>Screens are dense with text.</strong> Many elements are identified by their labels. Reading them is an OCR problem, which <a href="../index.html?series=vlms" data-series-pending="how-vlms-read-documents/">How VLMs Read Documents</a> covers in depth.</li>
+          <li><strong>Screens are dense with text.</strong> Many elements are identified by their labels. Reading them is an OCR problem, which <a href="../how-vlms-read-documents/">How VLMs Read Documents</a> covers in depth.</li>
           <li><strong>Icons carry function, not appearance.</strong> A gear means "settings". A floppy disk means "save". The model must know conventions, not only shapes.</li>
           <li><strong>The tolerance is the element box.</strong> A click is correct if it lands anywhere inside the target element. This is how the ScreenSpot benchmark scores grounding. It is more forgiving than an IoU threshold on a box, but a miss by a few pixels can still hit the neighbouring button.</li>
           <li><strong>The model sees a resized image.</strong> The screenshot is scaled to fit the visual-token budget. The model's coordinates must be mapped back to real screen pixels.</li>

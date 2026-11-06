@@ -210,7 +210,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">08 of 20 &middot; Alignment</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../measuring-what-a-vlm-can-do/"><span>Previous &middot; 07</span><strong>Measuring What a VLM Can Do</strong></a><a class="ml-series-nav__link" href="../seeing-in-time/"><span>Next &middot; 11</span><strong>Seeing in Time</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../measuring-what-a-vlm-can-do/"><span>Previous &middot; 07</span><strong>Measuring What a VLM Can Do</strong></a><a class="ml-series-nav__link" href="../how-vlms-read-documents/"><span>Next &middot; 10</span><strong>How VLMs Read Documents</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -327,7 +327,7 @@
         <p><strong>Attributes.</strong> The object exists but a property is wrong: colour, material, size, state. &ldquo;A blue car.&rdquo; Attribute errors are subtler, because the noun is correct and only one word is false.</p>
         <p><strong>Count.</strong> &ldquo;Three people stand on the sidewalk.&rdquo; Counting is hard for vision encoders that pool or compress patches. It is also hard for the decoder, which has a strong prior for round, common numbers.</p>
         <p><strong>Spatial relations.</strong> &ldquo;The woman stands to the right of the car.&rdquo; Both objects exist. The relation between them is wrong. Relations need the model to bind two objects and their positions, which is harder than recognising either one.</p>
-        <p><strong>Text in the image.</strong> &ldquo;The sign says it opens at 9.&rdquo; The sign says 8. Reading errors matter a great deal for documents, charts and screenshots. The decoder&rsquo;s prior for common phrases (&ldquo;9 to 5&rdquo;) competes with the pixels. Document reading is covered in <a href="../index.html?series=vlms" data-series-pending="how-vlms-read-documents/">How VLMs Read Documents</a>.</p>
+        <p><strong>Text in the image.</strong> &ldquo;The sign says it opens at 9.&rdquo; The sign says 8. Reading errors matter a great deal for documents, charts and screenshots. The decoder&rsquo;s prior for common phrases (&ldquo;9 to 5&rdquo;) competes with the pixels. Document reading is covered in <a href="../how-vlms-read-documents/">How VLMs Read Documents</a>.</p>
         <p><strong>Actions and events.</strong> &ldquo;The man is crossing the street.&rdquo; He is standing on the sidewalk. Action claims often go beyond a single frame. A still image rarely shows an event, so the model fills in a story.</p>
         <p><strong>External knowledge presented as evidence.</strong> &ldquo;This Paris bakery is famous for its croissants.&rdquo; The claim might even be true of some bakery. It is not something the image shows. The problem is not that the model used world knowledge. Using knowledge is often useful. The problem is that it presented knowledge as if it were observation.</p>
 

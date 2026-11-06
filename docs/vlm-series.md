@@ -22,7 +22,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 08 | Aligning Vision-Language Models | `aligning-vision-language-models` | Preferences, hallucination, safety | Published |
 | **Capabilities** |||||
 | 09 | When Language Must Point | `when-language-must-point` | Grounding and structured visual outputs | In progress |
-| 10 | How VLMs Read Documents | `how-vlms-read-documents` | Document and OCR VLMs | In progress |
+| 10 | How VLMs Read Documents | `how-vlms-read-documents` | Document and OCR VLMs | Published |
 | 11 | Seeing in Time | `seeing-in-time` | Video understanding | Published |
 | 12 | Rewarding What the Model Sees | `rewarding-what-the-model-sees` | RL for VLMs | Published |
 | 13 | Thinking With Images | `thinking-with-images` | Reasoning and multimodal test-time scaling | Published |
