@@ -239,7 +239,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">06 of 20 &middot; Post-training</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-vision-language-models-scale/"><span>Previous &middot; 05</span><strong>How Vision-Language Models Scale</strong></a><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Next &middot; 13</span><strong>Thinking With Images</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-vision-language-models-scale/"><span>Previous &middot; 05</span><strong>How Vision-Language Models Scale</strong></a><a class="ml-series-nav__link" href="../aligning-vision-language-models/"><span>Next &middot; 08</span><strong>Aligning Vision-Language Models</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -667,7 +667,7 @@
           <li><strong>Encoder health.</strong> Few papers report probes of the vision encoder before and after instruction tuning. Without them, vision forgetting and readout failure cannot be separated.</li>
           <li><strong>Multilingual balance beyond 39 languages.</strong> Pangea gives one data point on the English share. How the best share changes with the number of languages and their data sizes is open.</li>
           <li><strong>Whether staging matters at scale.</strong> The disagreement between single-stage and multi-stage results may depend on model size and data size. No public study maps it.</li>
-          <li><strong>Where SFT ends and preference tuning begins.</strong> Hallucination is partly a data problem and partly a training-objective problem. The next posts on <a href="../index.html?series=vlms" data-series-pending="aligning-vision-language-models/">aligning VLMs</a> and <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">RL for VLMs</a> pick up the objective side.</li>
+          <li><strong>Where SFT ends and preference tuning begins.</strong> Hallucination is partly a data problem and partly a training-objective problem. The next posts on <a href="../aligning-vision-language-models/">aligning VLMs</a> and <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">RL for VLMs</a> pick up the objective side.</li>
         </ul>
         <p>You should now be able to reason about a multimodal SFT recipe from first principles. Look at the serialized example and its loss mask. Write down the capability vector. Ask what each source teaches, which formats conflict, what replay protects the language model, and which data was written by another model. The <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">next post</a> takes up the evaluation side in depth.</p>
       </section>
