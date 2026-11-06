@@ -11,3 +11,11 @@
 body.dark-mode .talk-card { background: rgba(10,30,50,.55); border-color: #173b5c; }
 body.dark-mode .talk-date { color: #ffbf73; }
 .talk-button + .talk-button { margin-left: 8px; }
+
+.research-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px 28px; margin: 24px 0 8px; padding: 20px 26px; border: 1px solid var(--line); border-left: 4px solid var(--orange-dark); border-radius: 14px; background: rgba(255,255,255,.55); }
+.research-summary > div { flex: 1 1 380px; }
+.research-summary h2 { margin: 4px 0 6px; font-size: 24px; }
+.research-summary p { margin: 0; line-height: 1.5; }
+.summary-kicker { color: var(--orange-dark); font-weight: 600; font-size: 14px; }
+body.dark-mode .research-summary { background: rgba(10,30,50,.55); border-color: #173b5c; border-left-color: #ffbf73; }
+body.dark-mode .summary-kicker { color: #ffbf73; }
