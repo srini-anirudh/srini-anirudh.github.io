@@ -147,7 +147,7 @@
           <span>PyTorch</span><span>Autograd</span><span>Training loops</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>64 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>68 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -282,7 +282,7 @@ $ python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"</code></pre>
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Where the numbers come from</p>
-          <p>Unless a label says otherwise, outputs in this post come from an AMD EPYC 7R13 server, using 8 CPU threads and PyTorch 2.15. That machine was busy with other jobs, so its timings are noisy. Read them as ratios and orders of magnitude. It gave us no accelerator, so accelerator numbers come from an Apple M5 laptop (10 cores, 16 GB, 2 CPU threads, MPS), and each block says so. The laptop was also shared. No CUDA number appears here, because none has been measured yet. The commands to measure them are given where they matter.</p>
+          <p>Unless a label says otherwise, outputs in this post come from an AMD EPYC 7R13 server, using 8 CPU threads and PyTorch 2.15. That machine was busy with other jobs, so its timings are noisy. Read them as ratios and orders of magnitude. It gave us no accelerator, so accelerator numbers come from an Apple M5 laptop (10 cores, 16 GB, 2 CPU threads, MPS), and each block says so. The laptop was also shared. CUDA numbers come from one run on an NVIDIA H100 80GB HBM3, with torch 2.15.0+cu132 and CUDA 13.2. Each of those blocks says so. That machine&rsquo;s host CPU is also an AMD EPYC 7R13 with 8 threads, but it is a different machine from ours. We never mix its CPU numbers with the others.</p>
         </aside>
       </section>
 
@@ -715,6 +715,15 @@ def synchronize(device: torch.device | str) -&gt; None:
   without sync: 0.285 ms   with sync: 53.572 ms</code></pre>
 </figure>
         <p>The clock read before the sync says 0.285 ms. The real time is 53.6 ms, which is 188 times longer. Figure 3 shows the two timelines.</p>
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Time the same 4096 by 4096 matmul on CUDA and leave out <code>synchronize()</code>. This is one run on an NVIDIA H100 80GB HBM3.</p>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3 and its host CPU, one run" data-from="benchmarks/matmul.py">
+<pre><code>timing a 4096 x 4096 matmul on cuda with and without synchronize():
+  without sync: 0.037 ms   with sync: 2.695 ms</code></pre>
+</figure>
+          <p>Without the sync, the multiply appears to take 0.037 ms. The real time is 2.695 ms, about 73 times longer. Report the first number and you would claim a speed the GPU never reached. Every GPU timing in this post calls <code>synchronize()</code> before it reads the clock.</p>
+        </aside>
         <figure class="ct-figure ct-figure--wide" id="fig-sync">
           <div class="ct-figure__stage" aria-label="Timeline of Python and the device queue for one matmul, then for one non-blocking copy."></div>
           <p class="ct-figure__note"></p>
@@ -779,11 +788,37 @@ what non_blocking=True returns (64 MB, pinned source):
           <p class="callout-label">Nuance</p>
           <p>These numbers do not tell you what a CUDA machine does, for two reasons. First, an Apple GPU shares its memory with the CPU, so there is no PCIe link to cross. Second, the laptop was shared with other jobs.</p>
           <p>A second run gave very different numbers: 8.11 and 47.60 GB/s at 256 MB, against 15.23 and 21.71 above. It also reported 41.2 seconds for one 64 MB copy to finish. We do not know the cause of that outlier. The two runs disagree by a factor of two or more, so they do not support any claim that pinning is faster here. Treat this as a working benchmark to run on your own hardware.</p>
-          <p>CUDA numbers are not yet measured. To measure them, run:</p>
-          <figure class="terminal" data-cwd="blog-coding-tutorials"><pre><code>$ .venv/bin/python -m pytest c01-pytorch -m gpu
-$ .venv/bin/python c01-pytorch/benchmarks/transfer.py --device cuda --json transfer_cuda.json</code></pre></figure>
-          <p>The first command runs six tests that need a real GPU. They cover <code>.cuda()</code> against <code>.to()</code>, a pinned <code>non_blocking</code> copy, and a real device mismatch. None of them has run yet.</p>
         </aside>
+        <p>Here is the same benchmark on CUDA. It is one run on an NVIDIA H100 80GB HBM3.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c01-pytorch/benchmarks/transfer.py --device cuda</code></pre>
+        </figure>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3, one run" data-from="benchmarks/transfer.py --device cuda">
+<pre><code>device=cuda  torch=2.15.0+cu132
+ size_MB  H2D_pageable  H2D_pinned      D2H   (GB/s)
+  0.0625          1.77        3.11     1.00
+       1          6.85       11.61     1.39
+       4         10.88       13.46     1.51
+      16         12.82       14.02     1.54
+      64         12.04       14.20     1.37
+     256         11.73       14.25     1.35
+
+what non_blocking=True returns (64 MB, pinned source):
+  call returned after 0.036 ms, copy finished after 4.741 ms</code></pre>
+</figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>At 256 MB, pageable copies to the GPU reached 11.7 GB/s and pinned copies 14.3 GB/s. Copies back to the host reached 1.35 GB/s. All three are far below what a PCIe Gen5 link can carry. We do not know why, and this one run cannot tell us.</p>
+          <p>The <code>non_blocking</code> line behaves as described above. The call returned after 0.036 ms, and the 64 MB copy finished after 4.741 ms.</p>
+        </aside>
+        <p>The repo also has six tests that need a real GPU. They cover <code>.cuda()</code> against <code>.to()</code>, a pinned <code>non_blocking</code> copy, a real device mismatch, our AdamW against PyTorch&rsquo;s on CUDA, and resuming from a checkpoint on CUDA. All six passed in one run on the H100.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python -m pytest c01-pytorch -m gpu</code></pre>
+        </figure>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3, one run" data-from="pytest c01-pytorch -m gpu">
+<pre><code>......                                                                   [100%]
+6 passed, 50 deselected in 9.00s</code></pre>
+</figure>
         <div class="theory-links">
           <a class="theory-link" href="../why-fast-gpus-still-wait-for-memory/"><span class="theory-link__kicker">Theory in</span>Why fast GPUs still wait for memory</a>
           <a class="theory-link" href="../why-gpus-are-built-for-deep-learning/"><span class="theory-link__kicker">Theory in</span>Why GPUs are built for deep learning</a>
@@ -922,6 +957,20 @@ torch.mm mps            4096    217.726     631.2</code></pre>
           <p>The GPU does not always win. On the M5 at n = 256, the CPU took 0.192 ms and the GPU took 0.400 ms. The GPU only pulls ahead at n = 1024.</p>
           <p>Both tables are noisy. The M5 table reports 217.7 ms at n = 4096, while the single timed call in Step 4 took 53.6 ms. On the EPYC server this table shows 8.0 ms at n = 1024, and three reruns took 4.9, 11.0 and 11.7 ms. Both machines were busy with other jobs, and we did not track down these gaps. Treat the numbers as ratios and orders of magnitude.</p>
         </aside>
+        <p>Here is the same benchmark on CUDA, one run on an NVIDIA H100 80GB HBM3. The CPU rows come from that machine&rsquo;s own host CPU. It is a different machine from the EPYC server above, so compare its CPU rows only with its GPU rows.</p>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3 and its host CPU, one run" data-from="benchmarks/matmul.py">
+<pre><code>impl                       n         ms   GFLOP/s
+mm_loops (python)         32    161.564    0.0004
+mm_rows (broadcast)      256     10.953       3.1
+torch.mm cpu x8 thr      256      0.079     426.4
+torch.mm cpu x8 thr     1024      2.898     741.0
+torch.mm cpu x8 thr     2048     22.676     757.6
+torch.mm cuda            256      0.049     686.9
+torch.mm cuda           1024      0.085   25228.3
+torch.mm cuda           2048      0.369   46606.3
+torch.mm cuda           4096      2.695   51000.9</code></pre>
+</figure>
+        <p>On the H100 the GPU wins at every size we ran, even n = 256: 0.049 ms against 0.079 ms on its host CPU. At n = 2048 it takes 0.369 ms against 22.7 ms. At n = 4096 it reaches 51,001 GFLOP/s, about 51 TFLOP/s, in float32 with the default precision. These are single runs.</p>
         <aside class="callout callout-test">
           <p class="callout-label">Test</p>
           <p>The loop version, the row version, <code>torch.mm</code>, <code>bmm_loop</code>, <code>matmul_manual</code>, <code>torch.bmm</code> and <code>torch.matmul</code> must agree on random inputs.</p>
@@ -1724,9 +1773,19 @@ torch for-loop          8.34     11.20
 torch foreach          10.00     10.94
 torch fused             4.38      5.51</code></pre>
 </figure>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3 and its host CPU, one run" data-from="benchmarks/optimizers.py">
+<pre><code>torch 2.15.0+cu132, 8 CPU threads
+6.30 M parameters in 48 tensors
+impl                  cpu ms   cuda ms
+scratchnet.AdamW        4.11      3.24
+torch for-loop          4.34      3.78
+torch foreach          10.51      0.55
+torch fused             0.96      0.23</code></pre>
+</figure>
+        <p>The last block is one run on an NVIDIA H100 80GB HBM3. Its <code>cpu ms</code> column is that machine&rsquo;s host CPU, not the EPYC server above. On CUDA, <code>foreach</code> goes from slowest to second fastest, at 0.55 ms. Fused takes 0.23 ms. Ours takes 3.24 ms and the for-loop 3.78 ms.</p>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>Only one result holds across all three columns: the fused kernel is fastest, at about half the for-loop time or better. The other orderings change. Ours beats the for-loop on the EPYC server, 5.37 against 7.59 ms. It loses on the M5 CPU, 11.73 against 8.34 ms. It wins again on MPS, 8.58 against 11.20 ms.</p>
+          <p>Only one result holds across every column, CUDA included: the fused kernel is fastest, at about half the for-loop time or better. The other orderings change. Ours beats the for-loop on the EPYC server, 5.37 against 7.59 ms. It loses on the M5 CPU, 11.73 against 8.34 ms. It wins again on MPS, 8.58 against 11.20 ms.</p>
           <p>The EPYC numbers also move between runs. Three reruns gave 6.75 to 8.83 ms for ours and 7.16 to 11.33 ms for the for-loop, and the two tied once. <code>foreach</code> was the slowest every time, at 8.97 to 16.90 ms against 18.12 ms above. Do not read much into a gap that changes sign. The readable version is fine for learning. Reach for <code>fused=True</code> when the optimizer shows up in a profile.</p>
         </aside>
         <footer class="build-step__checkpoint">
@@ -1950,6 +2009,12 @@ num_workers=4 persistent prefetch=4       0.50       0.34         1750
 SimpleDataLoader num_workers=0           1.21       1.21          498
 SimpleDataLoader num_workers=4           0.41       0.40         1508</code></pre>
 </figure>
+        <p>The benchmark adds a <code>pin_memory</code> row only when CUDA is present. On the H100 machine, in one run, four persistent workers gave 1813 examples per second without pinning and 1771 with it. That is no difference. This benchmark pins each batch but never copies it to the GPU, so it shows only that pinning did not slow the loader down.</p>
+<figure class="code-output" data-label="Output &middot; Host CPU of the NVIDIA H100 machine, one run" data-from="benchmarks/dataloader.py">
+<pre><code>num_workers=4 persistent                 0.50       0.33         1813
+num_workers=4 persistent prefetch=4       0.43       0.33         1804
+num_workers=4 persistent pin_memory       0.70       0.34         1771</code></pre>
+</figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
           <p>Worker startup has a measurable price. This epoch holds 1.2 seconds of work, so four perfect workers would need 0.30 s. Four persistent workers come close, at 0.34 s in epoch 2. Four fresh workers take 0.55 s. So starting and stopping the processes costs about 0.2 s per epoch.</p>
@@ -1970,7 +2035,7 @@ SimpleDataLoader num_workers=4           0.41       0.40         1508</code></pr
               <tr><th scope="row"><code>num_workers</code></th><td>Fetches in separate processes</td><td>When <code>__getitem__</code> does real work</td><td>496 with none, 1778 with 4 persistent</td></tr>
               <tr><th scope="row"><code>persistent_workers</code></th><td>Keeps workers between epochs</td><td>Almost always, with workers</td><td>795 to 922 ex/s at 2 workers, 1089 to 1778 at 4</td></tr>
               <tr><th scope="row"><code>prefetch_factor</code></th><td>Batches queued per worker</td><td>When data arrives in bursts</td><td>1778 to 1750 ex/s, no real change</td></tr>
-              <tr><th scope="row"><code>pin_memory</code></th><td>Pins each batch in a background thread</td><td>With CUDA and <code>non_blocking=True</code></td><td>Not yet measured on CUDA</td></tr>
+              <tr><th scope="row"><code>pin_memory</code></th><td>Pins each batch in a background thread</td><td>With CUDA and <code>non_blocking=True</code></td><td>1771 against 1813 ex/s without it, one run: no difference here</td></tr>
             </tbody>
           </table>
         </div>
@@ -2161,7 +2226,22 @@ epoch  59  train_loss 0.0015  val_loss 0.0286  val_acc 0.998  max_grad_norm 0.04
           <figcaption><span class="ct-fig-num">Figure 8</span>The real run. Regions show the predicted class on a 48 by 48 grid, saved at eight epochs. Dots are a third of the training points. The numbers come from the run&rsquo;s saved history on an AMD EPYC 7R13 CPU. Switch the optimizer to compare AdamW at lr 0.01 with SGD and momentum at lr 0.1.</figcaption>
         </figure>
         <p>The training curve is not smooth. AdamW&rsquo;s epoch loss jumps from 0.038 at epoch 18 to 0.224 at epoch 19, and back to 0.059 at epoch 20. At this learning rate that is ordinary. It is also why we look at the whole curve, and not only the last row.</p>
-        <p>Here is the same run on an accelerator, the Apple M5 GPU, cut to 20 epochs.</p>
+        <p>Here is the same run on CUDA, one run on an NVIDIA H100 80GB HBM3.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c01-pytorch/scripts/05_train.py --optimizer adamw --device cuda</code></pre>
+        </figure>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3, one run" data-from="scripts/05_train.py --device cuda">
+<pre><code>epoch   0  train_loss 1.0318  val_loss 0.9422  val_acc 0.479  max_grad_norm 0.622
+epoch  10  train_loss 0.1007  val_loss 0.1439  val_acc 0.976  max_grad_norm 1.287
+epoch  20  train_loss 0.0591  val_loss 0.0403  val_acc 0.997  max_grad_norm 0.995
+epoch  30  train_loss 0.0073  val_loss 0.0312  val_acc 0.997  max_grad_norm 0.150
+epoch  40  train_loss 0.0036  val_loss 0.0294  val_acc 0.998  max_grad_norm 0.087
+epoch  50  train_loss 0.0023  val_loss 0.0293  val_acc 0.998  max_grad_norm 0.067
+epoch  59  train_loss 0.0015  val_loss 0.0286  val_acc 0.998  max_grad_norm 0.043
+60 epochs in 4.91 s on cuda</code></pre>
+</figure>
+        <p>Every printed loss and accuracy matches the CPU run above. The final train loss is 0.0015 and the validation accuracy 0.998 on both. The time is 4.91 s on the GPU against 5.79 s on the EPYC CPU. Those are different machines, so the GPU is at most a little faster here.</p>
+        <p>Here is the same model on the Apple M5 GPU, cut to 20 epochs.</p>
 <figure class="code-output" data-label="Output &middot; Apple M5 MPS" data-from="scripts/05_train.py --device mps --epochs 20">
 <pre><code>epoch   0  train_loss 1.0318  val_loss 0.9422  val_acc 0.479  max_grad_norm 0.622
 epoch  10  train_loss 0.1007  val_loss 0.1439  val_acc 0.976  max_grad_norm 1.287
@@ -2171,7 +2251,7 @@ epoch  19  train_loss 0.2243  val_loss 0.0894  val_acc 0.980  max_grad_norm 6.15
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
           <p>The GPU run is slow: about 0.88 s per epoch, with any one-time cost included. On the EPYC CPU the same model took about 0.03 s per epoch once a torch optimizer had already run in the process. In a fresh process, with the one-time cost from Step 10 included, it took just under 0.1 s.</p>
-          <p>These are different machines, so this is not a clean comparison. A same-machine comparison on CUDA is queued and not yet measured. The direction is what we expected: this model has a few thousand parameters and each batch has 64 points, so there is little work to run in parallel, and each operation still pays to be queued. Step 5 showed the GPU winning on large matmuls and losing on small ones.</p>
+          <p>These are different machines, so this is not a clean comparison. The H100 run points the same way: 4.91 s against 5.79 s, also on different machines. The direction is what we expected: this model has a few thousand parameters and each batch has 64 points, so there is little work to run in parallel, and each operation still pays to be queued. Step 5 showed the GPU winning on large matmuls and losing on small ones.</p>
         </aside>
         <aside class="callout callout-test">
           <p class="callout-label">Test</p>
@@ -2398,7 +2478,13 @@ RuntimeError: mm: mat1 and mat2 shapes cannot be multiplied (8x3 and 2x16)</code
 RuntimeError: Expected all tensors to be on the same device, but found at least two devices, mps:0 and cpu!
 check_same_device: x is on cpu but the model is on mps:0; call .to(device)</code></pre>
 </figure>
-          <p>PyTorch&rsquo;s error names two devices. Ours names the tensor and says what to do. On a large model that saves time, because the failure no longer lands deep inside a matmul. On a machine with no accelerator, the script uses the <code>meta</code> device as a stand-in, so the PyTorch message differs. The real error on CUDA is not yet captured.</p>
+          <p>PyTorch&rsquo;s error names two devices. Ours names the tensor and says what to do. On a large model that saves time, because the failure no longer lands deep inside a matmul. On a machine with no accelerator, the script uses the <code>meta</code> device as a stand-in, so the PyTorch message differs.</p>
+          <p>Here is the real error on CUDA, from one run on an NVIDIA H100 80GB HBM3.</p>
+<figure class="code-output" data-label="Output &middot; NVIDIA H100 80GB HBM3, one run" data-from="scripts/07_break_it.py device">
+<pre><code>== model and batch on different devices ==
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!
+check_same_device: x is on cpu but the model is on cuda:0; call .to(device)</code></pre>
+</figure>
         </aside>
         <div class="comparison-table-wrap">
           <table class="comparison-table">
@@ -2624,12 +2710,16 @@ $ .venv/bin/python c01-pytorch/benchmarks/matmul.py
 $ .venv/bin/python c01-pytorch/benchmarks/optimizers.py
 $ .venv/bin/python c01-pytorch/benchmarks/dataloader.py
 $ .venv/bin/python -m pytest c01-pytorch -m gpu
+# On the CUDA machine:
+$ .venv/bin/python c01-pytorch/benchmarks/transfer.py --device cuda
+$ .venv/bin/python c01-pytorch/scripts/05_train.py --optimizer adamw --device cuda
+$ .venv/bin/python c01-pytorch/scripts/07_break_it.py device
 # On the Apple M5 only:
 $ .venv/bin/python c01-pytorch/benchmarks/transfer.py --device mps
 $ .venv/bin/python c01-pytorch/scripts/05_train.py --device mps --epochs 20</code></pre>
         </figure>
         <p>Three checks use short extra loops that are not in the repo: the every-step trace at <code>lr=10</code> in Step 13, the first-use timing in Step 10, and the 200 shuffled batches in Step 14. Each one takes a few lines on top of the code above. The reruns we quote are repeats of these commands, on the same AMD EPYC 7R13.</p>
-        <p>On the AMD EPYC server, all 50 offline tests passed. The six <code>gpu</code> tests need CUDA and have not run yet. The transfer benchmark needs CUDA or MPS. On a CPU-only machine it prints a message and exits. Captured outputs of every run are in <code>results/</code>.</p>
+        <p>On the AMD EPYC server, all 50 offline tests passed. The six <code>gpu</code> tests need CUDA. They passed in one run on an NVIDIA H100 80GB HBM3. The transfer benchmark needs CUDA or MPS. On a CPU-only machine it prints a message and exits. Captured outputs of every run are in <code>results/</code>.</p>
       </section>
 
       <section id="key-insights">
@@ -2639,11 +2729,11 @@ $ .venv/bin/python c01-pytorch/scripts/05_train.py --device mps --epochs 20</cod
           <li><strong><code>reshape</code> may return a view or a copy, depending on an earlier line.</strong> If you depend on writes reaching the original, use <code>view</code>, because it fails loudly. <a href="#step-02">Step 2</a></li>
           <li><strong>A 4000-byte slice can hold a 4 MB block in memory.</strong> <code>clone()</code> the small pieces you keep. <a href="#step-02">Step 2</a></li>
           <li><strong><code>[B, 1] - [B]</code> broadcasts to <code>[B, B]</code>, and training still runs.</strong> The loss was 1.0290 where 0.6618 was correct. <a href="#step-03">Step 3</a></li>
-          <li><strong>A GPU timing without a sync measures the queue.</strong> 0.285 ms against a real 53.6 ms on the Apple M5 GPU. <a href="#step-04">Step 4</a></li>
-          <li><strong>The MPS transfer numbers do not predict CUDA, and they were noisy.</strong> CUDA is not yet measured. <a href="#step-04">Step 4</a></li>
+          <li><strong>A GPU timing without a sync measures the queue.</strong> 0.285 ms against a real 53.6 ms on the Apple M5 GPU, and 0.037 ms against 2.695 ms on an H100. <a href="#step-04">Step 4</a></li>
+          <li><strong>Measure copies on your own machine.</strong> The MPS numbers were noisy. One H100 run gave 11.7 GB/s pageable and 14.3 GB/s pinned to the GPU, and 1.35 GB/s back, far below the link&rsquo;s rating, for reasons we do not know. <a href="#step-04">Step 4</a></li>
           <li><strong>Python loops are about a million times slower per operation than <code>torch.mm</code> on the same CPU.</strong> On the Apple M5, the GPU only wins from about n = 1024. <a href="#step-05">Step 5</a></li>
           <li><strong>Starting workers has a measurable price on short epochs.</strong> Four workers took 0.55 s per epoch when started fresh, and 0.34 s when persistent. <a href="#step-11">Step 11</a></li>
-          <li><strong>A small model gains nothing from an accelerator, as far as we measured.</strong> About 0.88 s per epoch on the Apple M5 GPU, against under 0.1 s on the EPYC CPU. These are different machines, and CUDA is not yet measured. <a href="#step-12">Step 12</a></li>
+          <li><strong>A small model gains nothing from an accelerator, as far as we measured.</strong> On an H100 it took 4.91 s for 60 epochs, against 5.79 s on the EPYC CPU. The Apple M5 GPU took about 0.88 s per epoch. All of these are different machines. <a href="#step-12">Step 12</a></li>
           <li><strong>A finite loss does not prove a healthy model.</strong> At <code>lr=10</code> the logged loss dropped to about 4 while the second ReLU layer output zeros. An unlogged step still hit 5.55e15, and momentum kept moving weights that had no gradient. <a href="#step-13">Step 13</a></li>
           <li><strong>Clipping does not repair a learning rate that is too high.</strong> <code>lr=10</code> with clipping stayed at chance. <a href="#step-13">Step 13</a></li>
           <li><strong>AdamW&rsquo;s first step is about lr &times; sign(g).</strong> Gradient size does not matter on that step. <a href="#step-14">Step 14</a></li>
@@ -2657,7 +2747,7 @@ $ .venv/bin/python c01-pytorch/scripts/05_train.py --device mps --epochs 20</cod
           <li><strong>Complete <code>view_manual</code></strong><span class="exercise-level">Hard</span> PyTorch&rsquo;s <code>view</code> also works on some non-contiguous tensors, when the dimensions you split or merge have strides that line up. Extend <code>view_manual</code> to cover those cases. Write a test that compares it with <code>Tensor.view</code> on random slices and permutes, including the error cases.
             <details><summary>Hint</summary><p>Group old and new dimensions into chunks with equal products. A chunk of old dimensions can be merged only if each stride equals the next stride times the next size.</p></details>
           </li>
-          <li><strong>Measure a real GPU</strong><span class="exercise-level">Easy</span> Run <code>benchmarks/transfer.py</code>, <code>matmul.py</code> and <code>optimizers.py</code> on a CUDA machine. At what size does pinned memory start to matter? How does the matmul crossover compare with the Apple M5 numbers here? The repo also has six GPU-only tests to run.</li>
+          <li><strong>Measure a real GPU</strong><span class="exercise-level">Easy</span> Run <code>benchmarks/transfer.py</code>, <code>matmul.py</code> and <code>optimizers.py</code> on your own CUDA machine, a few times each. Compare them with the single H100 run here. At what size does pinned memory start to matter? Where does the GPU stop winning at matmul? Then run the six GPU-only tests.</li>
           <li><strong>Compare Adam with L2 and AdamW</strong><span class="exercise-level">Medium</span> Add an <code>AdamL2</code> class that adds <code>wd * p</code> to the gradient, as our SGD does. Match it against <code>torch.optim.Adam</code>. Then train the spiral model with both at a high weight decay and compare the parameter norms.
             <details><summary>Hint</summary><p>Use <code>param_norms</code> from <code>debug.py</code> at each epoch. The theory post on optimizers says what to expect.</p></details>
           </li>
