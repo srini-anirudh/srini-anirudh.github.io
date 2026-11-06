@@ -2039,3 +2039,78 @@ body.dark-mode .iith-archive-links a {
     grid-template-columns: 1fr;
   }
 }
+
+/* Exploration column: projects, courses and archive links live inside it. */
+.ee-columns {
+  align-items: start;
+}
+.ee-col-explore .exploration-accordions {
+  margin-top: 20px;
+}
+.ee-col-explore .exploration-details > summary {
+  flex-wrap: wrap;
+}
+.ee-col-explore .details-copy {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.ee-col-explore .details-copy small {
+  white-space: normal;
+}
+.ee-col .exploration-axis {
+  margin: 28px 0 0;
+  padding-bottom: 6px;
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ee-col .exploration-details-body > .exploration-axis:first-child {
+  margin-top: 0;
+}
+.ee-col-explore .exploration-area {
+  margin: 14px 0 8px;
+}
+.ee-col-explore .course-group .exploration-area {
+  margin-top: 0;
+}
+.ee-col-explore .exploration-grid,
+.ee-col-explore .course-groups {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ee-col-explore .exploration-grid {
+  gap: 8px;
+}
+.ee-col-explore .exploration-card {
+  min-height: 0;
+  padding: 12px 14px;
+}
+.ee-col-explore .exploration-card::after,
+.ee-col-explore .exploration-card > i,
+.ee-col-explore .exploration-card em {
+  display: none;
+}
+.about-visual .ee-col .exploration-card h3 {
+  margin: 0 0 4px;
+  font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.ee-col-explore .exploration-card p {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ee-col-explore .iith-archive-links {
+  margin: 14px 0 0;
+}
+.ee-col-explore .iith-archive-links > span {
+  flex: 1 0 100%;
+}
+.ee-list strong {
+  color: var(--text);
+  font-weight: 600;
+}
