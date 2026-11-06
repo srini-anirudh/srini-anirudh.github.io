@@ -98,16 +98,19 @@
       /* ---------- article-specific figure styles (keep them light) ---------- */
       #fig-flow svg, #fig-rope svg, #fig-gqa svg, #fig-cache svg, #fig-moe svg { min-width: 620px; }
       #fig-latency svg, #fig-training svg, #sampling-stage svg { min-width: 520px; }
+      #fig-rms svg { min-width: 620px; }
       .params-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 4px; color: var(--ink-soft); font: 12.5px/1.5 var(--mono); }
       .legend-item i { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
       .legend-item b { color: var(--ink); font-weight: 600; }
       .legend-item em { color: var(--muted); font-style: normal; }
+      .article-content p code, .article-content li code, .article-content figcaption code { overflow-wrap: anywhere; }
       .params-error { margin: 8px 0; padding: 8px 10px; color: #8d2f1f; background: #fbfaf8; border: 1px solid #dedad2; border-left: 3px solid #b8432f; font: 12.5px/1.5 var(--mono); }
 
       @media (max-width: 640px) {
         .article-wrap { width: calc(100% - 32px); }
         .article-content { width: calc(100% - 32px); }
         .toc ol { columns: 1; }
+        #params-stage svg text { font-size: 33px; }
       }
     </style>
     <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
@@ -136,7 +139,7 @@
       <div class="article-wrap">
         <p class="article-eyebrow">Coding tutorial &middot; Build it from scratch</p>
         <h1 class="article-title">Build a Modern LLM From Scratch</h1>
-        <p class="article-subtitle">RMSNorm, RoPE, grouped-query attention, SwiGLU, a KV cache and modern sampling, one tested module at a time. At the end our code reproduces the logits of Hugging Face&rsquo;s Llama and runs real pretrained weights.</p>
+        <p class="article-subtitle">RMSNorm, RoPE, grouped-query attention, SwiGLU, a key-value (KV) cache and modern sampling, one tested module at a time. At the end our code reproduces the logits of Hugging Face&rsquo;s Llama and runs real pretrained weights.</p>
         <div class="article-taxonomy" aria-label="Tags">
           <span>Language models</span><span>PyTorch</span><span>Hugging Face</span>
         </div>
@@ -174,12 +177,13 @@
                 <div class="theory-links">
                   <a class="theory-link" href="../what-changed-inside-the-transformer/">What changed inside the transformer</a>
                   <a class="theory-link" href="../the-mechanics-of-llm-inference/">The mechanics of LLM inference</a>
+                  <a class="theory-link" href="../build-attention-from-scratch/">Build Attention From Scratch</a>
                 </div>
               </dd>
             </div>
-            <div><dt>Time</dt><dd>About 2 hours, plus a few minutes of training</dd></div>
-            <div><dt>Hardware</dt><dd>Any laptop. Runs here on an Apple M5 with MPS. No GPU needed.</dd></div>
-            <div><dt>You need</dt><dd>Python 3.10+, PyTorch 2.x, transformers, safetensors, pytest</dd></div>
+            <div><dt>Time</dt><dd>About 2 hours of reading, plus about 35 minutes of CPU runs. Training takes about 12 minutes, and the head comparison about 21.</dd></div>
+            <div><dt>Hardware</dt><dd>Any laptop or CPU machine. No GPU needed. Numbers here come from an AMD EPYC 7R13 CPU with 8 threads, unless a block says otherwise. A few GPU numbers come from one run on an NVIDIA H100, and they are labelled.</dd></div>
+            <div><dt>You need</dt><dd>Python 3.10+, PyTorch 2.5 or newer (for <code>enable_gqa</code>), transformers 5 or newer, safetensors, pytest. The results here used PyTorch 2.15 and transformers 5.22.</dd></div>
             <div><dt>Package</dt><dd><code>tinyllm</code></dd></div>
           </dl>
           <details class="repo-tree">
@@ -215,7 +219,7 @@
 │   ├── inspect_shapes.py       # every tensor in one block
 │   ├── param_count.py
 │   ├── compare_hf.py           # the trusted-implementation check
-│   ├── train_sanity.py         # a few minutes on Tiny Shakespeare
+│   ├── train_sanity.py         # about 12 minutes on Tiny Shakespeare
 │   ├── generate.py
 │   ├── break_it.py             # every intentional failure
 │   ├── moe_demo.py
@@ -233,6 +237,7 @@
     ├── test_sampling.py
     ├── test_checkpoint.py      # round trip and resume
     ├── test_precision.py       # bf16
+    ├── test_gpu.py             # GPU only, passed once on an H100
     └── test_moe.py</pre>
           </details>
         </div>
@@ -273,7 +278,7 @@
         <p>We answer both by building one. The model follows the Llama design, which is also the design of SmolLM2, Qwen and many others. It differs from the 2017 transformer in four places. It uses RMSNorm instead of LayerNorm. It uses RoPE instead of added position vectors. It shares keys and values across query heads. It replaces the plain MLP with a gated one.</p>
         <a class="theory-link" href="../what-changed-inside-the-transformer/"><span class="theory-link__kicker">Why these changes</span>What changed inside the transformer</a>
         <p>This post does not repeat those arguments. It writes the code, runs it, and looks at the tensors. Each step adds one module and one check. At step 12 we hand our weights to Hugging Face and ask for the same logits. Then we run the other direction and load a real pretrained model into our own code.</p>
-        <p>The attention code comes from <a href="../build-attention-from-scratch/">Build Attention From Scratch</a>. We keep its GQA and RoPE design and its names, trimmed to what a decoder needs, and a test checks that the two agree. Every number below came from these scripts on an Apple M5. Commands run from the repo root.</p>
+        <p>The attention code comes from <a href="../build-attention-from-scratch/">Build Attention From Scratch</a>. We keep its GQA and RoPE design and its names, trimmed to what a decoder needs, and a test checks that the two agree. Every number below came from these scripts, run on an AMD EPYC 7R13 CPU with 8 threads. No GPU was used. Commands run from the repo root.</p>
         <figure class="terminal" data-cwd="code">
           <pre><code>$ git clone https://github.com/srini-anirudh/blog-coding-tutorials.git
 $ cd blog-coding-tutorials
@@ -378,7 +383,7 @@ num_kv_heads=3 -&gt; ValueError: num_heads=8 must be a multiple of num_kv_heads=
           <p class="build-step__goal"><span>Goal</span> Turn ids into vectors, and use one matrix for both reading and scoring tokens.</p>
         </header>
         <p>An embedding is a lookup table: <code>X = E[ids]</code>. The table has V rows and D columns. The same id always returns the same row, at any position. Position enters later, inside attention.</p>
-        <p>We use a byte tokenizer, so V is exactly 256 and nothing needs downloading or training. <a href="../train-an-llm-from-scratch/">The next tutorial</a> replaces it with a trained BPE tokenizer.</p>
+        <p>We use a byte tokenizer, so V is exactly 256 and nothing needs downloading or training. <a href="../train-an-llm-from-scratch/">The next tutorial</a> replaces it with a trained byte-pair encoding (BPE) tokenizer.</p>
         <p>Weight tying means the output layer reuses the embedding matrix. Tying is one assignment in the constructor. After it, both names point to the same <code>Parameter</code>, and gradients from both uses add up in one place.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/model.py" data-lines="30-41" data-lang="python" data-highlight="10-11">
           <pre><code>    def __init__(self, config: ModelConfig) -&gt; None:
@@ -455,6 +460,7 @@ params tied 4,295,936  untied 4,361,472  difference 65,536 = V*D = 256*256</code
         return self.weight * (x32 * rms_inv).to(input_dtype)</code></pre>
           <figcaption><span class="ct-fig-num">Listing 3</span>The squares and their mean run in float32, even in a bf16 model. Otherwise the sum of squares loses too many bits.</figcaption>
         </figure>
+        <p>Read <code>forward</code> from the inside out. <code>x32.pow(2).mean(dim=-1, keepdim=True)</code> gives one number per token, the mean square across its channels. <code>keepdim=True</code> leaves a dimension of size 1, so the result broadcasts over all D channels. <code>torch.rsqrt</code> returns one over the square root. Last, <code>self.weight</code> scales each channel by its learned gain.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials">
           <pre><code>$ .venv/bin/python c04-llm/scripts/walkthrough.py --step rmsnorm</code></pre>
         </figure>
@@ -465,22 +471,23 @@ input rms    0.0194 -&gt; output rms 0.9869
 input rms    0.0010 -&gt; output rms 0.2921
 input mean per token 2.936
   RMSNorm keeps the sign of the mean: 0.949
-  LayerNorm removes it:               0.000
+  LayerNorm removes it:               -0.000
 max |ours - torch.nn.RMSNorm| = 0.0e+00</code></pre>
         </figure>
         <p>The first lines hold a surprise. An input with RMS 0.0194 comes out at 0.9869, and one with RMS 0.001 comes out at 0.2921. The reason is epsilon. The output RMS is <code>r / sqrt(r&sup2; + eps)</code>, so with <code>eps = 1e-5</code> the norm stops rescaling once <code>r</code> falls near <code>sqrt(eps)</code>, which is 0.0032. Drag the slider to see it.</p>
         <figure class="ct-figure" id="fig-rms">
           <div class="ct-knobs">
-            <label class="ct-knob">Input RMS <input type="range" id="rms-scale" min="-30" max="20" value="-17" aria-describedby="rms-scale-out" /><output id="rms-scale-out"></output></label>
+            <label class="ct-knob">Input RMS <input type="range" id="rms-scale" min="-30" max="21" step="any" value="-17" aria-describedby="rms-scale-out" /><output id="rms-scale-out"></output></label>
             <label class="ct-knob">Epsilon <input type="range" id="rms-eps" min="-8" max="-3" value="-5" step="1" aria-describedby="rms-eps-out" /><output id="rms-eps-out"></output></label>
           </div>
           <div class="ct-figure__stage" aria-label="One token vector before and after RMSNorm"></div>
+          <p class="ct-figure__note"></p>
           <div class="ct-readout" aria-live="polite">
             <div><span>Input RMS</span><b id="rms-in"></b></div>
             <div><span>Output RMS</span><b id="rms-out"></b></div>
             <div><span>Shortfall from 1</span><b id="rms-ratio"></b></div>
           </div>
-          <figcaption><span class="ct-fig-num">Figure 2</span>One 32-channel token vector before and after RMSNorm. The input panel rescales itself so you can see its shape at any size. The output axis is fixed. The default slider position is the real embedding scale from step 2, near 0.02.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 2</span>One 32-channel token vector before and after RMSNorm. The input panel rescales itself so you can see its shape at any size. The output axis is fixed. The animation steps through the four inputs measured above. The sliders take over at any time, and 0.02 is the real embedding scale from step 2. The readouts use the formula <code>r / sqrt(r&sup2; + eps)</code> on the rounded input, and the notes give the measured values.</figcaption>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
@@ -555,6 +562,8 @@ def apply_rotary(
     return rotate(q, cos, sin), rotate(k, cos, sin)</code></pre>
           <figcaption><span class="ct-fig-num">Listing 4</span>The table is a pure function of the config, so it stays out of the checkpoint. <code>rotate_half</code> fixes which channels form a pair.</figcaption>
         </figure>
+        <p>Walk through the constructor first. <code>inv_freq</code> holds one speed per channel pair, from 1.0 down to 0.000178 in the tiny preset. <code>torch.outer</code> multiplies every position by every speed, so <code>freqs</code> holds one angle per position and per pair. <code>torch.cat((freqs, freqs), dim=-1)</code> gives channel i and channel i + d/2 the same angle, because they form a pair.</p>
+        <p>Then <code>rotate</code> applies the usual 2D rotation. For a pair (a, b), <code>x * cos + rotate_half(x) * sin</code> gives (a cos - b sin, b cos + a sin). Rotation keeps the length of the vector, which the output below confirms.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials">
           <pre><code>$ .venv/bin/python c04-llm/scripts/walkthrough.py --step rope</code></pre>
         </figure>
@@ -568,7 +577,7 @@ score(q at 103, k at 100), offset 3: -5.1072
 score(q at 205, k at 202), offset 3: -5.1072
 score(q at   5, k at   3), offset 2: -4.7229</code></pre>
         </figure>
-        <p>Read the last four lines. The first three have offset 3 and identical scores, even at positions 100 apart. The fourth has offset 2 and a different score. That is the whole property, measured.</p>
+        <p>Read the last four lines. The first three have offset 3 and identical scores, even after the pair moves by 98 positions and then by 200. The fourth has offset 2 and a different score. That is the whole property, measured.</p>
         <figure class="ct-figure ct-figure--wide" id="fig-rope">
           <div class="ct-figure__stage" tabindex="0" aria-label="RoPE clocks"></div>
           <p class="ct-figure__note"></p>
@@ -585,13 +594,16 @@ score(q at   5, k at   3), offset 2: -4.7229</code></pre>
         </table>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
-          <p>Some codebases pair channels as (0, 1), (2, 3) instead of (i, i + d/2). Both are valid RoPE, so a model trained with one is broken under the other. We load SmolLM2-135M and swap only the pairing. The result is the most dangerous kind of bug, because the model still writes fluent English.</p>
+          <p>Some codebases pair channels as (0, 1), (2, 3) instead of (i, i + d/2). Both are valid RoPE, so a model trained with one is broken under the other. We load SmolLM2-135M and swap only the pairing. The result is the most dangerous kind of bug, because the model still writes readable English.</p>
           <figure class="terminal" data-cwd="blog-coding-tutorials">
             <pre><code>$ .venv/bin/python c04-llm/scripts/break_it.py --case rope-layout \
     --pretrained HuggingFaceTB/SmolLM2-135M
-[pending]</code></pre>
+[rope-layout] same weights, RoPE pairs channels (2i, 2i+1) instead of (i, i + d/2)
+  loss on a plain English sentence: correct 2.076 nats/token, wrong layout 3.385
+  correct:      'The capital of France is the capital of the country.\n\nThe capital of France'
+  wrong layout: 'The capital of France is the capital of France. The capital of France.\n\n'</code></pre>
           </figure>
-          <p>Only the loss reveals it, up by more than a nat per token. A visual check of samples would pass. This is why step 12 compares numbers.</p>
+          <p>Only the loss reveals it. It rises from 2.076 to 3.385, which is more than a nat per token. This small model repeats itself with or without the bug, so reading samples would not catch it. This is why step 12 compares numbers.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -606,10 +618,10 @@ score(q at   5, k at   3), offset 2: -4.7229</code></pre>
         <header class="build-step__head">
           <div class="build-step__topline"><span class="build-step__badge">Step 05</span></div>
           <h2>Grouped-query attention, naive first</h2>
-          <p class="build-step__goal"><span>Goal</span> A readable reference, a fast SDPA version, and a test that they agree, with a cache slot ready for step 14.</p>
+          <p class="build-step__goal"><span>Goal</span> A readable reference, a fast version on PyTorch&rsquo;s scaled dot-product attention (SDPA), and a test that they agree, with a cache slot ready for step 14.</p>
         </header>
         <a class="theory-link" href="../how-attention-moves-information/"><span class="theory-link__kicker">Derivation in</span>How attention moves information</a>
-        <p>Grouped-query attention keeps all H query heads and reduces keys and values to H_kv heads. Several query heads read each key and value head. The reshape helpers below are trimmed copies from <a href="../build-attention-from-scratch/">the attention tutorial</a>.</p>
+        <p>Grouped-query attention keeps all H query heads and reduces keys and values to H_kv heads. Several query heads read each key and value head. It sits between multi-head attention (MHA), where every query head has its own keys and values, and multi-query attention (MQA), where all query heads share one. The reshape helpers below are trimmed copies from <a href="../build-attention-from-scratch/">the attention tutorial</a>.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/attention_naive.py" data-lines="13-60" data-lang="python" data-highlight="31-34,46-48">
           <pre><code>def split_heads(x: torch.Tensor, num_heads: int) -&gt; torch.Tensor:
     """(B, T, H*d) -&gt; (B, H, T, d). Heads are a reshape of one wide projection, not separate weights."""
@@ -661,6 +673,8 @@ def naive_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, n_rep: in
     return probs @ v</code></pre>
           <figcaption><span class="ct-fig-num">Listing 5</span>The reference implementation. <code>causal_mask</code> takes two lengths because a cache makes queries shorter than keys. The diagonal then shifts right.</figcaption>
         </figure>
+        <p>Follow one call of <code>naive_attention</code>. <code>repeat_kv</code> inserts a dimension and expands it, which turns (B, H_kv, T, d) into (B, H, T, d). Query head h now lines up with KV head <code>h // n_rep</code>. <code>q @ k.transpose(-2, -1)</code> gives one score per query and per key, and dividing by the square root of d keeps those scores from growing with head width.</p>
+        <p><code>masked_fill</code> sets every forbidden pair to minus infinity, so softmax gives it weight 0. Each row of <code>probs</code> then sums to 1, and <code>probs @ v</code> is a weighted average of the values, one per query.</p>
         <p>Next we hand the same maths to PyTorch&rsquo;s fused kernel. There is one trap, and the code comments mark it. <code>is_causal=True</code> builds a triangle aligned to the top-left corner. That is correct only when queries and keys have the same length.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/attention_sdpa.py" data-lines="11-30" data-lang="python" data-highlight="11-18">
           <pre><code>def sdpa_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, n_rep: int) -&gt; torch.Tensor:
@@ -739,7 +753,7 @@ v torch.Size([1, 2, 11, 32])
 repeat_kv(k, 4) torch.Size([1, 8, 11, 32])
 causal_mask(4).int()      [[1, 0, 0, 0], [1, 1, 0, 0], [1, 1, 1, 0], [1, 1, 1, 1]]
 causal_mask(2, 5).int()   [[1, 1, 1, 1, 0], [1, 1, 1, 1, 1]]
-output torch.Size([1, 8, 11, 32]), max |naive - sdpa| = 5.96e-08</code></pre>
+output torch.Size([1, 8, 11, 32]), max |naive - sdpa| = 7.45e-08</code></pre>
         </figure>
         <figure class="ct-figure ct-figure--wide" id="fig-gqa">
           <div class="ct-figure__stage" tabindex="0" aria-label="Query heads sharing key and value heads"></div>
@@ -759,24 +773,44 @@ output torch.Size([1, 8, 11, 32]), max |naive - sdpa| = 5.96e-08</code></pre>
           </tbody>
         </table>
         <p>How much does the fused kernel save inside the full model? We time forward plus backward, per training step.</p>
-        <figure class="terminal" data-cwd="blog-coding-tutorials">
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="AMD EPYC 7R13, 8 threads">
           <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
-[pending: bench_attention_cpu.txt]
-$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device mps
-[pending: bench_attention_mps.txt]</code></pre>
+device=cpu batch=8  (tiny preset, forward + backward per step)
+   seq   naive ms    sdpa ms  speed-up
+   128      141.7      116.7     1.21x
+   256      276.0      232.1     1.19x
+   512     1361.5      441.1     3.09x
+  1024     4644.9     1097.9     4.23x</code></pre>
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>[pending]</p>
+          <p>Timings on a shared CPU move between runs, so we ran this benchmark twice. The second run, saved in <code>results/timing_rerun.txt</code>, gave 0.91x at 128 tokens, 1.08x at 256, 1.92x at 512 and 4.53x at 1024. So at 128 and 256 the two kernels are too close to call, and SDPA was even slower once. From 512 tokens on the gain is clear in both runs: 3.09x and 1.92x at 512, and about 4x at 1024. That fits what the naive path does. It builds a full (T, T) score matrix and mask, and copies keys and values with <code>repeat_kv</code>. Each of these grows with T.</p>
         </aside>
+        <p>Which kernel did SDPA use here? On this PyTorch build, the CPU path dispatches to <code>aten::_scaled_dot_product_flash_attention_for_cpu</code>, a flash-style CPU kernel that runs in float32. So the CPU numbers above already use a fused kernel. The CUDA FlashAttention kernel is a different one. It needs a GPU and accepts only bf16 and half precision.</p>
+        <p>We ran the GPU commands once, on one NVIDIA H100 80GB. The five GPU tests pass, including one that forces the FlashAttention backend and compares it with the naive path.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="NVIDIA H100 80GB, one run">
+          <pre><code>$ .venv/bin/python -m pytest c04-llm -m gpu
+5 passed, 76 deselected in 5.58s
+$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cuda --dtype bf16
+device=cuda (NVIDIA H100 80GB HBM3) dtype=bf16 batch=8  (tiny preset, forward + backward per step)
+   seq   naive ms    sdpa ms  speed-up  naive MiB   sdpa MiB
+   128       51.5       58.5     0.88x        163        117
+   256       80.1       53.0     1.51x        342        184
+   512       52.4       57.5     0.91x       1001        323
+  1024       58.8       45.3     1.30x       3460        594</code></pre>
+        </figure>
+        <p>On the GPU the clear result is memory, not time. At 1024 tokens the naive path peaks at 3,460 MiB and SDPA at 594 MiB, almost 6 times less, because the fused kernel never stores the full (T, T) score matrix. The times barely move with T, from about 45 to 80 ms. A model this small cannot keep an H100 busy, so these times mostly measure fixed overhead per kernel launch, and the speed-ups swing from 0.88x to 1.51x. A float32 run, saved in <code>results/bench_attention_gpu_float32.txt</code>, shows the same pattern. Treat all GPU timings here as a single run.</p>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
-          <p>Always pass <code>is_causal=True</code>, and prefill the prompt in chunks of 8 on top of a cache.</p>
+          <p>Pass <code>is_causal=True</code> whenever more than one query arrives (<code>q_len &gt; 1</code>), and prefill the prompt in chunks of 8 on top of a cache.</p>
           <figure class="terminal" data-cwd="blog-coding-tutorials">
             <pre><code>$ .venv/bin/python c04-llm/scripts/break_it.py --case is-causal-with-cache
-[pending]</code></pre>
+[is-causal-with-cache] prefill in 3 chunks of 8 on top of a cache, vs one full forward
+  correct shifted mask: max |diff| = 7.15e-07
+  is_causal=True:       max |diff| = 8.96e-01
+  per-position max diff (first chunk is fine, later chunks are not): [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.88, 0.83, 0.57, 0.54, 0.43, 0.42, 0.39, 0.33, 0.9, 0.8, 0.73, 0.56, 0.62, 0.49, 0.55, 0.62]</code></pre>
           </figure>
-          <p>The first chunk is correct because it starts at the top-left. Every later chunk is wrong by up to 0.9 logits on random weights. Token-by-token decoding hides this bug, because a single query needs no mask. So the bug only appears when someone adds chunked prefill later.</p>
+          <p>The first chunk is correct because it starts at the top-left. Every later chunk is wrong by up to 0.9 logits on random weights. Token-by-token decoding does not hit this bug, because with <code>q_len == 1</code> the buggy line passes no mask at all. That condition matters. With <code>is_causal=True</code>, PyTorch aligns the triangle to the top-left, so a single query may only see key 0. If you pass <code>is_causal=True</code> on every call, token-by-token decoding breaks too: on the same random model, it differs from the full forward by up to 1.167 logits. Only position 0 stays correct. So the flag is safe only when queries and keys have the same length.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -794,7 +828,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device mps
           <p class="build-step__goal"><span>Goal</span> Implement <code>down(silu(x W_gate) * (x W_up))</code> and understand why F is not 4D.</p>
         </header>
         <a class="theory-link" href="../why-neural-networks-need-nonlinearity/"><span class="theory-link__kicker">Background in</span>Why neural networks need nonlinearity</a>
-        <p>Attention mixes across positions. The MLP works inside each position. SwiGLU makes two wide copies of the token. One copy, after <code>silu</code>, becomes a gate that scales the other copy channel by channel. A third matrix projects back down.</p>
+        <p>Attention mixes across positions. The MLP, a multilayer perceptron, works inside each position. SwiGLU makes two wide copies of the token. One copy, after <code>silu</code>, becomes a gate that scales the other copy channel by channel. A third matrix projects back down.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/mlp.py" data-lines="10-25" data-lang="python" data-highlight="14-16">
           <pre><code>class SwiGLU(nn.Module):
     """(B, T, D) -&gt; (B, T, F) twice -&gt; gate -&gt; (B, T, D).
@@ -824,6 +858,17 @@ SwiGLU params: 3*D*F = 540,672
 classic MLP with F = 4D: 2*D*4D = 524,288
 F that matches it, 8D/3 = 682.7, rounded up to a multiple of 64 = 704</code></pre>
         </figure>
+        <table class="shape-table">
+          <caption>Shapes in step 6, tiny preset, B = 1, T = 11</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>x</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+            <tr><td>gate_proj(x)</td><td>(B, T, F)</td><td>(1, 11, 704)</td></tr>
+            <tr><td>up_proj(x)</td><td>(B, T, F)</td><td>(1, 11, 704)</td></tr>
+            <tr><td>silu(gate) * up</td><td>(B, T, F)</td><td>(1, 11, 704)</td></tr>
+            <tr><td>down_proj(product)</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+          </tbody>
+        </table>
         <p>A classic MLP with F = 4D has 8D&sup2; weights. SwiGLU with width F has 3DF. They match at F = 8D/3. That is the origin of the odd-looking numbers in real configs. SmolLM2-135M uses exactly 8D/3: 1536 for D = 576. Llama 3 8B uses more, 14,336 for D = 4096, which is a ratio of 3.5.</p>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
@@ -884,6 +929,17 @@ output             torch.Size([1, 11, 256]) rms=1.015
 block(x) matches by hand: True; aux loss for a dense block: None</code></pre>
         </figure>
         <p>A fresh block is close to the identity function. With a unit-scale input, the attention branch has RMS 0.016 and the MLP branch has RMS 0.008. Training gradually grows these branches.</p>
+        <table class="shape-table">
+          <caption>Shapes in step 7, tiny preset, B = 1, T = 11</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>x, input</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+            <tr><td>cos, sin</td><td>(B, T, d)</td><td>(1, 11, 32)</td></tr>
+            <tr><td>attention branch</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+            <tr><td>mlp branch</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+            <tr><td>x, output</td><td>(B, T, D)</td><td>(1, 11, 256)</td></tr>
+          </tbody>
+        </table>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
           <ul>
@@ -937,6 +993,7 @@ block(x) matches by hand: True; aux loss for a dense block: None</code></pre>
         return CausalLMOutput(logits=logits, loss=loss, past_key_values=past_key_values, aux_loss=aux_total)</code></pre>
           <figcaption><span class="ct-fig-num">Listing 10</span>The forward pass, and the public contract: it returns an object with <code>.logits</code>, <code>.loss</code> and <code>.past_key_values</code>.</figcaption>
         </figure>
+        <p>Read it top to bottom. <code>past</code> is the number of tokens already in the cache, and it is 0 without one. <code>position_ids</code> counts from <code>past</code>, so a new token gets its real position. The RoPE tables are looked up once and passed to every layer. Each layer returns the new stream and an optional auxiliary loss, which is <code>None</code> for a dense block. After the loop, <code>self.norm</code> and <code>self.lm_head</code> turn the stream into one score per vocabulary entry.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials">
           <pre><code>$ .venv/bin/python c04-llm/scripts/walkthrough.py --step stack</code></pre>
         </figure>
@@ -1001,14 +1058,31 @@ causal_lm_loss             = 5.6640
 ln V                       = 5.5452
 with labels[:4] = -100, only 3 positions count: 5.6883</code></pre>
         </figure>
+        <table class="shape-table">
+          <caption>Shapes in step 9</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>logits</td><td>(B, T, V)</td><td>One score per token, per position.</td></tr>
+            <tr><td>labels</td><td>(B, T)</td><td>Usually the input ids.</td></tr>
+            <tr><td>shift_logits</td><td>(B, T-1, V)</td><td>Drops the last position.</td></tr>
+            <tr><td>shift_labels</td><td>(B, T-1)</td><td>Drops the first token.</td></tr>
+            <tr><td>flattened</td><td>(B*(T-1), V) and (B*(T-1),)</td><td>The form <code>cross_entropy</code> expects.</td></tr>
+            <tr><td>loss</td><td>scalar</td><td>Mean over positions not marked -100.</td></tr>
+          </tbody>
+        </table>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
-          <p>Remove the shift, then train for 100 steps. The loss looks wonderful, and the model has learned nothing useful.</p>
+          <p>Remove the shift, then train for 100 steps. The loss falls close to zero, and the model has learned nothing useful.</p>
           <figure class="terminal" data-cwd="blog-coding-tutorials">
             <pre><code>$ .venv/bin/python c04-llm/scripts/break_it.py --case no-shift --device cpu
-[pending]</code></pre>
+[no-shift] 100 training steps with an unshifted loss, device=cpu
+  step   1  unshifted loss 3.1238
+  step  25  unshifted loss 0.4024
+  step  50  unshifted loss 0.0220
+  step 100  unshifted loss 0.0048
+  sample: 'ROMEO:::::::::::::::::::::::::::::::::::::::::'</code></pre>
           </figure>
-          <p>Each position can read its own target, because attention includes the current token. So the model learns to copy, and sampling repeats the last character. A loss below the entropy of English text after 50 steps is a bug, not progress.</p>
+          <p>Each position can read its own target, because attention includes the current token. So the model learns to copy, and sampling repeats the last character, here a colon. A loss of 0.022 after 50 steps is far below the entropy of English text. That is a bug, not progress.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1054,11 +1128,18 @@ with labels[:4] = -100, only 3 positions count: 5.6883</code></pre>
         <p>A correct model should start near <code>ln V</code>, the loss of a uniform guess. That number is your first sanity check on any new model, and it costs one forward pass. Here we also test what happens without the depth scaling, in a 48-layer model.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials">
           <pre><code>$ .venv/bin/python c04-llm/scripts/break_it.py --case init
-[pending]</code></pre>
+[init] initial loss on random tokens (V = 256, ln V = 5.545)
+  std=0.02  loss    5.611
+  std=0.2   loss   10.418
+  std=1.0   loss   46.022
+[init] residual-stream RMS at the last layer of a 48-layer model, std 0.02, embeddings RMS 0.02
+  std/sqrt(2L) on residual projections: layer 1 0.020, layer 12 0.026, layer 48 0.059
+  same std everywhere            : layer 1 0.040, layer 12 0.333, layer 48 0.690</code></pre>
         </figure>
+        <p>The first block shows the sanity check at work. With a standard deviation of 0.02, the loss starts at 5.611, close to ln 256. At 0.2 it starts at 10.418, and at 1.0 it starts at 46.022. A bad init is visible before the first training step.</p>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
-          <p>Without the depth scaling, a 48-layer model's stream reaches RMS 0.69 at the last layer. With it, the stream reaches 0.059, even though both start from embeddings of RMS 0.02. So the scaled model begins close to a stack of identity blocks. The unscaled one has already drifted by a factor of 12 before seeing any data.</p>
+          <p>Without the depth scaling, a 48-layer model's stream reaches RMS 0.69 at the last layer. With it, the stream reaches 0.059, even though both start from embeddings of RMS 0.02. So the scaled model begins close to a stack of identity blocks. The unscaled stream is already about 12 times larger before it has seen any data.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1151,11 +1232,11 @@ KV cache per sequence of 4096 tokens, bf16 (2 bytes per value)
             <div><span>Head width d</span><b id="p-hd"></b></div>
             <div><span>KV cache, 4096 tokens, bf16</span><b id="p-kvmem"></b></div>
           </div>
-          <figcaption><span class="ct-fig-num">Figure 5</span>Parameter calculator, using the same formula as <code>count_parameters</code>. With the Llama 3 8B preset, move H_kv between 1 and 32 and watch the cache move by a factor of 32 while the total hardly changes.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 5</span>Parameter calculator, using the same formula as <code>count_parameters</code>. With the Llama 3 8B preset, move H_kv between 1 and 32 and watch the cache move by a factor of 32 while the total moves by about 13%.</figcaption>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
-          <p>Our script shows Llama 3 8B's attention at 2.147B parameters with 32 KV heads, 1.342B with 8, and 1.107B with 1. Going from 32 KV heads to 8 removes 10% of the whole model, but it removes 75% of the KV cache: 2.00 GiB becomes 0.50 GiB for 4096 tokens. So GQA is mainly an inference-memory decision, and only secondarily a parameter saving.</p>
+          <p>Our script shows Llama 3 8B's attention at 2.147B parameters with 32 KV heads, 1.342B with 8, and 1.107B with 1. Going from 32 KV heads to 8 removes about 9% of the whole model, but it removes 75% of the KV cache: 2.00 GiB becomes 0.50 GiB for 4096 tokens. So GQA is mainly an inference-memory decision, and only secondarily a parameter saving.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1212,7 +1293,7 @@ def test_logits_and_loss_match_llama(overrides):
 random tiny model (4.3M params), float32, CPU
   max |logit diff|    0.000e+00
   loss ours / HF      5.581258 / 5.581259
-  naive backend diff  9.537e-07
+  naive backend diff  7.153e-07
   64 greedy tokens identical: True
 
 HuggingFaceTB/SmolLM2-135M loaded into TinyLLM: 134,515,008 params
@@ -1224,7 +1305,7 @@ HuggingFaceTB/SmolLM2-135M loaded into TinyLLM: 134,515,008 params
         <p>The logit difference is exactly zero, in both directions. A real pretrained model runs through code we wrote today, and greedy decoding matches <code>generate()</code> token for token. The model itself is a small one, which shows in its answer.</p>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>Exactly zero means both paths ran the same floating-point operations in the same order, here through the same SDPA kernel. Do not expect that as a general rule. Our naive backend computes the same function and differs by about <code>1e-6</code>, because its operations run in a different order. So the test uses a tolerance of <code>1e-5</code>, and a bitwise match is a pleasant result and not a requirement.</p>
+          <p>Exactly zero means both paths ran the same floating-point operations in the same order, here through the same SDPA kernel. Do not expect that as a general rule. Our naive backend computes the same function and differs by about <code>1e-6</code>, because its operations run in a different order. So the test uses a tolerance of <code>1e-5</code>, and a bitwise match is not a requirement.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1287,6 +1368,7 @@ def sample_next_token(
     return torch.multinomial(probs, num_samples=1, generator=generator)</code></pre>
           <figcaption><span class="ct-fig-num">Listing 16</span>Filters set logits to minus infinity, so softmax gives them probability 0. The <code>- probs</code> term in top-p keeps the token that crosses the threshold.</figcaption>
         </figure>
+        <p>Take the filters in order. <code>apply_top_k</code> finds the k-th largest value in each row and blanks everything below it. <code>apply_top_p</code> sorts the row, computes the probability mass before each token, and blanks a token once that mass already reaches p. The final <code>scatter</code> puts the survivors back in their original positions. <code>sample_next_token</code> then draws one id per row from what remains. A temperature of 0 skips the draw and takes the largest logit, which is greedy decoding.</p>
         <p>Run them on the model we train in step 15. Below is the real next-byte distribution after the prompt <code>ROMEO:\nI will </code>. Move the sliders to see what each filter does to it. The filters run in the same order as the code.</p>
         <figure class="ct-figure ct-figure--wide" id="fig-sampling">
           <div class="ct-knobs">
@@ -1307,24 +1389,80 @@ def sample_next_token(
         </figure>
         <figure class="code-output" data-from="scripts/walkthrough.py --step sampling">
           <pre><code>prompt 'ROMEO:\nI will '; top bytes for the next token
-  'n' 0.1699, 'b' 0.1351, 't' 0.0893, 's' 0.0651, 'r' 0.0576, 'd' 0.0570, 'a' 0.0533, 'f' 0.0460, 'c' 0.0394, 'i' 0.0365, 'h' 0.0359, 'p' 0.0352
-  mass outside these 12: 0.1796
+  'b' 0.2321, 'n' 0.1078, 's' 0.0766, 'p' 0.0601, 't' 0.0598, 'f' 0.0492, 'c' 0.0482, 'm' 0.0474, 'd' 0.0474, 'a' 0.0470, 'r' 0.0447, 'g' 0.0344
+  mass outside these 12: 0.1452
 top_k=40  keeps 40 tokens
 top_k=5   keeps 5 tokens
 top_p=0.95 keeps 18 tokens
 top_p=0.5  keeps 5 tokens
-temperature 0.5: top prob 0.360, entropy 2.08 nats
-temperature 1.0: top prob 0.170, entropy 2.79 nats
-temperature 2.0: top prob 0.091, entropy 3.23 nats</code></pre>
+temperature 0.5: top prob 0.565, entropy 1.71 nats
+temperature 1.0: top prob 0.232, entropy 2.73 nats
+temperature 2.0: top prob 0.106, entropy 3.27 nats</code></pre>
         </figure>
+        <table class="shape-table">
+          <caption>Shapes in step 13</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>logits[:, -1, :]</td><td>(B, V)</td><td>Scores for the next token only.</td></tr>
+            <tr><td>after each filter</td><td>(B, V)</td><td>Same shape, with blanked entries at minus infinity.</td></tr>
+            <tr><td>probs</td><td>(B, V)</td><td>Each row sums to 1.</td></tr>
+            <tr><td>next_token</td><td>(B, 1)</td><td>One id per row.</td></tr>
+            <tr><td>ids</td><td>(B, T + 1)</td><td>The sequence after <code>torch.cat</code>.</td></tr>
+          </tbody>
+        </table>
         <p>Here is what each setting does to the text, same model and seed.</p>
         <figure class="terminal" data-cwd="blog-coding-tutorials">
           <pre><code>$ .venv/bin/python c04-llm/scripts/generate.py --compare --max-new-tokens 120
-[pending: generate_compare.txt]</code></pre>
+[greedy]
+ROMEO:
+The sea that we will be so so sorrow.
+
+GLOUCESTER:
+The gods be so seen to see the sea that will
+I see the sea that will 
+
+[temperature 0.5]
+ROMEO:
+And therefore weep but to thy son I should die.
+
+JULIET:
+I do beseech your grace to thee and my meaning.
+
+Nurse:
+God kee
+
+[temperature 1.0]
+ROMEO:
+And wilt thou what befalled makes his speech
+And seld him cuw'd up: by him:
+Nothing there: it is, I say my six else
+You 
+
+[temperature 1.5]
+ROMEO:
+Joy! alGo
+UsIA:
+I would I think your loss
+And gwarel, heaven 'twas spoken to me,
+And draw not, we should an you the plea
+
+[temperature 1.0, top_k 5]
+ROMEO:
+And wilt thou go, while he will not be seldom.
+
+RICHARD:
+I do beg in a son of those that were in,
+When said we are, my l
+
+[temperature 1.0, top_p 0.5]
+ROMEO:
+And with the strong that he hath spoke to see
+The counterfeit of the people's face, that we have
+To see the wind of my b</code></pre>
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>[pending]</p>
+          <p>A fixed k and a fixed p are not the same kind of filter. After this prompt, <code>top_k=40</code> keeps 40 tokens, while <code>top_p=0.95</code> keeps 18 and still holds 95% of the mass. So top-p sets its width from the distribution, and top-k does not. The samples show the two ends of temperature: greedy loops on &ldquo;the sea that will&rdquo;, and temperature 1.5 invents strings such as &ldquo;alGo&rdquo;. These are single samples from one seed, so they illustrate the filters and do not rank them.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1394,10 +1532,11 @@ temperature 2.0: top prob 0.091, entropy 3.23 nats</code></pre>
     return ids</code></pre>
           <figcaption><span class="ct-fig-num">Listing 18</span>Both paths in one loop. Prefill runs the prompt. Decode feeds one token and reuses the cache.</figcaption>
         </figure>
+        <p>The decode branch is the whole optimisation. <code>ids[:, -1:]</code> passes one token. <code>TinyLLM.forward</code> reads <code>past</code> from the cache, so that token gets its true position. Inside attention, <code>kv_cache.update</code> appends its key and value, and <code>sdpa_attention</code> takes the <code>q_len == 1</code> branch, because one new token may see everything before it and needs no mask.</p>
         <figure class="ct-figure ct-figure--wide" id="fig-cache">
           <div class="ct-figure__stage" tabindex="0" aria-label="Uncached and cached decoding, step by step"></div>
           <p class="ct-figure__note"></p>
-          <figcaption><span class="ct-fig-num">Figure 7</span>Blue tokens go through the model at this step. Gray tokens are not recomputed. The violet strip is the key tensor of one layer, and it grows one row per token. The counters show the total tokens processed by each path.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 7</span>Blue tokens go through the model at this step. Gray tokens are not recomputed. The violet strip is the key tensor of one layer, and it grows by one cell per token. The counters show the total tokens processed by each path.</figcaption>
         </figure>
         <aside class="callout callout-test">
           <p class="callout-label">Test</p>
@@ -1415,40 +1554,80 @@ def test_token_by_token_with_cache_equals_full_forward(backend):
     assert cache.get_seq_length() == 15</code></pre>
           </figure>
         </aside>
+        <table class="shape-table">
+          <caption>Shapes in one decode step of step 14, one layer</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>ids[:, -1:]</td><td>(B, 1)</td><td>The one new token.</td></tr>
+            <tr><td>q</td><td>(B, H, 1, d)</td><td>One query per head.</td></tr>
+            <tr><td>k, v from this token</td><td>(B, H_kv, 1, d)</td><td>The new cache entries.</td></tr>
+            <tr><td>k, v after update</td><td>(B, H_kv, T_past + 1, d)</td><td>Everything so far, as stored.</td></tr>
+            <tr><td>attention output</td><td>(B, H, 1, d)</td><td>One row per head.</td></tr>
+            <tr><td>logits</td><td>(B, 1, V)</td><td>Scores for the next token.</td></tr>
+          </tbody>
+        </table>
         <p>Now measure. The benchmark times each decode step separately.</p>
-        <figure class="terminal" data-cwd="blog-coding-tutorials">
-          <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device mps
-[pending: bench_generation_mps.txt]</code></pre>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="AMD EPYC 7R13, 8 threads">
+          <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu
+preset=tiny params=4,295,936 device=cpu batch=1 prompt=16 new=496
+  cache=off  total    8.78s      56.5 tok/s
+  cache=on   total    1.81s     274.1 tok/s
+
+  per-step latency (ms) at sequence length T
+       T   no cache      cache
+      17       5.97       4.43
+      48       8.55       4.31
+      80       8.55       4.36
+     144      13.63       4.25
+     272      17.01       3.12
+     511      25.99       3.43
+
+  speed-up from the cache: 4.9x</code></pre>
         </figure>
         <figure class="ct-figure" id="fig-latency">
           <div class="ct-figure__stage" aria-label="Measured decode latency"></div>
-          <figcaption><span class="ct-fig-num">Figure 8</span>Measured decode latency per step, tiny preset with random weights, on MPS (Apple M5). Each point is the median of 5 neighbouring steps. Hover for values. The table above holds the same numbers.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 8</span>Measured decode latency per step, tiny preset with random weights, on an AMD EPYC 7R13 CPU with 8 threads. Each point is the median of 5 neighbouring steps. Hover for values. The table above holds the same numbers.</figcaption>
         </figure>
-        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="On the CPU, and with a larger model">
-          <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu
-
-$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu \
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="With a larger model, AMD EPYC 7R13, 8 threads">
+          <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu \
     --preset smollm2-135m --new-tokens 128
-</code></pre>
+preset=smollm2-135m params=134,515,008 device=cpu batch=1 prompt=16 new=128
+  cache=off  total   16.20s       7.9 tok/s
+  cache=on   total    7.30s      17.5 tok/s
+
+  per-step latency (ms) at sequence length T
+       T   no cache      cache
+      17      65.27      56.90
+      48      90.31      58.13
+      80     124.16      58.09
+     143     169.42      56.90
+
+  speed-up from the cache: 2.2x</code></pre>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
-          <p>[pending]</p>
+          <p>The cache cuts tokens far more than it cuts time. In the tiny run, uncached decoding processes 130,696 tokens and cached decoding processes 511, which is about 256 times fewer. Total time falls only 4.9 times. SmolLM2-135M, over its shorter run, processes about 71 times fewer tokens and takes 2.2 times less time. A second run of both benchmarks gave 3.7x and 2.1x, so take the exact factors as rough.</p>
+          <p>The tables show why. On tiny, one cached token costs about 3 to 4 ms, while re-running all 511 tokens costs only 26 ms. So on this CPU each forward call has a large fixed cost, which we have not profiled. The saving grows with T. At T = 17 the first run gave 5.97 ms without the cache and 4.43 ms with it. The second run had the cache slightly slower, 4.72 ms against 4.18 ms. At T = 511 the cache was 7.6 times faster per step in the first run and 5.6 times in the second. So short outputs see little of the gain. These are single runs on a busy shared CPU.</p>
+          <p>The H100 run, saved in <code>results/bench_generation_gpu.txt</code>, shows almost no gain: 9.7 tok/s without the cache and 10.6 with it, 1.1x. SmolLM2 size gave 1.2x. At batch 1 these models are far too small for the GPU, so every step costs the same launch overhead whether it runs 1 token or 511. In the tiny run, per-step times also jumped from about 7 ms at T = 17 to between 80 and 107 ms afterwards, in both modes, and we have not profiled why. So this single GPU run says little about the cache, beyond this: a cache saves work, and work is not the bottleneck at this size.</p>
         </aside>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
           <p>Forget that positions must continue from the cache. Every decode step then rotates its token as if it sat at position 0.</p>
           <figure class="terminal" data-cwd="blog-coding-tutorials">
             <pre><code>$ .venv/bin/python c04-llm/scripts/break_it.py --case position-offset
-[pending]</code></pre>
+[position-offset] trained tiny model, cached decode with positions restarting at 0
+  identical to uncached generation: False; first wrong new token: 1
+  correct: 'ROMEO:\nI will be so sorry to the sea that see\nThe sea the seas of the sea'
+  buggy:   'ROMEO:\nI will myonononononoraigigisowisisisisisisisisisisisisine aine are'</code></pre>
           </figure>
-          <p>[pending]</p>
+          <p>Prefill still uses the right positions, so the first new token is correct. New token 1 is the first wrong one. After that the text collapses into repeated syllables, because every new key sits at position 0 while the older keys keep their real positions. This case loads the trained model because random weights hide the bug in the text. In a separate check on a random tiny model with one seed, all 60 generated tokens still matched.</p>
+          <p>That has a direct effect on testing. With this bug patched in, <code>test_cached_generation_matches_uncached_greedy</code> still passes, because it compares tokens on random weights. <code>test_token_by_token_with_cache_equals_full_forward</code> and <code>test_chunked_prefill_equals_full_forward</code> compare logits, and both fail. So test a cache on its logits, not on its tokens.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
           <ul>
             <li>Cached logits match full-forward logits within <code>1e-5</code>.</li>
-            <li><code>test_cached_generation_matches_uncached_greedy</code> and <code>test_chunked_prefill_equals_full_forward</code> pass.</li>
+            <li><code>test_token_by_token_with_cache_equals_full_forward</code>, <code>test_chunked_prefill_equals_full_forward</code> and <code>test_cached_generation_matches_uncached_greedy</code> pass.</li>
           </ul>
         </footer>
       </section>
@@ -1461,20 +1640,35 @@ $ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu \
         </header>
         <a class="theory-link" href="../how-llms-are-pretrained/"><span class="theory-link__kicker">Theory in</span>How LLMs are pretrained</a>
         <p>This is a sanity check and not a training recipe. It has no packing, no mixed precision and no resume. Those belong to <a href="../train-an-llm-from-scratch/">the next tutorial</a>. We train the tiny preset on Tiny Shakespeare, about 1.1 MB of text, one byte per token.</p>
-        <figure class="terminal" data-cwd="blog-coding-tutorials">
-          <pre><code>$ .venv/bin/python c04-llm/scripts/train_sanity.py
-device=mps  params=4,295,936  train bytes=1,003,854  val bytes=111,540
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="AMD EPYC 7R13, 8 threads">
+          <pre><code>$ .venv/bin/python c04-llm/scripts/train_sanity.py --device cpu
+device=cpu  params=4,295,936  train bytes=1,003,854  val bytes=111,540
 step     0  val 5.578  (uniform guess = ln 256 = 5.545)
-sample before training: 'ROMEO:�\x1dj2�\x1d;Brr�!^BBBB�E����u||&lt;�kuu\x00�\x0eD\x1c\x1c�""Bv\x1a\x1a�u���2\x1d���%�^�|�'
-step   200  train 1.603  val 1.766   173.3s  9,455 tok/s</code></pre>
+sample before training: 'ROMEO::�y*37A����hh\x1c\x1c^� �\x1bk�%�ċ�����   \x1aNNj׳���\x1e\x1e[\x0eBB��vv�\x1cggg&lt;\x01'
+step   200  train 1.603  val 1.767   132.9s  12,327 tok/s
+step   400  train 1.411  val 1.610   263.6s  12,432 tok/s
+step   600  train 1.227  val 1.532   401.8s  12,234 tok/s
+step   800  train 1.152  val 1.496   532.9s  12,299 tok/s
+step  1000  train 1.131  val 1.500   670.3s  12,222 tok/s
+
+sample after training:
+ROMEO:
+Is is God fright with holy and more lose
+And thy claim--
+
+BALTHBruptial: thy face and swallow her heart and heaven
+To be whiping as one another seen;
+I will be
+
+saved checkpoint to runs/tiny-shakespeare/</code></pre>
         </figure>
         <figure class="ct-figure" id="fig-training">
           <div class="ct-figure__stage" aria-label="Training and validation loss"></div>
-          <figcaption><span class="ct-fig-num">Figure 9</span>Measured loss from the run above, on MPS (Apple M5). Step 0 is the untrained model, at the uniform-guess level. Hover for values.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 9</span>Measured loss from the run above, on an AMD EPYC 7R13 CPU with 8 threads. Step 0 is the untrained model, at the uniform-guess level. Hover for values.</figcaption>
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>[pending]</p>
+          <p>The run took 670 seconds here, and 737 seconds in a second run on the same shared CPU, with the same losses. Falling training loss alone would oversell this run. Between steps 800 and 1000 the training loss goes from 1.152 to 1.131, while validation goes from 1.496 to 1.500. Validation has stopped improving, and the gap between the two is now 0.37 nats. That gap is rough, because the training loss is from one batch while validation averages 20 batches. The samples agree: the layout of a play is there, and invented words such as &ldquo;BALTHBruptial&rdquo; are too. This shows that the architecture learns. It says nothing about how good a well-trained model can be, which is the job of <a href="../train-an-llm-from-scratch/">the next tutorial</a>.</p>
         </aside>
         <p>A native checkpoint is a folder with <code>config.json</code> and <code>model.safetensors</code>. Tied weights are stored once, because safetensors refuses shared tensors and the duplicate would waste space.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/checkpoint.py" data-lines="14-38" data-lang="python" data-highlight="6-9,18-21">
@@ -1504,6 +1698,12 @@ def load_checkpoint(path: str | Path, device: str | torch.device = "cpu") -&gt; 
         raise RuntimeError(f"checkpoint mismatch: missing={missing}, unexpected={unexpected}")
     return model.to(device)</code></pre>
           <figcaption><span class="ct-fig-num">Listing 19</span>Saving and loading. <code>load_checkpoint</code> allows exactly one missing key, the tied head, and rejects everything else. For Hugging Face format, <code>tinyllm.hf.save_hf</code> writes a folder that <code>AutoModelForCausalLM.from_pretrained</code> opens.</figcaption>
+        </figure>
+        <p>Check the size on disk against the parameter count. The tiny model has 4,295,936 parameters at 4 bytes each, which is 17,183,744 bytes. The file holds 5,640 bytes more, for the safetensors header. A second copy of the tied head would have added V &times; D &times; 4 = 262,144 bytes.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ du -b c04-llm/runs/tiny-shakespeare/*
+422	c04-llm/runs/tiny-shakespeare/config.json
+17189384	c04-llm/runs/tiny-shakespeare/model.safetensors</code></pre>
         </figure>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1569,19 +1769,35 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
     return num_experts * (f * p).sum()</code></pre>
           <figcaption><span class="ct-fig-num">Listing 20</span>A Python loop over experts, written for reading. Production kernels batch this, and compute the same thing. <code>test_moe_matches_dense_reference</code> checks it against a brute-force version that runs every expert on every token.</figcaption>
         </figure>
+        <p>Three ideas carry this listing. Routing logits come first: <code>self.router</code> is one linear layer that gives each token a score per expert, and <code>topk</code> keeps the best k. Each token&rsquo;s kept scores are divided by their sum, so its weights add to 1.</p>
+        <p>Expert capacity comes next. With <code>capacity_factor</code> set, each expert accepts at most <code>ceil(factor * N * k / E)</code> assignments. Earlier tokens win, and later ones skip that expert, so only the residual stream carries them through it. The default of <code>None</code> never drops anything, and the demo below uses that default.</p>
+        <p>The auxiliary loss comes last. <code>load_balancing_loss</code> multiplies each expert&rsquo;s share of the assignments by its mean router probability. The share is not differentiable, but the probability is, so the gradient lowers the probability of busy experts.</p>
         <figure class="ct-figure ct-figure--wide" id="fig-moe">
           <div class="ct-figure__stage" tabindex="0" aria-label="Mixture-of-experts routing"></div>
           <p class="ct-figure__note"></p>
           <figcaption><span class="ct-fig-num">Figure 10</span>Routing six tokens through four experts with top-2. Router probabilities here are illustrative. The measured routing is in the output below.</figcaption>
         </figure>
         <p>Does the load-balancing loss matter in practice? We train a small MoE model twice on the same batches, once with the loss switched off.</p>
-        <figure class="terminal" data-cwd="blog-coding-tutorials">
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="AMD EPYC 7R13, 8 threads">
           <pre><code>$ .venv/bin/python c04-llm/scripts/moe_demo.py --steps 300
-[pending: moe_demo.txt]</code></pre>
+device=cpu; a perfectly balanced router gives every expert 0.125 of the load
+model: 1,706,624 params, 526,976 active per token (8 experts, top-2)
+
+router_aux_loss_coef = 0.0
+  step    1  lm loss 5.522  aux 1.041/layer  layer-0 shares [0.18 0.20 0.09 0.07 0.06 0.10 0.24 0.07]  busiest expert 0.24  (0s)
+  step  100  lm loss 2.485  aux 1.837/layer  layer-0 shares [0.00 0.02 0.16 0.03 0.22 0.20 0.27 0.10]  busiest expert 0.46  (7s)
+  step  200  lm loss 2.240  aux 1.733/layer  layer-0 shares [0.00 0.04 0.19 0.05 0.14 0.19 0.24 0.15]  busiest expert 0.48  (14s)
+  step  300  lm loss 2.010  aux 1.835/layer  layer-0 shares [0.01 0.07 0.15 0.07 0.12 0.19 0.27 0.11]  busiest expert 0.49  (20s)
+
+router_aux_loss_coef = 0.01
+  step    1  lm loss 5.522  aux 1.041/layer  layer-0 shares [0.18 0.20 0.09 0.07 0.06 0.10 0.24 0.07]  busiest expert 0.24  (0s)
+  step  100  lm loss 2.426  aux 1.091/layer  layer-0 shares [0.19 0.04 0.15 0.07 0.16 0.18 0.17 0.04]  busiest expert 0.19  (6s)
+  step  200  lm loss 2.112  aux 1.010/layer  layer-0 shares [0.11 0.08 0.13 0.13 0.11 0.14 0.15 0.16]  busiest expert 0.16  (13s)
+  step  300  lm loss 1.912  aux 1.017/layer  layer-0 shares [0.11 0.09 0.11 0.12 0.11 0.17 0.16 0.12]  busiest expert 0.18  (19s)</code></pre>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
-          <p>[pending]</p>
+          <p>A very small coefficient changes the routing a lot. A balanced router gives each of the 8 experts 0.125 of the load. With the loss off, the busiest expert in either layer reaches 0.49 after 300 steps, and the auxiliary loss sits at 1.835 per layer. With a coefficient of only 0.01, the busiest expert stays at 0.18. Both numbers come from layer 1. The printed shares are for layer 0, where the peaks are 0.27 and 0.17. All shares come from the last training batch only. With balancing on, the auxiliary loss stays near 1. Balance cost nothing visible here: the training loss at step 300 is 1.912 with balancing and 2.010 without. That gap comes from one seed on a small model, so do not read it as balancing improving the loss.</p>
         </aside>
         <table class="shape-table">
           <caption>Shapes in step 16, with N = B &times; T</caption>
@@ -1597,7 +1813,7 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
           <ul>
-            <li>Active parameters per token are about a third of the total in the demo model.</li>
+            <li>Active parameters per token are 526,976 of 1,706,624 in the demo model, about a third.</li>
             <li>The tests in <code>test_moe.py</code> pass, including capacity overflow and the uniform-routing value of 1.0.</li>
           </ul>
         </footer>
@@ -1608,18 +1824,26 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
         <p>The first table compares attention choices on one small task. Rows differ only in KV heads. Same data, batches, steps and seed. Read it left to right: parameters and cache fall, and the question is how much loss they cost.</p>
         <div class="comparison-table-wrap">
           <table class="comparison-table">
-            <caption>MHA, GQA and MQA in the tiny preset, 400 steps on Tiny Shakespeare, MPS (Apple M5)</caption>
+            <caption>MHA, GQA and MQA in the tiny preset, 400 steps on Tiny Shakespeare, AMD EPYC 7R13, 8 threads</caption>
             <thead><tr><th>Config</th><th>KV heads</th><th>Attention params</th><th>Cache per token, float32</th><th>Validation loss</th></tr></thead>
             <tbody>
-              <tr><td colspan="5">[pending]</td></tr>
+              <tr><td>MHA</td><td>8</td><td>1,572,864</td><td>12,288 B</td><td>1.618</td></tr>
+              <tr><td>GQA</td><td>4</td><td>1,179,648</td><td>6,144 B</td><td>1.621</td></tr>
+              <tr><td>GQA (tinyllm default)</td><td>2</td><td>983,040</td><td>3,072 B</td><td>1.619</td></tr>
+              <tr><td>MQA</td><td>1</td><td>884,736</td><td>1,536 B</td><td>1.622</td></tr>
             </tbody>
           </table>
         </div>
-        <figure class="terminal" data-cwd="blog-coding-tutorials">
-          <pre><code>$ .venv/bin/python c04-llm/scripts/compare_heads.py --steps 400
-[pending: compare_heads.txt]</code></pre>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="AMD EPYC 7R13, 8 threads">
+          <pre><code>$ .venv/bin/python c04-llm/scripts/compare_heads.py --steps 400 --device cpu
+device=cpu steps=400  tiny preset, 8 query heads, seed 0
+config         kv heads  attn params  total params  cache/token  val loss    time
+MHA                   8    1,572,864     4,885,760     12,288 B     1.618    362s
+GQA                   4    1,179,648     4,492,544      6,144 B     1.621    327s
+GQA                   2      983,040     4,295,936      3,072 B     1.619    287s
+MQA                   1      884,736     4,197,632      1,536 B     1.622    274s</code></pre>
         </figure>
-        <p>[pending]</p>
+        <p>From MHA to MQA, attention parameters fall by 44% and the cache falls by a factor of 8. Validation loss stays between 1.618 and 1.622. This gap is too small to read as a ranking, and it does not show that heads are free. It comes from one seed, 400 steps and a tiny model on 1 MB of text. The <a href="https://arxiv.org/abs/2305.13245" target="_blank" rel="noopener noreferrer">GQA paper</a> tests this at real model sizes. What this table does show is the cost side, which holds at any scale.</p>
         <p>The second table places our model next to the designs it descends from. The columns are the aspects we built in the steps above.</p>
         <div class="comparison-table-wrap">
           <table class="comparison-table">
@@ -1632,7 +1856,7 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
               <tr><th scope="row">Feed-forward</th><td>ReLU, F = 4D</td><td>GELU, F = 4D</td><td>SwiGLU, F about 8D/3</td><td>Gating, at about the same parameter count.</td></tr>
               <tr><th scope="row">Biases</th><td>Yes</td><td>Yes</td><td>None</td><td>Fewer parameters, and the same norm gain does the job.</td></tr>
               <tr><th scope="row">Weight tying</th><td>Yes</td><td>Yes</td><td>Optional</td><td>Saves V &times; D where the vocabulary is large.</td></tr>
-              <tr><th scope="row">Decoding</th><td>Encoder-decoder</td><td>Decoder only</td><td>Decoder only, KV cache</td><td>Roughly constant work per new token.</td></tr>
+              <tr><th scope="row">Decoding</th><td>Encoder-decoder</td><td>Decoder only</td><td>Decoder only, KV cache</td><td>Each new token computes only its own keys and values. Attention still reads every cached key.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1674,7 +1898,7 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
 │   ├── inspect_shapes.py       # every tensor in one block
 │   ├── param_count.py
 │   ├── compare_hf.py           # the trusted-implementation check
-│   ├── train_sanity.py         # a few minutes on Tiny Shakespeare
+│   ├── train_sanity.py         # about 12 minutes on Tiny Shakespeare
 │   ├── generate.py
 │   ├── break_it.py             # every intentional failure
 │   ├── moe_demo.py
@@ -1692,40 +1916,42 @@ def load_balancing_loss(probs: torch.Tensor, top_idx: torch.Tensor, num_experts:
     ├── test_sampling.py
     ├── test_checkpoint.py      # round trip and resume
     ├── test_precision.py       # bf16
+    ├── test_gpu.py             # GPU only, passed once on an H100
     └── test_moe.py</pre>
         </details>
         <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Run it all">
-          <pre><code>$ .venv/bin/python -m pytest c04-llm -m "not slow and not gpu"
-$ .venv/bin/python -m pytest c04-llm -m network
+          <pre><code>$ .venv/bin/python -m pytest c04-llm -m "not slow and not gpu and not network"
+$ .venv/bin/python -m pytest c04-llm -m "network or slow"
 $ .venv/bin/python c04-llm/scripts/walkthrough.py --step all
 $ .venv/bin/python c04-llm/scripts/inspect_shapes.py
 $ .venv/bin/python c04-llm/scripts/param_count.py
 $ .venv/bin/python c04-llm/scripts/compare_hf.py --pretrained HuggingFaceTB/SmolLM2-135M
-$ .venv/bin/python c04-llm/scripts/train_sanity.py
+$ .venv/bin/python c04-llm/scripts/train_sanity.py --device cpu
 $ .venv/bin/python c04-llm/scripts/generate.py --compare
 $ .venv/bin/python c04-llm/scripts/break_it.py --case all --pretrained HuggingFaceTB/SmolLM2-135M --device cpu
 $ .venv/bin/python c04-llm/scripts/moe_demo.py --steps 300
-$ .venv/bin/python c04-llm/scripts/compare_heads.py --steps 400
-$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device mps
-$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
-........................................................................ [ 96%]
-...                                                                      [100%]</code></pre>
+$ .venv/bin/python c04-llm/scripts/compare_heads.py --steps 400 --device cpu
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu --preset smollm2-135m --new-tokens 128
+$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu</code></pre>
         </figure>
+        <p>On an AMD EPYC 7R13 CPU, the first pytest command gives 75 passed and 6 deselected, in about 18 seconds. The network test, which downloads SmolLM2-135M, passes. The 5 GPU tests in <code>tests/test_gpu.py</code> skip on a machine without a GPU. They passed in one run on an NVIDIA H100. <code>c04-llm/README.md</code> lists every command with its saved result.</p>
       </section>
 
       <section id="key-insights">
         <h2>Key insights and nuances</h2>
         <ul class="insight-list">
-          <li><strong>A wrong design choice can still write fluent text.</strong> Swapping the RoPE channel pairing left SmolLM2 fluent and raised its loss by over a nat per token. Only a numerical comparison catches this. <a href="#step-04">Step 4</a></li>
+          <li><strong>A wrong design choice can still write readable text.</strong> Swapping the RoPE channel pairing left SmolLM2 readable and raised its loss by over a nat per token. Only a numerical comparison catches this. <a href="#step-04">Step 4</a></li>
           <li><strong>A bitwise match is a bonus, and a tolerance is the requirement.</strong> Our SDPA path differs from Llama by exactly 0, and our naive path by about <code>1e-6</code>, though both are correct. <a href="#step-12">Step 12</a></li>
           <li><strong>RMSNorm has a floor.</strong> Below an input RMS near <code>sqrt(eps)</code> it stops rescaling. Real embeddings at RMS 0.02 already lose about 1.2%. <a href="#step-03">Step 3</a></li>
           <li><strong>SwiGLU is where the parameters are.</strong> It holds 59% to 75% of the three models we counted. <a href="#step-06">Step 6</a></li>
-          <li><strong>GQA is an inference-memory decision.</strong> Going from 32 KV heads to 8 in Llama 3 8B removes 75% of the cache and 10% of the parameters. <a href="#step-11">Step 11</a></li>
+          <li><strong>GQA is an inference-memory decision.</strong> Going from 32 KV heads to 8 in Llama 3 8B removes 75% of the cache and about 9% of the parameters. <a href="#step-11">Step 11</a></li>
           <li><strong>Depth scaling keeps a new model near identity.</strong> Without it, a 48-layer stream ends about 12 times larger before any training. <a href="#step-10">Step 10</a></li>
-          <li><strong>A chunked-prefill mask bug hides for a long time.</strong> <code>is_causal=True</code> is safe for one token at a time and for a full forward. It only breaks when queries are several tokens shorter than keys. <a href="#step-05">Step 5</a></li>
-          <li><strong>[pending]</strong> <a href="#step-14">Step 14</a></li>
-          <li><strong>[pending]</strong> <a href="#step-15">Step 15</a></li>
-          <li><strong>[pending]</strong> <a href="#step-16">Step 16</a></li>
+          <li><strong><code>is_causal=True</code> is safe only when queries and keys have the same length.</strong> With a cache it aligns the mask to the wrong corner. A single decode query then sees only key 0, and later prefill chunks are wrong by up to 0.9 logits. <a href="#step-05">Step 5</a></li>
+          <li><strong>Test a cache on logits, not tokens.</strong> A cached decode with wrong positions passes a token comparison on random weights, and it fails a logit comparison. On trained weights the same bug wrecks the text. <a href="#step-14">Step 14</a></li>
+          <li><strong>A KV cache saves fewer seconds than its token count suggests.</strong> On tiny it processes about 256 times fewer tokens and takes 3.7 to 4.9 times less time, over two runs on a CPU. Short outputs see even less of the gain. <a href="#step-14">Step 14</a></li>
+          <li><strong>A falling training loss is not the whole story.</strong> From step 800 to step 1000, training loss still falls while validation stays near 1.50. <a href="#step-15">Step 15</a></li>
+          <li><strong>A small balancing loss has a large effect on routing.</strong> A coefficient of 0.01 holds the busiest of 8 experts at 0.18 of the load. Without it, the busiest expert reaches 0.49, over one batch. <a href="#step-16">Step 16</a></li>
         </ul>
       </section>
 
@@ -1735,7 +1961,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
           <li><strong>Batched generation with left padding</strong><span class="exercise-level">Medium</span> Add an <code>attention_mask</code> argument. Make position ids skip padding, and combine the padding mask with the causal mask. Prove that a padded batch gives the same tokens as running each prompt alone.
             <details><summary>Hint</summary><p>Compute positions with <code>attention_mask.cumsum(-1) - 1</code>. <code>attnzoo.masks.padding_mask</code> shows the 4D mask shape.</p></details>
           </li>
-          <li><strong>A preallocated cache</strong><span class="exercise-level">Medium</span> Replace <code>torch.cat</code> with C3&rsquo;s <code>StaticKVCache</code> design. Run <code>bench_generation.py</code> again and report what changes on CPU and on MPS as T grows.</li>
+          <li><strong>A preallocated cache</strong><span class="exercise-level">Medium</span> Replace <code>torch.cat</code> with C3&rsquo;s <code>StaticKVCache</code> design. Run <code>bench_generation.py</code> again and report what changes as T grows, on every device you have.</li>
           <li><strong>Add qk-norm and compare losses</strong><span class="exercise-level">Medium</span> Apply RMSNorm to q and k per head, before RoPE, as OLMo 2 and Qwen3 do. Run <code>compare_heads.py</code> on it. Report whether the difference is larger than the noise between two seeds.</li>
           <li><strong>Match Mixtral</strong><span class="exercise-level">Hard</span> Make <code>MoE</code> reproduce the logits of <code>MixtralForCausalLM</code> on a small config. Map the state dict keys and find which detail of routing or RoPE differs from ours, if any.</li>
           <li><strong>Write a divergence finder</strong><span class="exercise-level">Hard</span> Write a <code>diagnose.py</code> that takes a model and a trusted reference. It should hook each block, find the first layer where their outputs differ, and name the sub-module. Test it on each case in <code>break_it.py</code>.</li>
@@ -1745,7 +1971,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       <section id="continue-reading">
         <h2>Continue reading</h2>
         <ul>
-          <li><a href="../train-an-llm-from-scratch/">Train an LLM From Scratch</a>: the next tutorial trains this model properly, with packing, schedules, mixed precision, checkpoint resume and DDP.</li>
+          <li><a href="../train-an-llm-from-scratch/">Train an LLM From Scratch</a>: the next tutorial trains this model properly, with packing, schedules, mixed precision, checkpoint resume and distributed data parallel (DDP) training.</li>
           <li><a href="../build-attention-from-scratch/">Build Attention From Scratch</a>: the attention library this model trims, with MLA, FlashAttention and more.</li>
           <li><a href="../what-changed-inside-the-transformer/">What changed inside the transformer</a>: the arguments for each design choice we coded here.</li>
           <li><a href="../the-mechanics-of-llm-inference/">The mechanics of LLM inference</a>: what happens beyond the KV cache once this model has to serve traffic.</li>
@@ -1847,7 +2073,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
   "use strict";
   const { svg, lerp, stepper } = window.CT;
   const C = { ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", paper: "#f7f6f3", hi: "#fbfaf8", blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f", violet: "#7a4fa3", grid: "#e4e1da" };
-  const DATA = {"rope":[{"m":5,"n":2,"note":"<strong>q at 5, k at 2.</strong> Offset 3. Measured score over one head: <code>-5.1072</code>."},{"m":103,"n":100,"note":"<strong>q at 103, k at 100.</strong> Offset 3 again, 98 positions later. Both arrows moved, and the angle between them did not. Measured score over one head: <code>-5.1072</code>."},{"m":205,"n":202,"note":"<strong>q at 205, k at 202.</strong> Offset 3, at position 205. Same angle, same score. Measured score over one head: <code>-5.1072</code>."},{"m":5,"n":3,"note":"<strong>q at 5, k at 3.</strong> Offset 2. The angle changes, so the score changes. Measured score over one head: <code>-4.7229</code>."}],"sampling":{"prompt":"ROMEO:\nI will ","logits":[-16.775,-16.767,-16.882,-16.809,-16.706,-16.807,-16.594,-16.807,-16.54,-16.72,-2.927,-16.583,-16.764,-16.724,-16.616,-16.736,-16.873,-16.742,-16.844,-16.577,-16.622,-16.903,-16.602,-16.697,-16.718,-16.73,-16.853,-16.735,-16.711,-16.621,-16.764,-16.569,-1.177,-4.307,-16.688,-16.901,-11.803,-16.782,-6.411,0.434,-16.776,-16.8,-16.681,-16.732,-2.569,-1.281,-2.704,-16.799,-16.832,-16.906,-16.698,-7.823,-16.538,-16.745,-16.878,-16.771,-16.771,-16.7,-2.681,-4.019,-16.784,-16.656,-16.668,-3.296,-16.692,-1.614,-1.478,-1.253,-1.74,-0.837,-1.719,-2.491,-1.773,2.769,-2.661,-1.307,-1.213,-0.957,-3.203,-3.65,-0.736,-4.748,-0.83,-3.028,-1.456,-3.713,-3.007,-3.375,-8.032,-4.048,-8.015,-16.688,-16.635,-16.778,-16.825,-16.825,-16.827,5.817,6.748,5.515,5.885,5.172,5.671,4.888,5.422,5.438,1.076,4.496,4.748,5.321,6.977,4.915,5.402,2.082,5.894,6.018,6.333,4.159,1.907,4.944,-2.625,3.481,-1.305,-16.547,-16.797,-16.747,-16.734,-16.657,-16.585,-16.626,-16.777,-16.811,-16.727,-16.79,-16.647,-16.783,-16.824,-16.735,-16.668,-16.968,-16.773,-16.855,-16.726,-16.595,-16.715,-16.653,-16.744,-16.854,-16.722,-16.748,-16.7,-16.724,-16.767,-16.579,-16.703,-16.823,-16.547,-16.829,-16.927,-16.84,-16.691,-16.759,-16.537,-16.714,-16.948,-16.551,-16.687,-16.77,-16.784,-16.594,-16.907,-16.759,-16.666,-16.698,-16.676,-16.74,-16.819,-16.717,-16.787,-16.793,-16.601,-16.763,-16.668,-16.78,-16.792,-16.68,-16.627,-16.811,-16.734,-16.697,-16.718,-16.726,-16.584,-16.782,-16.745,-16.795,-16.891,-16.743,-16.754,-16.932,-16.632,-16.588,-16.752,-16.734,-16.688,-16.84,-16.655,-16.74,-16.713,-16.684,-16.803,-16.746,-16.832,-16.557,-16.876,-16.766,-16.734,-16.753,-16.635,-16.713,-16.776,-16.855,-16.667,-16.722,-16.771,-16.739,-16.653,-16.665,-16.717,-16.852,-16.744,-16.61,-16.798,-16.379,-16.616,-16.694,-16.83,-16.71,-16.84,-16.633,-16.746,-16.717,-16.747,-16.824,-16.688,-16.981,-16.641,-16.7,-16.844,-16.611,-16.687,-16.669,-16.778,-16.777,-16.845,-16.823]},"latency":{"T":[0,1],"off":[0,1],"on":[0,1]},"training":{"step":[0,200],"train":[null,1.603],"val":[5.578,1.766]}};
+  const DATA = {"rope":[{"m":5,"n":2,"note":"<strong>q at 5, k at 2.</strong> Offset 3. Measured score over one head: <code>-5.1072</code>."},{"m":103,"n":100,"note":"<strong>q at 103, k at 100.</strong> Offset 3 again, 98 positions later. Both arrows moved, and the angle between them did not. Measured score over one head: <code>-5.1072</code>."},{"m":205,"n":202,"note":"<strong>q at 205, k at 202.</strong> Offset 3, at position 205. Same angle, same score. Measured score over one head: <code>-5.1072</code>."},{"m":5,"n":3,"note":"<strong>q at 5, k at 3.</strong> Offset 2. The angle changes, so the score changes. Measured score over one head: <code>-4.7229</code>."}],"sampling":{"prompt":"ROMEO:\nI will ","logits":[-15.815,-15.819,-15.972,-15.792,-15.727,-15.878,-15.692,-15.925,-15.532,-15.772,-3.316,-15.836,-15.797,-15.693,-15.489,-15.736,-15.986,-15.846,-15.959,-15.558,-15.648,-15.953,-15.734,-15.869,-15.852,-15.748,-15.797,-15.699,-15.887,-15.732,-15.92,-15.683,-1.298,-3.649,-15.793,-15.952,-10.155,-15.957,-7.125,1.446,-15.841,-15.952,-15.653,-15.786,-2.729,-0.778,-3.227,-15.978,-15.832,-16.001,-15.739,-7.084,-15.622,-15.881,-15.956,-15.957,-15.786,-15.697,-3.159,-4.195,-15.944,-15.755,-15.751,-2.942,-15.811,-1.475,-0.707,-0.91,-0.988,-0.234,-1.754,-1.851,-1.135,3.984,-1.939,-1.348,-1.369,-0.611,-2.731,-2.765,-0.647,-4.189,0.255,-2.654,-1.117,-2.527,-2.743,-3.044,-7.016,-3.226,-7.688,-15.819,-15.516,-15.899,-15.764,-15.928,-15.942,5.654,7.251,5.679,5.662,4.839,5.699,5.342,4.526,5.035,1.521,4.215,4.23,5.662,6.483,4.361,5.898,2.506,5.603,6.142,5.894,4.218,2.903,4.384,-2.625,3.812,-2.275,-15.642,-15.805,-15.834,-15.804,-15.64,-15.729,-15.762,-15.797,-15.883,-15.793,-15.846,-15.728,-15.86,-15.892,-15.783,-15.739,-16.075,-15.776,-15.902,-15.789,-15.672,-15.78,-15.657,-15.866,-15.925,-15.838,-15.801,-15.757,-15.812,-15.885,-15.627,-15.733,-15.781,-15.669,-15.937,-16.065,-15.935,-15.775,-15.688,-15.569,-15.821,-15.952,-15.735,-15.834,-15.886,-15.955,-15.69,-15.866,-15.782,-15.752,-15.868,-15.767,-15.73,-15.969,-15.889,-15.771,-15.894,-15.63,-15.853,-15.73,-15.778,-15.769,-15.823,-15.625,-15.792,-15.872,-15.752,-15.789,-15.825,-15.617,-15.739,-15.883,-15.833,-15.945,-15.932,-15.904,-15.877,-15.757,-15.828,-15.731,-15.713,-15.697,-15.917,-15.721,-15.754,-15.767,-15.82,-15.782,-15.823,-15.883,-15.725,-15.895,-15.911,-15.799,-15.766,-15.79,-15.717,-15.874,-15.913,-15.722,-15.762,-15.836,-15.717,-15.743,-15.767,-15.767,-15.917,-15.871,-15.634,-15.711,-15.3,-15.667,-15.919,-15.886,-15.811,-15.872,-15.89,-15.753,-15.639,-15.896,-15.785,-15.741,-15.964,-15.77,-15.762,-15.962,-15.821,-15.725,-15.697,-15.933,-15.768,-15.882,-15.786]},"latency":{"T":[17,48,80,144,272,511],"off":[5.97,8.55,8.55,13.63,17.01,25.99],"on":[4.43,4.31,4.36,4.25,3.12,3.43]},"training":{"step":[0,200,400,600,800,1000],"train":[null,1.603,1.411,1.227,1.152,1.131],"val":[5.578,1.767,1.61,1.532,1.496,1.5]}};
   const $ = (id) => document.getElementById(id);
   const fmtN = (n) => n >= 1e9 ? (n / 1e9).toFixed(3) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n.toLocaleString("en-US");
 
@@ -1943,7 +2169,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     label(g, 1770, 76, "o_proj(merge_heads)", { class: "disp", "font-size": 19 });
     block(g, 1680, Y, 16, C.blue);
     shape(g, 1770, Y + 158, "(1, 11, 256)");
-    label(g, 1770, Y + 180, "back to the input shape", { "font-size": 13, fill: C.muted });
+    label(g, 1770, Y + 180, "same shape as input", { "font-size": 13, fill: C.muted });
     // 7: first residual
     g = layer();
     arrow(g, 1870, 1930, Y + 60);
@@ -1951,14 +2177,14 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     label(g, 1952, Y + 66, "+", { "font-size": 22 });
     label(g, 1952, 76, "x + attention", { class: "disp", "font-size": 19 });
     shape(g, 1952, Y + 158, "(1, 11, 256)");
-    label(g, 1952, Y + 180, "the residual stream is not normalised", { "font-size": 13, fill: C.muted });
+    label(g, 1952, Y + 180, "not normalised", { "font-size": 13, fill: C.muted });
     // 8: SwiGLU expansion
     g = layer();
     arrow(g, 1975, 2038, Y + 60);
     label(g, 2130, 66, "silu(gate) × up", { class: "disp", "font-size": 19 });
     block(g, 2050, Y, 18, C.green);
     shape(g, 2150, Y + 158, "(1, 11, 704)");
-    label(g, 2150, Y + 180, "gate and up widen 256 to 704, then multiply", { "font-size": 13, fill: C.muted });
+    label(g, 2150, Y + 180, "256 widened to 704", { "font-size": 13, fill: C.muted });
     // 9: down + residual
     g = layer();
     arrow(g, 2256, 2318, Y + 60);
@@ -1975,13 +2201,13 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     shape(g, 2650, Y + 158, "(1, 11, 256)");
     // 11: logits
     g = layer();
-    arrow(g, 2720, 2788, Y + 60);
+    arrow(g, 2745, 2788, Y + 60);
     label(g, 2895, 66, "norm, then lm_head", { class: "disp", "font-size": 19 });
     block(g, 2800, Y, 18, C.violet);
     shape(g, 2895, Y + 158, "(1, 11, 256)");
     label(g, 2895, Y + 180, "orange row: scores for the byte after 't'", { "font-size": 13, fill: C.muted });
 
-    const cams = [{ x: 330, w: 680 }, { x: 330, w: 680 }, { x: 520, w: 760 }, { x: 1040, w: 780 }, { x: 1040, w: 780 }, { x: 1400, w: 700 }, { x: 1680, w: 700 }, { x: 1880, w: 700 }, { x: 2130, w: 700 }, { x: 2400, w: 700 }, { x: 2620, w: 640 }, { x: 2800, w: 680 }];
+    const cams = [{ x: 330, w: 680 }, { x: 330, w: 680 }, { x: 520, w: 760 }, { x: 1040, w: 780 }, { x: 1040, w: 780 }, { x: 1400, w: 700 }, { x: 1680, w: 700 }, { x: 1880, w: 700 }, { x: 2130, w: 700 }, { x: 2400, w: 700 }, { x: 2620, w: 700 }, { x: 2800, w: 700 }];
     const frames = [
       { note: "We follow the last token, the byte <code>t</code> at position 10. It starts as one integer in a (1, 11) tensor. Orange marks its row in every tensor below." },
       { note: "<code>embed_tokens</code> looks the id up in a (256, 256) matrix. The row is now 256 numbers with an RMS of 0.020." },
@@ -2001,7 +2227,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       render(i, t, from) {
         const a = cams[from], b = cams[i];
         const w = lerp(a.w, b.w, t), h = (w * VH) / VW;
-        root.setAttribute("viewBox", `${lerp(a.x, b.x, t) - w / 2} ${215 - h / 2} ${w} ${h}`);
+        root.setAttribute("viewBox", `${lerp(a.x, b.x, t) - w / 2} ${200 - h / 2} ${w} ${h}`);
         layers.forEach((L, k) => L.setAttribute("opacity", lerp(k <= from ? 1 : 0, k <= i ? 1 : 0, t).toFixed(3)));
       },
     });
@@ -2033,11 +2259,11 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       // The input panel autoscales, so its axis label carries the size.
       const inPeak = Math.max(...unit.map(Math.abs)) * rmsIn;
       bars[0].lab.textContent = "tallest bar = " + (inPeak >= 1 ? inPeak.toFixed(1) : inPeak.toFixed(4));
-      bars[1].lab.textContent = "fixed axis: ±3";
+      bars[1].lab.textContent = "fixed axis: ±4";
       unit.forEach((u, i) => {
         const h0 = (u / Math.max(...unit.map(Math.abs))) * 110;
         bars[0].rects[i].setAttribute("y", h0 > 0 ? 150 - h0 : 150); bars[0].rects[i].setAttribute("height", Math.abs(h0));
-        const h1 = ((u * rmsOut) / 3) * 110;
+        const h1 = ((u * rmsOut) / 4) * 110;
         bars[1].rects[i].setAttribute("y", h1 > 0 ? 150 - h1 : 150); bars[1].rects[i].setAttribute("height", Math.abs(h1));
       });
       $("rms-in").textContent = rmsIn >= 1 ? rmsIn.toFixed(2) : rmsIn.toFixed(4);
@@ -2046,13 +2272,32 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     }
     [inp, eps].forEach((n) => n.addEventListener("input", draw));
     draw();
+    // Animated tour of the four inputs that walkthrough.py --step rmsnorm measured (eps = 1e-5).
+    const stops = [
+      { r: 102.7954, note: "<strong>Input RMS 102.8.</strong> Far above <code>sqrt(eps)</code>. Measured output RMS: <code>1.0000</code>." },
+      { r: 1.0102, note: "<strong>Input RMS 1.01.</strong> Already near unit scale. Measured output RMS: <code>1.0000</code>." },
+      { r: 0.0194, note: "<strong>Input RMS 0.0194</strong>, the scale of our embeddings. Epsilon starts to matter. Measured output RMS: <code>0.9869</code>." },
+      { r: 0.001, note: "<strong>Input RMS 0.001</strong>, below <code>sqrt(eps)</code> = 0.0032. The norm no longer rescales. Measured output RMS: <code>0.2921</code>." },
+    ];
+    const toPos = (r) => 10 * Math.log10(r);
+    stepper(fig, {
+      frames: stops, tween: 1400, hold: 2200,
+      render(i, t, from) {
+        eps.value = -5;
+        inp.value = lerp(toPos(stops[from].r), toPos(stops[i].r), t);
+        draw();
+      },
+    });
+    const pauseOnKnob = () => { const b = fig.querySelector('[data-action="play-pause"]'); if (b && b.getAttribute("aria-pressed") === "true") b.click(); };
+    [inp, eps].forEach((n) => n.addEventListener("pointerdown", pauseOnKnob));
+    [inp, eps].forEach((n) => n.addEventListener("keydown", pauseOnKnob));
   })();
 
   /* ---------- Figure 3: RoPE clocks ---------- */
   (function ropeFigure() {
     const fig = $("fig-rope");
     if (!fig) return;
-    const W = 960, H = 330;
+    const W = 960, H = 344;
     const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Two channel pairs drawn as clocks. Query and key arrows rotate with position." }, fig.querySelector(".ct-figure__stage"));
     const freqs = [{ f: 1.0, cx: 250, name: "channel pair 0", sub: "speed 1.000, wavelength 6.3 tokens" }, { f: Math.pow(10000, -6 / 32), cx: 710, name: "channel pair 3", sub: "speed 0.178, wavelength 35 tokens" }];
     const R = 96, CY = 168;
@@ -2065,7 +2310,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       const k = svg("line", { x1: c.cx, y1: CY, stroke: C.violet, "stroke-width": 3, "stroke-linecap": "round" }, root);
       const qt = svg("text", { "font-size": 14, fill: C.blue, "font-weight": 600, "text-anchor": "middle", text: "q" }, root);
       const kt = svg("text", { "font-size": 14, fill: C.violet, "font-weight": 600, "text-anchor": "middle", text: "k" }, root);
-      const lab = svg("text", { x: c.cx, y: CY + R + 28, "text-anchor": "middle", "font-size": 14, fill: C.soft }, root);
+      const lab = svg("text", { x: c.cx, y: CY + R + 42, "text-anchor": "middle", "font-size": 14, fill: C.soft }, root);
       return { c, arc, q, k, qt, kt, lab };
     });
     const pos = svg("text", { x: W / 2, y: H - 8, "text-anchor": "middle", "font-size": 15, fill: C.ink }, root);
@@ -2104,8 +2349,8 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     const W = 960, H = 310, Hq = 8;
     const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Eight query heads share key and value heads" }, fig.querySelector(".ct-figure__stage"));
     const qx = (h) => 90 + h * 112;
-    svg("text", { x: 20, y: 56, "font-size": 15, fill: C.blue, "font-weight": 600, text: "q" }, root);
-    svg("text", { x: 20, y: 246, "font-size": 15, fill: C.violet, "font-weight": 600, text: "k, v" }, root);
+    svg("text", { x: 6, y: 56, "font-size": 15, fill: C.blue, "font-weight": 600, text: "q" }, root);
+    svg("text", { x: 6, y: 246, "font-size": 15, fill: C.violet, "font-weight": 600, text: "k, v" }, root);
     const lines = Array.from({ length: Hq }, () => svg("path", { fill: "none", stroke: C.muted, "stroke-width": 1.5 }, root));
     for (let h = 0; h < Hq; h++) {
       svg("rect", { x: qx(h) - 40, y: 34, width: 80, height: 40, rx: 3, fill: C.blue, "fill-opacity": 0.2, stroke: C.blue }, root);
@@ -2175,7 +2420,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       const bad = c.d % c.h !== 0 ? `ValueError: hidden_size=${c.d} is not divisible by num_heads=${c.h}` : (c.d / c.h) % 2 !== 0 ? "ValueError: RoPE rotates pairs of channels, so head_dim must be even" : "";
       $("p-error").textContent = bad;
       $("p-error").hidden = !bad;
-      if (bad) { segs.forEach((s) => s.r.setAttribute("width", 0)); ["p-total", "p-kvmem", "p-hd"].forEach((id) => { $(id).textContent = "n/a"; }); tip.textContent = ""; return; }
+      if (bad) { $("p-legend").innerHTML = ""; segs.forEach((s) => s.r.setAttribute("width", 0)); ["p-total", "p-kvmem", "p-hd"].forEach((id) => { $(id).textContent = "n/a"; }); tip.textContent = ""; return; }
       const hd = c.d / c.h;
       const counts = { embeddings: c.v * c.d, attention: c.l * (c.d * c.h * hd + 2 * c.d * c.kv * hd + c.h * hd * c.d), mlp: c.l * 3 * c.d * c.f, norms: c.l * 2 * c.d + c.d, lm_head: c.tied ? 0 : c.v * c.d };
       const total = Object.values(counts).reduce((a, b) => a + b, 0);
@@ -2358,7 +2603,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     if (!fig) return;
     const d = DATA.latency;
     const top = Math.ceil(Math.max(...d.off) / 10) * 10;
-    const ticks = [0, 1, 2, 3, 4].map((i) => Math.round((top * i) / 4));
+    const ticks = Array.from({ length: top / 10 + 1 }, (_, i) => i * 10);
     lineChart(fig, { aria: "Measured per-step decode latency with and without a KV cache", x: d.T, xTicks: d.T.filter((v) => v !== 17 && v !== 48), yMax: top, yTicks: ticks, xLabel: "Sequence length T at this step", yLabel: "Milliseconds per step", xName: "T", digits: 2, series: [{ name: "No cache", y: d.off, color: C.orange }, { name: "Cache", y: d.on, color: C.blue }] });
   })();
 
@@ -2396,7 +2641,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
     const links = [];
     for (let t = 0; t < N; t++) top[t].forEach(([p, e]) => {
       const w = p / (top[t][0][0] + top[t][1][0]);
-      links.push({ t, e, w, path: svg("path", { d: `M 300 ${tokY(t)} C 420 ${tokY(t)}, 470 ${expY(e) + 24}, 590 ${expY(e) + 24}`, fill: "none", stroke: C.orange, "stroke-width": 1 + 3.5 * w, "stroke-opacity": 0.75 }, lineG) });
+      links.push({ t, e, w, path: svg("path", { d: `M 324 ${tokY(t)} C 430 ${tokY(t)}, 480 ${expY(e) + 24}, 590 ${expY(e) + 24}`, fill: "none", stroke: C.orange, "stroke-width": 1 + 3.5 * w, "stroke-opacity": 0.75 }, lineG) });
     });
     const boxes = Array.from({ length: E }, (_, e) => {
       const g = svg("g", null, root);
@@ -2405,19 +2650,23 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
       return { g, load: svg("text", { x: 675, y: expY(e) + 39, "text-anchor": "middle", "font-size": 12, fill: C.soft }, g) };
     });
     const combine = svg("g", null, root);
-    svg("path", { d: "M760 150 L 806 150", stroke: C.muted, "stroke-width": 1.6, fill: "none" }, combine);
+    for (let e = 0; e < E; e++) svg("path", { d: `M760 ${expY(e) + 24} C 780 ${expY(e) + 24}, 786 150, 806 150`, stroke: C.muted, "stroke-width": 1.6, fill: "none" }, combine);
     svg("circle", { cx: 826, cy: 150, r: 20, fill: C.hi, stroke: C.ink }, combine);
     svg("text", { x: 826, y: 156, "text-anchor": "middle", "font-size": 17, fill: C.ink, text: "Σ" }, combine);
     svg("text", { x: 884, y: 142, "text-anchor": "middle", "font-size": 13, fill: C.ink, text: "weighted" }, combine);
     svg("text", { x: 884, y: 160, "text-anchor": "middle", "font-size": 13, fill: C.ink, text: "sum" }, combine);
     const counts = Array(E).fill(0); top.forEach((r) => r.forEach(([, e]) => counts[e]++));
+    // load_balancing_loss on these illustrative tokens: E * sum_e f_e * P_e.
+    const aux = E * counts.reduce((s, c, e) => s + (c / (N * 2)) * (P.reduce((q, row) => q + row[e], 0) / N), 0);
+    const auxText = svg("text", { x: 872, y: 212, "text-anchor": "middle", "font-size": 13, "font-weight": 600, fill: C.orange, text: `aux loss ${aux.toFixed(2)}`, opacity: 0 }, root);
+    const auxSub = svg("text", { x: 872, y: 230, "text-anchor": "middle", "font-size": 12, fill: C.soft, text: "uniform routing: 1.00", opacity: 0 }, root);
     const frames = [
       { note: "The router is one linear layer. It gives each token a probability for each expert. All tokens in a batch are pooled, so N = B &times; T." },
       { note: "<code>topk</code> keeps the two largest scores per token. The other experts will not see this token at all." },
-      { note: "The kept scores are divided by their sum, so each token's two weights add to 1. Numbers on the links show this as line width." },
+      { note: "The kept scores are divided by their sum, so each token's two weights add to 1. In the next frame, these weights set the width of each line." },
       { note: "Tokens are dispatched. Only 12 of the 24 possible expert evaluations run, which is why MoE is sparse." },
       { note: "Each expert's output is weighted and summed back to (N, D). Experts with no tokens cost nothing in this batch." },
-      { note: "<code>load_balancing_loss</code> watches the load on each expert. If the router collapses onto a few experts, the loss rises above 1 and pushes the router back." },
+      { note: `<code>load_balancing_loss</code> watches the load on each expert. Uniform routing gives exactly 1. These six tokens are close to balanced, so they give ${aux.toFixed(2)}. If the router collapses onto a few experts, the loss rises above 1 and pushes the router back.` },
     ];
     stepper(fig, {
       frames, tween: 1000, hold: 2300,
@@ -2442,6 +2691,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
           b.load.textContent = (t < 0.5 ? from : i) >= 3 ? `${counts[e]} tokens` : "";
         });
         combine.setAttribute("opacity", lerp(on(from, 4), on(i, 4), t).toFixed(3));
+        [auxText, auxSub].forEach((n) => n.setAttribute("opacity", lerp(on(from, 5), on(i, 5), t).toFixed(3)));
       },
     });
   })();
