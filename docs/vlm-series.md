@@ -27,12 +27,12 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 12 | Rewarding What the Model Sees | `rewarding-what-the-model-sees` | RL for VLMs | In progress |
 | 13 | Thinking With Images | `thinking-with-images` | Reasoning and multimodal test-time scaling | In progress |
 | 14 | VLMs That Act | `vlms-that-act` | Visual tools, GUI agents, computer use | In progress |
-| 15 | From VLMs to VLAs | `from-vlms-to-vlas` | Vision-language-action models | Queued |
+| 15 | From VLMs to VLAs | `from-vlms-to-vlas` | Vision-language-action models | In progress |
 | **Systems and frontier** |||||
-| 16 | The Cost of a Picture | `the-cost-of-a-picture` | Efficient VLMs, token compression, serving | Queued |
-| 17 | Searching With Pixels | `searching-with-pixels` | Multimodal retrieval and visual RAG | Queued |
-| 18 | What Happens Inside a VLM | `what-happens-inside-a-vlm` | Interpretability | Queued |
-| 19 | Models That See and Draw | `models-that-see-and-draw` | Unified understanding and generation | Queued |
+| 16 | The Cost of a Picture | `the-cost-of-a-picture` | Efficient VLMs, token compression, serving | In progress |
+| 17 | Searching With Pixels | `searching-with-pixels` | Multimodal retrieval and visual RAG | In progress |
+| 18 | What Happens Inside a VLM | `what-happens-inside-a-vlm` | Interpretability | In progress |
+| 19 | Models That See and Draw | `models-that-see-and-draw` | Unified understanding and generation | In progress |
 | 20 | How the Open VLM Families Were Built | `how-the-open-vlm-families-were-built` | Family-by-family survey along the checklist | In progress |
 
 ## Coverage of the model survey checklist
