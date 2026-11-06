@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="What Happens Inside a VLM: Interpretability of Vision-Language Models" />
+    <meta property="og:description" content="How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="What Happens Inside a VLM: Interpretability of Vision-Language Models" />
+    <meta name="twitter:description" content="How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/preview.png" />
+    <title>What Happens Inside a VLM: Interpretability of Vision-Language Models | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/" },
+        "headline": "What Happens Inside a VLM",
+        "description": "How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image.",
+        "image": "https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["interpretability", "vision-language models", "mechanistic interpretability", "attention analysis", "hallucination", "logit lens", "activation patching"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#vlms" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article-specific ---------- */
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 8px; }
+      .lede { font-size: 20.5px; color: var(--ink-soft); }
+      .m { font: 0.86em/1 var(--mono); }
+
+      .eq { margin: 22px 0; padding: 15px 18px; overflow-x: auto; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); font: 16px/1.75 var(--mono); }
+      .eq sub, .eq sup { font-size: 0.72em; }
+      .eq .an { display: block; margin-top: 7px; color: var(--muted); font: italic 15px/1.5 var(--body); }
+
+      aside.callout { margin: 28px 0; padding: 15px 18px 14px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid #0b5ea8; }
+      aside.callout.callout-nuance { border-left-color: #d66f00; }
+      aside.callout p { margin: 0 0 10px; font-size: 17px; line-height: 1.6; }
+      aside.callout p:last-child { margin-bottom: 0; }
+      aside.callout .callout-label { margin-bottom: 6px; color: #0b5ea8; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      aside.callout.callout-nuance .callout-label { color: #b35c00; }
+      html.dark-mode aside.callout .callout-label { color: #6fb7ff; }
+      html.dark-mode aside.callout.callout-nuance .callout-label { color: #ffb45c; }
+
+      .table-note { margin: -10px 0 26px; color: var(--ink-soft); font-size: 16.5px; }
+      .comparison-table td:first-child { font-weight: 600; }
+
+      .insight-list li { margin-bottom: 12px; }
+      .checklist li { margin-bottom: 10px; }
+
+      /* Figures: light paper panels only. */
+      .fig { margin: 34px 0 40px; padding: 18px 18px 14px; color: #14171a; background: #f7f6f3; border: 1px solid #cac6bd; }
+      .fig.wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      .fig-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin-bottom: 10px; }
+      .fig-num { color: #b35c00; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .fig-title { color: #14171a; font: 700 17px/1.3 var(--display); }
+      .fig-stage { position: relative; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+      .fig-stage svg { display: block; width: 100%; height: auto; max-width: 940px; margin: 0 auto; overflow: visible; }
+      .fig svg text { font-family: var(--mono); }
+      .fig-note { min-height: 3.3em; margin: 10px 0 0; color: #474e53; font: 16px/1.5 var(--body); }
+      .fig-note b { color: #14171a; }
+      .fig figcaption { margin-top: 12px; padding-top: 10px; color: #474e53; border-top: 1px solid #cac6bd; font: 15px/1.55 var(--body); }
+      .fig figcaption strong { color: #14171a; }
+      .fig-scroll-hint { display: none; color: #7b8388; font: 11px/1.4 var(--mono); }
+
+      .fig-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 12px; }
+      .fig-row .lbl { color: #474e53; font: 600 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .fig button.chip, .animation-controls button {
+        min-height: 38px; padding: 7px 11px; color: #14171a; background: #f7f6f3; border: 1px solid #14171a;
+        cursor: pointer; font: 600 11px/1 var(--mono); border-radius: 2px;
+      }
+      .fig button.chip:hover, .animation-controls button:hover { background: #ece9e2; }
+      .fig button.chip[aria-pressed="true"], .animation-controls button[aria-pressed="true"] { color: #fff; background: #d66f00; border-color: #d66f00; }
+      .animation-controls button[data-action="play-pause"][aria-pressed="true"] { color: #fff; background: #14171a; border-color: #14171a; }
+      .fig button:focus-visible, .fig input:focus-visible { outline: 2px solid #0b5ea8; outline-offset: 2px; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; }
+      .animation-status { margin-left: auto; color: #474e53; font: 11.5px/1.4 var(--mono); }
+      .fig input[type="range"] { width: min(260px, 60vw); accent-color: #d66f00; }
+      .fig output { min-width: 4ch; color: #b35c00; font: 600 12px/1 var(--mono); }
+
+      /* Blind-test figure (HTML, not SVG). */
+      .blind-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; }
+      .qcards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .qcard { padding: 10px; background: #fff; border: 1px solid #cac6bd; font: 13px/1.45 var(--mono); }
+      .qcard svg { display: block; width: 100%; height: auto; margin-bottom: 8px; border: 1px solid #e3e0d8; transition: opacity 0.5s ease, filter 0.5s ease; }
+      .qcard.hidden-img svg { opacity: 0.12; filter: grayscale(1); }
+      .qcard .q { color: #14171a; font-weight: 600; }
+      .qcard .g { margin-top: 6px; color: #474e53; }
+      .qcard .verdict { font-weight: 600; }
+      .qcard .verdict.ok { color: #2f8f5b; }
+      .qcard .verdict.bad { color: #b8432f; }
+      .calc { padding: 12px 14px; background: #fff; border: 1px solid #cac6bd; font: 13px/1.5 var(--mono); }
+      .calc label { display: block; margin-top: 10px; color: #14171a; font-weight: 600; }
+      .calc .bars { margin-top: 14px; }
+      .calc .bar { position: relative; height: 26px; margin: 6px 0; background: #ece9e2; }
+      .calc .bar span { position: absolute; inset: 0 auto 0 0; display: block; transition: width 0.45s cubic-bezier(.4,0,.2,1); }
+      .calc .bar em { position: absolute; left: 8px; top: 4px; color: #14171a; font-style: normal; font-weight: 600; }
+      .calc .readout { margin-top: 10px; color: #474e53; font: 15px/1.5 var(--body); }
+
+      @media (max-width: 760px) {
+        .blind-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .fig { padding: 14px 12px 12px; }
+        .fig.wide { width: calc(100vw - 24px); margin-left: calc(50% - 50vw + 12px); }
+        .fig-stage svg { min-width: 600px; }
+        .fig-scroll-hint { display: block; margin-top: 6px; }
+        .qcards { grid-template-columns: 1fr 1fr; }
+        .animation-status { margin-left: 0; width: 100%; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .calc .bar span, .qcard svg { transition: none; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article what-happens-inside-a-vlm-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Vision-language models</p>
+        <h1 class="article-title">What Happens Inside a VLM</h1>
+        <p class="article-subtitle">Interpreting how vision-language models use the image: which visual tokens matter, where the picture flows into the answer, and when the model quietly ignores what it was shown.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Interpretability</span><span>Vision-language models</span><span>Hallucination</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>44 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">18 of 20 &middot; Interpretability</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../vlms-that-act/"><span>Previous &middot; 14</span><strong>VLMs That Act</strong></a><a class="ml-series-nav__link" href="../models-that-see-and-draw/"><span>Next &middot; 19</span><strong>Models That See and Draw</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-question">The question</a></li>
+          <li><a href="#anatomy">What there is to look at</a></li>
+          <li><a href="#tools">Tools for looking inside</a></li>
+          <li><a href="#visual-tokens">What visual tokens encode</a></li>
+          <li><a href="#information-flow">How the image reaches the answer</a></li>
+          <li><a href="#blind-baselines">Does the model use the image</a></li>
+          <li><a href="#simple-failures">Where simple visual tasks fail</a></li>
+          <li><a href="#connector">The connector as a bottleneck</a></li>
+          <li><a href="#hallucination">Hallucination from the inside</a></li>
+          <li><a href="#features">Features, neurons and steering</a></li>
+          <li><a href="#uses">Putting interpretability to work</a></li>
+          <li><a href="#findings">What we know, and how firmly</a></li>
+          <li><a href="#limits">Limits and open problems</a></li>
+          <li><a href="#checklist">A debugging checklist</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <!-- ============================================================ 1 -->
+      <section id="the-question">
+        <h2>The question</h2>
+        <p class="lede">Show a vision-language model a photo of a dog next to a red ball. Ask, "What colour is the ball?" It answers, "Red." The answer is right. But did the model look at the ball?</p>
+        <p>There are at least three ways to produce that answer. The model could have read the pixels of the ball. It could have guessed from language alone, because balls in captions are often red. Or it could have attended to the wrong region and still got lucky. Accuracy cannot tell these apart. All three score the same.</p>
+        <p>Interpretability asks the question from the inside. For vision-language models (VLMs), it splits into three concrete questions:</p>
+        <ul>
+          <li><strong>Which visual tokens are used?</strong> An image becomes hundreds or thousands of tokens. Some carry the object in question. Many may never matter.</li>
+          <li><strong>Where does image information flow into the answer?</strong> The answer is produced at one position in the sequence. The image sits at other positions. Something must carry information between them, at some layers and not others.</li>
+          <li><strong>When is the image ignored?</strong> A language model brings strong priors. Sometimes those priors win, and the model answers from what it expects rather than what it sees.</li>
+        </ul>
+        <p>These questions are not academic. If most image tokens are unused after a few layers, we can drop them and save compute (the subject of <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>). If hallucinations come from priors overriding visual evidence, we can target that mechanism (see <a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a>). If a model attends to the right region but still answers wrongly, the fix is not a better vision encoder. And if a benchmark can be passed without the image, its scores mean less than they appear to (see <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>).</p>
+        <p>This post builds the toolkit first, then walks through what it has found. Figure 1 is the map. Information can be lost at four places on the way from pixels to the answer, and each section of this post looks at one or more of them.</p>
+
+        <figure class="fig wide" id="fig-overview" data-fig="overview">
+          <div class="fig-head"><span class="fig-num">Figure 1</span><span class="fig-title">Four places where a VLM can lose the picture</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 330" role="img" aria-label="Pipeline from image through vision encoder, connector and language model layers to the answer, with four checkpoints where visual information can be lost."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 1.</strong> A decoder-style VLM in four stages: a vision encoder turns pixels into patch vectors, a connector maps them into the language model's input space, the language model routes information between positions across layers, and the last position emits the answer. Each stage is a checkpoint. A probe on the encoder asks whether the information exists. A reconstruction test on the connector asks whether it survives. Attention and patching experiments ask whether it reaches the answer position. A blind baseline asks whether the answer needs the image at all.</figcaption>
+        </figure>
+      </section>
+
+      <!-- ============================================================ 2 -->
+      <section id="anatomy">
+        <h2>What there is to look at</h2>
+        <p>Before choosing tools, it helps to be precise about what is inside. This post focuses on the most common design, where image tokens are placed directly into the language model's input sequence. <a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a> builds this design from the ground up, and <a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a> compares it with the alternatives.</p>
+        <h3>The residual stream view</h3>
+        <p>Each position in the sequence holds one vector. Call it the residual stream at that position. Every layer reads this vector and adds something to it. Attention adds information copied from other positions. The MLP transforms the information already at the position. Nothing else moves information between positions.</p>
+        <p>This gives a simple rule. The answer is predicted from the vector at the last position. So any information from the image must reach the last position through attention edges, at some layer. Either it goes there directly from image positions, or it first goes to question tokens and then on to the last position. "Where does the image flow into the answer?" becomes a question about which attention edges carry it, at which layers. <a href="../how-attention-moves-information/">How Attention Moves Information</a> covers this view for text models.</p>
+        <h3>A consequence of the causal mask</h3>
+        <p>Most VLMs put the image before the question. The language model uses a causal mask, so each position sees only earlier positions. Image tokens therefore cannot see the question. Their representations are built without knowing what will be asked.</p>
+        <p>So the model cannot sharpen image tokens for the question. Only the question tokens and the answer position can select what matters, by reading from the image. That is why many findings below are about text positions "pulling" from image positions. It also explains a finding we will meet later: question tokens end up storing a compressed summary of the image.</p>
+        <h3>Where image tokens come from</h3>
+        <p>Image tokens are not words. A vision encoder, usually a CLIP or SigLIP vision transformer, produces one vector per image patch. A connector, often a two-layer MLP, maps each vector to the language model's width. <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> covers this path in detail. For interpretability, three properties matter. Is there one token per patch, so tokens map to image regions? How many tokens are there? How are their positions encoded?</p>
+        <p>Most published interpretability work studies a small set of open models, which act as "model organisms." Their designs differ in exactly those three properties, so a finding on one does not automatically transfer to another.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 1 · The model organisms of VLM interpretability</caption>
+            <thead>
+              <tr><th>Model</th><th>Vision encoder</th><th>Connector</th><th>Visual tokens per image</th><th>Language model</th><th>Positions</th><th>Why it matters for interpretation</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>LLaVA-1.5</td><td>CLIP ViT-L/14 at 336 px</td><td>Two-layer MLP</td><td>576 (a 24 × 24 grid)</td><td>Vicuna 7B or 13B</td><td>1D RoPE, raster order</td><td>One token per patch, so token heat maps map cleanly onto the image. Most findings in this post were measured here.</td></tr>
+              <tr><td>LLaVA-NeXT (1.6)</td><td>CLIP ViT-L/14 at 336 px</td><td>Two-layer MLP</td><td>Up to about 2,880 (tiles plus a global view)</td><td>Vicuna, Mistral and others</td><td>1D RoPE</td><td>Tiles mean one region can appear twice, at two scales and far apart in the sequence.</td></tr>
+              <tr><td>Qwen2-VL</td><td>ViT trained for native resolution</td><td>MLP that merges 2 × 2 neighbouring patches</td><td>Varies with image size</td><td>Qwen2</td><td>M-RoPE (separate time, height, width)</td><td>Position encoding is spatial, so recency effects from 1D RoPE may not apply in the same way.</td></tr>
+              <tr><td>BLIP-2, InstructBLIP</td><td>EVA-CLIP ViT-g</td><td>Q-Former with 32 learned queries</td><td>32</td><td>Vicuna or FlanT5</td><td>Queries have no spatial layout</td><td>Tokens do not correspond to image regions, so per-token heat maps cannot be read as locations.</td></tr>
+              <tr><td>Chameleon</td><td>VQ image tokenizer (no separate encoder)</td><td>None: images are discrete tokens</td><td>1,024 for a 512 × 512 image</td><td>One transformer trained from scratch on mixed data</td><td>1D</td><td>Native early fusion. Information flow differs sharply from adapter models (see the "narrow gate" below).</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: the last column says what a finding on that model can and cannot tell you. When a paper reports a result on LLaVA-1.5 only, ask whether it depends on one-token-per-patch layout, on 576 tokens, or on 1D positions. Per-family details are in <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>.</p>
+      </section>
+
+      <!-- ============================================================ 3 -->
+      <section id="tools">
+        <h2>Tools for looking inside</h2>
+        <p>Interpretability tools fall into two groups. Observational tools read what the model computes without changing it. Interventional tools change something and measure the effect. The first group is cheap and suggestive. The second group is expensive and closer to cause and effect. Most VLM findings combine both.</p>
+
+        <h3>Attention maps</h3>
+        <p>The simplest tool reads attention weights. At layer ℓ and head h, position i attends to position j with weight</p>
+        <div class="eq">a<sub>ij</sub> = softmax<sub>j</sub>( q<sub>i</sub> · k<sub>j</sub> / √d )
+          <span class="an">Take i to be the last position and j to range over the image positions, reshape the weights into the patch grid, and you get a heat map over the image.</span></div>
+        <p>These heat maps are easy to produce and often look right. They have three known problems. First, a weight says how much is read, not how much it changes the output. The vector read from position j is a<sub>ij</sub> v<sub>j</sub>, and its size depends on the norm of v<sub>j</sub> too (Kobayashi et al., 2020). Second, there are many heads and layers, and they disagree. Third, some tokens soak up attention without carrying content. These are attention sinks, and we will see that VLMs have visual ones. The debate over whether attention is explanation (Jain and Wallace, 2019; Wiegreffe and Pinter, 2019) applies in full.</p>
+        <p>Attention rollout (Abnar and Zuidema, 2020) tries to account for many layers. It multiplies the attention matrices of all layers, each mixed with the identity to model the residual connection. It is still observational, and it still counts sinks.</p>
+
+        <h3>Gradients</h3>
+        <p>A gradient asks how the output changes if an input changes a little. Grad-CAM (Selvaraju et al., 2017) weights feature maps by their average gradient. Integrated gradients (Sundararajan et al., 2017) fixes a weakness of raw gradients, which can be near zero where the model is saturated. It averages gradients along a straight path from a baseline x′ to the input x:</p>
+        <div class="eq">IG<sub>i</sub>(x) = (x<sub>i</sub> − x′<sub>i</sub>) · ∫<sub>0</sub><sup>1</sup> ∂F( x′ + α(x − x′) ) / ∂x<sub>i</sub> dα
+          <span class="an">The attributions add up to F(x) − F(x′). The catch is the baseline: a black image, a blurred image and a mean image give different maps.</span></div>
+        <p>Chefer et al. (2021) combine attention with gradients to produce relevancy maps for bi-modal transformers. LVLM-Interpret (Stan et al., 2024) and Token Activation Map (Li et al., 2025) bring this style of map to LLaVA-type models. TAM addresses a problem specific to generation: earlier generated tokens add activations that leak into the explanation of later tokens. A warning comes from Adebayo et al. (2018): some saliency methods produce nearly the same map when the model's weights are randomised. A map that survives that test is not proof, but a map that fails it is not about the model.</p>
+
+        <h3>Probes</h3>
+        <p>A probe is a small classifier trained on frozen activations (Alain and Bengio, 2016). If a linear probe on layer ℓ can predict "is there a dog in this image?", then that information is linearly decodable at layer ℓ. Probes answer "is it there?" They do not answer "is it used?" A strong probe can also learn the task itself rather than read it out, which is why Hewitt and Liang (2019) recommend control tasks with random labels. Belinkov (2021) reviews both limits.</p>
+
+        <h3>The logit lens</h3>
+        <p>The language model ends with an unembedding matrix W<sub>U</sub> that turns the final vector into word scores. The logit lens (nostalgebraist, 2020) applies that same matrix to an intermediate layer:</p>
+        <div class="eq">p<sub>ℓ</sub>( word | position i ) = softmax( W<sub>U</sub> · LN( h<sub>ℓ,i</sub> ) )
+          <span class="an">LN is the final layer norm. The lens asks: if the model had to speak from layer ℓ, what word would this position say?</span></div>
+        <p>For text, this shows predictions forming over depth. For a VLM there is a new use. Apply the lens at image positions and ask which word each patch "looks like" to the model. The tuned lens (Belrose et al., 2023) learns a small affine map per layer to correct the lens in early layers. Those maps were trained on text positions, so it is an open question whether they transfer to image positions.</p>
+
+        <h3>Activation patching</h3>
+        <p>Patching is the main interventional tool (Meng et al., 2022 call it causal tracing). Run the model on two inputs that differ in one fact. In a clean run the ball is red. In a corrupted run the ball is blue. Then run the corrupted input again, but copy one activation from the clean run into it. If the answer flips back to "red," that activation carries the colour.</p>
+        <div class="eq">restored(ℓ, i) = ( P<sub>patched</sub>(red) − P<sub>corrupt</sub>(red) ) / ( P<sub>clean</sub>(red) − P<sub>corrupt</sub>(red) )
+          <span class="an">A value near 1 means the activation at layer ℓ and position i is enough to restore the answer. Sweeping ℓ and i gives a map of where the fact lives.</span></div>
+        <p>The choice of corruption matters. Early causal tracing added Gaussian noise to the input embeddings. That pushes the model off its normal input distribution, so the map can reflect the model's reaction to noise. Zhang and Nanda (2023) and Heimersheim and Nanda (2024) recommend minimal pairs instead. For VLMs, the NOTICE pipeline (Golovanevsky et al., 2024) builds semantic minimal pairs for images and symmetric token replacement for text. Basu et al. (2024) extend causal tracing to LLaVA and multimodal Phi-2. Palit et al. (2023) built an early causal tracing tool for BLIP.</p>
+
+        <figure class="fig wide" id="fig-patch" data-fig="patch">
+          <div class="fig-head"><span class="fig-num">Figure 2</span><span class="fig-title">Activation patching on a minimal pair (illustrative)</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 470" role="img" aria-label="Clean and corrupted runs, a patched activation, and a restoration map over layers and positions."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 2.</strong> The clean image has a red ball. The corrupted image is identical except the ball is blue. Copying one activation from the clean run into the corrupted run, then measuring how much of P("red") returns, tests whether that activation carries the colour. Sweeping every layer and position produces a restoration map. The pattern shown, from ball patches in early layers to the word "ball" and then to the last position, is a schematic of the kind of route the studies below report. It is not data from one model.</figcaption>
+        </figure>
+
+        <h3>Attention knockout</h3>
+        <p>Knockout tests a route directly (Geva et al., 2023). Pick a set of source positions S and a target position t. At a window of layers, set the attention scores from t to S to minus infinity before the softmax. Now t cannot read from S at those layers. Measure how much the probability of the correct answer drops. A large drop means that route, at those layers, carries needed information. Slide the window up the network to see when the route matters.</p>
+
+        <h3>Ablation</h3>
+        <p>Ablation removes tokens or components. Mean ablation replaces a token's vector with the average vector, so the model sees "nothing special here" rather than an unusual zero. Ablating the image tokens of one object, and checking whether the model can still name the object, is a direct test of where object information lives.</p>
+
+        <h3>Sparse autoencoders and steering</h3>
+        <p>A single neuron often responds to several unrelated things. Sparse autoencoders (SAEs) try to find cleaner units (Cunningham et al., 2023; Bricken et al., 2023). An SAE rewrites an activation h as a sparse sum of learned directions:</p>
+        <div class="eq">f = ReLU( W<sub>enc</sub> (h − b) ) ,   ĥ = W<sub>dec</sub> f + b ,   loss = ‖h − ĥ‖² + λ ‖f‖<sub>1</sub>
+          <span class="an">The L1 term pushes most entries of f to zero, so each activation is explained by a few features. Each feature is a column of W<sub>dec</sub>.</span></div>
+        <p>Steering goes the other way. Add a direction to the residual stream and watch the output change (Turner et al., 2023; Zou et al., 2023). If adding a "snow" direction makes the caption mention snow, that direction is causally connected to the concept.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>High attention is not the same as high importance in VLMs. Kang et al. (2025) found visual tokens that receive large attention weights regardless of the question. Removing these "visual sink" tokens did not hurt performance. Neo et al. (2024) report a related result: ablating the few high-norm tokens in LLaVA-1.5 barely affected object identification, while ablating the object's own tokens did. In practice, before trusting an attention heat map, ablate the tokens it highlights and check that the answer changes.</p>
+        </aside>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 2 · Interpretability methods compared along the aspects that matter for VLMs</caption>
+            <thead>
+              <tr><th>Method</th><th>Question it answers</th><th>Causal?</th><th>Granularity</th><th>Cost</th><th>Needs weights?</th><th>Main pitfall in VLMs</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Attention maps</td><td>Where does position i read from?</td><td>No</td><td>Head, layer, token pair</td><td>One forward pass</td><td>Yes (attention weights)</td><td>Visual sinks and value norms distort the picture; heads disagree.</td></tr>
+              <tr><td>Attention rollout</td><td>Where does information come from across all layers?</td><td>No</td><td>Token to token</td><td>One pass plus matrix products</td><td>Yes</td><td>Still counts sinks; assumes heads mix evenly.</td></tr>
+              <tr><td>Gradients, IG, Grad-CAM</td><td>Which input pixels or tokens is the output sensitive to?</td><td>Local, first-order</td><td>Pixel or token</td><td>One backward pass (IG: tens)</td><td>Yes (or gradient access)</td><td>Baseline choice; context leakage across generated tokens; can fail sanity checks.</td></tr>
+              <tr><td>Linear probes</td><td>Is a property linearly decodable at this layer?</td><td>No</td><td>Layer, position</td><td>Train a small classifier</td><td>Activations only</td><td>Shows presence, not use; needs labels and control tasks.</td></tr>
+              <tr><td>Logit lens, tuned lens</td><td>What word does this position resemble at layer ℓ?</td><td>No</td><td>Layer, position</td><td>One pass</td><td>Yes (unembedding)</td><td>Early layers decode poorly; lens maps are trained on text positions.</td></tr>
+              <tr><td>Activation patching</td><td>Does this activation carry the fact that changes the answer?</td><td>Yes</td><td>Layer, position, component</td><td>One pass per patched site</td><td>Yes</td><td>Noise corruption is off-distribution; image minimal pairs are hard to build.</td></tr>
+              <tr><td>Attention knockout</td><td>Does this route, at these layers, carry needed information?</td><td>Yes</td><td>Source set, target, layer window</td><td>One pass per window</td><td>Yes</td><td>Blocking changes attention elsewhere too; results depend on window size.</td></tr>
+              <tr><td>Token ablation</td><td>Are these tokens needed?</td><td>Yes</td><td>Token set</td><td>One pass per set</td><td>Input access only</td><td>Zero ablation is off-distribution; mean ablation is safer.</td></tr>
+              <tr><td>Sparse autoencoders</td><td>What interpretable features make up this activation?</td><td>No (yes when used to steer)</td><td>Feature</td><td>Train a large dictionary</td><td>Activations</td><td>Features depend on dictionary size, sparsity and seed.</td></tr>
+              <tr><td>Steering vectors</td><td>Does pushing this direction change the behaviour?</td><td>Yes</td><td>Direction, layer</td><td>One pass per setting</td><td>Yes</td><td>Side effects on unrelated behaviour; strength must be tuned.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: move down the rows and the methods become more causal and more expensive. The robust findings later in this post use one row from the top half to find a candidate, then one row from the bottom half to test it.</p>
+      </section>
+
+      <!-- ============================================================ 4 -->
+      <section id="visual-tokens">
+        <h2>What visual tokens encode</h2>
+        <p>Follow one patch vector on its way into the model. It starts in the vision encoder, passes through the connector, and enters the language model. At each stage we can ask what it represents.</p>
+
+        <h3>In the vision encoder</h3>
+        <p>CLIP's vision tower already holds surprisingly abstract units. Goh et al. (2021) found "multimodal neurons" that respond to a concept whether it appears as a photo, a drawing or written text. One consequence is the typographic attack. Write "iPod" on a piece of paper, stick it on an apple, and CLIP may classify the apple as an iPod. Text in the image is read as evidence about the object.</p>
+        <p>Gandelsman et al. (2023) decomposed CLIP's image representation into contributions from individual attention heads and image patches. Many heads specialise in a property, such as shape, colour or location, and can be labelled with text. Removing heads tied to spurious cues improved robustness. Summing patch contributions gave a zero-shot segmenter. A follow-up studied the indirect effects of individual neurons (Gandelsman et al., 2024).</p>
+        <p>Large vision transformers also produce a few odd tokens. Darcet et al. (2023) found high-norm tokens in background patches of models such as DINOv2 and OpenCLIP. These tokens hold global information and little about their own patch. They make attention maps noisy. Adding extra "register" tokens during training removes them. Jiang et al. (2025) traced the effect to a sparse set of "register neurons" and moved their activation into an extra untrained token at test time. The fix carries over to VLMs and gives cleaner text-to-image attribution maps.</p>
+
+        <h3>After the connector</h3>
+        <p>Even in CLIP's own shared space, image and text embeddings sit in separate regions, a pattern called the modality gap (Liang et al., 2022). The connector adds another step. It maps patch vectors into the language model's input space. A natural guess is that a dog patch lands near the word "dog." It does not. Schwettmann et al. (2023) studied a frozen text-only transformer given images through a single linear projection. The projected vectors were not decodable into words describing the image. The translation into word-like meaning happened deeper, inside the language model, through what they called multimodal neurons in its MLPs.</p>
+        <p>The projection also distorts the geometry of the image features. Li et al. (2025) compared nearest neighbours of image representations before and after the connector. Across connectors, 40 to 60 percent of k-nearest-neighbour relations changed. The patch-level version of their test, which reconstructs the original features from the projected ones, found that regions with high information loss predicted where the model would fail on visual questions. We return to this in <a href="#connector">the connector section</a>.</p>
+
+        <h3>Inside the language model</h3>
+        <p>Neo et al. (2024) followed image tokens through LLaVA-1.5 with the logit lens. Early on, image positions decode to nothing meaningful. With depth they become increasingly interpretable. At the best layer, around layer 26 of 33 on average, about 24 percent of the patches on an object decoded to that object's class name. Decoded words were often more specific than the label, such as "pattern" for a sweater. Qwen2-VL-2B showed the same late rise, with a lower rate of about 6.5 percent.</p>
+
+        <figure class="fig wide" id="fig-lens" data-fig="lens">
+          <div class="fig-head"><span class="fig-num">Figure 3</span><span class="fig-title">The logit lens applied to image positions (illustrative)</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 470" role="img" aria-label="An 8 by 8 patch grid over a drawn scene; at later layers more patches decode to words like dog, ball, grass and sky."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 3.</strong> Each cell is one image token. The word in a cell is the top token when the language model's unembedding is applied to that position at the shown layer. Early layers decode to fragments. Later layers decode to scene words, but only for a minority of patches on each object. The figure is drawn, not measured. The measured rates in LLaVA-1.5 peak at about a quarter of object patches, near layer 26 of 33 (Neo et al., 2024).</figcaption>
+        </figure>
+
+        <p>The same study asked where object information lives. Removing an object's own tokens, plus a one-token border, broke over 70 percent of correct object identifications in a generative task. Removing a similar number of random tokens almost never did. Removing the roughly three high-norm tokens per image broke about 5 percent. Object information is local. It stays at the object's patches.</p>
+        <p>Jiang et al. (2024) used the same lens for a practical purpose. When the lens is applied to image positions, real objects get more confident word probabilities than hallucinated ones. That gap can flag hallucinations. The lens probabilities can also locate objects spatially, giving zero-shot segmentation.</p>
+        <p>Probes add a layer-wise view. Tao et al. (2024) found that intermediate layers of multimodal models hold more global image meaning than the top layers. The top layers focus on local detail for the next token. Basu et al. (2024) found that LLaVA stores visual facts in earlier MLP and attention blocks than text-only models do. A small, consistent subset of visual tokens transfers that information.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Visual tokens enter the language model as soft prompts, not as words, and become word-like only in middle to late layers. Schwettmann et al. found projected tokens are not decodable into words. Neo et al. found decodability peaks around three quarters of the way up LLaVA-1.5. So analyses that match image tokens to their nearest word embeddings at the input will under-read what the model knows. Read image positions at middle and late layers instead.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>"High-norm tokens carry global information" is true in the vision encoder (Darcet et al.), yet ablating those tokens inside LLaVA-1.5 barely affected object identification (Neo et al.). Both can hold. The encoder may store global summaries there, while the language model reads objects from local tokens. Do not assume an encoder-level finding describes what the language model uses.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 5 -->
+      <section id="information-flow">
+        <h2>How the image reaches the answer</h2>
+        <p>We know image tokens become meaningful with depth. The next question is how that meaning gets to the answer position. Recall the rule from <a href="#anatomy">the anatomy section</a>: only attention moves information between positions. So we look at attention, and then test it with knockout.</p>
+
+        <h3>Attention to the image collapses after the first layers</h3>
+        <p>Chen et al. (2024) measured how much attention the generated tokens give to image tokens in LLaVA-1.5. Image tokens made up about 64 percent of the input. In the first two layers they received a substantial share of attention. After that, the share collapsed. In deep layers, the system prompt at the start of the sequence took about 85 percent of all attention. Per token, an image token received a tiny fraction of what a system-prompt token received.</p>
+        <p>This led to FastV. After layer 2, drop the half of the image tokens that receive the least attention. On LLaVA-1.5-13B, this cut compute by about 45 percent with an unchanged average score across their benchmarks. Visual Tokens Withdrawal (Lin et al., 2024) went further. It observed that visual information migrates into text tokens within the first few layers, then removed all visual tokens at a chosen depth.</p>
+
+        <figure class="fig wide" id="fig-attn" data-fig="attn">
+          <div class="fig-head"><span class="fig-num">Figure 4</span><span class="fig-title">Where the answer position looks, layer by layer (illustrative)</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 450" role="img" aria-label="A 12 by 12 patch grid over a drawn scene with an attention heat map that changes across 32 layers, plus a chart of attention share."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="fig-row">
+            <span class="lbl">Question</span>
+            <button type="button" class="chip" data-q="0" aria-pressed="true">What animal is this?</button>
+            <button type="button" class="chip" data-q="1" aria-pressed="false">What colour is the ball?</button>
+          </div>
+          <div class="fig-row">
+            <label class="lbl" for="attn-layer">Layer</label>
+            <input id="attn-layer" type="range" min="0" max="31" step="1" value="0" />
+            <output for="attn-layer" id="attn-layer-out">0</output>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 4.</strong> The heat map shows how the last position's attention to image tokens is spread over the image at each layer of a 32-layer model. Blue rings mark sink tokens that draw attention whatever the question. The chart on the right shows the share of attention that goes to image tokens at all. The shape follows published measurements on LLaVA-1.5: broad attention in the first two layers, a collapse after, a question-specific focus in middle layers, and sinks in deep layers. The exact values are drawn for illustration. Drag the layer slider or switch the question to compare.</figcaption>
+        </figure>
+
+        <h3>Visual attention sinks</h3>
+        <p>Where does the attention go, if not to the image? Text-only language models dump large amounts of attention on a few tokens, usually the first one. These are attention sinks (Xiao et al., 2023). They coincide with "massive activations," a handful of hidden dimensions with very large values (Sun et al., 2024). The sink acts as a place to park attention when a head has nothing useful to read.</p>
+        <p>VLMs have visual versions. Kang et al. (2025) found specific image tokens that receive high attention from text regardless of what the text is about. These tokens show the same massive activations in specific dimensions. Removing them did not change performance. Their method, Visual Attention Redistribution, takes that wasted attention and gives it back to the image in "image-centric" heads. It improved results without training.</p>
+
+        <h3>A route in stages</h3>
+        <p>Attention weights suggest a story. Knockout tests it. Zhang et al. (2024) blocked three routes in LLaVA-1.5-13B on GQA questions, using windows of nine layers in a 40-layer model:</p>
+        <ul>
+          <li><strong>Image to question tokens.</strong> Blocking in layers 0 to 4 reduced the probability of the correct answer by about 60 percent on average. Here the whole image mattered, not only the asked-about object. A second, smaller drop of about 21 percent appeared around layer 10, and here the patches of the named object mattered most.</li>
+          <li><strong>Question tokens to the last position.</strong> Blocking in the middle layers caused clear drops, up to about 30 percent.</li>
+          <li><strong>Image to the last position, directly.</strong> Blocking had a negligible effect.</li>
+        </ul>
+        <p>The logit lens added the final step. The correct answer, in lowercase, rose sharply in the middle layers. The capitalised form that the model actually outputs rose only in the upper layers. Meaning is settled first, and formatting comes later.</p>
+
+        <figure class="fig wide" id="fig-knock" data-fig="knock">
+          <div class="fig-head"><span class="fig-num">Figure 5</span><span class="fig-title">An attention-knockout experiment, window by window</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 440" role="img" aria-label="A sliding window of blocked attention edges moves up a 40-layer model while a curve records the drop in answer probability."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="fig-row">
+            <span class="lbl">Blocked route</span>
+            <button type="button" class="chip" data-route="0" aria-pressed="true">image → question</button>
+            <button type="button" class="chip" data-route="1" aria-pressed="false">question → last</button>
+            <button type="button" class="chip" data-route="2" aria-pressed="false">image → last</button>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 5.</strong> Left: the sequence of image tokens, question tokens and the last position, with the layers above it. The orange band is the window of nine layers where the chosen route is blocked. Right: the relative change in the probability of the correct answer as the window moves up. The curves are drawn to match the shape reported by Zhang et al. (2024) for LLaVA-1.5-13B: two drops for image to question (layers 0 to 4, and near 10), a middle-layer drop for question to last, and almost nothing for image to last.</figcaption>
+        </figure>
+
+        <p>Other studies agree on the broad shape and differ in detail. Kaduri et al. (2024) found that cross-modal flow is concentrated in a middle band, about a quarter of the layers. They also found that query tokens, such as the words "describe the image," come to store a global summary of the image. The model could produce a surprisingly descriptive answer from those tokens alone, with direct access to the image tokens blocked. Fine details were still read directly from the relevant image patches. Yin et al. (2025) describe a shift with depth: in shallow layers, image tokens mainly inject information into instruction tokens. In deep layers, image tokens mostly attend to each other. Jiang et al. (2024), in "Devils in middle layers," split the middle layers into a "visual enrichment" stage that moves visual data to object tokens and a "semantic refinement" stage that interprets it.</p>
+
+        <figure class="fig wide" id="fig-flow" data-fig="flow">
+          <div class="fig-head"><span class="fig-num">Figure 6</span><span class="fig-title">The flow of image information into the answer</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 445" role="img" aria-label="A flow diagram from image tokens to question tokens to the last position to the answer, with ribbons that appear layer band by layer band."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 6.</strong> A summary of the route reported for adapter-style VLMs such as LLaVA. Lower layers move a general summary of the whole image into the question tokens. Middle layers move object-specific information into the question word that names the object. Question tokens then pass the combined meaning to the last position, where the answer is formed and later formatted. Ribbon widths are schematic. The final step shows the very different route in natively multimodal models, where one post-image token carries most of the image.</figcaption>
+        </figure>
+
+        <h3>Heads that look</h3>
+        <p>The flow is carried by a minority of heads. Bi et al. (2024) found a class of attention heads that focus on visual content, across four model families and four scales. Kang et al. (2025) went further for grounding. In frozen VLMs, a few "localization heads" consistently attend to the region a phrase refers to. Using the attention maps of only three heads gave competitive training-free grounding.</p>
+
+        <h3>Native models have a narrow gate</h3>
+        <p>All of this describes models that bolt a vision encoder onto a pretrained language model. Models trained from scratch on mixed image and text tokens behave differently. Serra et al. (2024) compared Chameleon and Emu3 with LLaVA-OneVision, Pixtral and others. In the native models, most text-to-image attention went to one token: the end-of-image marker. Blocking text from reading that single token cut Chameleon-7B's captioning score by more than 90 percent. In LLaVA, blocking the same token changed almost nothing, because image information was spread over many tokens. <a href="../models-that-see-and-draw/">Models That See and Draw</a> covers these native models.</p>
+
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>The studies disagree about the direct route from image tokens to the last position. Zhang et al. found it negligible on GQA. Neo et al. found that blocking object tokens from the last position in layers 15 to 24 of LLaVA-1.5 reduced accuracy by about 12 percent. One plausible reading, not yet tested head to head, is that the route depends on the prompt. GQA questions name the object, so a question token can collect its information. Neo et al.'s identification prompts do not name it, so the last position must read the image itself. If you prune or edit based on one study's route, test it on your own prompt format.</p>
+        </aside>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Attention-based importance is biased by position, not only by content. With 1D RoPE, attention decays with distance. In LLaVA's raster order, the bottom of the image sits closest to the question. Endo et al. (2024) found that FastV-style pruning removed most tokens from the top of the image, and localization accuracy collapsed. Many "vision-centric" benchmarks did not notice. Their fix, FEATHER, adds uniform sampling and improved localization results by more than five times at similar savings. In practice, check where pruned tokens sit spatially, not only how many survive.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 6 -->
+      <section id="blind-baselines">
+        <h2>Does the model use the image</h2>
+        <p>The flow studies assume the image matters to the answer. Often it does not. The simplest interpretability experiment is to remove the image and see what happens.</p>
+
+        <h3>Language priors are an old problem</h3>
+        <p>Visual question answering met this early. In the first VQA dataset, a question like "What sport is…" could often be answered as "tennis" without looking. Goyal et al. (2017) balanced VQA v2 by pairing each question with a similar image that has a different answer. Agrawal et al. (2018) went further with VQA-CP, which changes the answer distribution between training and test. Models that learned priors collapsed on it.</p>
+
+        <h3>Blind baselines for modern VLMs</h3>
+        <p>MMStar (Chen et al., 2024) revived the test for large VLMs. It found two problems. First, many benchmark questions do not need the image. "What is the capital of Nebraska?" can be answered from the question alone, map or no map. GeminiPro scored 42.9 percent on MMMU with no image. Second, some models had memorised benchmark items. Sphinx-X-MoE scored 43.6 percent on MMMU without images, while its base language model scored 17.9 percent. The multimodal training data had leaked the answers.</p>
+        <p>MMStar turned these observations into two metrics. Let S<sub>v</sub> be a VLM's score with images, S<sub>wv</sub> its score without images, and S<sub>t</sub> the score of its base language model on text alone.</p>
+        <div class="eq">multimodal gain  MG = S<sub>v</sub> − S<sub>wv</sub><br />multimodal leakage  ML = max( 0, S<sub>wv</sub> − S<sub>t</sub> )
+          <span class="an">MG measures what the image adds. ML measures how much better the VLM does blind than its own language model, which points to memorised training data.</span></div>
+        <p>MMStar then kept 1,500 questions that need the image, checked by people. MMMU-Pro (Yue et al., 2024) did similar filtering on MMMU: it removed text-answerable questions, added more answer options, and added a setting where the question itself is shown inside the image. Scores dropped substantially. Cambrian-1 (Tong et al., 2024) compared benchmarks with vision on and off and found that several knowledge-heavy ones changed little without the image. VLind-Bench (Lee et al., 2024) uses counterfactual images to isolate reliance on language priors, after first checking that the model has the basic skills needed. Almost all models it tested relied heavily on priors.</p>
+
+        <figure class="fig wide" id="fig-blind" data-fig="blind">
+          <div class="fig-head"><span class="fig-num">Figure 7</span><span class="fig-title">A blind test and the gain it measures</span></div>
+          <div class="blind-grid">
+            <div>
+              <div class="fig-row" style="margin-top:0;margin-bottom:10px">
+                <span class="lbl">Image</span>
+                <button type="button" class="chip" id="blind-toggle" aria-pressed="false">Hide all images</button>
+              </div>
+              <div class="qcards" id="blind-cards"></div>
+            </div>
+            <div class="calc" id="blind-calc">
+              <div class="lbl" style="color:#474e53;font:600 11px/1.3 var(--mono);letter-spacing:.08em;text-transform:uppercase">Gain and leakage calculator</div>
+              <label for="s-v">Score with image, S<sub>v</sub>: <output id="s-v-out">62</output></label>
+              <input id="s-v" type="range" min="0" max="100" value="62" />
+              <label for="s-wv">Score without image, S<sub>wv</sub>: <output id="s-wv-out">44</output></label>
+              <input id="s-wv" type="range" min="0" max="100" value="44" />
+              <label for="s-t">Base language model, text only, S<sub>t</sub>: <output id="s-t-out">30</output></label>
+              <input id="s-t" type="range" min="0" max="100" value="30" />
+              <div class="bars">
+                <div class="bar"><span id="bar-mg" style="background:#9cc3e6"></span><em id="bar-mg-t">MG</em></div>
+                <div class="bar"><span id="bar-ml" style="background:#f2c08a"></span><em id="bar-ml-t">ML</em></div>
+              </div>
+              <p class="readout" id="blind-readout" aria-live="polite"></p>
+            </div>
+          </div>
+          <figcaption><strong>Figure 7.</strong> Left: six benchmark-style questions. Hide the images to see what a model could answer from language alone. Some questions survive, either because the answer is world knowledge or because the prior happens to match. Others fail, and two fail in a telling way: the prior gives a confident wrong answer. Right: drag the three scores to see how multimodal gain and leakage separate visual skill from blind guessing and memorised items (definitions from Chen et al., 2024).</figcaption>
+        </figure>
+
+        <h3>Measuring reliance inside the model</h3>
+        <p>Blind baselines work at the level of a benchmark. Internal measures work per example. Favero et al. (2024) showed that reliance on the image falls as a VLM generates more tokens, and that this decline tracks the appearance of hallucinations. Liu et al. (2024) describe "text inertia": some models give the same description with or without the image. A simple per-example check follows from these papers. Compare the answer distribution with the image and with a blank or mean image. A small difference means the answer came mostly from language.</p>
+        <p>Priors can also beat the image when both point the same way most of the time. Vo et al. (2025) showed VLMs counterfactual versions of familiar things, such as an Adidas-like logo with four stripes instead of three. Average counting accuracy was about 17 percent. Removing the background, which held the cues that triggered the prior, raised accuracy by about 21 points.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>A benchmark score mixes three things: visual skill, language prior and memorised items. Only the first is what an image benchmark claims to measure. MMStar's case is stark: a model scored 43.6 percent on MMMU without seeing a single image, against 17.9 percent for its language model. Always report the no-image score next to the with-image score, and treat the difference as the result.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Answering correctly without the image does not make a question bad. Real tasks often need world knowledge plus the image. And the reverse is also true: failing without the image does not show that the model used the image when it had it. Blind baselines bound the problem from one side. Per-example interventions, such as replacing the image with a mean image, are needed to see reliance on the other side.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 7 -->
+      <section id="simple-failures">
+        <h2>Where simple visual tasks fail</h2>
+        <p>VLMs read charts, solve diagrams and describe scenes. Yet they fail tasks a child can do. The interesting part is not that they fail. It is where in the pipeline the failure lives. Interpretability tools can localise it.</p>
+
+        <h3>Lines, circles and counting</h3>
+        <p>"Vision language models are blind" (Rahmanzadehgervi et al., 2024) introduced BlindTest: seven very simple tasks. Do two circles overlap? How many times do two lines cross? Which letter is circled? How many rings are in an Olympic-like logo? Four strong VLMs averaged 58.07 percent. The best, Claude 3.5 Sonnet, reached 77.84 percent. When shapes were drawn far apart, accuracy was near perfect. The failures appeared when shapes were close or overlapping.</p>
+        <p>The key experiment was a linear probe on the vision encoder. It showed the encoder holds enough information to solve the tasks. So the encoder sees the crossing. The language model fails to turn it into the right words.</p>
+
+        <h3>Images CLIP cannot tell apart</h3>
+        <p>"Eyes Wide Shut" (Tong et al., 2024) found the opposite case. The authors looked for "CLIP-blind pairs": two images whose CLIP embeddings have cosine similarity above 0.95 while a vision-only model, DINOv2, gives similarity below 0.6. The images look clearly different to people, but CLIP encodes them almost identically. From 150 such pairs they built MMVP, 300 questions across nine patterns such as orientation, counting and viewpoint. People scored 95.7 percent. Strong VLMs struggled, and the patterns that confuse CLIP were the ones that confuse the VLMs built on it. Here the information is missing from the encoder. Mixing in DINOv2 features helped.</p>
+
+        <h3>Binding, space and the right question</h3>
+        <p>Campbell et al. (2024) connect many failures to the binding problem from cognitive science. When several objects share the same representational resources, features can get attached to the wrong object. Counting and searching for a conjunction such as "the red square among red circles and blue squares" then fail, much as fast, parallel human vision fails. Mechanistic work on binding is starting to appear. In text models, Feng and Steinhardt (2023) found "binding ID" vectors that tie an entity to its attributes. In VLMs, Izadi et al. (2025) found that external cues such as grid lines create similar latent identifiers that improve grounding. Kang et al. (2026) report "spatial IDs": object locations are linearly bound to text activations in intermediate layers, and the model reasons over them through language tokens. They find an analogous temporal mechanism in video models (see <a href="../seeing-in-time/">Seeing in Time</a>).</p>
+        <p>Spatial relations such as "left of," "on" and "under" are another weak spot (Kamath et al., 2023). Chen et al. (2025) traced attention in intermediate layers and found that correct answers went with attention that lined up with the actual object locations. Sharpening or widening the attention at inference time, depending on confidence, improved spatial benchmarks.</p>
+
+        <h3>The language model as the bottleneck</h3>
+        <p>Fu et al. (2025) compared VLMs with a direct readout of their own vision encoders on vision-centric tasks such as depth estimation and correspondence. The VLMs did far worse, often near chance. They checked three suspects: the visual representations degrading, sensitivity to the prompt, and the language model. The bottleneck was the language model. The information was available throughout the model, but the VLM did not use it, and it inherited language priors.</p>
+        <p>Zhang et al. (2024) asked why VLMs underperform CLIP on ImageNet classification even when they use CLIP as their encoder. The information was present in the VLM's latent space. Performance on a class tracked how often that class appeared in training data. Adding classification data closed the gap. The model could see the difference. It had not learned to name it.</p>
+
+        <h3>Knowing where to look is not enough</h3>
+        <p>Zhang et al. (2025) found VLMs are sensitive to the size of the object asked about, and showed by intervention that the effect is causal. Yet the model's attention went to the right place even when the answer was wrong. Cropping the image around the attended region, a method they call ViCrop, improved accuracy without training. Liu et al. (2025) found the same pattern more broadly and called it "seeing but not believing." Shallow layers attend mostly to text. Deeper layers attend sparsely but reliably to the evidence region, including on wrongly answered questions. Highlighting that region at inference time helped across LLaVA, Qwen, Gemma and InternVL. Liu et al. (2024) report a related case for misleading questions, where models answer wrongly despite seeming to understand the image.</p>
+
+        <figure class="fig wide" id="fig-trace" data-fig="trace">
+          <div class="fig-head"><span class="fig-num">Figure 8</span><span class="fig-title">Tracing a failure to its stage</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 475" role="img" aria-label="A drawn failure case on the left and a four-step decision path on the right that checks the encoder, the connector, the language model and the prior."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="fig-row">
+            <span class="lbl">Failure case</span>
+            <button type="button" class="chip" data-case="0" aria-pressed="true">Line crossings</button>
+            <button type="button" class="chip" data-case="1" aria-pressed="false">CLIP-blind pair</button>
+            <button type="button" class="chip" data-case="2" aria-pressed="false">Logo stripes</button>
+            <button type="button" class="chip" data-case="3" aria-pressed="false">Small detail</button>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 8.</strong> Four documented failures, each walked down the same four checks. Line crossings: a probe on the encoder succeeds, so the failure is in the language model's readout (Rahmanzadehgervi et al., 2024). CLIP-blind pair: the encoder gives two different images almost the same embedding, so the failure is upstream of everything else (Tong et al., 2024). Logo stripes: removing background cues nearly doubles accuracy, so a prior overrides the evidence (Vo et al., 2025). Small detail: attention finds the right region but resolution is too low, so cropping where the model looks fixes it (Zhang et al., 2025). Grey nodes were not tested in the cited work.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>The same symptom, a wrong answer on an easy image, comes from different stages, and each needs a different fix. On BlindTest and on vision-centric tasks, the encoder holds the information and the language model fails to use it. A bigger encoder will not help there. On CLIP-blind pairs, the encoder lacks the information and no amount of language-model training will recover it. Probe the encoder first. It is the cheapest test, and it decides which half of the model to work on.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>"A linear probe on the encoder succeeds" is weaker than it sounds. The probe was trained with labels for that exact task. The VLM never was. So the result shows the information is linearly available, not that a model trained on ordinary image-text data should have learned to use it. Zhang et al.'s classification study makes the same point from the other side: with enough labelled data, the gap closed.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 8 -->
+      <section id="connector">
+        <h2>The connector as a bottleneck</h2>
+        <p>The connector sits between the two places where most failures were traced. It is small, often a two-layer MLP. It is easy to assume it is a neutral translator. The evidence says it is not.</p>
+        <p>Li et al. (2025) measured two things. First, how much the neighbourhood structure of image features changes after projection. Between 40 and 60 percent of nearest-neighbour relations changed, and the change correlated with worse retrieval. Second, how well the original patch features can be reconstructed from the projected ones. Patches with high reconstruction loss predicted where the model failed on grounded questions. Loss is local. A model can keep the gist of an image and lose the patch that holds the answer.</p>
+        <p>Compressing connectors make this sharper. A Q-Former reduces any image to 32 query tokens. That is efficient, but it decides what to keep before the question is known, because the queries do not see the question in most designs. Pooling and pixel-shuffle connectors make similar trade-offs. <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> compares connector designs, and <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a> covers the efficiency side.</p>
+        <p>The connector also explains a safety finding. Xu et al. (2024) found that a language model's text safety mechanism did not transfer to images. Harmful content shown as an image produced hidden states that were semantically shifted from the same content written as text. The layers where safety normally activates did not recognise it. Liu et al. (2024) describe the same gap as "safety alignment degradation," because multimodal inputs move representations away from the text distribution the base model was aligned on.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Connector loss is measured per patch, and it predicts per-question failures. That makes it a diagnostic you can run on your own data. For document and OCR work, where the answer often sits in a few small text patches, reconstruction loss on those patches is a cheap early warning (see <a href="../how-vlms-read-documents/">How VLMs Read Documents</a>).</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 9 -->
+      <section id="hallucination">
+        <h2>Hallucination from the inside</h2>
+        <p>Object hallucination means describing something that is not in the image. It is measured with CHAIR (Rohrbach et al., 2018), which counts mentioned objects missing from the annotations, and POPE (Li et al., 2023), which asks yes-or-no questions about object presence. <a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a> covers training-based fixes. Here the question is mechanical: what happens inside when a model hallucinates? Several mechanisms have been identified.</p>
+
+        <h3>The prior grows as the image fades</h3>
+        <p>Favero et al. (2024) measured how much each generated token depends on the image. Dependence fell as the response got longer, and hallucinations rose in step. Their decoding method, M3ID, boosts tokens with high mutual information with the image. For LLaVA-13B it reduced hallucinated objects in captions by about 25 percent.</p>
+
+        <h3>Summary tokens</h3>
+        <p>OPERA (Huang et al., 2024) started from a pattern in the attention matrix. During generation, many tokens attend heavily to a few earlier "summary" tokens, often punctuation, and little to the image. Hallucinations tended to follow this pattern. OPERA penalises it during beam search and can roll back when it appears.</p>
+
+        <h3>Distance in the sequence</h3>
+        <p>Xing et al. (2024) linked hallucination to rotary position encoding. RoPE weakens attention between distant positions. Image tokens far from the instruction get less attention, and the model hallucinates more when the relevant visual cue is far away. Their Concentric Causal Attention reorders positions to shorten those distances. <a href="../how-models-know-where-they-are/">How Models Know Where They Are</a> explains the decay.</p>
+
+        <h3>The evidence was there earlier</h3>
+        <p>LURE (Zhou et al., 2023) analysed hallucinations statistically and linked them to three factors: objects that often co-occur, uncertainty during decoding, and position late in the response. Several studies go further and find that the model "knew" better at some point inside. Wang et al. (2024) found that objects which the final layer gets wrong are often recognised correctly in preceding layers, and then suppressed. Their method, DeCo, mixes in those earlier-layer predictions. Jiang et al. (2024) used the logit lens on image positions: real objects decode with more confidence than hallucinated ones. Projecting out the hallucinated object's direction from the image features reduced hallucinations by up to 25.7 percent on COCO2014. Jiang et al. (2024, "Devils in middle layers") found that real objects get more attention than hallucinated ones during the middle-layer "visual enrichment" stage, and that hallucinations come from heads that attend to inconsistent objects.</p>
+
+        <h3>Contrasting with a worse image</h3>
+        <p>Visual Contrastive Decoding (Leng et al., 2024) takes a different route. Run the model twice, once on the real image and once on a distorted one. Tokens that stay likely even with a distorted image are driven by the prior. Subtract them:</p>
+        <div class="eq">score(y) = (1 + α) · logit( y | v, x ) − α · logit( y | v′, x )
+          <span class="an">v is the image, v′ the distorted image, x the text so far. Tokens supported by the real image keep their score. Tokens the prior would say anyway are pushed down.</span></div>
+        <p>Paying More Attention to Image (Liu et al., 2024) combines two ideas: it amplifies attention to image tokens and subtracts the logits of a text-only pass. Latent space steering (Liu et al., 2024) adds a direction that stabilises the vision features during inference.</p>
+
+        <figure class="fig wide" id="fig-hallu" data-fig="hallu">
+          <div class="fig-head"><span class="fig-num">Figure 9</span><span class="fig-title">How a hallucination forms during generation (illustrative)</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 405" role="img" aria-label="A caption generated token by token, a falling curve of attention to the image, and two next-token distributions combined by contrastive decoding."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 9.</strong> The model describes an image of a dog, a ball and a tree. As the caption grows, the share of attention on image tokens falls (Favero et al., 2024) and attention gathers on a summary token (Huang et al., 2024). The model then writes "frisbee," which is not in the image. Visual contrastive decoding compares the next-token distribution under the real image with that under a distorted image. "Frisbee" stays likely under both, so it is the prior talking. "Tree" depends on the image, so the contrast promotes it. Values are illustrative.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Many hallucinations are not perception failures. In DeCo's analysis, earlier layers recognised the right objects. In Jiang et al.'s, image representations held more confident evidence for real objects than for hallucinated ones. That is why training-free fixes at decoding time or in the representation can work at all. If the evidence were absent, no decoding trick could recover it.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Each mechanism above was found on a few LLaVA-family models, with a particular benchmark: priors over length, summary tokens, RoPE distance and middle-layer heads. They are not exclusive. They probably describe different parts of one process. Treat each as one contributor, and measure on your own model before choosing a fix.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 10 -->
+      <section id="features">
+        <h2>Features, neurons and steering</h2>
+        <p>The methods so far ask about positions and routes. A second line of work asks about units of meaning: which neurons or directions represent which concepts, and can we push on them?</p>
+
+        <h3>Neurons</h3>
+        <p>Labelling single units is an old idea in vision. Network Dissection (Bau et al., 2017) matched CNN units to visual concepts. The multimodal neurons of CLIP (Goh et al., 2021) were the first striking example in vision-language models. Schwettmann et al. (2023) found neurons inside a text-only transformer that convert projected image features into text concepts, with a measurable causal effect on captions. Pan et al. (2023) proposed a cheaper way to find multimodal neurons in VLMs and used them to edit outputs, for example to remove sensitive words.</p>
+
+        <h3>Sparse autoencoders</h3>
+        <p>Neurons are often polysemantic. SAEs give cleaner features. In language models, dictionary features scaled up to large production models, and some responded to images of a concept as well as to its name (Templeton et al., 2024). For VLMs, the work has moved quickly.</p>
+        <ul>
+          <li>Pach et al. (2025) trained SAEs on CLIP's vision encoder. Individual SAE units were much more monosemantic than neurons. Width and sparsity mattered most. Intervening on these features inside CLIP steered the outputs of LLaVA, with no change to the language model.</li>
+          <li>Zhang et al. (2024) trained an SAE on LLaVA-NeXT-8B and used a larger model, LLaVA-OneVision-72B, to describe each feature automatically. Clamping features steered behaviour.</li>
+          <li>Stevens et al. (2025) show that one SAE trained on a frozen vision transformer supports patch-level causal edits for both classification and segmentation.</li>
+          <li>Papadimitriou et al. (2025) trained SAEs on the embedding spaces of CLIP, SigLIP, SigLIP 2 and AIMv2. Rare, specific concepts changed a lot between training runs. Commonly active concepts were stable.</li>
+          <li>Prisma (Joseph et al., 2025) packages tools and more than 80 pretrained SAEs for vision and video transformers.</li>
+        </ul>
+
+        <figure class="fig wide" id="fig-sae" data-fig="sae">
+          <div class="fig-head"><span class="fig-num">Figure 10</span><span class="fig-title">A sparse autoencoder, and steering with one feature (illustrative)</span></div>
+          <div class="fig-stage"><svg viewBox="0 0 760 420" role="img" aria-label="A dense activation vector encoded into a few active sparse features, decoded back, and a feature strength slider that changes the generated caption."></svg></div>
+          <p class="fig-scroll-hint">Scroll sideways to see the whole figure.</p>
+          <p class="fig-note" aria-live="polite"></p>
+          <div class="fig-row">
+            <label class="lbl" for="sae-strength">Clamp the "snow" feature</label>
+            <input id="sae-strength" type="range" min="0" max="3" step="0.1" value="0" />
+            <output for="sae-strength" id="sae-strength-out">0.0</output>
+          </div>
+          <div class="animation-controls" role="group" aria-label="Animation controls"></div>
+          <figcaption><strong>Figure 10.</strong> An image token's dense activation is rewritten as a sparse combination of dictionary features. Only a few are active. Each feature gets a label from the images that activate it most. Clamping one feature to a higher value and decoding again changes what the language model says. Pach et al. (2025) did this on CLIP's encoder and changed LLaVA's output. The features, labels and captions here are drawn for illustration. Use the slider to raise the feature strength.</figcaption>
+        </figure>
+
+        <h3>Steering vectors</h3>
+        <p>Steering does not need an SAE. Gan et al. (2025) built steering vectors from the text-only language model inside a VLM, using simple methods such as the mean difference between activations for two kinds of prompts. Applied to images, the vectors improved spatial-relation accuracy on CV-Bench by up to 7.3 points and counting by up to 3.3 points, more than prompting did. Liu et al. (2024) steer the vision features to reduce hallucination.</p>
+        <p>SAE features also work as a data tool. SAE-V (Lou et al., 2025) scores image-text pairs by how consistently their features match across modalities. Filtering alignment data by that score gave better results than the full data while using less than half of it.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Directions found in text carry over to images. Gan et al.'s steering vectors came from the text-only backbone and still improved visual tasks. Pach et al.'s SAE edits in the vision encoder were read correctly by an unchanged language model. Both point to a shared space where text and image concepts meet. In practice, you can often build control vectors from cheap text prompts rather than labelled images.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>An SAE feature is a property of the dictionary as well as of the model. Papadimitriou et al. found rare concepts changed drastically across seeds and data mixes. Pach et al. found width and sparsity drove monosemanticity. So "the model has a feature for X" should be read as "this dictionary found a direction for X." Before acting on a feature, check that it survives retraining the SAE.</p>
+        </aside>
+      </section>
+
+      <!-- ============================================================ 11 -->
+      <section id="uses">
+        <h2>Putting interpretability to work</h2>
+        <p>Interpretability results have already turned into methods. Each use below comes from one of the findings above.</p>
+
+        <h3>Pruning visual tokens</h3>
+        <p>The collapse of attention to the image after early layers led directly to FastV, Visual Tokens Withdrawal, PyramidDrop (Xing et al., 2024), VisionZip (Yang et al., 2024) and HiMAP (Yin et al., 2025), which reports about 65 percent less compute without loss. Two cautions came from interpretability too. VisPruner (Zhang et al., 2024) argues that text-to-image attention inside the language model is a poor importance signal, and selects tokens with the vision encoder's own attention plus a diversity step. FEATHER shows the position bias described above. <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a> compares these methods.</p>
+
+        <h3>Grounding without training</h3>
+        <p>If a few heads already attend to the right region, their attention maps are a grounding signal. Localization heads gave competitive training-free grounding from three heads. ViCrop crops where the model attends and asks again. Logit-lens probabilities on image positions give zero-shot segmentation. Test-time registers make these maps cleaner. <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> covers trained grounding, and <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a> describes grounding with a VLM and a segmentation model on documents.</p>
+
+        <h3>Debugging data</h3>
+        <p>Interpretability can point at the data. The classification study traced failures to class frequency. MMStar's leakage metric found memorised benchmark items. SAE-V filters training pairs. The common move is to ask why a model fails, find a missing or contaminated slice of data, and fix that instead of the architecture.</p>
+
+        <h3>Safety</h3>
+        <p>In text models, refusal is largely mediated by a single direction in activation space (Arditi et al., 2024). In VLMs, the problem is that images do not trigger that machinery reliably. Text-guided alignment (Xu et al., 2024) uses retrieved text to guide how images are projected, so the text safety mechanism transfers. Cross-modality representation manipulation (Liu et al., 2024) shifts multimodal representations back toward the text distribution at inference time. Both start from an interpretability diagnosis.</p>
+
+        <h3>Tools</h3>
+        <p>TransformerLens and NNsight (Fiotto-Kaufman et al., 2024) give access to language model internals. Prisma covers vision and video transformers. LVLM-Interpret and Token Activation Map produce relevancy maps for LLaVA-type models. A survey by Lin et al. (2025) maps the wider field of multimodal mechanistic interpretability.</p>
+      </section>
+
+      <!-- ============================================================ 12 -->
+      <section id="findings">
+        <h2>What we know, and how firmly</h2>
+        <p>Here are the main findings in one place. The last two columns matter most. Robustness says how much evidence stands behind a claim. Implication says what to do with it.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 3 · Findings about how VLMs use the image</caption>
+            <thead>
+              <tr><th>Finding</th><th>Claim</th><th>Method</th><th>Models</th><th>Robustness</th><th>Implication</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Image tokens become word-like late</td><td>Image positions decode to object words only in middle to late layers</td><td>Logit lens</td><td>LLaVA-1.5, Qwen2-VL-2B</td><td>Two models, two families; rates differ (about 24 vs 6.5 percent)</td><td>Read image positions at mid-late layers, not at the input</td></tr>
+              <tr><td>Object information is local</td><td>An object's own tokens carry its identity</td><td>Mean ablation</td><td>LLaVA-1.5, LLaVA-Phi-3</td><td>Large effect over 70 percent with a border; random control near zero</td><td>Token pruning must keep object regions</td></tr>
+              <tr><td>Early collapse of image attention</td><td>After about layer 2, image tokens get little attention</td><td>Attention statistics, pruning</td><td>LLaVA-1.5, Qwen-VL, Video-LLaVA</td><td>Replicated by many pruning papers</td><td>Deep-layer image tokens can often be pruned</td></tr>
+              <tr><td>Staged flow through question tokens</td><td>Whole image to question early, object to question mid, question to last mid</td><td>Attention knockout, logit lens</td><td>LLaVA-1.5 7B and 13B, LLaVA-1.6, Llama3-LLaVA-NeXT</td><td>Consistent across four LLaVA variants; one dataset (GQA)</td><td>Edit or prune with the route in mind</td></tr>
+              <tr><td>Direct route to last position</td><td>Object tokens feed the last position in mid-late layers</td><td>Attention knockout</td><td>LLaVA-1.5, LLaVA-Phi-3</td><td>Disagrees in size with the staged-flow study</td><td>Test the route on your prompt format</td></tr>
+              <tr><td>Visual attention sinks</td><td>Some image tokens draw attention regardless of the text, and are removable</td><td>Activation analysis, ablation</td><td>Several LMMs</td><td>Mirrors well-replicated text sinks</td><td>Exclude sinks from heat maps; reuse their attention</td></tr>
+              <tr><td>Narrow gate in native models</td><td>One end-of-image token carries most image information</td><td>Attention knockout</td><td>Chameleon 7B and 34B, Emu3 vs LLaVA-OneVision and others</td><td>Clear contrast between two model types</td><td>Findings on adapter VLMs do not transfer to native ones</td></tr>
+              <tr><td>Readout failures</td><td>Encoder holds the answer; the VLM fails to use it</td><td>Linear probes, readout comparison</td><td>Proprietary VLMs (BlindTest behaviour); open VLMs and their encoders (probes, readouts)</td><td>Several independent studies</td><td>Fix the language-model side, not the encoder</td></tr>
+              <tr><td>Encoder blindness</td><td>Some image pairs are nearly identical to CLIP</td><td>Embedding similarity, benchmark</td><td>CLIP-based VLMs, GPT-4V</td><td>Clear mechanism; correlated failures</td><td>Add or switch vision features</td></tr>
+              <tr><td>Looks right, answers wrong</td><td>Attention finds the evidence even on wrong answers</td><td>Attention analysis, intervention</td><td>LLaVA, Qwen, Gemma, InternVL</td><td>Two studies, several families</td><td>Use attention to crop or highlight</td></tr>
+              <tr><td>Hallucination evidence exists inside</td><td>Earlier layers or image representations know the truth</td><td>Layer logits, logit lens</td><td>LLaVA family and others</td><td>Several studies, different mechanisms</td><td>Training-free decoding fixes are viable</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: most rows rest on LLaVA-family models with 1D positions and one token per patch. Rows whose Models column includes several families, such as the attention-finds-evidence row, are the safest to rely on for a new model.</p>
+      </section>
+
+      <!-- ============================================================ 13 -->
+      <section id="limits">
+        <h2>Limits and open problems</h2>
+        <p><strong>The model organisms are old.</strong> Much of the evidence comes from LLaVA-1.5, with 576 tokens, a CLIP encoder and 1D positions. Current models use native resolution, thousands of tokens, M-RoPE and tiling. Position-driven findings such as FastV's top-of-image bias may change under spatial position encodings. Few of the findings have been re-tested on these designs.</p>
+        <p><strong>Cross-attention models are under-studied.</strong> Models that read the image through separate cross-attention layers have a different routing graph. The knockout and patching recipes transfer, but the findings have not been repeated at the same depth.</p>
+        <p><strong>Building image minimal pairs is hard.</strong> Text patching uses one-word swaps. Images rarely have a clean equivalent. Noise corruption is off-distribution, and edited images can change more than the intended fact. Better corruption methods, such as NOTICE's semantic pairs, are an active need.</p>
+        <p><strong>Video, many images and long reasoning.</strong> Visual reliance falls as generation grows. Reasoning VLMs generate thousands of tokens before answering. Vo et al. saw counting accuracy first rise with more thinking tokens and then fall. Whether long reasoning keeps reading the image or drifts into priors is largely unmeasured. <a href="../thinking-with-images/">Thinking With Images</a> covers methods that go back to the image during reasoning.</p>
+        <p><strong>Closed models.</strong> The most capable models expose no weights, so only behavioural tests apply. Blind baselines and counterfactual images are the main tools there.</p>
+        <p><strong>Judging interpretations.</strong> An explanation can be plausible and wrong. The field still lacks shared benchmarks for whether a VLM interpretation is faithful, beyond case-by-case interventions.</p>
+      </section>
+
+      <!-- ============================================================ 14 -->
+      <section id="checklist">
+        <h2>A debugging checklist</h2>
+        <p>When a VLM gets a visual question wrong, or right for the wrong reason, these steps follow the stages of Figure 1. Each uses a tool from <a href="#tools">the tools section</a>.</p>
+        <ol class="checklist">
+          <li><strong>Run the blind baseline.</strong> Replace the image with a mean or blank image. If the answer does not change, the image is not being used, and nothing downstream matters yet.</li>
+          <li><strong>Probe the encoder.</strong> Train a linear probe on the encoder's patch features for the property in question. If it fails, the information is missing. Change the encoder, the resolution or the crop.</li>
+          <li><strong>Check the connector.</strong> Reconstruct encoder features from projected features, or compare nearest neighbours. High loss on the relevant patches points to the connector.</li>
+          <li><strong>Look where the model looks.</strong> Read attention from the answer position at middle layers, excluding sink tokens. If it finds the right region, try cropping there. If it does not, the routing is the problem.</li>
+          <li><strong>Confirm with an intervention.</strong> Ablate the highlighted tokens, or knock out the suspected route, and check that the answer changes. Do not act on an attention map that fails this test.</li>
+          <li><strong>Test the prior.</strong> Build a counterfactual image that breaks the expected pattern. If accuracy drops sharply, the prior is winning. Consider contrastive decoding or data that breaks the correlation.</li>
+        </ol>
+      </section>
+
+      <!-- ============================================================ 15 -->
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="insight-list">
+          <li><strong>Attention is not importance.</strong> Visual sink tokens draw heavy attention and can be removed with no loss. Ablate before you trust a heat map. (<a href="#tools">Tools</a>)</li>
+          <li><strong>Image tokens are not words at the input.</strong> They become decodable as words only in middle to late layers, so read them there. (<a href="#visual-tokens">Visual tokens</a>)</li>
+          <li><strong>Encoder findings do not always describe the language model.</strong> High-norm tokens hold global information in the encoder, yet ablating them barely mattered for object identification in LLaVA. (<a href="#visual-tokens">Visual tokens</a>)</li>
+          <li><strong>The route depends on the model type and possibly the prompt.</strong> Adapter models spread image information over many tokens and pass it through question tokens. Native models funnel it through one end-of-image token. Two studies disagree about the direct route to the answer. (<a href="#information-flow">Information flow</a>)</li>
+          <li><strong>Attention-based pruning is position-biased.</strong> With 1D RoPE it can discard the top of the image, and many benchmarks will not notice. (<a href="#information-flow">Information flow</a>)</li>
+          <li><strong>Report the no-image score.</strong> Multimodal gain separates visual skill from priors and memorised items. (<a href="#blind-baselines">Blind baselines</a>)</li>
+          <li><strong>The same wrong answer can come from different stages.</strong> Readout failures need language-model fixes. Encoder blindness needs vision fixes. Probe the encoder first. (<a href="#simple-failures">Simple failures</a>)</li>
+          <li><strong>Models often look in the right place and still answer wrongly.</strong> Cropping or highlighting the attended region helps without training. (<a href="#simple-failures">Simple failures</a>)</li>
+          <li><strong>Connector loss is local and predictive.</strong> Patch-level reconstruction loss flags the questions a model will miss. (<a href="#connector">Connector</a>)</li>
+          <li><strong>Hallucination is often suppression, not blindness.</strong> Earlier layers and image representations frequently hold the right evidence, which is why decoding-time fixes work. (<a href="#hallucination">Hallucination</a>)</li>
+          <li><strong>Text directions steer vision, but SAE features are dictionary-dependent.</strong> Check that a feature survives retraining before acting on it. (<a href="#features">Features</a>)</li>
+        </ul>
+        <p>With these tools, you should be able to look at a VLM's wrong answer and say which stage lost the information, and which experiment would prove it. The next post, <a href="../models-that-see-and-draw/">Models That See and Draw</a>, turns to models that both read and generate images, where the narrow-gate finding above becomes a design question.</p>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-attention-moves-information/">How Attention Moves Information</a></li><li><a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a></li><li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a></li><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li></ul></nav>
+
+      <!-- ============================================================ refs -->
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+
+        <div class="reference-group">
+          <h3>Interpretability methods</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1902.10186" target="_blank" rel="noopener noreferrer">Attention is not Explanation</a> · Jain, Wallace, 2019</li>
+            <li><a href="https://arxiv.org/abs/1908.04626" target="_blank" rel="noopener noreferrer">Attention is not not Explanation</a> · Wiegreffe, Pinter, 2019</li>
+            <li><a href="https://arxiv.org/abs/2004.10102" target="_blank" rel="noopener noreferrer">Attention is Not Only a Weight: Analyzing Transformers with Vector Norms</a> · Kobayashi et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2005.00928" target="_blank" rel="noopener noreferrer">Quantifying Attention Flow in Transformers</a> · Abnar, Zuidema, 2020</li>
+            <li><a href="https://arxiv.org/abs/1610.02391" target="_blank" rel="noopener noreferrer">Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization</a> · Selvaraju et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1703.01365" target="_blank" rel="noopener noreferrer">Axiomatic Attribution for Deep Networks</a> · Sundararajan, Taly, Yan, 2017</li>
+            <li><a href="https://arxiv.org/abs/1810.03292" target="_blank" rel="noopener noreferrer">Sanity Checks for Saliency Maps</a> · Adebayo et al., 2018</li>
+            <li><a href="https://arxiv.org/abs/2103.15679" target="_blank" rel="noopener noreferrer">Generic Attention-model Explainability for Interpreting Bi-Modal and Encoder-Decoder Transformers</a> · Chefer, Gur, Wolf, 2021</li>
+            <li><a href="https://arxiv.org/abs/1610.01644" target="_blank" rel="noopener noreferrer">Understanding intermediate layers using linear classifier probes</a> · Alain, Bengio, 2016</li>
+            <li><a href="https://arxiv.org/abs/1909.03368" target="_blank" rel="noopener noreferrer">Designing and Interpreting Probes with Control Tasks</a> · Hewitt, Liang, 2019</li>
+            <li><a href="https://arxiv.org/abs/2102.12452" target="_blank" rel="noopener noreferrer">Probing Classifiers: Promises, Shortcomings, and Advances</a> · Belinkov, 2021</li>
+            <li><a href="https://www.lesswrong.com/posts/AcKRB8wDpdaN6v6ru/interpreting-gpt-the-logit-lens" target="_blank" rel="noopener noreferrer">interpreting GPT: the logit lens</a> · nostalgebraist, 2020</li>
+            <li><a href="https://arxiv.org/abs/2303.08112" target="_blank" rel="noopener noreferrer">Eliciting Latent Predictions from Transformers with the Tuned Lens</a> · Belrose et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2202.05262" target="_blank" rel="noopener noreferrer">Locating and Editing Factual Associations in GPT</a> · Meng et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2309.16042" target="_blank" rel="noopener noreferrer">Towards Best Practices of Activation Patching in Language Models: Metrics and Methods</a> · Zhang, Nanda, 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.15255" target="_blank" rel="noopener noreferrer">How to use and interpret activation patching</a> · Heimersheim, Nanda, 2024</li>
+            <li><a href="https://arxiv.org/abs/2304.14767" target="_blank" rel="noopener noreferrer">Dissecting Recall of Factual Associations in Auto-Regressive Language Models</a> · Geva et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2309.08600" target="_blank" rel="noopener noreferrer">Sparse Autoencoders Find Highly Interpretable Features in Language Models</a> · Cunningham et al., 2023</li>
+            <li><a href="https://transformer-circuits.pub/2023/monosemantic-features" target="_blank" rel="noopener noreferrer">Towards Monosemanticity: Decomposing Language Models With Dictionary Learning</a> · Bricken et al., 2023</li>
+            <li><a href="https://transformer-circuits.pub/2024/scaling-monosemanticity/" target="_blank" rel="noopener noreferrer">Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet</a> · Templeton et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2308.10248" target="_blank" rel="noopener noreferrer">Steering Language Models With Activation Engineering</a> · Turner et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.01405" target="_blank" rel="noopener noreferrer">Representation Engineering: A Top-Down Approach to AI Transparency</a> · Zou et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.17191" target="_blank" rel="noopener noreferrer">How do Language Models Bind Entities in Context?</a> · Feng, Steinhardt, 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Vision encoders, neurons and artifacts</h3>
+          <ul>
+            <li><a href="https://distill.pub/2021/multimodal-neurons/" target="_blank" rel="noopener noreferrer">Multimodal Neurons in Artificial Neural Networks</a> · Goh et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/1704.05796" target="_blank" rel="noopener noreferrer">Network Dissection: Quantifying Interpretability of Deep Visual Representations</a> · Bau et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/2310.05916" target="_blank" rel="noopener noreferrer">Interpreting CLIP's Image Representation via Text-Based Decomposition</a> · Gandelsman, Efros, Steinhardt, 2023</li>
+            <li><a href="https://arxiv.org/abs/2406.04341" target="_blank" rel="noopener noreferrer">Interpreting the Second-Order Effects of Neurons in CLIP</a> · Gandelsman, Efros, Steinhardt, 2024</li>
+            <li><a href="https://arxiv.org/abs/2309.16588" target="_blank" rel="noopener noreferrer">Vision Transformers Need Registers</a> · Darcet et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2506.08010" target="_blank" rel="noopener noreferrer">Vision Transformers Don't Need Trained Registers</a> · Jiang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2402.17762" target="_blank" rel="noopener noreferrer">Massive Activations in Large Language Models</a> · Sun et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2309.17453" target="_blank" rel="noopener noreferrer">Efficient Streaming Language Models with Attention Sinks</a> · Xiao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2203.02053" target="_blank" rel="noopener noreferrer">Mind the Gap: Understanding the Modality Gap in Multi-modal Contrastive Representation Learning</a> · Liang et al., 2022</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Inside VLMs: tokens and information flow</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2410.07149" target="_blank" rel="noopener noreferrer">Towards Interpreting Visual Information Processing in Vision-Language Models</a> · Neo et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.18620" target="_blank" rel="noopener noreferrer">Cross-modal Information Flow in Multimodal Large Language Models</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.17491" target="_blank" rel="noopener noreferrer">What's in the Image? A Deep-Dive into the Vision of Vision Language Models</a> · Kaduri, Bagon, Dekel, 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.13108" target="_blank" rel="noopener noreferrer">Lifting the Veil on Visual Information Flow in MLLMs: Unlocking Pathways to Faster Inference</a> · Yin, Si, Wang, 2025</li>
+            <li><a href="https://arxiv.org/abs/2308.01544" target="_blank" rel="noopener noreferrer">Multimodal Neurons in Pretrained Text-Only Transformers</a> · Schwettmann et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2406.04236" target="_blank" rel="noopener noreferrer">Understanding Information Storage and Transfer in Multi-modal Large Language Models</a> · Basu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2308.14179" target="_blank" rel="noopener noreferrer">Towards Vision-Language Mechanistic Interpretability: A Causal Tracing Tool for BLIP</a> · Palit et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2406.16320" target="_blank" rel="noopener noreferrer">What Do VLMs NOTICE? A Mechanistic Interpretability Pipeline for Gaussian-Noise-free Text-Image Corruption and Evaluation</a> · Golovanevsky et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2402.17304" target="_blank" rel="noopener noreferrer">Probing Multimodal Large Language Models for Global and Local Semantic Representations</a> · Tao et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.06764" target="_blank" rel="noopener noreferrer">An Image is Worth 1/2 Tokens After Layer 2: Plug-and-Play Inference Acceleration for Large Vision-Language Models</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.05803" target="_blank" rel="noopener noreferrer">Boosting Multimodal Large Language Models with Visual Tokens Withdrawal for Rapid Inference</a> · Lin et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.03321" target="_blank" rel="noopener noreferrer">See What You Are Told: Visual Attention Sink in Large Multimodal Models</a> · Kang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.18108" target="_blank" rel="noopener noreferrer">Unveiling Visual Perception in Language Models: An Attention Head Analysis Approach</a> · Bi et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.06287" target="_blank" rel="noopener noreferrer">Your Large Vision-Language Model Only Needs A Few Attention Heads For Visual Grounding</a> · Kang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.06646" target="_blank" rel="noopener noreferrer">The Narrow Gate: Localized Image-Text Communication in Native Multimodal Models</a> · Serra et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2509.11986" target="_blank" rel="noopener noreferrer">Lost in Embeddings: Information Loss in Vision-Language Models</a> · Li et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2509.24072" target="_blank" rel="noopener noreferrer">Uncovering Grounding IDs: How External Cues Shape Multi-Modal Binding</a> · Izadi et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2601.12626" target="_blank" rel="noopener noreferrer">Linear Mechanisms for Spatiotemporal Reasoning in Vision Language Models</a> · Kang et al., 2026</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Using the image: blind baselines and priors</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1612.00837" target="_blank" rel="noopener noreferrer">Making the V in VQA Matter: Elevating the Role of Image Understanding in Visual Question Answering</a> · Goyal et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1712.00377" target="_blank" rel="noopener noreferrer">Don't Just Assume; Look and Answer: Overcoming Priors for Visual Question Answering</a> · Agrawal et al., 2018</li>
+            <li><a href="https://arxiv.org/abs/2403.20330" target="_blank" rel="noopener noreferrer">Are We on the Right Way for Evaluating Large Vision-Language Models? (MMStar)</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.02813" target="_blank" rel="noopener noreferrer">MMMU-Pro: A More Robust Multi-discipline Multimodal Understanding Benchmark</a> · Yue et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.16860" target="_blank" rel="noopener noreferrer">Cambrian-1: A Fully Open, Vision-Centric Exploration of Multimodal LLMs</a> · Tong et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.08702" target="_blank" rel="noopener noreferrer">VLind-Bench: Measuring Language Priors in Large Vision-Language Models</a> · Lee et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2505.23941" target="_blank" rel="noopener noreferrer">Vision Language Models are Biased</a> · Vo et al., 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Simple-task failures and their causes</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2407.06581" target="_blank" rel="noopener noreferrer">Vision language models are blind: Failing to translate detailed visual features into words</a> · Rahmanzadehgervi et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2401.06209" target="_blank" rel="noopener noreferrer">Eyes Wide Shut? Exploring the Visual Shortcomings of Multimodal LLMs</a> · Tong et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.00238" target="_blank" rel="noopener noreferrer">Understanding the Limits of Vision Language Models Through the Lens of the Binding Problem</a> · Campbell et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2310.19785" target="_blank" rel="noopener noreferrer">What's "up" with vision-language models? Investigating their struggle with spatial reasoning</a> · Kamath, Hessel, Chang, 2023</li>
+            <li><a href="https://arxiv.org/abs/2503.01773" target="_blank" rel="noopener noreferrer">Why Is Spatial Reasoning Hard for VLMs? An Attention Mechanism Perspective on Focus Areas</a> · Chen et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2506.08008" target="_blank" rel="noopener noreferrer">Hidden in plain sight: VLMs overlook their visual representations</a> · Fu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2405.18415" target="_blank" rel="noopener noreferrer">Why are Visually-Grounded Language Models Bad at Image Classification?</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.17422" target="_blank" rel="noopener noreferrer">MLLMs Know Where to Look: Training-free Perception of Small Visual Details with Multimodal LLMs</a> · Zhang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2510.17771" target="_blank" rel="noopener noreferrer">Seeing but Not Believing: Probing the Disconnect Between Visual Attention and Answer Correctness in VLMs</a> · Liu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2406.10638" target="_blank" rel="noopener noreferrer">Unveiling the Ignorance of MLLMs: Seeing Clearly, Answering Incorrectly</a> · Liu et al., 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Hallucination mechanisms and mitigation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1809.02156" target="_blank" rel="noopener noreferrer">Object Hallucination in Image Captioning</a> · Rohrbach et al., 2018</li>
+            <li><a href="https://arxiv.org/abs/2305.10355" target="_blank" rel="noopener noreferrer">Evaluating Object Hallucination in Large Vision-Language Models (POPE)</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.14003" target="_blank" rel="noopener noreferrer">Multi-Modal Hallucination Control by Visual Information Grounding (M3ID)</a> · Favero et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.17911" target="_blank" rel="noopener noreferrer">OPERA: Alleviating Hallucination in Multi-Modal Large Language Models via Over-Trust Penalty and Retrospection-Allocation</a> · Huang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.15926" target="_blank" rel="noopener noreferrer">Mitigating Object Hallucination via Concentric Causal Attention</a> · Xing et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.11779" target="_blank" rel="noopener noreferrer">MLLM can see? Dynamic Correction Decoding for Hallucination Mitigation (DeCo)</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.02762" target="_blank" rel="noopener noreferrer">Interpreting and Editing Vision-Language Representations to Mitigate Hallucinations</a> · Jiang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.16724" target="_blank" rel="noopener noreferrer">Devils in Middle Layers of Large Vision-Language Models: Interpreting, Detecting and Mitigating Object Hallucinations via Attention Lens</a> · Jiang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.16922" target="_blank" rel="noopener noreferrer">Mitigating Object Hallucinations in Large Vision-Language Models through Visual Contrastive Decoding</a> · Leng et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2407.21771" target="_blank" rel="noopener noreferrer">Paying More Attention to Image: A Training-Free Method for Alleviating Hallucination in LVLMs</a> · Liu, Zheng, Chen, 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.15778" target="_blank" rel="noopener noreferrer">Reducing Hallucinations in Vision-Language Models via Latent Space Steering</a> · Liu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2310.00754" target="_blank" rel="noopener noreferrer">Analyzing and Mitigating Object Hallucination in Large Vision-Language Models</a> · Zhou et al., 2023</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Features, steering and tools</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2311.07470" target="_blank" rel="noopener noreferrer">Finding and Editing Multi-Modal Neurons in Pre-Trained Transformers</a> · Pan et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2504.02821" target="_blank" rel="noopener noreferrer">Sparse Autoencoders Learn Monosemantic Features in Vision-Language Models</a> · Pach et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2411.14982" target="_blank" rel="noopener noreferrer">Large Multi-modal Models Can Interpret Features in Large Multi-modal Models</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.06755" target="_blank" rel="noopener noreferrer">Interpretable and Testable Vision Features via Sparse Autoencoders</a> · Stevens et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.11695" target="_blank" rel="noopener noreferrer">Interpreting the linear structure of vision-language model embedding spaces</a> · Papadimitriou et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2502.17514" target="_blank" rel="noopener noreferrer">SAE-V: Interpreting Multimodal Models for Enhanced Alignment</a> · Lou et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2505.14071" target="_blank" rel="noopener noreferrer">Textual Steering Vectors Can Improve Visual Understanding in Multimodal Large Language Models</a> · Gan et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.19475" target="_blank" rel="noopener noreferrer">Prisma: An Open Source Toolkit for Mechanistic Interpretability in Vision and Video</a> · Joseph et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2404.03118" target="_blank" rel="noopener noreferrer">LVLM-Interpret: An Interpretability Tool for Large Vision-Language Models</a> · Stan et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2506.23270" target="_blank" rel="noopener noreferrer">Token Activation Map to Visually Explain Multimodal LLMs</a> · Li et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2407.14561" target="_blank" rel="noopener noreferrer">NNsight and NDIF: Democratizing Access to Open-Weight Foundation Model Internals</a> · Fiotto-Kaufman et al., 2024</li>
+            <li><a href="https://github.com/TransformerLensOrg/TransformerLens" target="_blank" rel="noopener noreferrer">TransformerLens</a> · TransformerLensOrg (repository)</li>
+            <li><a href="https://arxiv.org/abs/2502.17516" target="_blank" rel="noopener noreferrer">A Survey on Mechanistic Interpretability for Multi-Modal Foundation Models</a> · Lin et al., 2025</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Applications: pruning, grounding and safety</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2410.17247" target="_blank" rel="noopener noreferrer">PyramidDrop: Accelerating Your Large Vision-Language Models via Pyramid Visual Redundancy Reduction</a> · Xing et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.13180" target="_blank" rel="noopener noreferrer">Feather the Throttle: Revisiting Visual Token Pruning for Vision-Language Model Acceleration</a> · Endo, Wang, Yeung-Levy, 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.01818" target="_blank" rel="noopener noreferrer">Beyond Text-Visual Attention: Exploiting Visual Cues for Effective Token Pruning in VLMs (VisPruner)</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.04467" target="_blank" rel="noopener noreferrer">VisionZip: Longer is Better but Not Necessary in Vision Language Models</a> · Yang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.12662" target="_blank" rel="noopener noreferrer">Cross-Modal Safety Mechanism Transfer in Large Vision-Language Models</a> · Xu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.09047" target="_blank" rel="noopener noreferrer">Unraveling and Mitigating Safety Alignment Degradation of Vision-Language Models</a> · Liu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.11717" target="_blank" rel="noopener noreferrer">Refusal in Language Models Is Mediated by a Single Direction</a> · Arditi et al., 2024</li>
+          </ul>
+        </div>
+
+        <div class="reference-group">
+          <h3>Models referenced</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.08485" target="_blank" rel="noopener noreferrer">Visual Instruction Tuning (LLaVA)</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.03744" target="_blank" rel="noopener noreferrer">Improved Baselines with Visual Instruction Tuning (LLaVA-1.5)</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2408.03326" target="_blank" rel="noopener noreferrer">LLaVA-OneVision: Easy Visual Task Transfer</a> · Li et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.09818" target="_blank" rel="noopener noreferrer">Chameleon: Mixed-Modal Early-Fusion Foundation Models</a> · Chameleon Team, 2024</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>What Happens Inside a VLM</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/">https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026insidevlm,
+  author       = {Srinivasan, Anirudh},
+  title        = {What Happens Inside a VLM},
+  year         = {2026},
+  month        = {Nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; What Happens Inside a VLM</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script id="fig-script">
+(() => {
+  "use strict";
+  const RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const C = { ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", paper: "#f7f6f3", white: "#ffffff",
+    blue: "#0b5ea8", blueL: "#cfe0f1", orange: "#d66f00", orangeL: "#f6d9b8", green: "#2f8f5b", red: "#b8432f", pale: "#ece9e2" };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const sm = (e0, e1, x) => { const t = clamp((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+  const bump = (x, c, w) => Math.exp(-Math.pow((x - c) / w, 2));
+  const f1 = (x) => Math.round(x * 10) / 10;
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const op = (v) => (v == null ? "" : ` opacity="${f1(clamp(v) * 100) / 100}"`);
+  function T(x, y, s, o = {}) {
+    return `<text x="${f1(x)}" y="${f1(y)}" font-size="${o.s || 15}"${o.a ? ` text-anchor="${o.a}"` : ""}${o.w ? ` font-weight="${o.w}"` : ""} fill="${o.f || C.ink}"${op(o.op)}${o.tr ? ` transform="${o.tr}"` : ""}${o.ff ? ` font-family="${o.ff}"` : ""}>${esc(s)}</text>`;
+  }
+  function R(x, y, w, h, o = {}) {
+    return `<rect x="${f1(x)}" y="${f1(y)}" width="${f1(Math.max(0, w))}" height="${f1(Math.max(0, h))}" fill="${o.f || "none"}"${o.st ? ` stroke="${o.st}" stroke-width="${o.sw || 1}"` : ""}${o.rx ? ` rx="${o.rx}"` : ""}${op(o.op)}${o.da ? ` stroke-dasharray="${o.da}"` : ""}/>`;
+  }
+  function L(x1, y1, x2, y2, o = {}) {
+    return `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}" stroke="${o.st || C.ink}" stroke-width="${o.sw || 1}"${op(o.op)}${o.da ? ` stroke-dasharray="${o.da}"` : ""}${o.cap ? ` stroke-linecap="round"` : ""}/>`;
+  }
+  function P(d, o = {}) {
+    return `<path d="${d}" fill="${o.f || "none"}"${o.st ? ` stroke="${o.st}" stroke-width="${o.sw || 1}"` : ""}${op(o.op)}${o.da ? ` stroke-dasharray="${o.da}"` : ""}${o.lj ? ` stroke-linejoin="round" stroke-linecap="round"` : ""}${o.extra || ""}/>`;
+  }
+  function Ci(cx, cy, r, o = {}) {
+    return `<circle cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(Math.max(0, r))}" fill="${o.f || "none"}"${o.st ? ` stroke="${o.st}" stroke-width="${o.sw || 1}"` : ""}${op(o.op)}/>`;
+  }
+  function E(cx, cy, rx, ry, o = {}) {
+    return `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${o.f || "none"}"${o.st ? ` stroke="${o.st}" stroke-width="${o.sw || 1}"` : ""}${op(o.op)}/>`;
+  }
+  const arrowDefs = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.ink}"/></marker><marker id="aho" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.orange}"/></marker></defs>`;
+  const hash = (i) => { let x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+
+  /* ---------- shared scene: a dog, a red ball, a tree ---------- */
+  function scene(x, y, s, o = {}) {
+    const X = (u) => x + u * s, Y = (v) => y + v * s, S = (k) => k * s;
+    const ball = o.ball || "#c8553d";
+    let g = R(x, y, s, s * 0.55, { f: "#dbe7f1" }) + R(x, Y(0.55), s, s * 0.45, { f: "#dcebcf" });
+    g += E(X(0.3), Y(0.15), S(0.1), S(0.035), { f: "#fff", op: 0.9 }) + E(X(0.38), Y(0.12), S(0.07), S(0.035), { f: "#fff", op: 0.9 });
+    g += R(X(0.085), Y(0.28), S(0.045), S(0.34), { f: "#8a6a4a" }) + Ci(X(0.105), Y(0.24), S(0.11), { f: "#9cc79a" });
+    [0.38, 0.45, 0.55, 0.61].forEach((u) => { g += R(X(u), Y(0.7), S(0.025), S(0.11), { f: "#9a6f48" }); });
+    g += P(`M${X(0.34)},${Y(0.63)} Q${X(0.29)},${Y(0.6)} ${X(0.27)},${Y(0.54)}`, { st: "#9a6f48", sw: S(0.02), lj: 1 });
+    g += E(X(0.5), Y(0.66), S(0.17), S(0.085), { f: "#b98a5e" }) + Ci(X(0.69), Y(0.55), S(0.075), { f: "#b98a5e" });
+    g += E(X(0.655), Y(0.5), S(0.025), S(0.05), { f: "#8b6440" }) + Ci(X(0.71), Y(0.535), S(0.009), { f: C.ink }) + Ci(X(0.76), Y(0.57), S(0.012), { f: C.ink });
+    g += Ci(X(0.84), Y(0.78), S(0.055), { f: ball }) + P(`M${X(0.795)},${Y(0.765)} Q${X(0.84)},${Y(0.8)} ${X(0.885)},${Y(0.765)}`, { st: "#fff", sw: S(0.006), op: 0.7 });
+    return g;
+  }
+  function cat(u, v) {
+    if (Math.hypot(u - 0.84, v - 0.78) < 0.085) return "ball";
+    if (Math.pow((u - 0.5) / 0.2, 2) + Math.pow((v - 0.66) / 0.11, 2) < 1 || Math.hypot(u - 0.69, v - 0.55) < 0.1 || (u > 0.37 && u < 0.64 && v > 0.7 && v < 0.82)) return "dog";
+    if ((u > 0.06 && u < 0.15 && v > 0.28 && v < 0.62) || Math.hypot(u - 0.105, v - 0.24) < 0.13) return "tree";
+    return v < 0.55 ? "sky" : "grass";
+  }
+
+  /* ---------- shared stepper ---------- */
+  const figs = (window.__figs = {});
+  function stepper(name, cfg) {
+    const fig = document.querySelector(`[data-fig="${name}"]`);
+    if (!fig) return null;
+    const n = cfg.n, hold = cfg.hold || 3000, dur = cfg.dur || 1100;
+    const ctr = fig.querySelector(".animation-controls");
+    const total = String(n).padStart(2, "0");
+    ctr.innerHTML =
+      `<button type="button" data-action="previous" aria-label="Previous step">Previous</button>` +
+      `<button type="button" data-action="play-pause" aria-label="Pause animation" aria-pressed="true">Pause</button>` +
+      `<button type="button" data-action="next" aria-label="Next step">Next</button>` +
+      `<button type="button" data-speed="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>` +
+      `<button type="button" data-speed="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>` +
+      `<button type="button" data-speed="2" aria-label="Play at double speed" aria-pressed="false">2x</button>` +
+      `<span class="animation-status" aria-live="polite">Step 01 / ${total}</span>`;
+    const status = ctr.querySelector(".animation-status");
+    const pp = ctr.querySelector('[data-action="play-pause"]');
+    const noteEl = fig.querySelector(".fig-note");
+    let i = 0, playing = !RM, visible = false, speed = 1, raf = 0, timer = 0;
+    const render = (a, b, e) => cfg.draw(a, b, e);
+    function setStatus() {
+      status.textContent = `Step ${String(i + 1).padStart(2, "0")} / ${total}`;
+      if (noteEl && cfg.note) noteEl.innerHTML = cfg.note(i);
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (playing && visible) timer = setTimeout(() => go(i + 1), hold / speed);
+    }
+    function go(j, animate = true) {
+      j = ((j % n) + n) % n;
+      cancelAnimationFrame(raf); clearTimeout(timer);
+      const from = i; i = j; setStatus();
+      if (cfg.onStep) cfg.onStep(j);
+      if (RM || !animate || from === j) { render(j, j, 1); schedule(); return; }
+      const t0 = performance.now(), D = dur / speed;
+      const tick = (now) => {
+        const t = clamp((now - t0) / D);
+        render(from, j, ease(t));
+        if (t < 1) raf = requestAnimationFrame(tick); else schedule();
+      };
+      raf = requestAnimationFrame(tick);
+    }
+    function setPlaying(p) {
+      playing = p;
+      pp.textContent = p ? "Pause" : "Play";
+      pp.setAttribute("aria-pressed", String(p));
+      pp.setAttribute("aria-label", p ? "Pause animation" : "Play animation");
+      if (p) schedule(); else clearTimeout(timer);
+    }
+    ctr.addEventListener("click", (ev) => {
+      const b = ev.target.closest("button");
+      if (!b) return;
+      if (b.dataset.action === "previous") { setPlaying(false); go(i - 1); }
+      else if (b.dataset.action === "next") { setPlaying(false); go(i + 1); }
+      else if (b.dataset.action === "play-pause") { setPlaying(!playing); }
+      else if (b.dataset.speed) {
+        speed = parseFloat(b.dataset.speed);
+        ctr.querySelectorAll("[data-speed]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        schedule();
+      }
+    });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((es) => es.forEach((e) => {
+        visible = e.isIntersecting;
+        if (visible) schedule(); else clearTimeout(timer);
+      }), { threshold: 0.5 }).observe(fig);
+    }
+    setPlaying(playing);
+    render(0, 0, 1); setStatus();
+    const api = { go, pause: () => setPlaying(false), get i() { return i; }, draw: render, n, redraw: () => render(i, i, 1) };
+    figs[name] = api;
+    return api;
+  }
+  const lerpArr = (A, B, e) => A.map((a, k) => lerp(a, B[k], e));
+  const lerpObj = (A, B, e) => { const o = {}; for (const k in A) o[k] = Array.isArray(A[k]) ? lerpArr(A[k], B[k], e) : lerp(A[k], B[k], e); return o; };
+
+  /* =====================================================================
+     Figure 1: overview pipeline with camera moves
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="overview"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const full = [0, 0, 760, 330];
+    const S = [
+      { cam: full, hl: [0, 0, 0, 0], flow: 0, blind: 0, scat: 0 },
+      { cam: [60, 40, 420, 182], hl: [1, 0, 0, 0], flow: 0, blind: 0, scat: 0 },
+      { cam: [200, 40, 380, 165], hl: [0.3, 1, 0, 0], flow: 0, blind: 0, scat: 1 },
+      { cam: [345, 35, 530, 230], hl: [0.3, 0.3, 1, 0], flow: 1, blind: 0, scat: 1 },
+      { cam: full, hl: [0.3, 0.3, 0.3, 1], flow: 0.3, blind: 1, scat: 1 },
+      { cam: full, hl: [1, 1, 1, 1], flow: 1, blind: 0, scat: 1 },
+    ];
+    const notes = [
+      "An image and a question go in. The answer <b>Red</b> comes out at the last position. Four checkpoints sit along the way.",
+      "<b>Checkpoint 1, the encoder.</b> Does the vision encoder's output contain the fact at all? A linear probe on its patch vectors answers this.",
+      "<b>Checkpoint 2, the connector.</b> Projection into the language model's space moves and distorts patch vectors. Does the fact survive?",
+      "<b>Checkpoint 3, the language model.</b> Attention must carry image information to the question tokens and then to the last position. Knockout and patching test each route.",
+      "<b>Checkpoint 4, the prior.</b> Remove the image. If the model still says Red, the answer came from language, not from the picture.",
+      "Each later section uses one or more checkpoints. A failure found at one checkpoint tells you which part of the model to fix.",
+    ];
+    function draw(a, b, e) {
+      const p = lerpObj(S[a], S[b], e);
+      svg.setAttribute("viewBox", p.cam.map(f1).join(" "));
+      const img = 1 - 0.8 * p.blind;
+      let g = arrowDefs;
+      // image
+      g += `<g${op(img)}>` + scene(30, 110, 100) + R(30, 110, 100, 100, { st: C.ink }) + `</g>`;
+      g += T(80, 100, "Image", { s: 14, a: "middle", f: C.soft });
+      g += T(80, 232, "+ “What colour", { s: 14, a: "middle", f: C.soft }) + T(80, 249, "is the ball?”", { s: 14, a: "middle", f: C.soft });
+      // encoder
+      g += L(132, 160, 156, 160, { sw: 1.5, op: img }) .replace("/>", ' marker-end="url(#ah)"/>');
+      g += R(160, 100, 110, 120, { f: C.white, st: C.ink, op: Math.max(img, 0.5) });
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) g += R(172 + c * 22, 112 + r * 22, 18, 18, { f: C.blueL, op: img });
+      g += T(215, 92, "Vision encoder", { s: 14, a: "middle", w: 600 });
+      // connector
+      g += L(272, 160, 296, 160, { sw: 1.5 }).replace("/>", ' marker-end="url(#ah)"/>');
+      g += P("M300,128 L370,140 L370,180 L300,192 Z", { f: C.white, st: C.ink });
+      for (let k = 0; k < 8; k++) {
+        const bx = 318 + (k % 4) * 10, by = 150 + Math.floor(k / 4) * 18;
+        const dx = (hash(k) - 0.5) * 18 * p.scat, dy = (hash(k + 9) - 0.5) * 16 * p.scat;
+        g += Ci(bx + dx, by + dy, 3.2, { f: C.blue, op: img });
+      }
+      g += T(335, 120, "Connector", { s: 14, a: "middle", w: 600 });
+      // language model
+      g += L(372, 160, 396, 160, { sw: 1.5 }).replace("/>", ' marker-end="url(#ah)"/>');
+      g += R(400, 60, 220, 200, { f: C.white, st: C.ink });
+      g += T(510, 52, "Language model", { s: 14, a: "middle", w: 600 });
+      for (let l = 0; l < 5; l++) g += L(410, 90 + l * 30, 610, 90 + l * 30, { st: C.rule });
+      const tokX = (k) => 414 + k * 18;
+      for (let k = 0; k < 11; k++) {
+        const f = k < 6 ? C.blueL : k < 10 ? C.orangeL : C.ink;
+        g += R(tokX(k) - 7, 228, 14, 14, { f, st: k === 10 ? C.ink : C.rule, op: k < 6 ? img : 1 });
+      }
+      // flow inside the LLM
+      const fl = p.flow;
+      const pathA = `M${tokX(2)},226 C${tokX(2)},180 ${tokX(8)},190 ${tokX(8)},150`;
+      const pathB = `M${tokX(8)},150 C${tokX(8)},120 ${tokX(10)},120 ${tokX(10)},96`;
+      g += P(pathA, { st: C.blue, sw: 3, op: fl * img, extra: ` pathLength="1" stroke-dasharray="1" stroke-dashoffset="${f1((1 - clamp(fl * 2)) * 100) / 100}"` });
+      g += P(pathB, { st: C.orange, sw: 3, op: fl, extra: ` pathLength="1" stroke-dasharray="1" stroke-dashoffset="${f1((1 - clamp(fl * 2 - 1)) * 100) / 100}"` });
+      // answer
+      g += L(622, 160, 646, 160, { sw: 1.5 }).replace("/>", ' marker-end="url(#ah)"/>');
+      g += R(650, 135, 90, 50, { f: C.paper, st: C.ink });
+      g += T(695, 166, "Red", { s: 17, a: "middle", w: 700 });
+      g += T(695, 126, "Answer", { s: 14, a: "middle", f: C.soft });
+      // blind path
+      g += P(`M${tokX(8)},244 C${tokX(8)},300 700,300 700,188`, { st: C.orange, sw: 3, op: p.blind, da: "7 5" });
+      g += T(745, 322, "language alone", { s: 14, a: "end", f: C.orange, op: p.blind, w: 600 });
+      // checkpoints
+      const cps = [[215, "1", "in encoder?"], [335, "2", "survives?"], [510, "3", "reaches answer?"], [695, "4", "needed at all?"]];
+      cps.forEach(([x, nlab, lab], k) => {
+        const h = p.hl[k];
+        const cy = k === 3 ? 92 : 284, ly = k === 3 ? 62 : 318;
+        g += Ci(x, cy, 13, { f: h > 0.5 ? C.orange : C.white, st: C.orange, sw: 1.5, op: 0.35 + 0.65 * h });
+        g += T(x, cy + 5, nlab, { s: 14, a: "middle", w: 700, f: h > 0.5 ? C.white : C.orange });
+        g += T(x, ly, lab, { s: 14, a: "middle", f: C.ink, op: 0.35 + 0.65 * h });
+      });
+      svg.innerHTML = g;
+    }
+    stepper("overview", { n: S.length, draw, note: (i) => notes[i], hold: 3400 });
+  })();
+
+  /* =====================================================================
+     Figure 2: activation patching
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="patch"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const cols = ["sky", "sky", "dog", "grass", "ball", "What", "colour", "is", "the", "ball", "last"];
+    const isImg = (c) => c < 5;
+    const X0 = 170, CW = 40, Y0 = 170, RH = 28, NR = 8;
+    const cx = (c) => X0 + c * CW;
+    function restore(r, c) {
+      if (c === 4) return [0.92, 0.86, 0.66, 0.3, 0.12, 0.06, 0.04, 0.03][r];
+      if (c === 9) return [0.05, 0.16, 0.55, 0.78, 0.6, 0.25, 0.08, 0.05][r];
+      if (c === 10) return [0.02, 0.03, 0.08, 0.3, 0.62, 0.86, 0.93, 0.95][r];
+      if (c === 6) return [0.02, 0.05, 0.12, 0.18, 0.1, 0.05, 0.03, 0.02][r];
+      return 0.02 + 0.04 * hash(r * 11 + c);
+    }
+    const order = [];
+    for (let c = 0; c < cols.length; c++) for (let r = 0; r < NR; r++) order.push([r, c]);
+    const S = [
+      { clean: 1, corrupt: 0, meter: 0.92, cellA: 0, cellB: 0, sweep: 0, trace: 0, arrowA: 0, arrowB: 0 },
+      { clean: 0.3, corrupt: 1, meter: 0.04, cellA: 0, cellB: 0, sweep: 0, trace: 0, arrowA: 0, arrowB: 0 },
+      { clean: 0.6, corrupt: 1, meter: 0.8, cellA: 1, cellB: 0, sweep: 0, trace: 0, arrowA: 1, arrowB: 0 },
+      { clean: 0.6, corrupt: 1, meter: 0.05, cellA: 1, cellB: 1, sweep: 0, trace: 0, arrowA: 0, arrowB: 1 },
+      { clean: 0.3, corrupt: 0.6, meter: 0.5, cellA: 1, cellB: 1, sweep: 1, trace: 0, arrowA: 0, arrowB: 0 },
+      { clean: 0.3, corrupt: 0.6, meter: 0.5, cellA: 1, cellB: 1, sweep: 1, trace: 1, arrowA: 0, arrowB: 0 },
+    ];
+    const notes = [
+      "<b>Clean run.</b> The ball is red. The model gives P(red) ≈ 0.92.",
+      "<b>Corrupted run.</b> Only the ball patch differs: it is blue. P(red) falls to ≈ 0.04.",
+      "<b>Patch one site.</b> Copy the activation at the ball patch, layer band 2, from the clean run into the corrupted run. Most of P(red) returns.",
+      "<b>Patch a different site.</b> Copy a sky patch at the same layer. Nothing returns. That activation does not carry the colour.",
+      "<b>Sweep every site.</b> Each cell shows the fraction of P(red) restored by patching that layer band and position.",
+      "<b>Read the map.</b> The colour lives at the ball patch in early layers, at the word <b>ball</b> in middle layers, and at the last position near the top. That is a route.",
+    ];
+    function draw(a, b, e) {
+      const p = lerpObj(S[a], S[b], e);
+      let g = arrowDefs;
+      // input rows
+      const rows = [[40, "Clean", "#c8553d", p.clean], [100, "Corrupted", "#3d6fc8", p.corrupt]];
+      rows.forEach(([y, lab, ball, o]) => {
+        g += `<g${op(0.35 + 0.65 * o)}>`;
+        g += T(20, y + 22, lab, { s: 14, w: 600 });
+        g += `<g>` + scene(112, y - 4, 48, { ball }) + R(112, y - 4, 48, 48, { st: C.ink }) + `</g>`;
+        cols.forEach((c, k) => {
+          const f = k === 4 ? ball : isImg(k) ? C.blueL : k === 10 ? C.ink : C.orangeL;
+          g += R(cx(k) + 4, y + 4, CW - 8, 30, { f, st: C.rule, op: k === 4 ? 0.85 : 1 });
+        });
+        g += `</g>`;
+      });
+      // grid
+      g += T(20, Y0 + 14, "Layer", { s: 14, f: C.soft }) + T(20, Y0 + 31, "band", { s: 14, f: C.soft });
+      for (let r = 0; r < NR; r++) {
+        const y = Y0 + (NR - 1 - r) * RH;
+        g += T(X0 - 10, y + 19, String(r + 1), { s: 14, a: "end", f: C.soft });
+      }
+      g += T(X0 - 30, Y0 + NR * RH + 2, "low", { s: 14, a: "end", f: C.muted }) + T(X0 - 30, Y0 + 12, "high", { s: 14, a: "end", f: C.muted });
+      const sweepN = p.sweep * order.length;
+      order.forEach(([r, c], idx) => {
+        let v = 0;
+        if (idx < sweepN) v = restore(r, c) * clamp(sweepN - idx);
+        if (r === 1 && c === 4) v = Math.max(v, restore(1, 4) * p.cellA);
+        if (r === 1 && c === 0) v = Math.max(v, 0.03 * p.cellB);
+        const y = Y0 + (NR - 1 - r) * RH;
+        g += R(cx(c) + 1, y + 1, CW - 2, RH - 2, { f: C.white, st: C.rule });
+        if (v > 0) g += R(cx(c) + 1, y + 1, CW - 2, RH - 2, { f: C.orange, op: Math.min(1, v * 1.05) });
+      });
+      if (p.cellB > 0) {
+        const y = Y0 + (NR - 2) * RH;
+        g += R(cx(0) + 1, y + 1, CW - 2, RH - 2, { st: C.blue, sw: 2.5, op: p.cellB * (1 - p.sweep) });
+      }
+      if (p.cellA > 0) {
+        const y = Y0 + (NR - 2) * RH;
+        g += R(cx(4) + 1, y + 1, CW - 2, RH - 2, { st: C.blue, sw: 2.5, op: p.cellA * (1 - p.sweep) });
+      }
+      // copy arrows from clean strip to cells
+      const arr = (c, o) => P(`M${cx(c) + 20},${74} C${cx(c) + 70},${120} ${cx(c) + 60},${Y0 + (NR - 2) * RH - 10} ${cx(c) + 22},${Y0 + (NR - 2) * RH + 4}`, { st: C.blue, sw: 2, op: o, da: "5 4", extra: ' marker-end="url(#ah)"' });
+      g += arr(4, p.arrowA) + arr(0, p.arrowB);
+      g += T(cx(4) + 66, 150, "copy from clean", { s: 14, f: C.blue, op: Math.max(p.arrowA, p.arrowB) });
+      // column labels
+      cols.forEach((c, k) => {
+        const y = Y0 + NR * RH + 14;
+        g += T(cx(k) + CW / 2 + 4, y, c, { s: 14, a: "end", f: isImg(k) ? C.blue : k === 10 ? C.ink : "#9a4f00", tr: `rotate(-40 ${cx(k) + CW / 2 + 4} ${y})` });
+      });
+      g += T(cx(2) + 20, Y0 + NR * RH + 70, "image tokens", { s: 14, a: "middle", f: C.blue }) + T(cx(8), Y0 + NR * RH + 70, "question tokens", { s: 14, a: "middle", f: "#9a4f00" });
+      // trace path
+      if (p.trace > 0) {
+        const pts = [[4, 0], [4, 1], [9, 3], [9, 4], [10, 5], [10, 7]].map(([c, r]) => [cx(c) + CW / 2, Y0 + (NR - 1 - r) * RH + RH / 2]);
+        g += P("M" + pts.map((q) => q.join(",")).join(" L"), { st: C.ink, sw: 2.5, op: p.trace, lj: 1, extra: ` pathLength="1" stroke-dasharray="1" stroke-dashoffset="${f1((1 - p.trace) * 100) / 100}"` });
+      }
+      // meter
+      const mx = 660, my = 170, mh = 220;
+      g += T(mx + 20, my - 14, "P(red)", { s: 15, a: "middle", w: 600 });
+      g += R(mx, my, 40, mh, { f: C.white, st: C.ink });
+      g += R(mx, my + mh * (1 - p.meter), 40, mh * p.meter, { f: C.orange, op: 1 - 0.9 * p.sweep });
+      g += T(mx + 20, my + mh + 22, p.sweep > 0.5 ? "see map" : p.meter.toFixed(2), { s: 15, a: "middle", w: 600 });
+      svg.innerHTML = g;
+    }
+    stepper("patch", { n: S.length, draw, note: (i) => notes[i], hold: 3400, dur: 1400 });
+  })();
+
+  /* =====================================================================
+     Figure 3: logit lens on image positions
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="lens"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const G = 8, X = 20, Y = 32, SZ = 416, CS = SZ / G;
+    const words = { dog: ["dog", "puppy", "fur", "Dog", "paw"], ball: ["ball", "red"], grass: ["grass", "lawn", "green"], sky: ["sky", "blue", "cloud"], tree: ["tree", "leaf", "trunk"] };
+    const frag = ["▁the", "ing", "▁a", "</s>", "▁of", "ed", "▁in", "的", "ly", "▁to", "s", "▁,", "er", "는"];
+    const onset = { dog: 19, ball: 21, grass: 17, sky: 16, tree: 20 };
+    const cap = { dog: 0.26, ball: 0.3, grass: 0.22, sky: 0.22, tree: 0.24 };
+    const cells = [];
+    for (let r = 0; r < G; r++) for (let c = 0; c < G; c++) {
+      const u = (c + 0.5) / G, v = (r + 0.5) / G, k = r * G + c;
+      cells.push({ r, c, cat: cat(u, v), h: hash(k + 3), w: Math.floor(hash(k + 77) * 5), fr: frag[Math.floor(hash(k + 5) * frag.length)] });
+    }
+    const pc = (L, ct) => cap[ct] * sm(onset[ct] - 3, onset[ct] + 6, L) * (1 - 0.3 * sm(29, 33, L));
+    const objRate = (L) => { const ob = cells.filter((x) => x.cat === "dog" || x.cat === "ball" || x.cat === "tree"); return ob.reduce((s, x) => s + pc(L, x.cat), 0) / ob.length; };
+    const layers = [0, 8, 16, 20, 24, 26, 29, 32];
+    const zooms = [0, 0, 0, 0, 1, 1, 0, 0];
+    const notes = [
+      "<b>Layer 0.</b> Image positions decode to fragments. The projected patch vectors are not near any word.",
+      "<b>Layer 8.</b> Still mostly fragments, some in other scripts. The lens finds no scene words yet.",
+      "<b>Layer 16.</b> A few background patches start to decode as <b>sky</b> or <b>grass</b>.",
+      "<b>Layer 20.</b> Object patches begin to decode as their object: <b>dog</b>, <b>tree</b>.",
+      "<b>Layer 24, zoomed on the dog.</b> Some dog patches decode to <b>dog</b>, others to more specific words such as <b>fur</b> or <b>paw</b>.",
+      "<b>Layer 26.</b> Near the peak. Even here, most object patches do not decode to the object's name. The measured peak in LLaVA-1.5 is about a quarter.",
+      "<b>Layer 29.</b> The rate starts to fall in the final layers, which shift toward predicting the next output token.",
+      "<b>Layer 32.</b> Visual tokens became word-like over depth. That is why middle and late layers are where to read them.",
+    ];
+    function draw(a, b, e) {
+      const Lr = lerp(layers[a], layers[b], e);
+      const z = lerp(zooms[a], zooms[b], e);
+      const Ls = Math.round(Lr);
+      const s = 1 + 0.5 * z, fx = X + SZ * 0.55, fy = Y + SZ * 0.62;
+      let g = `<defs><clipPath id="lensclip"><rect x="${X}" y="${Y}" width="${SZ}" height="${SZ}"/></clipPath></defs>`;
+      g += `<g clip-path="url(#lensclip)"><g transform="translate(${f1(fx)} ${f1(fy)}) scale(${f1(s * 100) / 100}) translate(${f1(-fx)} ${f1(-fy)})">`;
+      g += scene(X, Y, SZ);
+      cells.forEach((x) => {
+        const cxp = X + x.c * CS, cyp = Y + x.r * CS;
+        g += R(cxp, cyp, CS, CS, { st: "#ffffff", sw: 1, op: 0.8 });
+        const ok = x.h < pc(Ls, x.cat);
+        if (ok) {
+          const wd = words[x.cat][x.w % words[x.cat].length];
+          g += R(cxp + 4, cyp + 15, CS - 8, 24, { f: C.white, st: C.orange, sw: 1.2, rx: 2 });
+          g += T(cxp + CS / 2, cyp + 32, wd, { s: 14, a: "middle", w: 600, f: "#9a4f00" });
+        } else {
+          g += T(cxp + CS / 2, cyp + 32, x.fr, { s: 14, a: "middle", f: C.ink, op: 0.55 });
+        }
+      });
+      g += `</g></g>`;
+      g += R(X, Y, SZ, SZ, { st: C.ink });
+      g += T(X, Y - 10, z > 0.5 ? "Image positions (zoomed on the dog)" : "Image positions, 8 × 8 patches", { s: 14, f: C.soft });
+      // right panel
+      const px = 470;
+      g += T(px, 62, "Layer", { s: 15, f: C.soft }) + T(px + 60, 64, String(Ls), { s: 30, w: 700 }) + T(px + 110, 62, "of 32", { s: 15, f: C.soft });
+      // chart
+      const cx0 = px + 10, cy0 = 330, cw = 250, ch = 180;
+      g += T(px, 116, "Object patches that decode", { s: 14, f: C.soft }) + T(px, 134, "to their object's word", { s: 14, f: C.soft });
+      g += L(cx0, cy0, cx0 + cw, cy0, { st: C.ink }) + L(cx0, cy0, cx0, cy0 - ch, { st: C.ink });
+      const ymax = 0.4;
+      let d = "";
+      for (let l = 0; l <= 32; l += 0.5) { const xx = cx0 + (l / 32) * cw, yy = cy0 - (objRate(l) / ymax) * ch; d += (l ? " L" : "M") + f1(xx) + "," + f1(yy); }
+      g += P(d, { st: C.orange, sw: 2.5 });
+      const cxL = cx0 + (Lr / 32) * cw, cyL = cy0 - (objRate(Lr) / ymax) * ch;
+      g += L(cxL, cy0, cxL, cy0 - ch, { st: C.ink, da: "3 3", op: 0.6 }) + Ci(cxL, cyL, 5.5, { f: C.orange, st: C.ink });
+      g += T(cx0, cy0 + 20, "0", { s: 14, a: "middle", f: C.soft }) + T(cx0 + cw, cy0 + 20, "32", { s: 14, a: "middle", f: C.soft }) + T(cx0 + cw / 2, cy0 + 20, "layer", { s: 14, a: "middle", f: C.soft });
+      g += T(cx0 - 6, cy0 - ch + 5, "40%", { s: 14, a: "end", f: C.soft }) + T(cx0 - 6, cy0 + 5, "0", { s: 14, a: "end", f: C.soft });
+      g += T(px, 380, `≈ ${Math.round(objRate(Lr) * 100)}% at this layer`, { s: 15, w: 600 });
+      g += R(px, 400, 22, 18, { f: C.white, st: C.orange }) + T(px + 30, 414, "decodes to a scene word", { s: 14 });
+      g += T(px, 444, "▁the", { s: 14, op: 0.55 }) + T(px + 48, 444, "fragment (no scene word)", { s: 14 });
+      svg.innerHTML = g;
+    }
+    stepper("lens", { n: layers.length, draw, note: (i) => notes[i], hold: 2800, dur: 1300 });
+  })();
+
+  /* =====================================================================
+     Figure 4: attention over the image across layers (interactive)
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="attn"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const G = 12, X = 20, Y = 36, SZ = 384, CS = SZ / G;
+    const sinks = [[2, 9], [3, 4]];
+    const cells = [];
+    for (let r = 0; r < G; r++) for (let c = 0; c < G; c++) {
+      const u = (c + 0.5) / G, v = (r + 0.5) / G;
+      cells.push({ r, c, cat: cat(u, v), sink: sinks.some(([sr, sc]) => sr === r && sc === c) });
+    }
+    let q = 0, override = null;
+    const target = () => (q === 0 ? "dog" : "ball");
+    const imgShare = (L) => 0.06 + 0.42 * (1 - sm(1, 3, L)) + 0.07 * bump(L, 15, 5);
+    const sysShare = (L) => 0.22 + 0.62 * sm(1, 3, L) - 0.06 * bump(L, 15, 5);
+    function weights(L) {
+      const u = 1 - sm(1, 4, L), f = bump(L, 15, 4.5) + 0.25 * bump(L, 22, 4), sk = 6 * sm(2, 6, L) + 20 * sm(18, 26, L);
+      const w = cells.map((x) => 0.12 + 0.6 * u + (x.cat === target() ? f * (q === 0 ? 10 : 18) : 0) + (x.sink ? sk : 0) + (q === 1 && x.cat === "dog" ? f * 0.6 : 0));
+      const mx = Math.max(...w);
+      return w.map((v) => Math.pow(v / mx, 0.6));
+    }
+    const layers = [0, 1, 3, 8, 14, 17, 24, 31];
+    const notes = [
+      "<b>Layer 0.</b> Attention from the last position is spread broadly over the image. Image tokens get a large share of all attention.",
+      "<b>Layer 1.</b> Still broad. These first layers are where the whole image is summarised into the text positions.",
+      "<b>Layer 3.</b> The share of attention on image tokens collapses. Two sink tokens in the sky start to draw what attention remains.",
+      "<b>Layer 8.</b> Most attention now goes to the system prompt at the start of the sequence, not to the image.",
+      "<b>Layer 14.</b> Middle layers: attention focuses on the object the question asks about. Switch the question to see it move.",
+      "<b>Layer 17.</b> The focus persists. This is the band where knockout experiments find object information moving into the text.",
+      "<b>Layer 24.</b> Deep layers: the sinks dominate. They draw attention whatever the question is, and removing them does not hurt.",
+      "<b>Layer 31.</b> Little image attention is left. This is why many image tokens can be pruned in deep layers.",
+    ];
+    const slider = fig.querySelector("#attn-layer"), out = fig.querySelector("#attn-layer-out");
+    function render(Lr) {
+      const Ls = Lr;
+      const w = weights(Ls);
+      let g = scene(X, Y, SZ);
+      cells.forEach((x, k) => {
+        const cxp = X + x.c * CS, cyp = Y + x.r * CS;
+        g += R(cxp, cyp, CS, CS, { f: C.orange, op: w[k] * 0.85 });
+        g += R(cxp, cyp, CS, CS, { st: "#ffffff", op: 0.55 });
+      });
+      const sk = sm(2, 6, Ls);
+      sinks.forEach(([r, c]) => { g += Ci(X + (c + 0.5) * CS, Y + (r + 0.5) * CS, CS * 0.62, { st: C.blue, sw: 3, op: sk }); });
+      g += T(X + (9.5) * CS, Y + 2.5 * CS - 26, "sink", { s: 14, a: "middle", f: C.blue, w: 700, op: sk });
+      g += R(X, Y, SZ, SZ, { st: C.ink });
+      g += T(X, Y - 12, "Last position → image tokens", { s: 14, f: C.soft });
+      // right panel
+      const px = 440;
+      g += T(px, 64, "Layer", { s: 15, f: C.soft }) + T(px + 60, 66, String(Math.round(Ls)), { s: 30, w: 700 }) + T(px + 108, 64, "of 31", { s: 15, f: C.soft });
+      // stacked bar of attention shares
+      const im = imgShare(Ls), sy = sysShare(Ls), qq = 1 - im - sy, bw = 290;
+      g += T(px, 108, "Where the last position's attention goes", { s: 14, f: C.soft });
+      g += R(px, 118, bw * sy, 28, { f: "#c9cdd0" }) + R(px + bw * sy, 118, bw * im, 28, { f: C.blue }) + R(px + bw * (sy + im), 118, bw * qq, 28, { f: C.orangeL });
+      g += R(px, 118, bw, 28, { st: C.ink });
+      g += R(px, 158, 14, 14, { f: "#c9cdd0" }) + T(px + 20, 170, `system prompt ${Math.round(sy * 100)}%`, { s: 14 });
+      g += R(px, 180, 14, 14, { f: C.blue }) + T(px + 20, 192, `image tokens ${Math.round(im * 100)}%`, { s: 14 });
+      g += R(px, 202, 14, 14, { f: C.orangeL, st: C.rule }) + T(px + 20, 214, `question text ${Math.round(qq * 100)}%`, { s: 14 });
+      // line chart of image share vs layer
+      const cx0 = px + 8, cy0 = 400, cw = 270, ch = 130;
+      g += T(px, 252, "Share on image tokens, by layer", { s: 14, f: C.soft });
+      g += L(cx0, cy0, cx0 + cw, cy0) + L(cx0, cy0, cx0, cy0 - ch);
+      let d = "";
+      for (let l = 0; l <= 31; l += 0.5) d += (l ? " L" : "M") + f1(cx0 + (l / 31) * cw) + "," + f1(cy0 - (imgShare(l) / 0.5) * ch);
+      g += P(d, { st: C.blue, sw: 2.5 });
+      const xx = cx0 + (Ls / 31) * cw;
+      g += L(xx, cy0, xx, cy0 - ch, { da: "3 3", op: 0.6 }) + Ci(xx, cy0 - (imgShare(Ls) / 0.5) * ch, 5.5, { f: C.blue, st: C.ink });
+      g += T(cx0, cy0 + 20, "0", { s: 14, a: "middle", f: C.soft }) + T(cx0 + cw, cy0 + 20, "31", { s: 14, a: "middle", f: C.soft }) + T(cx0 + cw / 2, cy0 + 20, "layer", { s: 14, a: "middle", f: C.soft });
+      g += T(cx0 - 6, cy0 - ch + 5, "50%", { s: 14, a: "end", f: C.soft }) + T(cx0 - 6, cy0 + 5, "0", { s: 14, a: "end", f: C.soft });
+      g += T(X, 442, "Illustrative values; shape after LLaVA-1.5 measurements", { s: 14, f: C.muted });
+      svg.innerHTML = g;
+      if (slider && document.activeElement !== slider) slider.value = String(Math.round(Ls));
+      if (out) out.textContent = String(Math.round(Ls));
+    }
+    function draw(a, b, e) {
+      if (override != null) return render(override);
+      render(lerp(layers[a], layers[b], e));
+    }
+    const st = stepper("attn", { n: layers.length, draw, note: (i) => notes[i], hold: 2600, dur: 1200, onStep: () => { override = null; } });
+    if (!st) return;
+    st.renderLayer = (L) => render(L);
+    slider.addEventListener("input", () => {
+      st.pause(); override = parseFloat(slider.value); render(override);
+      const nearest = layers.reduce((bi, l, k) => (Math.abs(l - override) < Math.abs(layers[bi] - override) ? k : bi), 0);
+      const noteEl = fig.querySelector(".fig-note");
+      if (noteEl) noteEl.innerHTML = notes[nearest].replace(/<b>Layer \d+\.<\/b>/, `<b>Layer ${override} (nearest described: ${layers[nearest]}).</b>`);
+    });
+    fig.querySelectorAll("[data-q]").forEach((btn) => btn.addEventListener("click", () => {
+      q = parseInt(btn.dataset.q, 10);
+      fig.querySelectorAll("[data-q]").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
+      st.pause();
+      if (override != null) render(override); else st.redraw();
+    }));
+    st.setQ = (v) => { q = v; };
+  })();
+
+  /* =====================================================================
+     Figure 5: attention knockout
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="knock"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const NL = 40;
+    const curves = [
+      (x) => -60 * (1 - sm(3, 6.5, x)) - 21 * bump(x, 10, 2.3),
+      (x) => -30 * bump(x, 18, 4.5) - 6 * bump(x, 25, 3.5),
+      (x) => -2.5 * bump(x, 16, 6),
+    ];
+    const names = ["image → question", "question → last", "image → last"];
+    let route = 0;
+    const centers = [0, 3, 6, 10, 14, 18, 22, 27, 32, 39];
+    const noteFor = (i) => {
+      const c = centers[i], v = curves[route](c);
+      const lo = Math.max(0, c - 4), hi = Math.min(NL - 1, c + 4);
+      return `Blocking <b>${names[route]}</b> in layers ${lo} to ${hi}: the correct answer's probability changes by about <b>${Math.round(v)}%</b>. ` +
+        (route === 0 ? (c <= 5 ? "Early layers: the whole image flows into the question tokens here." : c >= 8 && c <= 12 ? "A second, smaller drop: object-specific information moves into the question." : "Little effect at this depth.")
+        : route === 1 ? (c >= 13 && c <= 23 ? "Middle layers: the question tokens hand the combined meaning to the last position." : "Little effect at this depth.")
+        : "The direct route barely matters in this study, at any depth.");
+    };
+    function draw(a, b, e) {
+      const c = lerp(centers[a], centers[b], e);
+      const lo = Math.max(0, c - 4), hi = Math.min(NL - 1, c + 4);
+      let g = arrowDefs;
+      // left: layers and tokens
+      const lx = 40, ly0 = 360, lh = 310, lw = 280;
+      const yOf = (l) => ly0 - (l / (NL - 1)) * lh;
+      g += T(lx, 30, "40-layer model", { s: 14, f: C.soft });
+      for (let l = 0; l < NL; l += 1) g += L(lx, yOf(l), lx + lw, yOf(l), { st: C.rule, op: l % 5 === 0 ? 0.9 : 0.35 });
+      [0, 10, 20, 30, 39].forEach((l) => { g += T(lx - 8, yOf(l) + 5, String(l), { s: 14, a: "end", f: C.soft }); });
+      g += R(lx, yOf(hi) - 4, lw, yOf(lo) - yOf(hi) + 8, { f: C.orange, op: 0.18 }) + R(lx, yOf(hi) - 4, lw, yOf(lo) - yOf(hi) + 8, { st: C.orange, sw: 1.5 });
+      const tx = (k) => lx + 14 + k * 24;
+      for (let k = 0; k < 11; k++) {
+        const f = k < 6 ? C.blueL : k < 10 ? C.orangeL : C.ink;
+        g += R(tx(k) - 9, ly0 + 14, 18, 18, { f, st: C.rule });
+      }
+      g += T(tx(2.5), ly0 + 50, "image", { s: 14, a: "middle", f: C.blue }) + T(tx(7.5), ly0 + 50, "question", { s: 14, a: "middle", f: "#9a4f00" }) + T(tx(10), ly0 + 50, "last", { s: 14, a: "middle" });
+      // blocked edges
+      const ym = (yOf(lo) + yOf(hi)) / 2;
+      const src = route === 0 ? [0, 2, 4] : route === 1 ? [6, 8] : [1, 3, 5];
+      const tgt = route === 0 ? [7, 9] : [10, 10];
+      src.forEach((s, k) => {
+        const t = tgt[k % tgt.length];
+        const x1 = tx(s), x2 = tx(t);
+        const hgt = 22 + 12 * k;
+        g += P(`M${x2},${ym} Q${(x1 + x2) / 2},${ym - hgt} ${x1},${ym}`, { st: C.red, sw: 2, da: "5 4" });
+        const mxp = (x1 + x2) / 2, myp = ym - hgt / 2;
+        g += L(mxp - 5, myp - 5, mxp + 5, myp + 5, { st: C.red, sw: 2.5 }) + L(mxp - 5, myp + 5, mxp + 5, myp - 5, { st: C.red, sw: 2.5 });
+        g += Ci(x1, ym, 3, { f: C.red }) + Ci(x2, ym, 3, { f: C.red });
+      });
+      g += T(lx + lw, yOf(hi) - 10, "blocked window", { s: 14, a: "end", f: "#9a4f00", w: 600 });
+      // right: chart
+      const cx0 = 420, cy0 = 70, cw = 310, ch = 280;
+      const yv = (v) => cy0 + (-v / 70) * ch;
+      const xv = (l) => cx0 + (l / (NL - 1)) * cw;
+      g += T(cx0, 34, "Change in P(correct answer)", { s: 14, f: C.soft });
+      g += L(cx0, cy0, cx0 + cw, cy0, { st: C.ink }) + L(cx0, cy0, cx0, cy0 + ch, { st: C.ink });
+      [0, -20, -40, -60].forEach((v) => { g += T(cx0 - 8, yv(v) + 5, v + "%", { s: 14, a: "end", f: C.soft }); g += L(cx0, yv(v), cx0 + cw, yv(v), { st: C.rule, op: 0.6 }); });
+      [0, 10, 20, 30, 39].forEach((l) => { g += T(xv(l), cy0 + ch + 20, String(l), { s: 14, a: "middle", f: C.soft }); });
+      g += T(cx0 + cw / 2, cy0 + ch + 40, "centre of the blocked window (layer)", { s: 14, a: "middle", f: C.soft });
+      curves.forEach((fn, k) => {
+        if (k === route) return;
+        let d = ""; for (let l = 0; l <= 39; l += 0.5) d += (l ? " L" : "M") + f1(xv(l)) + "," + f1(yv(fn(l)));
+        g += P(d, { st: C.muted, sw: 1.5, op: 0.45, da: "4 4" });
+      });
+      let d = ""; for (let l = 0; l <= c; l += 0.25) d += (l ? " L" : "M") + f1(xv(l)) + "," + f1(yv(curves[route](l)));
+      g += P(d, { st: C.orange, sw: 3 });
+      g += Ci(xv(c), yv(curves[route](c)), 6, { f: C.orange, st: C.ink });
+      g += T(cx0 + cw, cy0 + ch - 10, `route: ${names[route]}`, { s: 14, a: "end", w: 600 });
+      g += T(cx0 + cw, cy0 + ch + 60, "Shape after Zhang et al. (2024), LLaVA-1.5-13B", { s: 14, a: "end", f: C.muted });
+      svg.innerHTML = g;
+    }
+    const st = stepper("knock", { n: centers.length, draw, note: noteFor, hold: 2300, dur: 1000 });
+    if (!st) return;
+    fig.querySelectorAll("[data-route]").forEach((btn) => btn.addEventListener("click", () => {
+      route = parseInt(btn.dataset.route, 10);
+      fig.querySelectorAll("[data-route]").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
+      st.pause(); st.go(0, false);
+    }));
+  })();
+
+  /* =====================================================================
+     Figure 6: information flow
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="flow"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const S = [
+      { r1: 0, r2: 0, r3: 0, r4: 0, cap: 0, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 0, r3: 0, r4: 0, cap: 0, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 1, r3: 0, r4: 0, cap: 0, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 1, r3: 1, r4: 0, cap: 0, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 1, r3: 1, r4: 1, cap: 0, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 1, r3: 1, r4: 1, cap: 1, dir: 0, deep: 0, nat: 0 },
+      { r1: 1, r2: 1, r3: 1, r4: 1, cap: 1, dir: 1, deep: 0, nat: 0 },
+      { r1: 0.35, r2: 0.35, r3: 1, r4: 1, cap: 1, dir: 0.3, deep: 1, nat: 0 },
+      { r1: 0, r2: 0, r3: 1, r4: 1, cap: 1, dir: 0, deep: 0, nat: 1 },
+    ];
+    const notes = [
+      "The inputs: image tokens on the left (most are background, a few are the ball), question tokens in the middle, the last position on the right.",
+      "<b>Lower layers.</b> A general summary of the whole image flows into the question tokens. Blocking this route early cut the answer probability by about 60% in LLaVA-1.5-13B.",
+      "<b>Middle layers.</b> Information about the specific object flows into the word that names it, <b>ball</b>.",
+      "<b>Middle layers.</b> The question tokens pass the combined meaning to the last position.",
+      "<b>The answer forms.</b> The logit lens shows <b>red</b> rising in middle layers at the last position.",
+      "<b>Upper layers.</b> Formatting comes last: the capitalised <b>Red</b> appears only after about layer 20 of 40.",
+      "<b>The direct route.</b> Image tokens can also feed the last position directly. One study finds this negligible; another finds it matters for object-identification prompts.",
+      "<b>Deep layers.</b> Image tokens mostly attend to each other, and text barely reads them. This is the slack that token pruning exploits.",
+      "<b>Native multimodal models</b> such as Chameleon route most image information through a single end-of-image token. Blocking it cut captioning by more than 90%.",
+    ];
+    const rib = (x1, ya, x2, yb, w, o, col) => {
+      if (w <= 0.2 || o <= 0.01) return "";
+      const mx = (x1 + x2) / 2, h = w / 2;
+      return P(`M${x1},${ya - h} C${mx},${ya - h} ${mx},${yb - h} ${x2},${yb - h} L${x2},${yb + h} C${mx},${yb + h} ${mx},${ya + h} ${x1},${ya + h} Z`, { f: col, op: o * 0.55 });
+    };
+    function node(x, y, w, h, label, f, o = 1, tc = C.ink) {
+      return R(x, y, w, h, { f, st: C.ink, op: o }) + T(x + w / 2, y + h / 2 + 5, label, { s: 15, a: "middle", w: 600, f: tc, op: o });
+    }
+    function draw(a, b, e) {
+      const p = lerpObj(S[a], S[b], e);
+      const nn = 1 - p.nat;
+      let g = arrowDefs;
+      // bands
+      const bands = [[160, 300, "lower layers", p.r1 * nn], [300, 420, "middle layers", Math.max(p.r2, p.r3) * nn], [450, 650, "upper layers", p.cap]];
+      bands.forEach(([x1, x2, lab, o]) => { g += T((x1 + x2) / 2, 24, lab, { s: 14, a: "middle", f: C.soft, op: 0.3 + 0.7 * o }); });
+      // image block
+      g += `<g${op(1)}>`;
+      g += R(30, 50, 120, 200, { f: C.blueL, st: C.ink });
+      for (let r = 0; r < 8; r++) for (let c = 0; c < 5; c++) g += R(36 + c * 23, 56 + r * 24, 19, 20, { f: "#ffffff", op: 0.55 });
+      g += T(90, 270, "whole image", { s: 14, a: "middle", f: C.blue });
+      g += R(30, 300, 120, 46, { f: C.blue, st: C.ink }) + T(90, 328, "ball patches", { s: 14, a: "middle", f: "#ffffff", w: 600 });
+      g += `</g>`;
+      // EOI token (native)
+      g += node(196, 175, 74, 40, "[EOI]", C.ink, p.nat, "#ffffff");
+      // question tokens
+      const qn = [["What", 70], ["colour", 150], ["ball", 300]];
+      qn.forEach(([w, y]) => { g += node(330, y, 110, 40, w, C.orangeL); });
+      // last + answer
+      g += node(520, 170, 100, 50, "last", C.ink, 1, "#ffffff");
+      g += R(660, 170, 90, 50, { f: C.paper, st: C.ink, op: p.r4 });
+      const ans = p.cap > 0.5 ? "Red" : "red";
+      g += T(705, 201, ans, { s: 18, a: "middle", w: 700, op: p.r4 });
+      g += T(705, 160, "answer", { s: 14, a: "middle", f: C.soft, op: p.r4 });
+      // ribbons (adapter models)
+      g += rib(150, 110, 330, 90, 26 * p.r1, p.r1 * nn, C.blue) + rib(150, 160, 330, 170, 26 * p.r1, p.r1 * nn, C.blue) + rib(150, 215, 330, 315, 12 * p.r1, p.r1 * nn, C.blue);
+      g += rib(150, 323, 330, 322, 18 * p.r2, p.r2 * nn, "#07457d");
+      g += rib(440, 90, 520, 182, 6 * p.r3, p.r3, C.orange) + rib(440, 170, 520, 195, 14 * p.r3, p.r3, C.orange) + rib(440, 320, 520, 208, 20 * p.r3, p.r3, C.orange);
+      g += rib(620, 195, 660, 195, 22 * p.r4, p.r4, C.ink);
+      // direct route
+      if (p.dir > 0.01) {
+        g += P("M150,335 C320,425 480,400 520,214", { st: C.blue, sw: 3, op: p.dir * nn, da: "6 5" });
+        g += T(395, 420, "direct route (disputed)", { s: 14, a: "middle", f: C.blue, op: p.dir * nn, w: 600 });
+      }
+      // deep: image tokens attend to each other
+      if (p.deep > 0.01) {
+        for (let k = 0; k < 4; k++) {
+          const y1 = 70 + k * 40, y2 = y1 + 30;
+          g += P(`M146,${y1} C190,${y1} 190,${y2} 146,${y2}`, { st: C.blue, sw: 2, op: p.deep, extra: ' marker-end="url(#ah)"' });
+        }
+        g += T(200, 150, "image ↔ image", { s: 14, f: C.blue, op: p.deep, w: 600 });
+        g += T(200, 168, "in deep layers", { s: 14, f: C.blue, op: p.deep });
+        g += R(26, 46, 128, 304, { st: C.red, sw: 2, da: "6 4", op: p.deep });
+        g += T(90, 372, "prunable in deep layers", { s: 14, a: "middle", f: C.red, op: p.deep, w: 600 });
+      }
+      // native
+      if (p.nat > 0.01) {
+        g += rib(150, 150, 196, 195, 40 * p.nat, p.nat, C.blue) + rib(150, 323, 196, 205, 14 * p.nat, p.nat, C.blue);
+        g += rib(270, 190, 330, 90, 10 * p.nat, p.nat, C.ink) + rib(270, 195, 330, 170, 10 * p.nat, p.nat, C.ink) + rib(270, 205, 330, 320, 12 * p.nat, p.nat, C.ink);
+        g += T(233, 245, "narrow gate", { s: 14, a: "middle", f: C.ink, w: 700, op: p.nat });
+        g += T(233, 263, "(native models)", { s: 14, a: "middle", f: C.soft, op: p.nat });
+      }
+      svg.innerHTML = g;
+    }
+    stepper("flow", { n: S.length, draw, note: (i) => notes[i], hold: 3200, dur: 1300 });
+  })();
+
+  /* =====================================================================
+     Figure 7: blind test and multimodal gain (interactive, no stepper)
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="blind"]');
+    if (!fig) return;
+    const mk = (body) => `<svg viewBox="0 0 160 84" aria-hidden="true">${body}</svg>`;
+    const map = (hl) => mk(R(0, 0, 160, 84, { f: "#eef3f7" }) + [[10, 10, 40, 22], [52, 10, 34, 22], [88, 10, 30, 30], [120, 10, 32, 22], [10, 34, 36, 22], [48, 34, 38, 20], [10, 58, 50, 18], [62, 56, 40, 20], [104, 42, 46, 32]].map(([x, y, w, h], k) => R(x, y, w, h, { f: k === 5 && hl ? C.orange : "#cfd8df", st: "#ffffff" })).join(""));
+    const hyd = mk(R(0, 0, 160, 84, { f: "#e8ecef" }) + R(0, 64, 160, 20, { f: "#c9c6bf" }) + R(68, 26, 24, 40, { f: "#e8c33a", rx: 3 }) + E(80, 26, 14, 7, { f: "#d9b22c" }) + R(60, 38, 40, 9, { f: "#e8c33a", rx: 3 }) + R(76, 14, 8, 6, { f: "#d9b22c" }));
+    const logo = mk(R(0, 0, 160, 84, { f: "#ffffff" }) + [0, 1, 2, 3].map((k) => P(`M${44 + k * 20},70 L${60 + k * 20},70 L${60 + k * 20},${52 - k * 12} L${44 + k * 20},${58 - k * 12} Z`, { f: C.ink })).join(""));
+    const whale = mk(R(0, 0, 160, 84, { f: "#d7e6f2" }) + E(76, 46, 40, 16, { f: "#4f6f8c" }) + P("M114,44 L136,30 L132,46 L136,60 Z", { f: "#4f6f8c" }) + Ci(52, 42, 2.2, { f: "#fff" }));
+    const dog = mk(scene(38, 0, 84) );
+    const cards = [
+      { svg: map(false), q: "What is the capital of Nebraska?", a: "Lincoln", g: "Lincoln", ok: true, why: "World knowledge. The image is irrelevant." },
+      { svg: map(true), q: "What is the capital of the highlighted state?", a: "Lincoln", g: "Denver", ok: false, why: "Needs the image. This is MMStar's rewrite." },
+      { svg: hyd, q: "What colour is the fire hydrant?", a: "Yellow", g: "Red", ok: false, why: "The prior says red, confidently and wrongly." },
+      { svg: logo, q: "How many stripes are in this logo?", a: "4", g: "3", ok: false, why: "A familiar logo has three. The prior overrides." },
+      { svg: whale, q: "Which is a mammal: (A) whale or (B) shark?", a: "(A) whale", g: "(A) whale", ok: true, why: "The options alone give it away." },
+      { svg: dog, q: "Is there grass in this photo?", a: "Yes", g: "Yes", ok: true, why: "Right by luck: the prior matches this image." },
+    ];
+    const box = fig.querySelector("#blind-cards"), tog = fig.querySelector("#blind-toggle");
+    let hidden = false;
+    function renderCards() {
+      box.innerHTML = cards.map((c) => `<div class="qcard${hidden ? " hidden-img" : ""}">${c.svg}<div class="q">${esc(c.q)}</div>` +
+        (hidden ? `<div class="g">Blind guess: <b>${esc(c.g)}</b> · <span class="verdict ${c.ok ? "ok" : "bad"}">${c.ok ? "right" : "wrong"}</span><br>${esc(c.why)}</div>`
+          : `<div class="g">With the image: <b>${esc(c.a)}</b></div>`) + `</div>`).join("") +
+        (hidden ? `<p class="qcard" style="grid-column:1/-1;margin:0">Blind score: <b>${cards.filter((c) => c.ok).length} of ${cards.length}</b>. Half of these can be passed without looking.</p>` : "");
+    }
+    tog.addEventListener("click", () => { hidden = !hidden; tog.setAttribute("aria-pressed", String(hidden)); tog.textContent = hidden ? "Show all images" : "Hide all images"; renderCards(); });
+    renderCards();
+    const sv = fig.querySelector("#s-v"), swv = fig.querySelector("#s-wv"), stt = fig.querySelector("#s-t");
+    function calc() {
+      const v = +sv.value, w = +swv.value, t = +stt.value;
+      fig.querySelector("#s-v-out").textContent = v; fig.querySelector("#s-wv-out").textContent = w; fig.querySelector("#s-t-out").textContent = t;
+      const mg = v - w, ml = Math.max(0, w - t);
+      fig.querySelector("#bar-mg").style.width = Math.max(0, mg) + "%";
+      fig.querySelector("#bar-ml").style.width = ml + "%";
+      fig.querySelector("#bar-mg-t").textContent = `MG = ${mg}`;
+      fig.querySelector("#bar-ml-t").textContent = `ML = ${ml}`;
+      let s = mg <= 0 ? `The image adds nothing: the model scores ${w} without it and ${v} with it.` : `The image adds ${mg} points. Only this part of the ${v} measures visual skill.`;
+      s += ml > 0 ? ` The blind score beats the base language model by ${ml} points, a sign that benchmark items leaked into training.` : " The blind score does not exceed the base language model, so there is no sign of leakage.";
+      fig.querySelector("#blind-readout").textContent = s;
+    }
+    [sv, swv, stt].forEach((x) => x.addEventListener("input", calc));
+    calc();
+  })();
+
+  /* =====================================================================
+     Figure 8: tracing a failure to its stage
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="trace"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const checks = ["Encoder holds it?", "Connector keeps it?", "Language model reads it?", "Prior overrides it?"];
+    const cases = [
+      { q: "How many times do the lines cross?", truth: "2", says: "1",
+        nodes: [["pass", "Yes. Linear probes on the encoder solve it."], ["na", "Not tested in the cited work."], ["fail", "No. The VLM answers wrongly."], ["na", "Not the cause: spaced-out shapes are near 100%."]],
+        verdict: "Readout failure in the language model" },
+      { q: "Is the dog facing left or right?", truth: "differs", says: "same answer",
+        nodes: [["fail", "No. CLIP embeds both images almost identically."], ["na", "Moot: nothing to pass on."], ["na", "Cannot recover what the encoder lost."], ["na", "Not tested."]],
+        verdict: "Encoder failure: add or switch vision features" },
+      { q: "How many stripes are in this logo?", truth: "4", says: "3",
+        nodes: [["na", "Not tested in the cited work."], ["na", "Not tested."], ["na", "Not isolated."], ["fail", "Yes. Removing background cues adds about 21 points."]],
+        verdict: "Prior override: use counterfactual data or contrast" },
+      { q: "What does the small sign say?", truth: "OPEN", says: "wrong word",
+        nodes: [["warn", "Partly. Small details lose resolution at input."], ["na", "Not tested."], ["pass", "Attention lands on the sign, even when wrong."], ["na", "Not the main factor."]],
+        verdict: "Resolution limit: crop where the model looks" },
+    ];
+    let cs = 0;
+    const col = { pass: C.green, fail: C.red, na: C.muted, warn: C.orange };
+    const word = { pass: "yes", fail: "no", na: "n/a", warn: "partly" };
+    function example(k) {
+      const x = 30, y = 70, s = 260;
+      let g = R(x, y, s, s, { f: "#ffffff", st: C.ink });
+      if (k === 0) {
+        g += P(`M${x + 20},${y + 200} L${x + 110},${y + 60} L${x + 240},${y + 190}`, { st: C.blue, sw: 5, lj: 1 });
+        g += P(`M${x + 20},${y + 110} L${x + 130},${y + 150} L${x + 240},${y + 90}`, { st: C.red, sw: 5, lj: 1 });
+      } else if (k === 1) {
+        const dogS = (dx, flip) => { const cx = x + dx; const t = flip ? ` transform="translate(${2 * cx} 0) scale(-1 1)"` : ""; return `<g${t}>` + E(cx, y + 150, 42, 20, { f: "#b98a5e" }) + Ci(cx + 44, y + 128, 16, { f: "#b98a5e" }) + Ci(cx + 50, y + 124, 2.4, { f: C.ink }) + [-26, -10, 10, 26].map((o) => R(cx + o, y + 162, 6, 26, { f: "#9a6f48" })).join("") + `</g>`; };
+        g += dogS(70, false) + dogS(190, true) + L(x + 130, y + 20, x + 130, y + 240, { st: C.rule, da: "4 4" });
+        g += T(x + 70, y + 230, "A", { s: 15, a: "middle", w: 700 }) + T(x + 190, y + 230, "B", { s: 15, a: "middle", w: 700 });
+        g += T(x + 130, y + 40, "CLIP cosine > 0.95", { s: 14, a: "middle", f: C.red, w: 600 });
+      } else if (k === 2) {
+        [0, 1, 2, 3].forEach((i) => { g += P(`M${x + 50 + i * 42},${y + 210} L${x + 82 + i * 42},${y + 210} L${x + 82 + i * 42},${y + 150 - i * 30} L${x + 50 + i * 42},${y + 162 - i * 30} Z`, { f: C.ink }); });
+      } else {
+        g += scene(x, y, s);
+        g += R(x + 186, y + 92, 34, 16, { f: "#ffffff", st: C.ink }) + T(x + 203, y + 104, "OPEN", { s: 8, a: "middle", w: 700 });
+        g += R(x + 178, y + 84, 50, 32, { st: C.orange, sw: 2.5, da: "4 3" });
+      }
+      return g;
+    }
+    function draw(a, b, e) {
+      const st = (j) => clamp(lerp(a >= j ? 1 : 0, b >= j ? 1 : 0, e));
+      const cur = lerp(a, b, e);
+      const c = cases[cs];
+      let g = arrowDefs + example(cs);
+      g += T(30, 30, c.q, { s: 15, w: 600 });
+      g += T(30, 52, `Truth: ${c.truth}   Model: ${c.says}`, { s: 14, f: C.soft });
+      const nx = 360, nw = 380, nh = 76;
+      const ny = (j) => 14 + j * 92;
+      const wrap = (str, n) => { const out = [""]; str.split(" ").forEach((w) => { if ((out[out.length - 1] + " " + w).trim().length > n) out.push(w); else out[out.length - 1] = (out[out.length - 1] + " " + w).trim(); }); return out; };
+      for (let j = 0; j < 4; j++) {
+        const r = st(j), kind = c.nodes[j][0];
+        const border = r > 0.5 ? col[kind] : C.rule;
+        g += R(nx, ny(j), nw, nh, { f: "#ffffff", st: border, sw: r > 0.5 ? 2 : 1 });
+        g += T(nx + 14, ny(j) + 24, `${j + 1}. ${checks[j]}`, { s: 15, w: 600 });
+        g += `<g${op(r)} transform="translate(${f1((1 - r) * 16)} 0)">` + wrap(c.nodes[j][1], 40).map((ln, li) => T(nx + 14, ny(j) + 48 + li * 18, ln, { s: 14, f: C.soft })).join("") + `</g>`;
+        g += R(nx + nw - 66, ny(j) + 8, 56, 22, { f: col[kind], op: r }) + T(nx + nw - 38, ny(j) + 24, word[kind], { s: 14, a: "middle", w: 700, f: "#ffffff", op: r });
+        if (j < 3) g += L(nx + 30, ny(j) + nh, nx + 30, ny(j + 1), { st: C.ink, op: 0.5 });
+      }
+      const vr = st(4);
+      g += R(nx, 384, nw, 78, { f: C.paper, st: C.ink, sw: 1.5, op: Math.max(0.25, vr) });
+      g += T(nx + 14, 404, "Verdict", { s: 14, f: C.soft, op: Math.max(0.25, vr) });
+      wrap(c.verdict, 36).forEach((ln, li) => { g += T(nx + 14, 426 + li * 20, ln, { s: 15, w: 700, op: vr }); });
+      // pointer
+      const py = cur >= 3 ? lerp(ny(3) + 38, 423, clamp(cur - 3)) : ny(Math.floor(cur)) + 38 + (cur % 1) * 92;
+      g += P(`M${nx - 22},${py - 9} L${nx - 6},${py} L${nx - 22},${py + 9} Z`, { f: C.orange });
+      svg.innerHTML = g;
+    }
+    const notes = (i) => {
+      const c = cases[cs];
+      if (i < 4) return `<b>Check ${i + 1}: ${checks[i]}</b> ${c.nodes[i][1]}`;
+      return `<b>Verdict:</b> ${c.verdict}.`;
+    };
+    const st = stepper("trace", { n: 5, draw, note: notes, hold: 2600, dur: 900 });
+    if (!st) return;
+    fig.querySelectorAll("[data-case]").forEach((btn) => btn.addEventListener("click", () => {
+      cs = parseInt(btn.dataset.case, 10);
+      fig.querySelectorAll("[data-case]").forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
+      st.pause(); st.go(0, false);
+    }));
+  })();
+
+  /* =====================================================================
+     Figure 9: hallucination during generation, and contrastive decoding
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="hallu"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const toks = ["A", "dog", "lies", "on", "the", "grass", ",", "next", "to", "a", "red", "ball", "and", "a", "frisbee", "."];
+    const S = [
+      { k: 3, opera: 0, hall: 0, v1: 0, v2: 0, v3: 0, fix: 0 },
+      { k: 7, opera: 0, hall: 0, v1: 0, v2: 0, v3: 0, fix: 0 },
+      { k: 14, opera: 1, hall: 0, v1: 0, v2: 0, v3: 0, fix: 0 },
+      { k: 16, opera: 1, hall: 1, v1: 0, v2: 0, v3: 0, fix: 0 },
+      { k: 16, opera: 0.3, hall: 1, v1: 1, v2: 0, v3: 0, fix: 0 },
+      { k: 16, opera: 0.3, hall: 1, v1: 1, v2: 1, v3: 0, fix: 0 },
+      { k: 16, opera: 0.3, hall: 1, v1: 1, v2: 1, v3: 1, fix: 1 },
+    ];
+    const notes = [
+      "Generation starts. Early tokens attend strongly to the image.",
+      "As the caption grows, the share of attention on image tokens falls. Reliance on the image declines with length.",
+      "Later tokens attend heavily to a summary token, here the comma. OPERA links this aggregation pattern to hallucination.",
+      "The model writes <b>frisbee</b>. There is no frisbee in the image. The prior after “a red ball and a” filled the gap.",
+      "Contrastive decoding, step 1: the next-token distribution with the real image. Frisbee and tree are close.",
+      "Step 2: the same distribution with a distorted image. Frisbee stays likely, so the prior supports it. Tree drops, so the image supports it.",
+      "Step 3: the contrast keeps what the image supports. <b>Tree</b> wins, and the caption is grounded again.",
+    ];
+    const cand = ["frisbee", "tree", "bone", "stick"];
+    const pr = [0.36, 0.3, 0.18, 0.16], pd = [0.46, 0.06, 0.26, 0.22];
+    const sc = pr.map((p, k) => Math.exp(2 * Math.log(p) - Math.log(pd[k])));
+    const pc = sc.map((v) => v / sc.reduce((s, x) => s + x, 0));
+    const share = (i) => 0.42 * Math.exp(-i / 6) + 0.06;
+    function draw(a, b, e) {
+      const p = lerpObj(S[a], S[b], e);
+      let g = "";
+      // caption tokens
+      let x = 20;
+      toks.forEach((t, i) => {
+        const w = t.length * 9 + 14;
+        const vis = clamp(p.k - i);
+        let label = t, fcol = C.ink, bcol = C.white;
+        if (i === 14) { label = p.fix > 0.5 ? "tree" : t; fcol = p.fix > 0.5 ? C.green : p.hall > 0.5 ? C.red : C.ink; bcol = p.fix > 0.5 ? "#e3f1e8" : p.hall > 0.5 ? "#f6e1dc" : C.white; }
+        if (i === 6) bcol = p.opera > 0.5 ? C.orangeL : bcol;
+        g += `<g${op(vis)}>` + R(x, 26, w, 30, { f: bcol, st: i === 14 && p.hall > 0.5 ? fcol : C.rule }) + T(x + w / 2, 46, label, { s: 15, a: "middle", f: fcol, w: i === 14 ? 700 : 400 }) + `</g>`;
+        x += w + 4;
+      });
+      // share curve
+      const cx0 = 50, cy0 = 290, cw = 290, ch = 170;
+      g += T(20, 96, "Image attention per new token", { s: 14, f: C.soft });
+      g += L(cx0, cy0, cx0 + cw, cy0) + L(cx0, cy0, cx0, cy0 - ch);
+      let d = "";
+      const kmax = Math.max(1, p.k);
+      for (let i = 0; i <= 15; i += 0.25) { if (i > kmax - 1) break; d += (i ? " L" : "M") + f1(cx0 + (i / 15) * cw) + "," + f1(cy0 - (share(i) / 0.5) * ch); }
+      g += P(d, { st: C.blue, sw: 2.5 });
+      const ki = Math.max(0, kmax - 1);
+      g += Ci(cx0 + (ki / 15) * cw, cy0 - (share(ki) / 0.5) * ch, 5.5, { f: C.blue, st: C.ink });
+      g += T(cx0 + cw / 2, cy0 + 20, "generated token index", { s: 14, a: "middle", f: C.soft });
+      g += T(cx0 - 6, cy0 - ch + 5, "50%", { s: 14, a: "end", f: C.soft }) + T(cx0 - 6, cy0 + 5, "0", { s: 14, a: "end", f: C.soft });
+      // attention matrix (OPERA)
+      const mx0 = 400, my0 = 110, cs = 11;
+      const vm = 1 - Math.max(p.v1, 0);
+      g += `<g${op(vm)}>`;
+      g += T(mx0, 96, "Attention among generated tokens", { s: 14, f: C.soft });
+      for (let r = 0; r < 16; r++) for (let c = 0; c <= r; c++) {
+        if (r >= p.k) continue;
+        let v = 0.15 + 0.5 * hash(r * 16 + c) * (c > r - 3 ? 1 : 0.3);
+        if (c === 6 && r > 6) v = 0.25 + 0.75 * p.opera;
+        g += R(mx0 + c * cs, my0 + r * cs, cs - 1, cs - 1, { f: c === 6 && r > 6 && p.opera > 0.3 ? C.orange : C.blue, op: v });
+      }
+      g += T(mx0 + 6 * cs + 5, my0 + 16 * cs + 18, "“,” summary", { s: 14, a: "middle", f: "#9a4f00", op: p.opera, w: 600 });
+      g += `</g>`;
+      // VCD panel
+      const vx = 380, vy = 120;
+      g += `<g${op(p.v1)}>` + T(vx, 96, "Next token after “a red ball and a”", { s: 14, f: C.soft });
+      const groups = [["real", pr, p.v1, C.blue], ["distorted", pd, p.v2, C.muted], ["contrast", pc, p.v3, C.green]];
+      cand.forEach((cn, k) => { g += T(vx + 64, vy + 46 + k * 52, cn, { s: 14, a: "end", w: cn === "tree" && p.v3 > 0.5 ? 700 : 400 }); });
+      groups.forEach(([lab, arr, vis, colr], gi) => {
+        g += T(vx + 74 + gi * 100, vy + 12, lab, { s: 14, f: colr, op: vis, w: 600 });
+        arr.forEach((v, k) => { g += R(vx + 74 + gi * 100, vy + 30 + k * 52, 55 * v * vis / 0.75, 24, { f: colr, op: vis }); g += T(vx + 78 + gi * 100 + 55 * v / 0.75, vy + 47 + k * 52, v.toFixed(2), { s: 14, f: C.ink, op: vis }); });
+      });
+      g += `</g>`;
+            g += T(20, 350, p.hall > 0.5 && p.fix < 0.5 ? "frisbee is not in the image: a hallucination" : p.fix > 0.5 ? "contrastive decoding picks “tree”, which is in the image" : "", { s: 15, w: 600, f: p.fix > 0.5 ? C.green : C.red });
+      g += T(20, 392, "Values are illustrative.", { s: 14, f: C.muted });
+      svg.innerHTML = g;
+    }
+    stepper("hallu", { n: S.length, draw, note: (i) => notes[i], hold: 3000, dur: 1300 });
+  })();
+
+  /* =====================================================================
+     Figure 10: sparse autoencoder and steering
+     ===================================================================== */
+  (() => {
+    const fig = document.querySelector('[data-fig="sae"]');
+    if (!fig) return;
+    const svg = fig.querySelector("svg");
+    const D = 24, F = 64;
+    const feats = [{ id: 9, lab: "dog fur", v: 0.9, col: "#b98a5e" }, { id: 22, lab: "green grass", v: 0.7, col: "#9cc79a" }, { id: 37, lab: "daylight outdoors", v: 0.55, col: "#dbe7f1" }, { id: 48, lab: "round object", v: 0.45, col: "#c8553d" }, { id: 58, lab: "snow", v: 0, col: "#e9eef3" }];
+    const dirs = feats.map((f, k) => Array.from({ length: D }, (_, j) => (hash(k * 50 + j) - 0.5) * 2));
+    const S = [
+      { enc: 0, lab: 0, dec: 0, snow: 0 },
+      { enc: 1, lab: 0, dec: 0, snow: 0 },
+      { enc: 1, lab: 1, dec: 0, snow: 0 },
+      { enc: 1, lab: 1, dec: 1, snow: 0 },
+      { enc: 1, lab: 1, dec: 1, snow: 2.2 },
+    ];
+    const notes = [
+      "An image token's activation at one layer: a dense vector. Most dimensions are active, and no single one has a clear meaning.",
+      "<b>Encode.</b> The SAE rewrites it as a sparse code over a large dictionary. Only a few features are active.",
+      "<b>Label.</b> Each active feature is named from the images that activate it most: fur, grass, daylight, a round object.",
+      "<b>Decode.</b> The active features, added up, reconstruct the activation with a small error.",
+      "<b>Steer.</b> Clamp the inactive <b>snow</b> feature to a high value and decode again. The language model now describes snow. Drag the slider to set the strength yourself.",
+    ];
+    let override = null;
+    const slider = fig.querySelector("#sae-strength"), out = fig.querySelector("#sae-strength-out");
+    const caption = (s) => (s < 0.5 ? "A dog lies on green grass next to a red ball." : s < 1.2 ? "A dog lies on frosty grass next to a red ball." : s < 2.2 ? "A dog lies in light snow next to a red ball." : "A dog plays in a snowy field with a red ball.");
+    function render(p) {
+      const snow = override != null ? override : p.snow;
+      const vals = feats.map((f, k) => (k === 4 ? snow : f.v));
+      const h = Array.from({ length: D }, (_, j) => vals.reduce((s, v, k) => s + v * (k === 4 ? 0.3 : 1) * dirs[k][j] * 0.5, 0));
+      let g = arrowDefs;
+      // dense vector
+      const hx = 30, hy = 130;
+      g += T(hx, 34, "Activation h", { s: 15, w: 600 });
+      g += L(hx, hy, hx + D * 8, hy, { st: C.rule });
+      h.forEach((v, j) => { g += R(hx + j * 8, v > 0 ? hy - v * 60 : hy, 6, Math.abs(v) * 60, { f: C.blue }); });
+      // reconstruction overlay
+      if (p.dec > 0.01) {
+        h.forEach((v, j) => { const r = v * (0.94 + 0.08 * (hash(j + 300) - 0.5)); g += R(hx + j * 8, r > 0 ? hy - r * 60 : hy, 6, Math.abs(r) * 60, { st: C.orange, sw: 1.3, op: p.dec }); });
+        g += T(hx, 228, "orange outline: reconstruction ĥ", { s: 14, f: "#9a4f00", op: p.dec });
+        g += T(hx, 248, "small error ‖h − ĥ‖", { s: 14, f: C.soft, op: p.dec });
+      }
+      // arrow
+      g += P(`M${hx + D * 8 + 10},${hy} L${300},${hy}`, { st: C.ink, sw: 1.5, op: p.enc, extra: ' marker-end="url(#ah)"' });
+      g += T(250, hy - 10, "encode", { s: 14, a: "middle", f: C.soft, op: p.enc });
+      // sparse code grid
+      const gx = 310, gy = 50, cs = 20;
+      g += T(gx, 34, "Sparse code f (64 of many)", { s: 15, w: 600 });
+      for (let k = 0; k < F; k++) {
+        const r = Math.floor(k / 8), c = k % 8;
+        const fi = feats.findIndex((f) => f.id === k);
+        const v = fi >= 0 ? vals[fi] : 0;
+        g += R(gx + c * cs, gy + r * cs, cs - 3, cs - 3, { f: "#ffffff", st: C.rule });
+        if (v > 0) g += R(gx + c * cs, gy + r * cs, cs - 3, cs - 3, { f: fi === 4 ? C.blue : C.orange, op: Math.min(1, Math.min(1, v) * p.enc + 0.05) });
+      }
+      // labels
+      const lx = 500;
+      feats.forEach((f, k) => {
+        const y = 62 + k * 36, v = vals[k];
+        const r = Math.floor(f.id / 8), c = f.id % 8;
+        const active = v > 0.05;
+        g += `<g${op(p.lab * (active ? 1 : 0.35))}>`;
+        g += L(gx + 8 * cs + 2, gy + r * cs + 8, lx - 6, y - 7, { st: C.rule }) + L(gx + c * cs + cs - 3, gy + r * cs + 8, gx + 8 * cs + 2, gy + r * cs + 8, { st: f.id === 58 ? C.blue : C.orange, op: 0.5, da: "2 2" });
+        g += R(lx, y - 18, 22, 22, { f: f.col, st: C.ink }) + T(lx + 32, y - 2, f.lab, { s: 15, w: k === 4 ? 700 : 400, f: k === 4 ? C.blue : C.ink });
+        g += T(lx + 245, y - 2, v.toFixed(2), { s: 14, a: "end", f: C.soft });
+        g += `</g>`;
+      });
+      // caption box
+      g += R(30, 300, 700, 90, { f: "#ffffff", st: C.ink, op: Math.max(0.4, p.dec) });
+      g += T(46, 326, "Language model output", { s: 14, f: C.soft, op: Math.max(0.4, p.dec) });
+      g += T(46, 360, caption(snow), { s: 17, w: 600, op: Math.max(0.4, p.dec), f: snow >= 0.5 ? C.blue : C.ink });
+      g += T(714, 380, "illustrative", { s: 14, a: "end", f: C.muted });
+      svg.innerHTML = g;
+      if (slider && document.activeElement !== slider) slider.value = String(f1(snow));
+      if (out) out.textContent = snow.toFixed(1);
+    }
+    const st = stepper("sae", { n: S.length, draw: (a, b, e) => render(lerpObj(S[a], S[b], e)), note: (i) => notes[i], hold: 3000, dur: 1300, onStep: () => { override = null; } });
+    if (!st) return;
+    slider.addEventListener("input", () => { st.pause(); override = parseFloat(slider.value); render(S[Math.max(3, st.i)]); });
+  })();
+})();
+
+</script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>

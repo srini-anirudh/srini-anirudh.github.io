@@ -31,7 +31,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | **Systems and frontier** |||||
 | 16 | The Cost of a Picture | `the-cost-of-a-picture` | Efficient VLMs, token compression, serving | In progress |
 | 17 | Searching With Pixels | `searching-with-pixels` | Multimodal retrieval and visual RAG | In progress |
-| 18 | What Happens Inside a VLM | `what-happens-inside-a-vlm` | Interpretability | In progress |
+| 18 | What Happens Inside a VLM | `what-happens-inside-a-vlm` | Interpretability | Published |
 | 19 | Models That See and Draw | `models-that-see-and-draw` | Unified understanding and generation | Published |
 | 20 | How the Open VLM Families Were Built | `how-the-open-vlm-families-were-built` | Family-by-family survey along the checklist | In progress |
 

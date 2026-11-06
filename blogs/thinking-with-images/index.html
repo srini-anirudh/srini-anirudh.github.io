@@ -366,7 +366,7 @@
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>A wrong answer about a small detail is usually not a localisation failure. Zhang and colleagues found that model attention lands on the right region even when the answer is wrong, and that enlarging the subject fixes the answer causally. The model knows where to look and cannot read what is there. In practice, a training-free crop guided by the model's own attention is the first fix to try, before any retraining.</p></aside>
         <h3>The representation probe</h3>
         <p>Train a small linear classifier on the visual tokens to predict the needed fact. If a linear probe can read the fact from <i>z</i><sub>v</sub>, the information was extracted. If the model's answer is still wrong, the language model failed to use it.</p>
-        <p>The "VLMs are blind" study used this probe on simple geometry tasks: counting line intersections, checking whether two circles overlap, naming the circled letter. Strong VLMs did poorly. Yet linear probes on the vision encoder features solved the tasks. The information was there. The language model did not decode it. That is a clean case of failure 2. <a href="../index.html?series=vlms" data-series-pending="what-happens-inside-a-vlm/">What Happens Inside a VLM</a> covers the interpretability tools behind probes like this one.</p>
+        <p>The "VLMs are blind" study used this probe on simple geometry tasks: counting line intersections, checking whether two circles overlap, naming the circled letter. Strong VLMs did poorly. Yet linear probes on the vision encoder features solved the tasks. The information was there. The language model did not decode it. That is a clean case of failure 2. <a href="../what-happens-inside-a-vlm/">What Happens Inside a VLM</a> covers the interpretability tools behind probes like this one.</p>
 
         <h3>The mid-trace image ablation</h3>
         <p>Let the model reason halfway. Then remove the image and let it finish. If accuracy barely changes, the second half of the reasoning was not using the image.</p>
@@ -939,7 +939,7 @@
           <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li>
           <li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li>
           <li><a href="../vlms-that-act/">VLMs That Act</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="what-happens-inside-a-vlm/">What Happens Inside a VLM</a></li>
+          <li><a href="../what-happens-inside-a-vlm/">What Happens Inside a VLM</a></li>
         </ul>
       </nav>
 
