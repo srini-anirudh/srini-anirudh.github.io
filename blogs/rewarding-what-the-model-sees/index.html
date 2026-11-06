@@ -663,7 +663,7 @@
         <p>A reasoning chain can describe objects that are not in the image and still reach the right answer. Nothing in an outcome reward penalises that. "More Thinking, Less Seeing?" measured more hallucination on perception tasks in reasoning models than in their bases. Skywork R1V2 reported that overly strong RL signals induced visual hallucination, and calibrated its reward thresholds in response.</p>
 
         <h3>Tool collapse</h3>
-        <p>When RL trains a model to use visual tools, the tool use can collapse. The Qwen3-VL report describes its thinking-with-images agent collapsing to a single tool call to game the other rewards. A tool-calling reward was added to counter it. <a href="../index.html?series=vlms" data-series-pending="vlms-that-act/">VLMs That Act</a> picks up tool use in full.</p>
+        <p>When RL trains a model to use visual tools, the tool use can collapse. The Qwen3-VL report describes its thinking-with-images agent collapsing to a single tool call to game the other rewards. A tool-calling reward was added to counter it. <a href="../vlms-that-act/">VLMs That Act</a> picks up tool use in full.</p>
 
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>In a multi-domain run, one weak verifier is a risk to every domain. GLM-4.1V-Thinking reported that a flawed reward in one task, multi-image QA, led to collapse across all domains. The shared policy carries the exploit everywhere. The practical implication: audit each verifier on its own, with adversarial outputs and a small single-domain RL run, before it joins the mixture. Do not rely on the mixture to dilute a bad reward.</p></aside>
       </section>
