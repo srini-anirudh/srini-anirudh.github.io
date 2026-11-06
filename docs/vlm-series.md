@@ -15,7 +15,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 02 | Inside a Modern Vision Encoder | `inside-a-modern-vision-encoder` | Pixels to visual tokens, resolution, connectors | Published |
 | 03 | The VLM Architecture Gallery | `the-vlm-architecture-gallery` | Architectures | Published |
 | **Training and evaluation** |||||
-| 04 | Teaching Language Models to See | `teaching-language-models-to-see` | Pretraining | In progress |
+| 04 | Teaching Language Models to See | `teaching-language-models-to-see` | Pretraining | Published |
 | 05 | How Vision-Language Models Scale | `how-vision-language-models-scale` | Scaling laws for VLMs | In progress |
 | 06 | One Model, Many Visual Skills | `one-model-many-visual-skills` | Post-training, visual instruction tuning | In progress |
 | 07 | Measuring What a VLM Can Do | `measuring-what-a-vlm-can-do` | Benchmarks, metrics, languages | In progress |
