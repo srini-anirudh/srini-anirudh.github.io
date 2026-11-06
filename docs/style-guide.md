@@ -117,6 +117,8 @@ Use `assets/css/blog-shell.css` for the shared shell and `assets/js/blogs.js` fo
 
 ## Publishing a blog post
 
+Research and write the article by `docs/blog-writing-guide.md` first: deep literature survey, first-principles flow, comparison tables, short simple sentences, and no correspondence puzzles such as "respectively".
+
 1. Create `blogs/descriptive-slug/` and copy `docs/blog-template.html` to `blogs/descriptive-slug/index.html`.
 2. Remove the template-only `noindex` meta tag and replace every bracketed placeholder, including canonical slug, descriptive search title, description, JSON-LD fields, tags, dates, and reading time.
 3. Write the article inside `<main class="article-content">`.
