@@ -35,12 +35,10 @@ body.talks-page #docai-research::before { content: "Thesis talk"; }
 body.talks-page #docog-eccv::before { content: "Spotlight · ECCV 2026"; }
 body.talks-page #replica-icdar::before { content: "Oral · ICDAR 2026"; }
 
-body.research-page #research-talk::before,
-body.research-page .thesis-card::before { content: "Thesis"; }
 body.research-page:not(.talks-page) #patram::before { content: "Model · BharatGen"; }
 body.research-page:not(.talks-page) #programming-ai-accelerators::before { content: "Guest lecture"; }
 body.research-page:not(.talks-page) #vllm-meetup-mumbai::before { content: "Invited talk"; }
-.thesis-card { border-top: 3px solid #0b5ea8; }
+
 
 /* Research interests */
 .interest-map { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 22px 0 8px; }
@@ -76,3 +74,22 @@ body.research-page:not(.talks-page) #patram-ingest::before { content: "System"; 
 .infra-stack figcaption { margin-top: 8px; color: var(--text-soft); font: 12px/1.5 "IBM Plex Mono", monospace; text-align: center; }
 body.dark-mode .infra-stack li, body.dark-mode .infra-stack li.is-split > div { background: transparent; }
 @media (max-width: 640px) { .infra-stack li { width: 100% !important; } .infra-stack li.is-split { grid-template-columns: 1fr; } }
+
+/* Thesis card inside a research interest: set apart from the publication cards */
+body.research-page .research-card.thesis-card {
+  background: #eaf0f6;
+  border: 1px solid #b9cbe0;
+  border-left: 5px solid #0b5ea8;
+  padding-top: 52px;
+}
+body.research-page .research-card.thesis-card:hover { background: #eef3f8; border-color: #b9cbe0; border-left-color: #0b5ea8; transform: none; }
+body.research-page .research-card.thesis-card::before { color: #0b5ea8; content: "Thesis \00b7  the idea that ties this interest together"; }
+body.research-page .thesis-card .papertitle { font-size: 1.32em; }
+body.research-page .thesis-card .research-thesis { padding: 12px 14px; background: rgba(255,255,255,.7); border-left: 3px solid #d66f00; color: var(--text); font-size: 16.5px; }
+body.research-page .thesis-card .pc-root,
+body.research-page .thesis-card .pc-row a { background: #fff; }
+body.dark-mode.research-page .research-card.thesis-card { background: #0d2740; border-color: #1f4a72; border-left-color: #6fb7ff; }
+body.dark-mode.research-page .thesis-card .research-thesis { background: rgba(255,255,255,.04); }
+body.research-page .research-card.thesis-card { flex-direction: column; }
+body.research-page .thesis-card .research-card-image { align-self: flex-start; margin: 0 0 16px; }
+body.research-page .thesis-card .research-card-image img { max-width: 260px; }
