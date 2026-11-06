@@ -5,7 +5,7 @@ This is a static GitHub Pages site. Keep root-level HTML files for clean URLs on
 - `index.html` - landing page and news
 - `index.html` - home: intro, news, work, projects, and community (`about.html` redirects here)
 - `research.html` - publications and paper resources
-- `projects.html` - applied project pages and demos
+- `projects.html` - IIT Hyderabad project write-ups, linked from the home page; not in the nav
 - `talks.html` - talks and guest lectures; slide decks live in `talks/<name>/index.html` (self-contained builds copied from the sriharib128 repos)
 - `blogs/` - blog index and one folder per self-contained blog article
 - `robots.txt` - crawler permissions and sitemap discovery
