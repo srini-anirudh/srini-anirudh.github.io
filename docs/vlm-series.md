@@ -33,7 +33,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 17 | Searching With Pixels | `searching-with-pixels` | Multimodal retrieval and visual RAG | Published |
 | 18 | What Happens Inside a VLM | `what-happens-inside-a-vlm` | Interpretability | Published |
 | 19 | Models That See and Draw | `models-that-see-and-draw` | Unified understanding and generation | Published |
-| 20 | How the Open VLM Families Were Built | `how-the-open-vlm-families-were-built` | Family-by-family survey along the checklist | In progress |
+| 20 | How the Open VLM Families Were Built | `how-the-open-vlm-families-were-built` | Family-by-family survey along the checklist | Published |
 
 ## Coverage of the model survey checklist
 

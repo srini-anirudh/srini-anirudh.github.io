@@ -447,7 +447,7 @@
 
       <section id="lineage">
         <h2>How video models developed</h2>
-        <p>With the building blocks in place, the history of video LLMs reads as a sequence of answers to one question: where should the tokens go? Per-family detail lives in <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>. Here we follow the ideas.</p>
+        <p>With the building blocks in place, the history of video LLMs reads as a sequence of answers to one question: where should the tokens go? Per-family detail lives in <a href="../how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>. Here we follow the ideas.</p>
         <h3>2023: bolt a video front-end onto a chat model</h3>
         <p>The first wave appeared within weeks of each other in 2023. VideoChat connected video foundation models to a language model through a learnable interface. Video-LLaMA used a video Q-Former and added an audio branch built on ImageBind. Video-ChatGPT pooled CLIP features over space and time and released 100,000 video-instruction pairs. Video-LLaVA aligned image and video features into one space with LanguageBind encoders before projection and trained on both. These models saw 8 to a few dozen frames, mostly through heavy compression. LLaMA-VID pushed to hour-long input with only two tokens per frame. MovieChat did it with a memory that merges similar frames. Both paid in detail. VideoChat2, released with the MVBench benchmark, showed that progressive training on diverse instruction data helped a great deal on temporal tasks.</p>
         <h3>2024: images first, then long context</h3>

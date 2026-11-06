@@ -41,7 +41,7 @@
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#post-training", "name": "Post-training and Reinforcement Learning", "numberOfItems": 5 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#reasoning-models", "name": "Reasoning Models", "numberOfItems": 3 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#agents", "name": "Tools and Agentic Models", "numberOfItems": 7 },
-          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#vlms", "name": "Vision-Language Models", "numberOfItems": 19 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#vlms", "name": "Vision-Language Models", "numberOfItems": 20 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#docai-research", "name": "Grounded Document Intelligence", "numberOfItems": 3 }
         ]
@@ -90,7 +90,7 @@
           <button type="button" class="blog-filter" data-blog-filter="foundations" data-blog-filter-label="DL Foundations" data-blog-members="foundations" data-blog-paths="Core sequence::why-neural-networks-need-nonlinearity the-geometry-of-normalization how-attention-moves-information how-models-know-where-they-are what-an-optimizer-actually-does what-autograd-actually-does why-transformers-do-not-explode choosing-the-next-token" data-path-description="Build the mathematical and mechanical foundations needed to understand modern neural networks." aria-pressed="false">DL Foundations</button>
           <button type="button" class="blog-filter" data-blog-filter="architectures" data-blog-filter-label="DL Architectures" data-blog-members="architectures" data-blog-paths="Architecture sequence::evolution-of-ml-architectures across-the-cnnverse an-image-is-a-sentence one-transformer-two-modalities what-changed-inside-the-transformer" data-path-description="Follow the architectural ideas that led from convolutional networks to modern multimodal transformers." aria-pressed="false">DL Architectures</button>
           <button type="button" class="blog-filter" data-blog-filter="llms" data-blog-filter-label="LLMs" data-blog-members="training-science post-training reasoning-models" data-blog-paths="Pretraining science::the-puzzle-of-overparameterization scaling-laws-from-first-principles how-llms-are-pretrained;Post-training &amp; adaptation::teaching-a-language-model-to-follow-instructions mixing-data-without-losing-capabilities teaching-a-model-what-we-prefer reinforcement-learning-from-first-principles how-lora-changes-a-model-without-rewriting-it;Reasoning models::how-reinforcement-learning-teaches-models-to-reason thinking-in-tokens how-models-improve-without-changing-their-weights" data-path-description="Choose a path through how language models are pretrained, adapted, aligned, and taught to reason." aria-pressed="false">LLMs</button>
-          <button type="button" class="blog-filter" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Foundations::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery;Training and evaluation::teaching-language-models-to-see how-vision-language-models-scale one-model-many-visual-skills measuring-what-a-vlm-can-do aligning-vision-language-models;Capabilities::when-language-must-point how-vlms-read-documents seeing-in-time rewarding-what-the-model-sees thinking-with-images vlms-that-act from-vlms-to-vlas;Systems and frontier::the-cost-of-a-picture searching-with-pixels what-happens-inside-a-vlm models-that-see-and-draw" data-path-description="From how images become tokens to how VLMs are trained, evaluated, aligned, grounded, made to reason and act, served efficiently, and built in practice." aria-pressed="false">VLMs</button>
+          <button type="button" class="blog-filter" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Foundations::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery;Training and evaluation::teaching-language-models-to-see how-vision-language-models-scale one-model-many-visual-skills measuring-what-a-vlm-can-do aligning-vision-language-models;Capabilities::when-language-must-point how-vlms-read-documents seeing-in-time rewarding-what-the-model-sees thinking-with-images vlms-that-act from-vlms-to-vlas;Systems and frontier::the-cost-of-a-picture searching-with-pixels what-happens-inside-a-vlm models-that-see-and-draw how-the-open-vlm-families-were-built" data-path-description="From how images become tokens to how VLMs are trained, evaluated, aligned, grounded, made to reason and act, served efficiently, and built in practice." aria-pressed="false">VLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference;Scaling the workloads::the-parallelism-playbook the-serving-playbook;Profiling::how-to-find-what-is-slowing-your-model" data-path-description="Choose a path through hardware and communication, workload mechanics, distributed scaling, serving, and performance diagnosis." aria-pressed="false">ML Systems</button>
           <button type="button" class="blog-filter" data-blog-filter="research" data-blog-filter-label="Research" data-blog-members="docai-research" data-blog-paths="Grounded document intelligence::building-grounded-document-intelligence m3grounder-mask-based-document-grounding docog-grounded-chain-of-thought" data-path-description="Research posts: the thesis and one post per publication, each built around what the work teaches." aria-pressed="false">Research</button>
@@ -108,7 +108,7 @@
           </label>
         </div>
         <div class="blog-filter-status-row">
-          <p class="blog-filter-status" aria-live="polite">Showing all 60 articles</p>
+          <p class="blog-filter-status" aria-live="polite">Showing all 61 articles</p>
           <button type="button" class="blog-filter-reset" hidden>Clear filters</button>
         </div>
         <section class="learning-path-panel" aria-live="polite" hidden>
@@ -324,6 +324,18 @@
               <p>How one model can both read and draw images: image tokenizers, meaning versus pixels, bridge, autoregressive and hybrid designs, and evidence on synergy.</p>
               <div class="blog-meta"><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>44 min read</span></div>
               <div class="blog-tags"><span>Unified Multimodal Models</span><span>Image Generation</span><span>Visual Tokenizers</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="how-the-open-vlm-families-were-built/" target="_self" data-blog-categories="vlms architecture" data-blog-series="vlms">
+            <picture class="blog-card-media">
+              <img src="how-the-open-vlm-families-were-built/preview.png" data-still-src="how-the-open-vlm-families-were-built/preview.png" data-animated-src="how-the-open-vlm-families-were-built/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="The Qwen-VL pipeline across four versions: the components that changed between Qwen-VL, Qwen2-VL, Qwen2.5-VL and Qwen3-VL light up in turn, ending in a one-table summary of every change." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Vision-language models &middot; 20</span>
+              <h3>How the Open VLM Families Were Built</h3>
+              <p>A family-by-family survey of how open VLMs were built: data, encoders, resolution, training stages, RL, compute, and what actually drove capability.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>52 min read</span></div>
+              <div class="blog-tags"><span>VLMs</span><span>Model Families</span><span>Training Recipes</span></div>
             </div>
           </a>
           <!-- vlm-series:end -->
