@@ -71,3 +71,40 @@ How every new article on this site should be researched, written and illustrated
 - Add a short "Continue reading" block of genuinely related posts before References.
 - Follow the publishing checklist in `docs/style-guide.md`: metadata, JSON-LD, series navigator, blog index card,
   preview PNG and GIF, sitemap, feed and IndexNow list.
+
+## Appendix: checklist for surveying a model or model family
+
+Use this whenever an article describes or compares models (VLM posts in particular). Answer every point that the
+primary sources allow, and say "not reported" for the rest. A comparison table along these columns is the default.
+
+**Scaling and progression**
+- What scaling laws apply, and what the training compute or time was (GPU hours, tokens, steps), where reported.
+- How the family progressed from one version to the next, and what changed at each step.
+
+**Data**
+- Existing datasets used, and any data engines built.
+- Preprocessing and filtering, including anything unusual.
+- Synthetic data generation.
+- Scale of data in each training stage, which data and how much, and any mixing insights.
+
+**Model**
+- Model size and the parameter split between vision encoder, connector and language decoder.
+- Choice of vision encoder and language decoder, and why.
+- Vision preprocessing: resolution, tiling, aspect ratio, native resolution.
+- How multimodality is handled, focusing on the connector.
+- How multiple images (and video) are handled.
+- Token compression.
+- Architectural innovations.
+
+**Training**
+- Pre-training tasks and loss functions.
+- Fine-tuning tasks.
+- RL stages, if any.
+- New training tasks or strategies, useful ablations that show what matters most, and training tips.
+
+**Evaluation and capabilities**
+- Existing benchmarks and metrics used.
+- Tasks and capabilities: OCR, VQA, grounding, counting, documents, charts, video, agents.
+- Languages: English only or multilingual, and which languages.
+- Performance on the benchmarks.
+- Final capabilities, what enabled each one, and any correlation between data, design and capability.
