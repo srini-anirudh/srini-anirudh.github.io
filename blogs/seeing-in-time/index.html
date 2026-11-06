@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How vision-language models understand video: the token arithmetic of frames, frame sampling, video encoders and temporal position encoding, token compression, long-video strategies, temporal grounding, data, and why many video benchmarks can be solved from one frame." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/seeing-in-time/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Seeing in Time: Video Understanding in Vision-Language Models" />
+    <meta property="og:description" content="A video is a stack of images plus time. What has to change in a vision-language model so it can answer questions about events, order, duration and moments, within a token budget." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/seeing-in-time/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/seeing-in-time/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Seeing in Time: Video Understanding in Vision-Language Models" />
+    <meta name="twitter:description" content="Frames, tokens, time: how vision-language models sample, encode, compress and ground video, and why many video benchmarks can be solved from one frame." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/seeing-in-time/preview.png" />
+    <title>Seeing in Time: Video Understanding in Vision-Language Models | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/seeing-in-time/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/seeing-in-time/" },
+        "headline": "Seeing in Time: Video Understanding in Vision-Language Models",
+        "description": "How vision-language models understand video: frame sampling, video encoders, temporal position encoding, token compression, long video, temporal grounding, data, and the single-frame shortcut in benchmarks.",
+        "image": "https://srini-anirudh.github.io/blogs/seeing-in-time/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["video understanding", "vision-language models", "video LLMs", "temporal grounding", "long video", "M-RoPE"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#vlms" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --blue: #0b5ea8;
+        --orange: #d66f00;
+        --green: #2f8f5b;
+        --red: #b8432f;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--blue); }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 8px; }
+      .article-content code { font: 0.86em var(--mono); background: rgba(20, 23, 26, 0.06); padding: 1px 4px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article-specific ---------- */
+      .lede { font-size: 20.5px; color: var(--ink-soft); }
+      .eq-block { margin: 24px 0; padding: 16px 20px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 16px/1.85 var(--mono); }
+      .eq-block .an { display: block; margin-top: 6px; color: var(--muted); font: italic 14.5px/1.5 var(--body); }
+      .eq-block sub, .eq-block sup, .eq sub, .eq sup { font-size: 0.72em; }
+      .eq { font: 0.92em var(--mono); white-space: nowrap; }
+
+      .callout { margin: 28px 0; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--blue); }
+      .callout-insight { border-left-color: var(--blue); }
+      .callout-nuance { border-left-color: var(--orange); }
+      .callout-label { margin: 0 0 6px !important; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); }
+      .callout-nuance .callout-label { color: var(--orange); }
+      .callout p { font-size: 17px; }
+      .callout p:last-child { margin-bottom: 0; }
+
+      .keylist { padding-left: 0 !important; list-style: none; }
+      .keylist li { margin: 0 0 14px; padding: 12px 16px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--blue); font-size: 17px; }
+      .keylist li.nu { border-left-color: var(--orange); }
+      .keylist .k { display: block; margin-bottom: 3px; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); }
+      .keylist li.nu .k { color: var(--orange); }
+
+      /* figures: light paper panels */
+      .vfig { width: min(1080px, calc(100vw - 40px)); margin: 40px 0 40px calc(50% - min(540px, 50vw - 20px)); padding: 20px 22px 18px; color: #14171a; background: #f7f6f3; border: 1px solid #cac6bd; }
+      .vfig .fig-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0 0 10px; }
+      .vfig .fig-num { color: #d66f00; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .vfig .fig-title { color: #14171a; font: 700 17px/1.3 var(--display); }
+      .vfig .stage > svg { display: block; width: 100%; height: auto; }
+      .vfig .stage { overflow-x: auto; }
+      .swipe-hint { display: none; margin: 0 0 6px; color: #7b8388; font: 11px/1.4 var(--mono); }
+      .vfig svg text { font-family: var(--mono); }
+      .vfig .stage { position: relative; }
+      .vfig .step-note { min-height: 3.2em; margin: 12px 0 0; padding: 10px 14px; color: #14171a; background: #efede9; border-left: 3px solid #d66f00; font: 15.5px/1.5 var(--body); }
+      .vfig figcaption { margin: 14px 0 0; color: #474e53; font: 14.5px/1.55 var(--body); }
+      .vfig figcaption b { color: #14171a; font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 14px; }
+      .animation-controls button, .vctl button { min-height: 38px; padding: 7px 11px; color: #14171a; background: #f7f6f3; border: 1px solid #14171a; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover, .vctl button:hover { background: #ece9e2; }
+      .animation-controls button[aria-pressed="true"], .vctl button[aria-pressed="true"] { color: #fff; background: #d66f00; border-color: #d66f00; }
+      .animation-controls button[data-action="play-pause"][aria-pressed="true"] { background: #14171a; border-color: #14171a; }
+      .animation-controls button:focus-visible, .vctl button:focus-visible, .vctl input:focus-visible, .vctl select:focus-visible { outline: 2px solid #0b5ea8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #474e53; font: 11px/1.4 var(--mono); }
+      .vctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 12px 0 0; padding: 12px 0 0; border-top: 1px solid #dcd8cf; font: 11.5px/1.4 var(--mono); color: #474e53; }
+      .vctl label { display: flex; align-items: center; gap: 8px; }
+      .vctl input[type="range"] { width: 150px; accent-color: #d66f00; }
+      .vctl output { min-width: 56px; color: #d66f00; font-weight: 600; }
+      .vctl .grp { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+      .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+      .readout div { padding: 8px 10px; background: #fff; border: 1px solid #dcd8cf; font: 11px/1.35 var(--mono); color: #474e53; }
+      .readout strong { display: block; margin-top: 2px; color: #14171a; font: 600 17px/1.2 var(--mono); }
+      .readout strong.warn { color: #b8432f; }
+      .readout strong.ok { color: #2f8f5b; }
+
+      /* tables */
+      .table-wrap { margin: 28px 0; overflow-x: auto; border: 1px solid var(--rule); background: var(--paper-bright); }
+      .table-wrap.wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      table.cmp { width: 100%; border-collapse: collapse; font: 13px/1.45 var(--mono); }
+      table.cmp caption { padding: 13px 16px; color: var(--muted); font: 600 11px/1.5 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; text-align: left; border-bottom: 1px solid var(--rule); }
+      table.cmp th, table.cmp td { padding: 9px 11px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+      table.cmp thead th { color: var(--ink-soft); font-weight: 600; font-size: 11px; letter-spacing: 0.04em; background: rgba(20, 23, 26, 0.04); }
+      table.cmp tbody th { font-weight: 600; min-width: 128px; }
+      table.cmp td { min-width: 120px; }
+      .yes { color: var(--green); font-weight: 600; }
+      .no { color: var(--red); font-weight: 600; }
+      .part { color: #9a6a12; font-weight: 600; }
+      .read-note { margin: -12px 0 28px; padding: 10px 14px; color: var(--ink-soft); border-left: 2px solid var(--rule); font-size: 16.5px; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .vfig { width: calc(100vw - 20px); margin-left: calc(50% - 50vw + 10px); padding: 14px 12px; }
+        .table-wrap.wide { width: calc(100vw - 20px); margin-left: calc(50% - 50vw + 10px); }
+        .vctl input[type="range"] { width: 110px; }
+        .vfig .stage > svg { min-width: 700px; }
+        .swipe-hint { display: block; }
+        .animation-status { margin-left: 0; width: 100%; }
+        table.cmp { font-size: 12px; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article seeing-in-time-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Vision-language models</p>
+        <h1 class="article-title">Seeing in Time</h1>
+        <p class="article-subtitle">How vision-language models understand video. A video is a stack of images plus time. This is what has to change in a model so it can answer questions about events, order, duration and moments, inside a fixed token budget.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Video understanding</span><span>Vision-language models</span><span>Long context</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>44 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">11 of 20 &middot; Video</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../aligning-vision-language-models/"><span>Previous &middot; 08</span><strong>Aligning Vision-Language Models</strong></a><a class="ml-series-nav__link" href="../thinking-with-images/"><span>Next &middot; 13</span><strong>Thinking With Images</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#question">What changes when the picture moves</a></li>
+          <li><a href="#arithmetic">The token arithmetic of video</a></li>
+          <li><a href="#sampling">Choosing which frames to look at</a></li>
+          <li><a href="#encoders">Encoding frames, clips and motion</a></li>
+          <li><a href="#time">Telling the model when</a></li>
+          <li><a href="#compression">Fitting a video into the budget</a></li>
+          <li><a href="#lineage">How video models developed</a></li>
+          <li><a href="#long-video">Hour-long video</a></li>
+          <li><a href="#grounding">Finding the moment</a></li>
+          <li><a href="#data">Video data and its problems</a></li>
+          <li><a href="#evaluation">Evaluation and the single-frame shortcut</a></li>
+          <li><a href="#streaming">Streaming, real time and sound</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#next">What you can now reason about</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="question">
+        <h2>What changes when the picture moves</h2>
+        <p class="lede">Earlier posts in this series turned one image into a few hundred visual tokens and handed them to a language model. A video looks like the same problem repeated. It is a stack of images, one after another. So why not encode every frame and stack the tokens?</p>
+        <p>Start with a concrete clip. It is one minute long. A ball sits on a table next to a cup. The ball starts to roll, reaches the edge and drops to the floor. Later a person walks in, picks up the cup, drinks, and puts it down. Now ask five questions about it.</p>
+        <ol>
+          <li><strong>What colour is the cup?</strong> Any single frame answers this.</li>
+          <li><strong>Which way did the ball roll?</strong> One frame cannot answer this. You need at least two frames from the roll, in the right order.</li>
+          <li><strong>Did the ball fall before or after the person picked up the cup?</strong> You need frames from both events and you need to know which came first.</li>
+          <li><strong>How long did the person hold the cup?</strong> You need to know when the hold started and when it ended, in seconds.</li>
+          <li><strong>When exactly did the ball hit the floor?</strong> The drop lasts about a second. If no sampled frame falls inside that second, the event does not exist for the model.</li>
+        </ol>
+        <p>The first question is an image question. The other four are about time. They ask about <em>order</em>, <em>motion</em>, <em>duration</em> and a specific <em>moment</em>. A model that sees a bag of unordered frames can answer the first question and will guess at the rest. Figure 1 walks through the clip and marks which frames each question needs.</p>
+
+        <figure class="vfig" id="fig-clip">
+          <div class="fig-head"><span class="fig-num">Figure 1</span><span class="fig-title">One clip, five questions, different evidence</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-clip" viewBox="0 0 1000 430" role="img" aria-label="A filmstrip of a one-minute clip: a ball rolls off a table, then a person picks up a cup, drinks and puts it down. Each question highlights the frames it needs."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-clip"></div>
+          <figcaption><b>Figure 1.</b> The clip used throughout this post, drawn as a filmstrip of twelve frames over sixty seconds. An appearance question needs any one frame. A direction question needs two ordered frames inside the roll. An order question needs frames from two events. A duration question needs the start and end of an event. A moment question needs a frame inside a one-second window.</figcaption>
+        </figure>
+
+        <p>This post follows those four temporal demands through the whole stack. The thread is simple. Time costs tokens, and the token budget is fixed. Every design choice in a video model is a way of spending that budget: on more frames, on more detail per frame, on telling the model when each frame happened, or on finding the right moment before looking closely.</p>
+        <p>The post assumes the image pipeline from <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> and the architectures from <a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a>. Positional encoding is derived in <a href="../how-models-know-where-they-are/">How Models Know Where They Are</a>. Here we only add what time changes.</p>
+      </section>
+
+      <section id="arithmetic">
+        <h2>The token arithmetic of video</h2>
+        <p>Begin with the cost of one frame. A vision transformer cuts an image of height <i>H</i> and width <i>W</i> into square patches of side <i>p</i>. Each patch becomes one token. Most modern VLMs then merge each 2&times;2 block of neighbouring tokens into one, so a merge factor <i>r</i> = 2 divides the count by four. The tokens per frame are:</p>
+        <div class="eq-block">&tau; = (<i>H</i> / <i>p</i>) &middot; (<i>W</i> / <i>p</i>) / <i>r</i><sup>2</sup>
+          <span class="an">For a 448&times;448 frame with 14-pixel patches and a 2&times;2 merge: 32 &middot; 32 / 4 = 256 tokens. This is exactly what InternVL 2.5 uses per video frame.</span></div>
+        <p>A video adds two numbers: its duration <i>D</i> in seconds and the sampling rate <i>f</i> in frames per second. The visual tokens for the whole video are then:</p>
+        <div class="eq-block"><i>N</i> = <i>D</i> &middot; <i>f</i> &middot; &tau;
+          <span class="an">One hour at 2 frames per second with 256 tokens per frame: 3,600 &middot; 2 &middot; 256 = 1,843,200 tokens.</span></div>
+        <p>That number is the core difficulty. A one-hour video at a modest frame rate is almost two million tokens. That is larger than the context window of nearly every open model. Even where it fits, attention inside the language model compares every token with every other token. Its cost grows with <i>N</i><sup>2</sup>. Doubling the duration doubles the feed-forward cost but quadruples the attention cost. At these lengths attention dominates.</p>
+        <p>Proprietary systems hit the same wall. Google reports that Gemini 1.5 samples video at one frame per second for its long-video tests. Gemini 2.5 was trained to work with 66 visual tokens per frame instead of 258. The report says this lets about three hours of video fit in a one-million-token context instead of about one hour. The arithmetic checks out: 3,600 &times; 258 is about 0.93 million, and 10,800 &times; 66 is about 0.71 million.</p>
+
+        <figure class="vfig" id="fig-budget">
+          <div class="fig-head"><span class="fig-num">Figure 2</span><span class="fig-title">How fast frames exhaust a context window</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-budget" viewBox="0 0 1000 380" role="img" aria-label="A logarithmic token axis. Bars for one image, eight frames, one minute, ten minutes and one hour of video at two frames per second and 256 tokens per frame, compared with 32K, 128K and 1M context windows."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-budget"></div>
+          <figcaption><b>Figure 2.</b> Visual tokens on a logarithmic axis for 256 tokens per frame at 2 frames per second. One image is 256 tokens. One minute is 30,720. Ten minutes is 307,200. One hour is 1.84 million, past a one-million-token window. The last step shows the attention cost, which grows with the square of the token count.</figcaption>
+        </figure>
+
+        <h3>What time adds beyond more pixels</h3>
+        <p>If video were only "more images", the problem would be pure compression. It is not. Time adds four kinds of information that no single frame contains.</p>
+        <ul>
+          <li><strong>Order.</strong> Which event came first. A model must know the sequence position of each frame.</li>
+          <li><strong>Motion.</strong> Direction and speed. These live in the <em>difference</em> between nearby frames, so they need frames close together in time.</li>
+          <li><strong>Duration.</strong> How long something lasted. This needs a mapping from frames to real seconds, not just frame indices.</li>
+          <li><strong>Causality.</strong> Why something happened. The cause and the effect may be far apart, so the model must keep both in view.</li>
+        </ul>
+        <p>Each one pulls the budget in a different direction. Motion wants dense frames over a short window. Causality wants sparse frames over a long window. Duration and moments want a clock. The rest of this post is about how models trade these against each other.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The visual token count of a video is the product of three knobs: duration, frame rate and tokens per frame. Gemini 2.5's move from 258 to 66 tokens per frame bought three times the duration at the same context size. So when a model claims a longer maximum video, first check which knob moved. It is often detail per frame, not a better memory.</p></aside>
+      </section>
+
+      <section id="sampling">
+        <h2>Choosing which frames to look at</h2>
+        <p>The first lossy step happens before any network runs. A 30-frames-per-second video has 1,800 frames per minute. No model encodes them all. Something decides which frames to keep. There are four common rules.</p>
+        <h3>Uniform sampling</h3>
+        <p>Pick a fixed number of frames, say 8 or 32, spaced evenly over the video. This was the default in the first generation of video LLMs. Video-LLaVA, for example, samples 8 frames from every video. Uniform sampling keeps the token count constant, which makes training simple. Its weakness is that the time between frames depends on the video's length. Eight frames from a 10-second clip are 1.25 seconds apart. Eight frames from a one-hour video are 7.5 minutes apart.</p>
+        <h3>Fixed frame rate</h3>
+        <p>Pick a rate, such as one or two frames per second. Qwen2-VL samples at 2 frames per second. VideoLLaMA 3 and LLaMA-VID sample at 1 frame per second. The gap between frames is now the same for every video, so "two frames apart" always means the same amount of real time. The cost is that the token count grows with the length of the video. Every fixed-rate model therefore has a cap. VideoLLaMA 3 caps at 180 frames. Qwen2-VL and Qwen2.5-VL evaluate with at most 768 frames. Past the cap, a fixed-rate model has to spread its frames more thinly, which is uniform sampling again. Apollo notes that fps-based methods commonly do exactly this once a video exceeds their frame capacity, usually around 64 frames.</p>
+        <h3>Keyframes and scene changes</h3>
+        <p>Videos are redundant. A static shot of a lecturer produces hundreds of nearly identical frames. Content-aware sampling keeps a frame only when it differs from the last kept frame. LongVU does this with DINOv2 features: frames whose features are too similar to their neighbours are dropped. VideoLLaMA 3 applies the same idea at the patch level with its Differential Frame Pruner, which removes patches whose pixels barely changed since the previous frame.</p>
+        <h3>Query-aware selection</h3>
+        <p>The most targeted rule looks at the question first. If the question is about the cup, keep the frames that show the cup. Adaptive Keyframe Sampling (AKS) scores each frame by its relevance to the prompt and also rewards coverage of the whole video, so the selection does not collapse into one scene. Frame-Voyager learns to choose frame combinations, using a video LLM's loss on each candidate combination as the training signal. The cost of query-aware selection is that it must run again for every new question. Apollo's authors note this explicitly and leave such methods out of their study for that reason.</p>
+        <p>Figure 3 lets you try the first two rules on the one-minute clip. The events have very different lengths. The roll lasts twelve seconds. The drop lasts one and a half. The cup is put down in one second.</p>
+
+        <figure class="vfig" id="fig-sampling">
+          <div class="fig-head"><span class="fig-num">Figure 3</span><span class="fig-title">Frame sampling: what each setting sees and what it costs</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-sampling" viewBox="0 0 1000 300" role="img" aria-label="Interactive timeline of the one-minute clip with sampled frame ticks. Events that receive no sampled frame are marked as missed."></svg></div>
+          <div class="vctl" role="group" aria-label="Sampling controls">
+            <span class="grp" role="group" aria-label="Sampling rule"><span>rule</span>
+              <button type="button" data-mode="uniform" aria-pressed="true">uniform N</button>
+              <button type="button" data-mode="fps" aria-pressed="false">fixed fps</button></span>
+            <label><span id="smp-k-label">frames N</span><input type="range" id="smp-k" min="1" max="12" step="1" value="3" aria-describedby="smp-k-out" /><output id="smp-k-out">8</output></label>
+            <label>tokens / frame <select id="smp-tpf"><option value="16">16</option><option value="64">64</option><option value="196">196</option><option value="256" selected>256</option></select></label>
+          </div>
+          <div class="readout" aria-live="polite">
+            <div>frames on this 1-min clip<strong id="r-frames">8</strong></div>
+            <div>visual tokens<strong id="r-tokens">2,048</strong></div>
+            <div>events seen<strong id="r-events">3 / 5</strong></div>
+            <div>roll direction recoverable<strong id="r-dir">yes</strong></div>
+            <div>same rule on a 1-hour video<strong id="r-hour">2,048 tokens</strong></div>
+          </div>
+          <figcaption><b>Figure 3.</b> Interactive. Ticks show sampled frames. An event counts as seen if at least one sampled frame lands inside it. The roll direction is recoverable only if two frames land inside the roll. The last readout applies the same rule to a one-hour video: uniform sampling keeps the token count fixed but spreads the frames minutes apart, while a fixed frame rate keeps the spacing but multiplies the tokens.</figcaption>
+        </figure>
+
+        <p>Two failure modes appear quickly. With 8 uniform frames, the frames are about 7.5 seconds apart. The one-second events are usually missed. With a fixed rate high enough to catch them, the same rule applied to an hour of video produces hundreds of thousands of tokens. No setting is right for every question. Short events need density. Long stories need coverage.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Uniform sampling quietly changes the playback speed of every training example. Apollo is a large controlled study of video LMM design. It points out that N uniform frames from a short clip look like slow motion. The same N frames from a long video look like fast forward. In their experiments, training with frame-rate sampling consistently beat uniform sampling, and the gap came from training, not from the test-time frame count. In practice: train at a fixed frame rate, and when a video is too long, space out short clips rather than stretching the frame spacing.</p></aside>
+
+        <p>Apollo's fix is worth spelling out. It samples short <em>clips</em> at a constant rate, and when the video is too long it spaces the clips out instead of the frames. Inside each clip, the time between frames never changes. The model can still learn what normal speed looks like. Apollo also varied tokens per frame and found a trade-off between frame rate and tokens per second, with 8 to 32 tokens per frame performing best at its scale. Its appendix adds a useful split. OCR and spatial questions lost accuracy sharply when tokens per frame dropped. Egocentric and reasoning questions cared more about frame rate. The right budget depends on what will be asked.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"More frames help" is true only up to a point, and the point moves. LongVA's Video-MME score rose from 47.9 at 8 frames to 52.6 at 128 frames, then fell to 51.8 at 384. LLaVA-Video, trained on data selected for dynamic content, kept improving up to its 110-frame limit, and its authors argue that even 100 frames are not enough for a dynamic 30-second clip. InternVL 2.5 reports that many models peak at 16 or 32 frames and degrade beyond. The benefit of extra frames depends on whether the training data and the benchmark actually contain information between the frames you already have. Always sweep the frame count for your own task.</p></aside>
+      </section>
+
+      <section id="encoders">
+        <h2>Encoding frames, clips and motion</h2>
+        <p>Once frames are chosen, something must turn them into tokens. There are two families.</p>
+        <h3>Image encoders, one frame at a time</h3>
+        <p>The simplest option reuses the model's image encoder. Each frame passes through it independently. Frame 7 never sees frame 8 inside the encoder. Any temporal reasoning must happen later, in the connector or the language model. This is what LLaVA-OneVision, InternVL 2.5 and most current VLMs do. It has three practical advantages. Image and video share one encoder. Huge image datasets keep training that encoder. And image skills transfer to video for free. LLaVA-OneVision showed strong video understanding emerging from image training, which its authors call task transfer.</p>
+        <h3>Video encoders, many frames at once</h3>
+        <p>The alternative sees several frames together. Two ideas from the video-classification literature matter here.</p>
+        <p>The first is the <strong>tubelet</strong>. ViViT extended the image patch into a small cube that spans <i>t</i> frames as well as <i>p</i>&times;<i>p</i> pixels. One tubelet becomes one token. A tubelet of depth 2 halves the token count compared with per-frame patches, and the embedding can see motion inside the cube. The second idea is <strong>factorised attention</strong>. TimeSformer found that applying temporal attention and spatial attention separately within each block, which it calls divided attention, worked best among the schemes it compared. Both ideas avoid full attention over every patch of every frame.</p>
+        <p>Video encoders are usually pretrained without text. VideoMAE masks 90 to 95 percent of space-time tubes and reconstructs them. Video is so redundant that such extreme masking still works. V-JEPA predicts the features of masked regions instead of pixels. InternVideo2 combines masked reconstruction, contrastive alignment with text, audio and speech, and next-token prediction, and scales the encoder to 6 billion parameters.</p>
+
+        <figure class="vfig" id="fig-tubelet">
+          <div class="fig-head"><span class="fig-num">Figure 4</span><span class="fig-title">From 2D patches to space-time tubes</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-tubelet" viewBox="0 0 1000 400" role="img" aria-label="Four frames cut into patches. Per-frame patching gives 64 tokens. Tubelets of depth two pair frames and give 32 tokens. A 2 by 2 merge then gives 8 tokens."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-tubelet"></div>
+          <figcaption><b>Figure 4.</b> Four frames, each cut into a 4&times;4 grid of patches. Per-frame patching yields 64 tokens. A tubelet of depth 2 covers the same patch in two consecutive frames, which yields 32 tokens. A 2&times;2 spatial merge brings this to 8. Qwen2-VL uses exactly this pair: a 3D convolution of depth 2, then a 2&times;2 merge.</figcaption>
+        </figure>
+
+        <p>Qwen2-VL sits between the two families. Its vision transformer is an image encoder, but its patch embedding is a 3D convolution with a depth of two frames. Two consecutive frames become one set of tokens. Images are fed as two identical frames so that one encoder serves both. This halves the video token count before anything else happens.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Dedicated video encoders lose to a good image encoder on most video questions. Apollo trained otherwise identical models with seven encoders. SigLIP, an image encoder, was the best single choice. Video encoders won only on temporal perception, such as speed and direction. Combining SigLIP with InternVideo2 beat both, by about 7 percent on their benchmark. So if motion matters to your task, add a video encoder beside the image encoder rather than replacing it.</p></aside>
+      </section>
+
+      <section id="time">
+        <h2>Telling the model when</h2>
+        <p>Suppose the frames are encoded. They enter the language model as one long sequence of tokens. How does the model know that a token came from second 20 rather than second 40? There are four answers, and the field has moved between them.</p>
+        <h3>Order only</h3>
+        <p>The plainest option adds nothing. Frame tokens are concatenated in order, and the language model's ordinary 1D position encoding counts upward through them. The model knows that frame 5 came after frame 4. It does not know how many seconds apart they were. Under uniform sampling that gap changes from video to video. Most early video LLMs worked this way.</p>
+        <h3>Text tags between frames</h3>
+        <p>The second option writes the time in words. InternVL 2.5 wraps each frame in image tags with a label such as "Frame-1". VideoLLaMA 3 writes "Time: xxs" before each frame. Apollo writes "clip from MM:SS-MM:SS" before each clip. Apollo tested this directly. Any separator between frames, learned or textual, improved its benchmark by 2 to 3 points. Timestamps did as well as anything else and needed no new embeddings.</p>
+        <h3>Time inside the position encoding</h3>
+        <p>The third option puts time into the rotary position embedding. Rotary embedding rotates each query and key by an angle proportional to its position, so attention scores depend on the distance between positions. Qwen2-VL's Multimodal RoPE (M-RoPE) splits the embedding into three parts: temporal, height and width. Each token gets three position numbers instead of one.</p>
+        <ul>
+          <li>For a text token, all three numbers are equal, so M-RoPE reduces to ordinary 1D RoPE.</li>
+          <li>For an image token, the temporal number is constant and the height and width numbers follow the token's place in the grid.</li>
+          <li>For a video token, the temporal number goes up by one for each frame, and height and width work as for images.</li>
+        </ul>
+        <p>This gives the model a real 3D sense of where each token sits. But "goes up by one per frame" is still a frame index. A model trained at 2 frames per second and tested at 1 frame per second sees the same position gaps for twice the real time. Qwen2.5-VL fixed this by aligning the temporal number to absolute time. With dynamic frame-rate sampling, the gap between temporal numbers now reflects the real seconds between frames. The report states the goal plainly: let the model learn the pace of events and localise moments at the level of seconds.</p>
+
+        <figure class="vfig" id="fig-mrope">
+          <div class="fig-head"><span class="fig-num">Figure 5</span><span class="fig-title">Four ways to tell a model when a frame happened</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-mrope" viewBox="0 0 1000 420" role="img" aria-label="Animation of temporal position encoding: 1D positions, M-RoPE with temporal, height and width axes, frame-index temporal IDs for two videos at different frame rates, absolute-time IDs, and text timestamps."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-mrope"></div>
+          <figcaption><b>Figure 5.</b> Two copies of the same four-second event, one sampled at 1 frame per second and one at 2. With frame indices, the fourth frame of each gets the same temporal ID although the two frames are a second and a half apart in real time. With absolute-time IDs (Qwen2.5-VL), equal seconds get equal gaps. With text timestamps (Qwen3-VL), the time is written as tokens before each frame and positions stay compact.</figcaption>
+        </figure>
+
+        <h3>Back to text, for a reason</h3>
+        <p>The fourth answer is the newest, and it is a return. Qwen3-VL replaced absolute-time M-RoPE with explicit text timestamps, such as <code>&lt;3.0 seconds&gt;</code>, placed before each group of frames. It trains with both seconds and hours:minutes:seconds formats. The report gives two reasons. Tying position numbers to absolute time makes them very large and sparse for long videos, which hurt long-range understanding. And learning time-aligned positions required training data spread evenly across many frame rates, which is expensive to build. Text timestamps cost a few extra tokens but avoid both problems.</p>
+        <p>Qwen3-VL also changed how M-RoPE allocates frequencies. The original split gave each of the temporal, height and width parts its own contiguous block of rotary frequencies. The report says this produced an imbalanced frequency spectrum that hurt long-video benchmarks. The fix interleaves the three axes across the embedding dimensions, so each axis gets both low and high frequencies. InternVL3 attacked a related problem from another side. Its Variable Visual Position Encoding (V2PE) advances the position index by 1 for each text token but only by a fraction &delta; &lt; 1 for each visual token. Long visual inputs then use up less of the position range.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The Qwen line went from order only (early models) to absolute time inside RoPE (Qwen2.5-VL) and then back to text timestamps (Qwen3-VL). Apollo's ablation and VideoLLaMA 3's design reach the same place from independent directions. The lesson is not that position-encoding approaches failed. Absolute time in RoPE worked for second-level grounding. It became costly at hour scale and in data construction. If you build a video model today, text timestamps are the cheaper default, and the extra tokens are a small fraction of the visual tokens.</p></aside>
+      </section>
+
+      <section id="compression">
+        <h2>Fitting a video into the budget</h2>
+        <p>Sampling and tubelets reduce the token count before the language model. Most video models compress further. Compression is a broad topic covered for images in <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>. Video adds one new resource to compress: redundancy <em>across</em> frames. The methods fall into six groups.</p>
+        <h3>Pooling</h3>
+        <p>The cheapest compressor is an average. Video-ChatGPT averages each frame's CLIP features over space to get one token per frame. It also averages over time to get one token per spatial position. Both sets go to the language model. LLaVA-OneVision shrinks each frame's feature map with bilinear interpolation to 196 tokens and takes up to 32 frames. PLLaVA found something surprising about pooling. Fine-tuning an image model on many frames without pooling made performance saturate or drop. The authors traced this to a few very high-norm visual features that dominate. Pooling along time smoothed them out and fixed it.</p>
+        <h3>Learned queries</h3>
+        <p>A resampler replaces pooling with attention. A small set of learned query vectors attends to the frame features and returns a fixed number of tokens. Video-LLaMA uses a BLIP-2-style Q-Former per frame, adds temporal position embeddings, then runs a second "video Q-Former" across frames. LLaMA-VID goes to the extreme: two tokens per frame. One is a context token, produced by attending to the frame with the user's question. The other is a content token that pools the frame itself. At 1 frame per second that is 7,200 tokens for an hour. Apollo compared connectors directly. The Perceiver Resampler beat pooling-based connectors overall and on four of its benchmark's five categories.</p>
+        <h3>Merging across frames</h3>
+        <p>Consecutive frames repeat each other. Merging exploits that. Token Merging (ToMe) combines similar tokens inside a vision transformer and noticed that it merges object parts across frames of video. Chat-UniVi clusters tokens into dynamic visual tokens shared across space and time. MA-LMM keeps a memory bank of past frame features. When the bank is full, it finds the two most similar adjacent frames and averages them. The bank stays a constant size however long the video runs. VideoLLaMA 3's Differential Frame Pruner removes patches that barely changed. LongVU combines three steps: drop near-duplicate frames using DINOv2 similarity, keep full detail only on frames relevant to the question, and reduce spatial tokens in frames that depend on earlier ones.</p>
+        <h3>Two speeds at once</h3>
+        <p>The SlowFast idea comes from video recognition. SlowFast networks run a slow pathway at a low frame rate with rich features to capture appearance, and a lightweight fast pathway at a high frame rate to capture motion. Video LLMs borrowed it for token allocation. SlowFast-LLaVA, a training-free method, samples 50 frames from a video. Ten of them form the slow pathway at 12&times;24 tokens each. All 50 form the fast pathway at 4&times;4 tokens each. The total is 10 &times; 288 + 50 &times; 16 = 3,680 tokens. LLaVA-Video uses a variant that splits frames into interleaved slow and fast groups with different pooling strides, so no frame is encoded twice. The authors report that this lets them fit up to three times more frames than equal allocation.</p>
+
+        <figure class="vfig" id="fig-slowfast">
+          <div class="fig-head"><span class="fig-num">Figure 6</span><span class="fig-title">Spending tokens unevenly: the slow-fast split</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-slowfast" viewBox="0 0 1000 430" role="img" aria-label="Sixteen sampled frames. Equal allocation gives each frame 64 tokens. The slow-fast split gives four slow frames 192 extra tokens and all sixteen frames a 16-token fast view, then interleaves them."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-slowfast"></div>
+          <figcaption><b>Figure 6.</b> A budget of 1,024 tokens spent two ways on 16 frames. Equal allocation gives each frame 64 tokens. The slow-fast split gives every frame a coarse 16-token fast view, which is enough to follow motion, and gives every fourth frame a detailed slow view of 192 tokens. Both use 1,024 tokens. The slow view keeps text and small objects readable. The fast view keeps temporal coverage dense.</figcaption>
+        </figure>
+
+        <h3>Hierarchical compression</h3>
+        <p>VideoChat-Flash compresses in two stages. It first compresses each clip with a video encoder, to an average of about 16 tokens per frame. It then drops more tokens inside the language model when they are irrelevant to the task. The authors report an overall ratio of about 1/50 with almost no loss, and 99.1 percent accuracy on a needle-in-a-haystack test over 10,000 frames. Video-XL compresses into the key-value cache instead. It inserts a special summary token for each interval of video and keeps only the summary tokens' cached keys and values.</p>
+        <h3>Memory</h3>
+        <p>The last group gives up on seeing everything at once. MovieChat keeps a short-term buffer of recent frames and consolidates it into a long-term memory by merging similar adjacent tokens. It reports handling more than 10,000 frames on a 24 GB graphics card. MA-LMM processes frames online and stores them in its memory bank. Memory is the natural design for streaming video, where the end of the video does not exist yet.</p>
+
+        <div class="table-wrap wide">
+          <table class="cmp">
+            <caption>Table 1 &middot; Temporal modelling strategies compared along the aspects introduced so far</caption>
+            <thead><tr><th>Strategy</th><th>Example models</th><th>Tokens per second of video</th><th>Keeps frame order?</th><th>Captures motion?</th><th>Scaling to long video</th><th>Main cost</th></tr></thead>
+            <tbody>
+              <tr><th>Stack per-frame tokens</th><td>InternVL 2.5, LLaVA-OneVision</td><td>f &middot; &tau; (e.g. 196&ndash;256 per frame)</td><td class="yes">yes, by sequence position</td><td class="part">only across frames, inside the LLM</td><td class="no">poor: linear tokens, quadratic attention</td><td>context length</td></tr>
+              <tr><th>Tubelets / 3D patches</th><td>ViViT, Qwen2-VL (depth 2)</td><td>f &middot; &tau; / d</td><td class="yes">yes</td><td class="yes">yes, inside each tube</td><td class="part">halves the problem, does not remove it</td><td>fixed temporal stride</td></tr>
+              <tr><th>Spatial pooling</th><td>Video-ChatGPT, PLLaVA, LLaVA-OneVision</td><td>f &middot; &tau; / k<sup>2</sup></td><td class="yes">yes</td><td class="part">coarse</td><td class="part">moderate</td><td>small text and objects lost</td></tr>
+              <tr><th>Learned queries per frame</th><td>Video-LLaMA, LLaMA-VID, Apollo</td><td>f &middot; q (q = 2 to 32)</td><td class="yes">yes</td><td class="part">depends on the encoder</td><td class="yes">good</td><td>fixed bottleneck per frame</td></tr>
+              <tr><th>Merging across frames</th><td>MA-LMM, Chat-UniVi, LongVU, VideoLLaMA 3</td><td>variable: low for static scenes</td><td class="part">mostly; merged frames lose exact time</td><td class="part">kept where frames differ</td><td class="yes">good</td><td>exact timestamps blur</td></tr>
+              <tr><th>Slow-fast split</th><td>SlowFast-LLaVA, LLaVA-Video</td><td>mixed: few rich frames plus many coarse ones</td><td class="yes">yes</td><td class="yes">via the fast view</td><td class="yes">good</td><td>two hyperparameters to tune</td></tr>
+              <tr><th>Hierarchical / in-LLM dropping</th><td>VideoChat-Flash, Video-XL</td><td>about 16 per frame or less</td><td class="yes">yes</td><td class="part">clip-level</td><td class="yes">very good</td><td>engineering complexity</td></tr>
+              <tr><th>Memory bank / streaming</th><td>MovieChat, MA-LMM, Flash-VStream</td><td>constant memory size</td><td class="part">compressed history</td><td class="part">recent frames only</td><td class="yes">unbounded length</td><td>old details are lost</td></tr>
+              <tr><th>Long context, no compression</th><td>LongVA, LongVILA, Gemini</td><td>f &middot; &tau;</td><td class="yes">yes</td><td class="part">as for stacking</td><td class="part">bounded by context and compute</td><td>memory and latency</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="read-note">How to read this table: rows are strategies, not models, and real models combine several. Here <i>f</i> is frames per second, &tau; tokens per frame, <i>d</i> the tubelet depth, <i>k</i> the pooling factor and <i>q</i> the number of learned queries. Notice that every strategy that scales well to long video does so by giving up something exact: per-frame detail, exact timing, or old memories.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Equal tokens for every frame is rarely the best use of a budget. SlowFast-LLaVA, with no video training at all, matched or beat fine-tuned video models on some benchmarks. It did so by splitting 3,680 tokens into a few detailed frames and many coarse ones. Apollo's per-category results explain why this works: reading text needs tokens per frame, while following events needs frames per second. A split serves both. So when tuning a video model, treat the allocation across frames as a design variable, not a constant.</p></aside>
+      </section>
+
+      <section id="lineage">
+        <h2>How video models developed</h2>
+        <p>With the building blocks in place, the history of video LLMs reads as a sequence of answers to one question: where should the tokens go? Per-family detail lives in <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>. Here we follow the ideas.</p>
+        <h3>2023: bolt a video front-end onto a chat model</h3>
+        <p>The first wave appeared within weeks of each other in 2023. VideoChat connected video foundation models to a language model through a learnable interface. Video-LLaMA used a video Q-Former and added an audio branch built on ImageBind. Video-ChatGPT pooled CLIP features over space and time and released 100,000 video-instruction pairs. Video-LLaVA aligned image and video features into one space with LanguageBind encoders before projection and trained on both. These models saw 8 to a few dozen frames, mostly through heavy compression. LLaMA-VID pushed to hour-long input with only two tokens per frame. MovieChat did it with a memory that merges similar frames. Both paid in detail. VideoChat2, released with the MVBench benchmark, showed that progressive training on diverse instruction data helped a great deal on temporal tasks.</p>
+        <h3>2024: images first, then long context</h3>
+        <p>The second wave learned that strong image models make strong video models. LLaVA-OneVision trained one model on single images, multiple images and video with a similar maximum token count for each, and reported that video skills transfer from images. LongVA asked a different question: what if the language model can simply read more? It extended Qwen2-7B's context to 224K tokens by continued training on text, then aligned images only. The resulting model handled 2,000 frames, more than 200,000 visual tokens, without long-video training. The authors call this long context transfer. LongVILA built a multi-modal sequence-parallel training system to train on long videos directly, extending VILA from 8 to 2,048 frames.</p>
+        <p>Data caught up in the same year. LLaVA-Video built LLaVA-Video-178K, a synthetic instruction set of 178,510 videos with 1.3 million samples, captioned densely at one frame per second. Qwen2-VL brought native resolution, 3D patches and M-RoPE to video and claimed understanding of videos over 20 minutes. Apollo ran the controlled design study cited throughout this post. Its "scaling consistency" result is practical: design decisions tested on models of about 2 to 4 billion parameters transferred to larger ones with R<sup>2</sup> above 0.9.</p>
+        <h3>2025 onward: time as a first-class input</h3>
+        <p>The third wave treats time explicitly. Qwen2.5-VL aligned M-RoPE to absolute time and evaluated on hour-long benchmarks. VideoLLaMA 3 kept image training central, pruned redundant patches, and wrote timestamps as text. InternVL3 added V2PE for longer contexts. Qwen3-VL moved to text timestamps and a native 256K-token window. On a video needle-in-a-haystack test it reported 100 percent accuracy up to 30 minutes, and 99.5 percent at about two hours with positional extension. SlowFast-LLaVA-1.5 showed that small models of 1 to 3 billion parameters can be strong on long video with token-efficient allocation. Reinforcement learning arrived too. Video-R1 adapted GRPO into T-GRPO, which we return to in the evaluation section and which <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> covers in depth.</p>
+
+        <figure class="vfig" id="fig-lineage">
+          <div class="fig-head"><span class="fig-num">Figure 7</span><span class="fig-title">Three waves of video LLMs, by where they spend tokens</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-lineage" viewBox="0 0 1000 400" role="img" aria-label="Timeline from 2023 to 2025 with models plotted by frames per video on a log scale. Early models use few frames, later models use hundreds to thousands."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-lineage"></div>
+          <figcaption><b>Figure 7.</b> Maximum frames per video as reported in each paper, on a logarithmic axis, against release year. Values are the settings each paper states for training or evaluation, so they mark design intent rather than a fair capacity comparison. The jump from tens to thousands of frames came with long-context language models and aggressive per-frame compression.</figcaption>
+        </figure>
+
+        <p>Table 2 lines up the models along the survey checklist used in this series. Cells say "not reported" where the paper does not state a value. Benchmark numbers are copied from each model's own paper and are not directly comparable across rows, for reasons the evaluation section explains.</p>
+
+        <div class="table-wrap wide">
+          <table class="cmp">
+            <caption>Table 2 &middot; Video models along the checklist</caption>
+            <thead><tr><th>Model</th><th>Frame sampling</th><th>Frames max (as reported)</th><th>Tokens per frame</th><th>Compression</th><th>Temporal encoding</th><th>Max duration claimed</th><th>Video training data</th><th>Key reported results</th></tr></thead>
+            <tbody>
+              <tr><th>Video-LLaMA (2023)</th><td>not reported</td><td>not reported</td><td>Q-Former queries</td><td>frame Q-Former, then video Q-Former</td><td>learned temporal position embedding</td><td>short clips</td><td>video-caption pretraining, then instruction data</td><td>qualitative; adds audio via ImageBind</td></tr>
+              <tr><th>Video-ChatGPT (2023)</th><td>not stated in paper text</td><td>not stated in paper text</td><td>~1 temporal token per frame plus shared spatial tokens</td><td>average pooling over time and space</td><td>order of temporal tokens</td><td>short clips</td><td>100K video-instruction pairs</td><td>introduced a GPT-judged video chat benchmark</td></tr>
+              <tr><th>Video-LLaVA (2023)</th><td>uniform</td><td>8</td><td>not stated</td><td>none beyond encoder</td><td>implicit order</td><td>short clips</td><td>joint image and video instruction data</td><td>beats Video-ChatGPT on MSRVTT, MSVD, TGIF and ActivityNet QA</td></tr>
+              <tr><th>LLaMA-VID (2023)</th><td>1 fps</td><td>hour-long movies</td><td>2</td><td>question-conditioned context token plus pooled content token</td><td>implicit order</td><td>about 1 hour</td><td>adds 9K movie-level conversations</td><td>hour-long input at 2 tokens per frame</td></tr>
+              <tr><th>LongVA (2024)</th><td>uniform, dense</td><td>2,000 tested</td><td>144</td><td>2&times;2 pooling (UniRes)</td><td>implicit order, long RoPE</td><td>beyond 200K visual tokens</td><td>none: images only, text-only context extension to 224K</td><td>Video-MME 52.6 at 128 frames (7B)</td></tr>
+              <tr><th>LLaVA-OneVision (2024)</th><td>uniform</td><td>32</td><td>196</td><td>bilinear interpolation</td><td>implicit order</td><td>short to medium</td><td>mixed single-image, multi-image, video</td><td>video skills transfer from image training</td></tr>
+              <tr><th>LLaVA-Video (2024)</th><td>uniform, up to a frame cap</td><td>64 in final models; 110 in ablations</td><td>about 170 after 2&times;2 pooling (7B)</td><td>slow-fast pooling groups (72B)</td><td>implicit order</td><td>clips of 0 to 3 minutes in training data</td><td>LLaVA-Video-178K: 178,510 videos, 1.3M samples</td><td>Video-MME 70.5 / 76.9 without / with subtitles (72B)</td></tr>
+              <tr><th>Qwen2-VL (2024)</th><td>2 fps</td><td>768 at evaluation</td><td>dynamic; 16,384 tokens per video in training</td><td>3D patch of depth 2, 2&times;2 merge</td><td>M-RoPE (frame index)</td><td>over 20 minutes</td><td>mixed image and video</td><td>Video-MME 71.2 / 77.8; MVBench 73.6 (72B)</td></tr>
+              <tr><th>InternVL 2.5 / 3 (2024&ndash;25)</th><td>uniform</td><td>32&ndash;64 in training; best of 16&ndash;64 at evaluation</td><td>256 (448&times;448, pixel unshuffle)</td><td>pixel unshuffle only</td><td>"Frame-N" text tags; V2PE in InternVL3</td><td>not stated</td><td>mixed image, multi-image, video</td><td>InternVL3-78B Video-MME 72.7 / 75.7</td></tr>
+              <tr><th>Apollo (2024)</th><td>fps sampling of clips</td><td>hour-long input claimed</td><td>32 (16 in ablations)</td><td>Perceiver Resampler</td><td>text clip timestamps</td><td>about 1 hour</td><td>mixture with 10&ndash;14% text, video-heavy</td><td>Apollo-7B: Video-MME 63.3, MLVU 70.9</td></tr>
+              <tr><th>Qwen2.5-VL (2025)</th><td>dynamic fps</td><td>768 at evaluation</td><td>dynamic; at most 24,576 video tokens at evaluation</td><td>3D patch, 2&times;2 merge, window attention</td><td>M-RoPE aligned to absolute time</td><td>hours</td><td>video grounding and long video in pretraining</td><td>Video-MME 73.3 / 79.1; LVBench 47.3; Charades-STA mIoU 50.9 (72B)</td></tr>
+              <tr><th>VideoLLaMA 3 (2025)</th><td>1 fps</td><td>180</td><td>dynamic, 2&times;2 downsampled</td><td>Differential Frame Pruner</td><td>"Time: xxs" text</td><td>about 3 minutes by design</td><td>image-centric, then video fine-tuning</td><td>Video-MME 66.2 / 70.3 (7B)</td></tr>
+              <tr><th>VideoChat-Flash (2025)</th><td>dense</td><td>10,000 in needle test</td><td>about 16 on average</td><td>hierarchical clip and in-LLM compression</td><td>timestamp prompts explored</td><td>hour scale</td><td>adds the LongVid dataset</td><td>needle-in-a-haystack 99.1% at 10,000 frames</td></tr>
+              <tr><th>Qwen3-VL (2025)</th><td>length-adaptive fps; 2 fps at evaluation</td><td>bounded by 224K video tokens at evaluation</td><td>up to 640 at evaluation</td><td>3D patch, 2&times;2 merge</td><td>text timestamps, interleaved MRoPE</td><td>about 2 hours with extension</td><td>curated video with adaptive sampling</td><td>video needle test 100% to 30 min, 99.5% at ~2 h</td></tr>
+              <tr><th>Gemini 1.5 / 2.5 (closed)</th><td>1 fps in reported tests</td><td>10.5 hours in the 1.5 needle test</td><td>258, or 66 at low media resolution (2.5)</td><td>not disclosed</td><td>not disclosed</td><td>about 3 hours (2.5 Pro)</td><td>not disclosed</td><td>Gemini 1.5 Pro Video-MME 75.0 / 81.3</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="read-note">How to read this table: the columns follow the post's order, from sampling through encoding and time to data and results. Read down the "temporal encoding" column to see the shift from implicit order to explicit time. Read down "tokens per frame" to see the split between models that compress hard (2 to 32) and models that keep detail and rely on long context (144 to 640).</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The same model can have different scores in different papers. Apollo-7B reports 63.3 on Video-MME in its own paper. VideoLLaMA 3's comparison table lists it at 61.3. InternVL3 evaluates Video-MME at 16, 32, 48 and 64 frames and reports the best of the four. Qwen2.5-VL allows up to 768 frames. These are all reasonable choices, but they are different experiments. Before comparing two video models, check the frame count, the frames per second and whether subtitles were used.</p></aside>
+      </section>
+
+      <section id="long-video">
+        <h2>Hour-long video</h2>
+        <p>An hour of video breaks every short-video habit. At 1 frame per second it is 3,600 frames. A typical question concerns perhaps ten seconds of it. Three routes have emerged.</p>
+        <h3>Route one: read everything</h3>
+        <p>Extend the context and feed the frames in. LongVA, LongVILA, Gemini and Qwen3-VL take this route. It is conceptually clean. Nothing is thrown away by a heuristic. The costs are memory and latency, and the result depends on whether the model actually uses distant tokens.</p>
+        <h3>Route two: compress or remember</h3>
+        <p>Squeeze each frame hard or keep a running memory. LLaMA-VID, MovieChat, MA-LMM, VideoChat-Flash and Video-XL take this route. It scales to any length. The risk is that the compressor decides what is important before the question is known.</p>
+        <h3>Route three: search, then look</h3>
+        <p>Treat the video like a database. Find the relevant moments first, then look closely. VideoAgent uses a language model as an agent that iteratively decides which frames to inspect, with vision-language models as tools. It reported 54.1 percent on EgoSchema and 71.3 percent on NExT-QA while looking at only about 8 frames on average. VideoTree builds a tree over the video and expands only the branches relevant to the query. Video-RAG retrieves auxiliary text, such as speech transcripts, on-screen text and object detections, and passes it with the frames. These are the video versions of ideas covered in <a href="../thinking-with-images/">Thinking With Images</a> and <a href="../index.html?series=vlms" data-series-pending="searching-with-pixels/">Searching With Pixels</a>.</p>
+
+        <figure class="vfig" id="fig-routes">
+          <div class="fig-head"><span class="fig-num">Figure 8</span><span class="fig-title">Three ways to answer a question about an hour of video</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-routes" viewBox="0 0 1000 420" role="img" aria-label="Three lanes. Read everything fills a context window with all frames. Compress merges similar adjacent frames into a fixed memory. Search retrieves candidate moments, inspects them closely and answers."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-routes"></div>
+          <figcaption><b>Figure 8.</b> The same question, "when did the person put the cup down?", answered three ways over an hour of footage. Reading everything keeps all evidence but fills the context. Compressing keeps a fixed memory but may merge away the one-second event. Searching spends few tokens but depends on the retriever finding the right moment.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>A perfect needle-in-a-haystack score is a test of finding one frame, which is a single-frame skill. Gemini 1.5 Pro retrieved a hidden word from a single frame across 10.5 hours of video. Yet on HourVideo, which asks for summarisation, tracking and reasoning over 20 to 120 minutes of egocentric footage, Gemini 1.5 Pro scored 37.3 percent while human experts scored 85.0 percent. Retrieval over a long context and understanding of a long video are different abilities. Use needle tests to check that the context works, and use reasoning benchmarks to check that the model can use it.</p></aside>
+      </section>
+
+      <section id="grounding">
+        <h2>Finding the moment: temporal grounding</h2>
+        <p>Question five asked <em>when</em> the ball hit the floor. Answering with a time is a different output from answering with a word. The task is called temporal grounding, or moment retrieval. Given a video and a sentence, return the start and end of the segment the sentence describes. It is the time-axis version of the spatial grounding in <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a>, where a model returns a box instead of a time span.</p>
+        <h3>Benchmarks and the metric</h3>
+        <p>Charades-STA added sentence-level time annotations to the Charades dataset of indoor activities. The original paper reports 13,898 clip-sentence pairs for training and 4,233 for testing. QVHighlights has over 10,000 YouTube videos, each with a free-form query, the relevant moments, and a five-point saliency score for every relevant clip. ActivityNet Captions provides 20,000 videos with 100,000 descriptions, each with its own start and end time, and is used for dense captioning and grounding.</p>
+        <p>The metric is the temporal intersection over union. Let the true segment be [<i>s</i><sub>g</sub>, <i>e</i><sub>g</sub>] and the prediction be [<i>s</i><sub>p</sub>, <i>e</i><sub>p</sub>]. The overlap is the length of their intersection. The union is the length they cover together.</p>
+        <div class="eq-block">tIoU = max(0, min(<i>e</i><sub>p</sub>, <i>e</i><sub>g</sub>) &minus; max(<i>s</i><sub>p</sub>, <i>s</i><sub>g</sub>)) / (max(<i>e</i><sub>p</sub>, <i>e</i><sub>g</sub>) &minus; min(<i>s</i><sub>p</sub>, <i>s</i><sub>g</sub>))
+          <span class="an">The denominator is the union when the segments overlap. Papers report R@1 at IoU 0.5 or 0.7, the share of queries whose top prediction clears the threshold, and mIoU, the mean tIoU.</span></div>
+        <p>There is a direct link between grounding and frame sampling. A model can only place a boundary where it has a frame. If frames are &Delta; seconds apart and the model picks the nearest frame, each boundary can be off by up to &Delta;/2. In the worst case both boundaries move inward, and an event of length <i>L</i> keeps a tIoU of only (<i>L</i> &minus; &Delta;) / <i>L</i>. For a 4-second event sampled every 2 seconds, that floor is 0.5. At 2 frames per second it is 0.875. Figure 9 lets you try this.</p>
+
+        <figure class="vfig" id="fig-tiou">
+          <div class="fig-head"><span class="fig-num">Figure 9</span><span class="fig-title">Temporal IoU, and how frame spacing limits it</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-tiou" viewBox="0 0 1000 270" role="img" aria-label="Interactive timeline with a true segment and an adjustable predicted segment. The temporal IoU and whether it passes the 0.5 and 0.7 thresholds are shown. Optional snapping to sampled frames shows the precision limit of a given frame rate."></svg></div>
+          <div class="vctl" role="group" aria-label="Prediction controls">
+            <label>predicted start <input type="range" id="tiou-s" min="0" max="30" step="0.1" value="12.5" /><output id="tiou-s-out">12.5 s</output></label>
+            <label>predicted end <input type="range" id="tiou-e" min="0" max="30" step="0.1" value="16" /><output id="tiou-e-out">16.0 s</output></label>
+            <span class="grp" role="group" aria-label="Snap to sampled frames"><span>snap to frames</span>
+              <button type="button" data-snap="0" aria-pressed="true">off</button>
+              <button type="button" data-snap="4" aria-pressed="false">0.25 fps</button>
+              <button type="button" data-snap="2" aria-pressed="false">0.5 fps</button>
+              <button type="button" data-snap="1" aria-pressed="false">1 fps</button>
+              <button type="button" data-snap="0.5" aria-pressed="false">2 fps</button></span>
+          </div>
+          <div class="readout" aria-live="polite">
+            <div>temporal IoU<strong id="tiou-v">0.00</strong></div>
+            <div>R@1, IoU &ge; 0.5<strong id="tiou-r5">pass</strong></div>
+            <div>R@1, IoU &ge; 0.7<strong id="tiou-r7">fail</strong></div>
+            <div>best possible at this frame rate<strong id="tiou-best">1.00</strong></div>
+          </div>
+          <figcaption><b>Figure 9.</b> Interactive. The true segment, "the cup is lifted to drink", runs from 13.4 to 16.6 seconds. Drag the predicted start and end. With snapping on, predictions can only fall on sampled frames, and the last readout shows the best tIoU any model could reach at that frame rate. At 0.5 frames per second the best possible tIoU is 0.63, so no model can pass the 0.7 threshold on this moment.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Grounding accuracy is capped by frame spacing before the model does anything. Qwen3-VL's evaluation reflects this: it samples Charades-STA at 4 frames per second, against 2 frames per second for all its other video benchmarks. In practice, if you need second-level timestamps, sample densely around candidate moments, even if you sample the rest of the video sparsely.</p></aside>
+
+        <h3>How to output a time</h3>
+        <p>A language model emits tokens, so a timestamp must become tokens somehow. Four representations are in use.</p>
+        <ul>
+          <li><strong>Plain numbers in seconds.</strong> The model writes "13.4 to 16.6". VideoLLaMA 3 prompts for start and end times in seconds and parses the numbers out of the answer. Qwen2.5-VL trains on grounding data written both in seconds and in hour-minute-second-frame format, so it can read and write either. It needs no new vocabulary. It works best when the input also carries real time, as with absolute-time positions or text timestamps.</li>
+          <li><strong>Dedicated time tokens.</strong> VTG-LLM adds absolute-time tokens to the vocabulary. Grounded-VideoLLM adds discrete temporal tokens that carry time knowledge. These avoid splitting a number across several sub-word tokens.</li>
+          <li><strong>Separate heads.</strong> TRACE treats timestamps, saliency scores and captions as distinct tasks, each with its own encoder and decoding head, interleaved as a sequence of events.</li>
+          <li><strong>Time-aware input.</strong> TimeChat binds each frame's timestamp to its visual features inside the frame encoder, and uses a sliding Q-Former so longer videos produce more tokens.</li>
+        </ul>
+        <p>Training data for grounding is mostly converted from existing annotations. TimeChat built a 125,000-instance instruction set across six time-sensitive tasks. VTG-LLM re-annotated public grounding datasets into VTG-IT-120K. Momentor generated Moment-10M with an automatic engine. Qwen2.5-VL reports a Charades-STA mIoU of 50.9 for its 72B model. The same report lists GPT-4o at 35.7, which shows how much explicit time helps on this task.</p>
+      </section>
+
+      <section id="data">
+        <h2>Video data and its problems</h2>
+        <p>Every capability above depends on data with the right properties. Video data has three recurring problems: weak captions, static content and sparse annotation.</p>
+        <h3>Web-scale video-text pairs</h3>
+        <p>HowTo100M collected 136 million clips from 1.22 million narrated instructional videos. Its text is speech, transcribed automatically. People do not always say what they are doing at the moment they do it, and later work describes such data as noisy. WebVid-2M, released with the Frozen in Time model, scraped over two million videos with their short stock-footage captions. InternVid scaled up with language models: over 7 million videos, about 760,000 hours, 234 million clips and 4.1 billion words of generated descriptions. Panda-70M took 3.8 million high-resolution videos and split them into semantically consistent clips. Several cross-modal teacher models captioned each clip. A retrieval model, fine-tuned on human choices, then picked the best caption. The result is 70 million captioned clips.</p>
+        <h3>Dense synthetic captions</h3>
+        <p>Short captions say what is in a clip. They rarely say what changes. ShareGPT4Video found that giving GPT-4V many frames at once, or a grid of frames, produced captions that were less detailed and sometimes confused about time. It designed a differential captioning strategy that describes changes between frames, built 40,000 dense captions, and trained a captioner that labelled 4.8 million more videos. LLaVA-Video-178K went further. It selected dynamic, untrimmed videos and sampled them at one frame per second. It captioned them recurrently at three levels of time, from about ten seconds up to the whole video. Earlier descriptions served as context for later ones.</p>
+        <h3>Egocentric and long-form sources</h3>
+        <p>Ego4D provides 3,670 hours of first-person daily-life video from 931 camera wearers. It underlies EgoSchema and HourVideo. Long, continuous, unscripted footage is exactly where a model must remember and reason across minutes, so egocentric data matters for long-video skills. LLaVA-Video's 7B model was weaker on EgoSchema, and its authors attribute this to a smaller share of egocentric data in training.</p>
+        <h3>Mixtures</h3>
+        <p>Video models are trained on mixtures of text, images, multiple images and video. VideoLLaMA 3 is explicitly image-centric: it builds large, clean image-text data and adds video late. Apollo found that keeping about 10 to 14 percent text in the mixture was important, and among mixtures with that much text, video-heavy ones performed best. Video-R1 added image reasoning data to its video reinforcement-learning set because high-quality video reasoning data was scarce. The broader science of mixing is in <a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a>.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>More video captions can be worse than fewer, better ones. In LLaVA-Video's ablation, LLaVA-Hound had more captions than LLaVA-Video-178K, yet trained a weaker model. The authors name two causes: its source, WebVid, is relatively static, and it was annotated from 10 frames per video. Static clips teach a model that one frame is enough. So filter video data for motion and caption it densely, or the model will learn the single-frame shortcut that the next section describes.</p></aside>
+      </section>
+
+      <section id="evaluation">
+        <h2>Evaluation and the single-frame shortcut</h2>
+        <p>Benchmarks are covered in general in <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>. Video adds one specific danger. A video question may be answerable without the video. It may be answerable from the text alone, from one frame, or from frames in any order. Then a high score says nothing about time.</p>
+        <h3>The evidence</h3>
+        <p>The warning came early. In 2022, Lei and colleagues showed that a model trained on single frames, with a frame ensemble at inference, could beat existing multi-frame methods on popular video-and-language tasks. They called this a strong static appearance bias in the datasets. The same year, Buch and colleagues proposed the atemporal probe, which selects frames without using their order. It reached strong or state-of-the-art results on standard video question answering, which showed that event order was often unnecessary.</p>
+        <p>Apollo repeated the test on modern benchmarks with ten open models. It ran each benchmark three ways: with the video, with only the centre frame, and with only the question text. A large part of many benchmarks was answerable from text alone or from the centre frame. NExT-QA and Perception Test were largely solved by one frame. For Video-MME, the reliance on the video <em>decreased</em> as videos got longer. Apollo then built ApolloBench by removing questions that more than half the models answered correctly from text or one image. It was 41 times faster to run and more dependent on perception.</p>
+
+        <figure class="vfig" id="fig-shuffle">
+          <div class="fig-head"><span class="fig-num">Figure 10</span><span class="fig-title">Shuffle the frames and see which answers survive</span></div>
+          <p class="swipe-hint">Swipe sideways to see the whole figure.</p><div class="stage"><svg id="svg-shuffle" viewBox="0 0 1000 400" role="img" aria-label="Six frames of the clip shown in order, then shuffled, reversed and reduced to one frame. Appearance questions keep their answer. Order and direction questions lose theirs."></svg></div>
+          <p class="step-note" aria-live="polite"></p>
+          <div class="animation-controls" role="group" aria-label="Animation controls" data-for="fig-shuffle"></div>
+          <div class="vctl" role="group" aria-label="Try it">
+            <span class="grp"><span>try it</span><button type="button" id="shuffle-btn">shuffle frames</button><button type="button" id="reverse-btn">reverse</button><button type="button" id="order-btn">restore order</button></span>
+          </div>
+          <figcaption><b>Figure 10.</b> An idealised test, not a real model. A question whose answer survives shuffling, reversing or keeping one frame does not test time. "What colour is the cup?" survives all three. "Which way did the ball roll?" flips under reversal. "Did the ball fall before the cup was lifted?" breaks under shuffling. TempCompass builds its test videos this way, by reversing and concatenating clips so that a single-frame shortcut produces the wrong answer.</figcaption>
+        </figure>
+
+        <h3>Benchmarks built against the shortcut</h3>
+        <p>Several benchmarks were designed with the shortcut in mind. MVBench converts static image tasks into 20 dynamic tasks that its authors state cannot be solved effectively with a single frame. TempCompass builds conflicting videos that share static content but differ in one temporal aspect: it plays videos in reverse for direction and attribute change, and concatenates clips for speed and event order. EgoSchema introduced the temporal certificate, the length of video a human must watch to verify an answer. Its three-minute clips have certificates far longer than earlier datasets. Video-MME filtered out questions that Gemini 1.5 Pro could answer from the text alone; that model scored below 15 percent in the text-only setting.</p>
+        <p>The results on these benchmarks are sobering. In TempCompass's multiple-choice action questions, an image-only model, SPHINX-v2, scored 89.9. The best video model scored 88.5. On direction, every model scored between about 24 and 37, against a random baseline of 27.8 and a human score of 96.7. Vinoground found that GPT-4o scored about 50 percent on short counterfactual pairs where humans scored about 90, and open models were mostly near chance. TemporalBench reported GPT-4o at 38.5 percent on fine-grained temporal questions and found that multiple-choice options themselves leaked a cue, so it proposed a multiple binary accuracy instead.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>On TempCompass, an image model with no notion of time matched the best video models on action recognition, while every model sat near chance on direction, speed and event order. A video benchmark score is therefore a blend of image skill and temporal skill. To measure the temporal part, run three controls on any video benchmark you care about: text only, one frame, and shuffled frames. The gap between the full score and the best control is the part that needs video.</p></aside>
+
+        <h3>Training against the shortcut</h3>
+        <p>If a model can get reward without using time, it will. Video-R1 found exactly this when it applied GRPO to video reasoning: models took shortcuts through a single frame. Its fix, T-GRPO, generates answers twice per question, once from ordered frames and once from shuffled frames. The model earns the positive reward only when its accuracy on ordered frames beats its accuracy on shuffled frames. The reward itself now requires temporal reasoning. The general design of such rewards is the subject of <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>.</p>
+
+        <div class="table-wrap wide">
+          <table class="cmp">
+            <caption>Table 3 &middot; Video benchmarks along the aspects that matter for time</caption>
+            <thead><tr><th>Benchmark</th><th>Average length</th><th>Size</th><th>Main skill tested</th><th>Single-frame solvable?</th><th>Design against shortcuts</th></tr></thead>
+            <tbody>
+              <tr><th>MVBench</th><td>16 s</td><td>20 tasks, 4,000 QA</td><td>short-term temporal perception</td><td class="part">designed not to be</td><td>static-to-dynamic task conversion</td></tr>
+              <tr><th>Perception Test</th><td>23 s</td><td>11.6K videos</td><td>memory, abstraction, physics, semantics</td><td class="no">largely, per Apollo</td><td>filmed scripted situations; humans 91.4% vs 46.2% best model at release</td></tr>
+              <tr><th>NExT-QA</th><td>44 s</td><td>about 52K QA</td><td>causal and temporal action reasoning</td><td class="no">largely, per Apollo and ATP</td><td>question types for causal and temporal</td></tr>
+              <tr><th>TempCompass</th><td>short clips</td><td>about 100 videos per aspect</td><td>action, speed, direction, attribute change, event order</td><td class="yes">no, for non-action aspects</td><td>reversed and concatenated conflicting videos</td></tr>
+              <tr><th>EgoSchema</th><td>180 s</td><td>over 5,000 QA</td><td>very long-form egocentric reasoning</td><td class="part">designed not to be</td><td>long temporal certificates; random 20%, humans about 76%</td></tr>
+              <tr><th>LongVideoBench</th><td>473 s (up to 1 h)</td><td>3,763 videos, 6,678 QA</td><td>referring reasoning over long interleaved input</td><td class="part">partly</td><td>scores improve only with more frames</td></tr>
+              <tr><th>MLVU</th><td>about 15 min (3 min to 2 h)</td><td>multi-task</td><td>long-video tasks across genres</td><td class="part">partly</td><td>diverse task types; Apollo found it discriminative</td></tr>
+              <tr><th>Video-MME</th><td>about 17 min (11 s to 1 h)</td><td>900 videos, 2,700 QA</td><td>broad; short, medium and long subsets; subtitles and audio</td><td class="part">less video reliance as length grows, per Apollo</td><td>text-only answerable questions filtered</td></tr>
+              <tr><th>LVBench</th><td>about 68 min</td><td>1,549 QA</td><td>extreme long-video comprehension</td><td class="part">not analysed</td><td>very long inputs</td></tr>
+              <tr><th>HourVideo</th><td>20 to 120 min</td><td>500 videos, 12,976 QA</td><td>summarisation, tracking, reasoning, navigation</td><td class="part">not analysed</td><td>egocentric hour-long tasks; humans 85.0% vs Gemini 1.5 Pro 37.3%</td></tr>
+              <tr><th>Vinoground / TemporalBench</th><td>short</td><td>1,000 pairs / about 10K QA</td><td>dense temporal differences</td><td class="yes">no</td><td>counterfactual pairs; binary accuracy to remove option cues</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="read-note">How to read this table: average lengths for MVBench through LVBench come from the comparison table in the LVBench paper, so they share one method. "Single-frame solvable" summarises published analyses where they exist (Apollo, ATP, TempCompass) and says "not analysed" otherwise. The pattern to notice is that length and temporal difficulty are different axes. Short benchmarks built from conflicting videos test time harder than some hour-long ones.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Longer is not harder in the temporal sense. Apollo found that the share of Video-MME that needs the video shrinks for the long subset, and EgoSchema's authors showed that a clip's length is only weakly correlated with its temporal certificate. A one-hour video with one question about one moment is a retrieval problem. So report long-video results together with a short, temporally adversarial benchmark such as TempCompass or Vinoground.</p></aside>
+      </section>
+
+      <section id="streaming">
+        <h2>Streaming, real time and sound</h2>
+        <p>Everything so far assumed a finished video file. A live camera is different. The end does not exist yet. Questions arrive at any time. Sometimes the model should speak before anyone asks.</p>
+        <p>VideoLLM-online introduced a training objective for this, called Streaming EOS prediction. At each new frame, the model learns whether to respond or stay silent. Silent frames add little to the context. The authors report streaming dialogue at over 10 frames per second on an A100 for a five-minute clip. Flash-VStream keeps a memory that is updated as frames arrive, so it can answer asynchronous questions with low latency and bounded GPU memory. Dispider separates perception, decision and reaction into different modules. A lightweight module keeps watching the stream and decides when to interact, while a separate module writes the answer, so watching does not stop while the model talks. StreamingBench tests this setting with 900 videos and 4,500 questions asked at different points in the stream. At release, Gemini 1.5 Pro and GPT-4o were both well below human level.</p>
+        <p>Sound is the other half of most videos. Video-LLaMA added an audio branch built on ImageBind with its own Q-Former. VideoLLaMA 2 integrated an audio branch through joint training. Qwen2.5-Omni interleaves audio and video in time order and introduces TMRoPE, a time-aligned multimodal RoPE, so that a sound and the frame it accompanies share a temporal position. The value of audio shows up even in a vision benchmark. On Video-MME, adding subtitles raised Gemini 1.5 Pro's accuracy by 6.2 points and adding audio by 4.3 points, with larger gains for longer videos.</p>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Video-MME scores are often quoted as two numbers, without and with subtitles. The difference can be six points or more. For long videos, much of the story is in the speech. A model with a strong language backbone and subtitles can look like a strong video model. When you compare long-video models, compare the without-subtitles numbers, and treat audio and subtitles as a separate capability.</p></aside>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="keylist">
+          <li><span class="k">Insight</span>Video tokens are duration &times; frame rate &times; tokens per frame. Gemini 2.5 tripled its usable video length by cutting tokens per frame from 258 to 66. <a href="#arithmetic">The token arithmetic</a></li>
+          <li><span class="k">Insight</span>Uniform sampling changes the playback speed of every training video. Apollo found frame-rate sampling consistently better, and the gap came from training. <a href="#sampling">Choosing frames</a></li>
+          <li class="nu"><span class="k">Nuance</span>More frames help only while the data and the benchmark contain information between the frames. LongVA peaked at 128 frames; LLaVA-Video kept gaining to 110 on dynamic data. <a href="#sampling">Choosing frames</a></li>
+          <li><span class="k">Insight</span>A strong image encoder beats dedicated video encoders on most video questions. Video encoders help on motion, so add one beside the image encoder. <a href="#encoders">Encoding</a></li>
+          <li class="nu"><span class="k">Nuance</span>The Qwen line moved time into the position encoding and then back into text. Absolute-time RoPE worked but became costly at hour scale and in data construction. <a href="#time">Telling the model when</a></li>
+          <li><span class="k">Insight</span>Uneven allocation, a few detailed frames plus many coarse ones, serves both reading and motion within one budget. <a href="#compression">Compression</a></li>
+          <li class="nu"><span class="k">Nuance</span>The same model gets different scores in different papers, because frame counts, frame rates and subtitles differ. <a href="#lineage">Model survey</a></li>
+          <li class="nu"><span class="k">Nuance</span>A perfect needle-in-a-haystack score measures single-frame retrieval. Gemini 1.5 Pro found a needle across 10.5 hours yet scored 37.3 percent on HourVideo against 85.0 percent for humans. <a href="#long-video">Hour-long video</a></li>
+          <li><span class="k">Insight</span>Frame spacing caps grounding accuracy before the model runs. Sample densely around the moments you need to time. <a href="#grounding">Grounding</a></li>
+          <li><span class="k">Insight</span>Static training clips teach the single-frame shortcut. LLaVA-Video's smaller, dynamic, densely captioned data beat a larger static set. <a href="#data">Data</a></li>
+          <li><span class="k">Insight</span>Many video benchmark questions are answerable from text or one frame. Run text-only, one-frame and shuffled controls to isolate the temporal part of a score. <a href="#evaluation">Evaluation</a></li>
+        </ul>
+      </section>
+
+      <section id="next">
+        <h2>What you can now reason about</h2>
+        <p>Return to the five questions about the ball and the cup. You can now say what each one demands of a model. The colour of the cup needs one good frame. The direction of the roll needs two frames close together inside the roll, and enough per-frame detail to see the ball move. The order of events needs frames from both events and a sequence position for each. The duration of the hold needs real time, either written as text or built into positions. The moment of the drop needs a frame inside a one-second window, which means dense sampling where it matters.</p>
+        <p>You can also read a video model's design as a budget. Given a frame rate, a tokens-per-frame setting and a context window, you can compute how much video fits. Given a compression method, you can say what it gives up: detail, exact timing or old memories. Given a benchmark score, you can ask how much of it a single frame would have earned.</p>
+        <p>Two threads continue in the next posts. The single-frame shortcut is a reward-hacking problem as much as an evaluation problem, and T-GRPO's shuffled-frame comparison is one instance of a broader idea: design the reward so that it can only be earned by looking. That is the subject of <a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>. The search route for long video, where a model decides which moments to look at, is a form of active perception that <a href="../thinking-with-images/">Thinking With Images</a> develops for images.</p>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a></li><li><a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../index.html?series=vlms" data-series-pending="rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li></ul></nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Video encoders and temporal architectures</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1705.07750" target="_blank" rel="noopener noreferrer">Quo Vadis, Action Recognition? A New Model and the Kinetics Dataset</a> · Carreira and Zisserman, 2017</li>
+            <li><a href="https://arxiv.org/abs/1812.03982" target="_blank" rel="noopener noreferrer">SlowFast Networks for Video Recognition</a> · Feichtenhofer et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2102.05095" target="_blank" rel="noopener noreferrer">Is Space-Time Attention All You Need for Video Understanding? (TimeSformer)</a> · Bertasius et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2103.15691" target="_blank" rel="noopener noreferrer">ViViT: A Video Vision Transformer</a> · Arnab et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2203.12602" target="_blank" rel="noopener noreferrer">VideoMAE: Masked Autoencoders are Data-Efficient Learners for Self-Supervised Video Pre-Training</a> · Tong et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2303.16727" target="_blank" rel="noopener noreferrer">VideoMAE V2: Scaling Video Masked Autoencoders with Dual Masking</a> · Wang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.01852" target="_blank" rel="noopener noreferrer">LanguageBind: Extending Video-Language Pretraining to N-modality by Language-based Semantic Alignment</a> · Zhu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.15377" target="_blank" rel="noopener noreferrer">InternVideo2: Scaling Foundation Models for Multimodal Video Understanding</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2404.08471" target="_blank" rel="noopener noreferrer">Revisiting Feature Prediction for Learning Visual Representations from Video (V-JEPA)</a> · Bardes et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2506.09985" target="_blank" rel="noopener noreferrer">V-JEPA 2: Self-Supervised Video Models Enable Understanding, Prediction and Planning</a> · Assran et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Connectors and token reduction</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2204.14198" target="_blank" rel="noopener noreferrer">Flamingo: a Visual Language Model for Few-Shot Learning</a> · Alayrac et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2210.09461" target="_blank" rel="noopener noreferrer">Token Merging: Your ViT But Faster</a> · Bolya et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2301.12597" target="_blank" rel="noopener noreferrer">BLIP-2: Bootstrapping Language-Image Pre-training with Frozen Image Encoders and Large Language Models</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.08046" target="_blank" rel="noopener noreferrer">Chat-UniVi: Unified Visual Representation Empowers Large Language Models with Image and Video Understanding</a> · Jin et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.16994" target="_blank" rel="noopener noreferrer">PLLaVA: Parameter-free LLaVA Extension from Images to Videos for Video Dense Captioning</a> · Xu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2407.15841" target="_blank" rel="noopener noreferrer">SlowFast-LLaVA: A Strong Training-Free Baseline for Video Large Language Models</a> · Xu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.18943" target="_blank" rel="noopener noreferrer">SlowFast-LLaVA-1.5: A Family of Token-Efficient Video Large Language Models for Long-Form Video Understanding</a> · Xu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2410.17434" target="_blank" rel="noopener noreferrer">LongVU: Spatiotemporal Adaptive Compression for Long Video-Language Understanding</a> · Shen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.00574" target="_blank" rel="noopener noreferrer">VideoChat-Flash: Hierarchical Compression for Long-Context Video Modeling</a> · Li et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.14485" target="_blank" rel="noopener noreferrer">Video-XL: Extra-Long Vision Language Model for Hour-Scale Video Understanding</a> · Shu et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Video LLMs</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2305.06355" target="_blank" rel="noopener noreferrer">VideoChat: Chat-Centric Video Understanding</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2306.02858" target="_blank" rel="noopener noreferrer">Video-LLaMA: An Instruction-tuned Audio-Visual Language Model for Video Understanding</a> · Zhang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2306.05424" target="_blank" rel="noopener noreferrer">Video-ChatGPT: Towards Detailed Video Understanding via Large Vision and Language Models</a> · Maaz et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.10122" target="_blank" rel="noopener noreferrer">Video-LLaVA: Learning United Visual Representation by Alignment Before Projection</a> · Lin et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.17043" target="_blank" rel="noopener noreferrer">LLaMA-VID: An Image is Worth 2 Tokens in Large Language Models</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2406.07476" target="_blank" rel="noopener noreferrer">VideoLLaMA 2: Advancing Spatial-Temporal Modeling and Audio Understanding in Video-LLMs</a> · Cheng et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.03326" target="_blank" rel="noopener noreferrer">LLaVA-OneVision: Easy Visual Task Transfer</a> · Li et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.02713" target="_blank" rel="noopener noreferrer">LLaVA-Video: Video Instruction Tuning With Synthetic Data</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.12191" target="_blank" rel="noopener noreferrer">Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener noreferrer">Qwen2.5-VL Technical Report</a> · Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2511.21631" target="_blank" rel="noopener noreferrer">Qwen3-VL Technical Report</a> · Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.05271" target="_blank" rel="noopener noreferrer">Expanding Performance Boundaries of Open-Source Multimodal Models with Model, Data, and Test-Time Scaling (InternVL 2.5)</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2504.10479" target="_blank" rel="noopener noreferrer">InternVL3: Exploring Advanced Training and Test-Time Recipes for Open-Source Multimodal Models</a> · Zhu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2508.18265" target="_blank" rel="noopener noreferrer">InternVL3.5: Advancing Open-Source Multimodal Models in Versatility, Reasoning, and Efficiency</a> · Wang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2501.13106" target="_blank" rel="noopener noreferrer">VideoLLaMA 3: Frontier Multimodal Foundation Models for Image and Video Understanding</a> · Zhang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2412.10360" target="_blank" rel="noopener noreferrer">Apollo: An Exploration of Video Understanding in Large Multimodal Models</a> · Zohar et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.05530" target="_blank" rel="noopener noreferrer">Gemini 1.5: Unlocking multimodal understanding across millions of tokens of context</a> · Gemini Team, 2024</li>
+            <li><a href="https://arxiv.org/abs/2507.06261" target="_blank" rel="noopener noreferrer">Gemini 2.5: Pushing the Frontier with Advanced Reasoning, Multimodality, Long Context, and Next Generation Agentic Capabilities</a> · Comanici et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Long video, memory and agents</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2307.16449" target="_blank" rel="noopener noreferrer">MovieChat: From Dense Token to Sparse Memory for Long Video Understanding</a> · Song et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2404.05726" target="_blank" rel="noopener noreferrer">MA-LMM: Memory-Augmented Large Multimodal Model for Long-Term Video Understanding</a> · He et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.16852" target="_blank" rel="noopener noreferrer">Long Context Transfer from Language to Vision (LongVA)</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2408.10188" target="_blank" rel="noopener noreferrer">LongVILA: Scaling Long-Context Visual Language Models for Long Videos</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.10517" target="_blank" rel="noopener noreferrer">VideoAgent: Long-form Video Understanding with Large Language Model as Agent</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.19209" target="_blank" rel="noopener noreferrer">VideoTree: Adaptive Tree-based Video Representation for LLM Reasoning on Long Videos</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.13093" target="_blank" rel="noopener noreferrer">Video-RAG: Visually-aligned Retrieval-Augmented Long Video Comprehension</a> · Luo et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.21271" target="_blank" rel="noopener noreferrer">Adaptive Keyframe Sampling for Long Video Understanding</a> · Tang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2410.03226" target="_blank" rel="noopener noreferrer">Frame-Voyager: Learning to Query Frames for Video Large Language Models</a> · Yu et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Temporal grounding</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1705.02101" target="_blank" rel="noopener noreferrer">TALL: Temporal Activity Localization via Language Query (Charades-STA)</a> · Gao et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1705.00754" target="_blank" rel="noopener noreferrer">Dense-Captioning Events in Videos (ActivityNet Captions)</a> · Krishna et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/2107.09609" target="_blank" rel="noopener noreferrer">QVHighlights: Detecting Moments and Highlights in Videos via Natural Language Queries</a> · Lei et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2307.16715" target="_blank" rel="noopener noreferrer">UniVTG: Towards Unified Video-Language Temporal Grounding</a> · Lin et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.02051" target="_blank" rel="noopener noreferrer">TimeChat: A Time-sensitive Multimodal Large Language Model for Long Video Understanding</a> · Ren et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.18445" target="_blank" rel="noopener noreferrer">VTimeLLM: Empower LLM to Grasp Video Moments</a> · Huang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2402.11435" target="_blank" rel="noopener noreferrer">Momentor: Advancing Video Large Language Model with Fine-Grained Temporal Reasoning</a> · Qian et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.13382" target="_blank" rel="noopener noreferrer">VTG-LLM: Integrating Timestamp Knowledge into Video LLMs for Enhanced Video Temporal Grounding</a> · Guo et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.03290" target="_blank" rel="noopener noreferrer">Grounded-VideoLLM: Sharpening Fine-grained Temporal Grounding in Video Large Language Models</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.05643" target="_blank" rel="noopener noreferrer">TRACE: Temporal Grounding Video LLM via Causal Event Modeling</a> · Guo et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Video data</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1906.03327" target="_blank" rel="noopener noreferrer">HowTo100M: Learning a Text-Video Embedding by Watching Hundred Million Narrated Video Clips</a> · Miech et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2104.00650" target="_blank" rel="noopener noreferrer">Frozen in Time: A Joint Video and Image Encoder for End-to-End Retrieval (WebVid-2M)</a> · Bain et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2110.07058" target="_blank" rel="noopener noreferrer">Ego4D: Around the World in 3,000 Hours of Egocentric Video</a> · Grauman et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2307.06942" target="_blank" rel="noopener noreferrer">InternVid: A Large-scale Video-Text Dataset for Multimodal Understanding and Generation</a> · Wang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2402.19479" target="_blank" rel="noopener noreferrer">Panda-70M: Captioning 70M Videos with Multiple Cross-Modality Teachers</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.04325" target="_blank" rel="noopener noreferrer">ShareGPT4Video: Improving Video Understanding and Generation with Better Captions</a> · Chen et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Benchmarks and the single-frame shortcut</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1906.02467" target="_blank" rel="noopener noreferrer">ActivityNet-QA: A Dataset for Understanding Complex Web Videos via Question Answering</a> · Yu et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2105.08276" target="_blank" rel="noopener noreferrer">NExT-QA: Next Phase of Question-Answering to Explaining Temporal Actions</a> · Xiao et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2206.03428" target="_blank" rel="noopener noreferrer">Revealing Single Frame Bias for Video-and-Language Learning</a> · Lei et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2206.01720" target="_blank" rel="noopener noreferrer">Revisiting the "Video" in Video-Language Understanding (ATP)</a> · Buch et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2305.13786" target="_blank" rel="noopener noreferrer">Perception Test: A Diagnostic Benchmark for Multimodal Video Models</a> · Pătrăucean et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2308.09126" target="_blank" rel="noopener noreferrer">EgoSchema: A Diagnostic Benchmark for Very Long-form Video Language Understanding</a> · Mangalam et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.17005" target="_blank" rel="noopener noreferrer">MVBench: A Comprehensive Multi-modal Video Understanding Benchmark</a> · Li et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.00476" target="_blank" rel="noopener noreferrer">TempCompass: Do Video LLMs Really Understand Videos?</a> · Liu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2405.21075" target="_blank" rel="noopener noreferrer">Video-MME: The First-Ever Comprehensive Evaluation Benchmark of Multi-modal LLMs in Video Analysis</a> · Fu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.04264" target="_blank" rel="noopener noreferrer">MLVU: Benchmarking Multi-task Long Video Understanding</a> · Zhou et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.08035" target="_blank" rel="noopener noreferrer">LVBench: An Extreme Long Video Understanding Benchmark</a> · Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2407.15754" target="_blank" rel="noopener noreferrer">LongVideoBench: A Benchmark for Long-context Interleaved Video-Language Understanding</a> · Wu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.02763" target="_blank" rel="noopener noreferrer">Vinoground: Scrutinizing LMMs over Dense Temporal Reasoning with Short Videos</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.10818" target="_blank" rel="noopener noreferrer">TemporalBench: Benchmarking Fine-grained Temporal Understanding for Multimodal Video Models</a> · Cai et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2411.04998" target="_blank" rel="noopener noreferrer">HourVideo: 1-Hour Video-Language Understanding</a> · Chandrasegaran et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Reinforcement learning, streaming and audio</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2503.21776" target="_blank" rel="noopener noreferrer">Video-R1: Reinforcing Video Reasoning in MLLMs</a> · Feng et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2406.11816" target="_blank" rel="noopener noreferrer">VideoLLM-online: Online Video Large Language Model for Streaming Video</a> · Chen et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.08085" target="_blank" rel="noopener noreferrer">Flash-VStream: Memory-Based Real-Time Understanding for Long Video Streams</a> · Zhang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.03218" target="_blank" rel="noopener noreferrer">Dispider: Enabling Video LLMs with Active Real-Time Interaction via Disentangled Perception, Decision, and Reaction</a> · Qian et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2411.03628" target="_blank" rel="noopener noreferrer">StreamingBench: Assessing the Gap for MLLMs to Achieve Streaming Video Understanding</a> · Lin et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.20215" target="_blank" rel="noopener noreferrer">Qwen2.5-Omni Technical Report</a> · Xu et al., 2025</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026, November 6). <cite>Seeing in Time: Video Understanding in Vision-Language Models</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/seeing-in-time/">https://srini-anirudh.github.io/blogs/seeing-in-time/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026seeingintime,
+  author       = {Srinivasan, Anirudh},
+  title        = {Seeing in Time: Video Understanding in Vision-Language Models},
+  year         = {2026},
+  month        = {Nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/seeing-in-time/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Seeing in Time</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+(function () {
+  "use strict";
+  var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var C = { paper: "#f7f6f3", paper2: "#efede9", ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f", faint: "#e6e2da" };
+  window.__figs = window.__figs || {};
+
+  /* ---------- small helpers ---------- */
+  function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+  function mix(sa, sb, t) {
+    var o = {}, k;
+    for (k in sb) {
+      var a = sa[k], b = sb[k];
+      if (typeof b === "number" && typeof a === "number") o[k] = lerp(a, b, t);
+      else if (Array.isArray(b) && Array.isArray(a) && a.length === b.length) o[k] = b.map(function (v, i) { return typeof v === "number" ? lerp(a[i], v, t) : (t < 0.5 ? a[i] : v); });
+      else o[k] = t < 0.5 && a !== undefined ? a : b;
+    }
+    return o;
+  }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function T(x, y, s, o) {
+    o = o || {};
+    return '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" font-size="' + (o.size || 16) + '" fill="' + (o.fill || C.ink) + '"' +
+      (o.anchor ? ' text-anchor="' + o.anchor + '"' : "") + (o.weight ? ' font-weight="' + o.weight + '"' : "") +
+      (o.op !== undefined ? ' opacity="' + o.op.toFixed(3) + '"' : "") + (o.family ? ' style="font-family:' + o.family.replace(/"/g, "") + '"' : "") +
+      (o.extra || "") + ">" + esc(s) + "</text>";
+  }
+  function R(x, y, w, h, o) {
+    o = o || {};
+    return '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + Math.max(0, w).toFixed(1) + '" height="' + Math.max(0, h).toFixed(1) + '"' +
+      ' fill="' + (o.fill || "none") + '"' + (o.stroke ? ' stroke="' + o.stroke + '" stroke-width="' + (o.sw || 1) + '"' : "") +
+      (o.rx ? ' rx="' + o.rx + '"' : "") + (o.op !== undefined ? ' opacity="' + o.op.toFixed(3) + '"' : "") + (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") + (o.extra || "") + "/>";
+  }
+  function L(x1, y1, x2, y2, o) {
+    o = o || {};
+    return '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="' + (o.stroke || C.ink) + '" stroke-width="' + (o.sw || 1) + '"' +
+      (o.dash ? ' stroke-dasharray="' + o.dash + '"' : "") + (o.op !== undefined ? ' opacity="' + o.op.toFixed(3) + '"' : "") + (o.cap ? ' stroke-linecap="round"' : "") + (o.marker ? ' marker-end="url(#' + o.marker + ')"' : "") + "/>";
+  }
+  function fmt(n) { return Math.round(n).toLocaleString("en-US"); }
+  function short(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M";
+    if (n >= 1e3) return (n / 1e3).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, "") + "K";
+    return String(Math.round(n));
+  }
+  function arrowDefs(id, color) {
+    return '<defs><marker id="' + id + '" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="' + color + '"/></marker></defs>';
+  }
+
+  /* ---------- the clip: one minute, ball and cup ---------- */
+  var EVENTS = [
+    { name: "ball rolls", s: 8, e: 20 },
+    { name: "ball drops", s: 20, e: 21.5 },
+    { name: "cup picked up", s: 40, e: 44 },
+    { name: "person drinks", s: 44, e: 50 },
+    { name: "cup put down", s: 52, e: 53 }
+  ];
+  function P(a, b, u) { return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u) }; }
+  function sceneAt(t) {
+    var bx, by = 53;
+    if (t < 8) bx = 95;
+    else if (t < 20) bx = 95 + (t - 8) / 12 * 35;
+    else if (t < 21.5) { var u = (t - 20) / 1.5; bx = 130 + u * 12; by = 53 + u * u * 38; }
+    else { bx = 142 + Math.min(1, (t - 21.5) / 2) * 6; by = 91; }
+    var px, moving = 0;
+    if (t < 28) px = -30;
+    else if (t < 36) { px = -30 + (t - 28) / 8 * 62; moving = 1; }
+    else if (t < 55) px = 32;
+    else { px = 32 - (t - 55) / 5 * 62; moving = 1; }
+    var cupT = { x: 62, y: 47 }, rest = { x: px + 9, y: 62 }, cup = cupT, hand = rest;
+    var mouth = { x: px + 7, y: 27 }, low = { x: px + 15, y: 39 };
+    if (t >= 40 && t < 42) { hand = P(rest, { x: 63, y: 52 }, (t - 40) / 2); }
+    else if (t >= 42 && t < 44) { cup = P(cupT, low, (t - 42) / 2); hand = { x: cup.x + 1, y: cup.y + 6 }; }
+    else if (t >= 44 && t < 50) { cup = P(low, mouth, clamp((t - 44) / 1.2, 0, 1)); hand = { x: cup.x + 1, y: cup.y + 6 }; }
+    else if (t >= 50 && t < 52) { cup = P(mouth, low, (t - 50) / 2); hand = { x: cup.x + 1, y: cup.y + 6 }; }
+    else if (t >= 52 && t < 53) { cup = P(low, cupT, t - 52); hand = { x: cup.x + 1, y: cup.y + 6 }; }
+    else if (t >= 53 && t < 54) { hand = P({ x: 63, y: 53 }, rest, t - 53); }
+    return { bx: bx, by: by, px: px, moving: moving, cup: cup, hand: hand, t: t };
+  }
+  function scene(t, x, y, w, h, opts) {
+    opts = opts || {};
+    var s = sceneAt(t), out = [];
+    out.push('<svg x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" viewBox="0 0 160 110" preserveAspectRatio="none">');
+    out.push('<rect x="0" y="0" width="160" height="110" fill="' + (opts.bg || "#fbfaf7") + '"/>');
+    out.push('<line x1="0" y1="96" x2="160" y2="96" stroke="#bdb7ab" stroke-width="1.5"/>');
+    out.push('<rect x="50" y="58" width="82" height="5" fill="#8a7f70"/><rect x="56" y="63" width="4" height="33" fill="#8a7f70"/><rect x="122" y="63" width="4" height="33" fill="#8a7f70"/>');
+    var sw = s.moving ? Math.sin(t * 5) * 6 : 0;
+    if (s.px > -25) {
+      out.push('<g stroke="#14171a" stroke-width="2.4" stroke-linecap="round" fill="none">' +
+        '<circle cx="' + s.px + '" cy="30" r="6.5" fill="#fbfaf7"/>' +
+        '<line x1="' + s.px + '" y1="37" x2="' + s.px + '" y2="67"/>' +
+        '<line x1="' + s.px + '" y1="67" x2="' + (s.px - 6 + sw) + '" y2="95"/>' +
+        '<line x1="' + s.px + '" y1="67" x2="' + (s.px + 6 - sw) + '" y2="95"/>' +
+        '<line x1="' + s.px + '" y1="44" x2="' + s.hand.x.toFixed(1) + '" y2="' + s.hand.y.toFixed(1) + '"/></g>');
+    }
+    out.push('<g><rect x="' + s.cup.x.toFixed(1) + '" y="' + s.cup.y.toFixed(1) + '" width="10" height="11" rx="1.5" fill="#d66f00"/>' +
+      '<path d="M' + (s.cup.x + 10).toFixed(1) + ',' + (s.cup.y + 2.5).toFixed(1) + ' q5,3 0,6" fill="none" stroke="#d66f00" stroke-width="2"/></g>');
+    var rot = (s.bx - 95) / 5;
+    out.push('<circle cx="' + s.bx.toFixed(1) + '" cy="' + s.by.toFixed(1) + '" r="5.5" fill="#0b5ea8"/>' +
+      '<line x1="' + s.bx.toFixed(1) + '" y1="' + s.by.toFixed(1) + '" x2="' + (s.bx + 5 * Math.cos(rot)).toFixed(1) + '" y2="' + (s.by + 5 * Math.sin(rot)).toFixed(1) + '" stroke="#fbfaf7" stroke-width="1.6"/>');
+    out.push("</svg>");
+    if (opts.frame !== false) out.push(R(x, y, w, h, { stroke: opts.stroke || C.rule, sw: opts.sw || 1 }));
+    return out.join("");
+  }
+
+  /* ---------- shared stepper (animation contract) ---------- */
+  function Stepper(id, cfg) {
+    var fig = document.getElementById(id);
+    if (!fig) return null;
+    var svg = fig.querySelector(".stage > svg"), note = fig.querySelector(".step-note"), box = fig.querySelector('.animation-controls[data-for="' + id + '"]');
+    var n = cfg.states.length, idx = 0, cur = (cfg.initial && !RM) ? cfg.initial : cfg.states[0], firstPlay = !!cfg.initial, speed = 1, playing = false, userPaused = false, visible = false, raf = 0, timer = 0;
+    var HOLD = cfg.hold || 2600, TW = cfg.tween || 1100;
+    box.innerHTML =
+      '<button type="button" data-action="previous" aria-label="Previous animation step">Previous</button>' +
+      '<button type="button" data-action="play-pause" aria-label="Play animation" aria-pressed="false">Play</button>' +
+      '<button type="button" data-action="next" aria-label="Next animation step">Next</button>' +
+      '<button type="button" data-speed="0.5" aria-label="Play animation at half speed" aria-pressed="false">0.5x</button>' +
+      '<button type="button" data-speed="1" aria-label="Play animation at normal speed" aria-pressed="true">1x</button>' +
+      '<button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>' +
+      '<span class="animation-status" aria-live="polite"></span>';
+    var bPlay = box.querySelector('[data-action="play-pause"]'), status = box.querySelector(".animation-status");
+    function pad(k) { return (k < 10 ? "0" : "") + k; }
+    function paint(st) { svg.innerHTML = cfg.draw(st, svg); }
+    function label() {
+      status.textContent = "Step " + pad(idx + 1) + " / " + pad(n);
+      if (note && cfg.notes) note.textContent = cfg.notes[idx];
+      bPlay.textContent = playing ? "Pause" : "Play";
+      bPlay.setAttribute("aria-pressed", playing ? "true" : "false");
+      bPlay.setAttribute("aria-label", playing ? "Pause animation" : "Play animation");
+    }
+    function stopTween() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+    function go(i, instant) {
+      i = (i + n) % n;
+      var from = cur, to = cfg.states[i];
+      idx = i; label(); stopTween(); clearTimeout(timer);
+      if (instant || RM) { cur = to; paint(cur); schedule(); return; }
+      var t0 = performance.now(), dur = TW / speed;
+      (function frame(now) {
+        var u = clamp((now - t0) / dur, 0, 1);
+        cur = mix(from, to, ease(u)); paint(cur);
+        if (u < 1) raf = requestAnimationFrame(frame); else { raf = 0; cur = to; schedule(); }
+      })(t0);
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (playing) timer = setTimeout(function () { go(idx + 1); }, (HOLD * (idx === n - 1 ? 1.5 : 1)) / speed);
+    }
+    function play() { if (RM) return; playing = true; label(); if (firstPlay) { firstPlay = false; timer = setTimeout(function () { go(0); }, 300); return; } schedule(); }
+    function pause() { playing = false; clearTimeout(timer); label(); }
+    box.addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      firstPlay = false;
+      if (b.dataset.action === "previous") { userPaused = true; pause(); go(idx - 1); }
+      else if (b.dataset.action === "next") { userPaused = true; pause(); go(idx + 1); }
+      else if (b.dataset.action === "play-pause") { if (playing) { userPaused = true; pause(); } else { userPaused = false; playing = true; label(); go(idx + 1); } }
+      else if (b.dataset.speed) {
+        speed = parseFloat(b.dataset.speed);
+        box.querySelectorAll("[data-speed]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        schedule();
+      }
+    });
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (en) {
+          visible = en.intersectionRatio >= 0.5;
+          if (visible && !userPaused && !playing && !RM) play();
+          if (!visible && playing) pause();
+        });
+      }, { threshold: [0, 0.5, 1] }).observe(fig);
+    }
+    paint(cur); label();
+    var api = {
+      n: n, go: function (i) { go(i, true); }, pause: function () { userPaused = true; pause(); },
+      seek: function (x) { var i = Math.floor(x), a = x - i; i = clamp(i, 0, n - 1); var j = Math.min(i + 1, n - 1); idx = i; label(); paint(mix(cfg.states[i], cfg.states[j], ease(a))); },
+      interrupt: function () { userPaused = true; pause(); },
+      blend: function (i, j, a) { idx = a < 0.5 ? i : j; label(); paint(mix(cfg.states[i], cfg.states[j], ease(a))); },
+      custom: function (state, text) {
+        userPaused = true; pause(); stopTween(); clearTimeout(timer); firstPlay = false;
+        var from = cur;
+        if (note && text) note.textContent = text;
+        status.textContent = "Custom arrangement";
+        if (RM) { cur = state; paint(cur); return; }
+        var t0 = performance.now(), dur = TW / speed;
+        (function frame(now) { var u = clamp((now - t0) / dur, 0, 1); cur = mix(from, state, ease(u)); paint(cur); if (u < 1) raf = requestAnimationFrame(frame); else { raf = 0; cur = state; } })(t0);
+      }
+    };
+    window.__figs[id] = api;
+    return api;
+  }
+
+  window.__VIS = { C: C, T: T, R: R, L: L, fmt: fmt, short: short, scene: scene, sceneAt: sceneAt, EVENTS: EVENTS, Stepper: Stepper, clamp: clamp, lerp: lerp, ease: ease, arrowDefs: arrowDefs, RM: RM };
+})();
+
+(function () {
+  "use strict";
+  var V = window.__VIS, C = V.C, T = V.T, R = V.R, L = V.L;
+
+  /* ================= Figure 1: the clip and five questions ================= */
+  (function () {
+    var FT = []; for (var i = 0; i < 12; i++) FT.push(2.5 + i * 5);
+    var Q = [
+      ["", ""],
+      ["What colour is the cup?", "needs: any one frame. This is an image question."],
+      ["Which way did the ball roll?", "needs: two ordered frames inside the roll."],
+      ["Did the ball fall before the cup was picked up?", "needs: frames from both events, and their order."],
+      ["How long did the person hold the cup?", "needs: the start and end of the hold, in seconds."],
+      ["When exactly did the ball hit the floor?", "needs: a frame inside a 1.5-second window. None of these twelve lands there."],
+      ["appearance · motion · order · duration · moment", "Only the first is an image question. The other four are about time."]
+    ];
+    function z(a) { var o = []; for (var i = 0; i < 12; i++) o.push(a.indexOf(i) >= 0 ? 1 : 0); return o; }
+    var S = [
+      { rev: 12, hl: z([]), w0: 0, w1: 60, q: "0", qa: 0, ann: "none", annA: 0, annB: 0 },
+      { rev: 12, hl: z([2]), w0: 0, w1: 60, q: "1", qa: 1, ann: "one", annA: 2, annB: 2 },
+      { rev: 12, hl: z([2, 3]), w0: 0, w1: 60, q: "2", qa: 1, ann: "dir", annA: 2, annB: 3 },
+      { rev: 12, hl: z([4, 8]), w0: 0, w1: 60, q: "3", qa: 1, ann: "order", annA: 4, annB: 8 },
+      { rev: 12, hl: z([8, 9, 10]), w0: 0, w1: 60, q: "4", qa: 1, ann: "dur", annA: 8, annB: 10 },
+      { rev: 12, hl: z([3, 4]), w0: 14, w1: 28, q: "5", qa: 1, ann: "miss", annA: 3, annB: 4 },
+      { rev: 12, hl: z([]), w0: 0, w1: 60, q: "6", qa: 1, ann: "none", annA: 0, annB: 0 }
+    ];
+    var start = Object.assign({}, S[0], { rev: 0 });
+    var notes = [
+      "The clip: a ball rolls off the table, then a person picks up the cup, drinks and puts it down. Twelve frames, one every five seconds.",
+      "Appearance. Any one frame shows the orange cup. A single image is enough.",
+      "Motion. The ball's direction exists only between two frames inside the roll, and only if the model knows which frame came first.",
+      "Order. The ball is on the floor at 22.5 s and the cup is in hand at 42.5 s. The model needs both frames and their sequence positions.",
+      "Duration. The hold spans roughly 42 to 53 seconds. Frame indices are not enough; the model needs a clock.",
+      "Moment. Zoomed in, the drop lasts from 20 to 21.5 s. The nearest sampled frames are at 17.5 s and 22.5 s, so the event is invisible.",
+      "Four of the five questions are about time: order, motion, duration and moments. Each one pulls the token budget in a different direction."
+    ];
+    var X0 = 175, X1 = 975;
+    function draw(s) {
+      var o = [];
+      o.push(V.arrowDefs("f1a", C.orange));
+      o.push('<clipPath id="f1clip"><rect x="' + X0 + '" y="175" width="' + (X1 - X0) + '" height="135"/></clipPath>');
+      o.push(T(12, 16, "60-second clip · one frame every 5 seconds shown", { size: 15, fill: C.muted }));
+      o.push(R(10, 24, 980, 96, { fill: "#e7e3db" }));
+      for (var h = 0; h < 49; h++) { o.push(R(16 + h * 20, 28, 9, 6, { fill: "#f7f6f3" })); o.push(R(16 + h * 20, 110, 9, 6, { fill: "#f7f6f3" })); }
+      for (var i = 0; i < 12; i++) {
+        var a = V.clamp(s.rev - i, 0, 1);
+        if (a <= 0) continue;
+        var x = 21 + i * 80, y = 44;
+        o.push('<g opacity="' + a.toFixed(3) + '">' + V.scene(FT[i], x, y + (1 - a) * 10, 74, 51) + "</g>");
+        var dim = s.qa * (1 - s.hl[i]) * (s.q === "6" ? 0 : 0.55);
+        if (dim > 0.01) o.push(R(x, y, 74, 51, { fill: "#e7e3db", op: dim }));
+        if (s.hl[i] > 0.01) o.push(R(x - 3, y - 3, 80, 57, { stroke: C.orange, sw: 3, op: s.hl[i] }));
+        o.push(T(x + 37, 139, FT[i] + " s", { size: 15, anchor: "middle", fill: s.hl[i] > 0.5 ? C.orange : C.soft, op: a }));
+      }
+      // annotation
+      var cx = function (k) { return 21 + k * 80 + 37; };
+      if (s.ann === "dir" || s.ann === "order" || s.ann === "dur") {
+        var xa = cx(Math.round(s.annA)), xb = cx(Math.round(s.annB));
+        o.push(L(xa, 150, xb - 4, 150, { stroke: C.orange, sw: 2, marker: "f1a" }));
+        var lab = s.ann === "dir" ? "ball moved right" : s.ann === "order" ? "fall comes before pick-up" : "hold ≈ 10 s: needs a clock";
+        o.push(T((xa + xb) / 2, 168, lab, { size: 15, anchor: "middle", fill: C.orange, weight: 600 }));
+      } else if (s.ann === "one") {
+        o.push(T(cx(2), 162, "any frame works", { size: 15, anchor: "middle", fill: C.orange, weight: 600 }));
+      }
+      // timeline
+      var w0 = s.w0, w1 = s.w1, sx = function (t) { return X0 + (t - w0) / (w1 - w0) * (X1 - X0); };
+      o.push('<g clip-path="url(#f1clip)">');
+      V.EVENTS.forEach(function (ev, k) {
+        var y = 182 + k * 23;
+        o.push(R(X0, y, X1 - X0, 16, { fill: "#efede9" }));
+        var x1 = sx(ev.s), x2 = sx(ev.e);
+        o.push(R(x1, y, Math.max(2, x2 - x1), 16, { fill: k < 2 ? C.blue : C.ink, op: k < 2 ? 0.85 : 0.7 }));
+      });
+      FT.forEach(function (t, k) {
+        var x = sx(t); if (x < X0 - 2 || x > X1 + 2) return;
+        o.push(L(x, 178, x, 300, { stroke: s.hl[k] > 0.5 ? C.orange : C.muted, sw: s.hl[k] > 0.5 ? 2 : 1, dash: "4 3", op: 0.9 }));
+      });
+      if (s.ann === "miss") {
+        var mx1 = sx(20), mx2 = sx(21.5);
+        o.push(R(mx1, 202, mx2 - mx1, 22, { stroke: C.red, sw: 2.5, op: s.qa }));
+        o.push(T(mx2 + 8, 219, "no sampled frame here", { size: 15, fill: C.red, weight: 600, op: s.qa }));
+      }
+      o.push("</g>");
+      V.EVENTS.forEach(function (ev, k) { o.push(T(12, 182 + k * 23 + 13, ev.name, { size: 15, fill: C.soft })); });
+      o.push(L(X0, 304, X1, 304, { stroke: C.ink }));
+      var step = (w1 - w0) > 30 ? 10 : 2;
+      for (var tt = Math.ceil(w0 / step) * step; tt <= w1 + 0.001; tt += step) {
+        var xx = sx(tt); o.push(L(xx, 304, xx, 310, { stroke: C.ink })); o.push(T(xx, 326, tt + " s", { size: 15, anchor: "middle", fill: C.soft }));
+      }
+      // question panel
+      o.push(R(10, 338, 980, 86, { fill: "#efede9" }));
+      var q = Q[parseInt(s.q, 10)];
+      if (s.q !== "0") {
+        o.push(T(26, 372, q[0], { size: 21, weight: 700, family: "Bricolage Grotesque, system-ui, sans-serif", op: s.qa }));
+        o.push(T(26, 404, q[1], { size: 16, fill: C.soft, op: s.qa }));
+      } else {
+        o.push(T(26, 386, "Five questions follow. Watch which frames each one needs.", { size: 17, fill: C.soft }));
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-clip", { states: S, initial: start, notes: notes, draw: draw, hold: 3000, tween: 1300 });
+  })();
+
+  /* ================= Figure 2: token budget on a log axis ================= */
+  (function () {
+    var ROWS = [
+      { lab: "1 image", n: 256 },
+      { lab: "8 frames", n: 2048 },
+      { lab: "1 min @ 2 fps", n: 30720 },
+      { lab: "10 min @ 2 fps", n: 307200 },
+      { lab: "1 hour @ 2 fps", n: 1843200 },
+      { lab: "3 h @ 1 fps, 66/frame", n: 712800 }
+    ];
+    var WIN = [{ lab: "32K", n: 32768 }, { lab: "128K", n: 131072 }, { lab: "1M", n: 1000000 }];
+    var X0 = 250, X1 = 960;
+    function st(k, dmax, extra) { var g = [0, 0, 0, 0, 0, 0]; for (var i = 0; i <= k; i++) g[i] = 1; var o = { g: g, dmax: dmax, att: 0, low: 0 }; return Object.assign(o, extra || {}); }
+    var S = [st(0, 4), st(1, 4.2), st(2, 5), st(3, 6), st(4, 6.6), Object.assign(st(5, 6.6), { low: 1 }), Object.assign(st(5, 6.6), { low: 1, att: 1 })];
+    S[5].g = [1, 1, 1, 1, 1, 1]; S[6].g = [1, 1, 1, 1, 1, 1];
+    var notes = [
+      "One 448×448 image: 256 tokens after a 2×2 merge.",
+      "Eight frames, the budget of early video LLMs: 2,048 tokens.",
+      "One minute at 2 frames per second: 120 frames and 30,720 tokens. The axis zooms out.",
+      "Ten minutes: 307,200 tokens. Already past a 128K context window.",
+      "One hour: 1,843,200 tokens. Past a one-million-token window.",
+      "Gemini 2.5's low media resolution: 66 tokens per frame at 1 frame per second fits about three hours under one million tokens.",
+      "Attention compares every pair of tokens. One hour has 60 times the tokens of one minute, so about 3,600 times the attention cost."
+    ];
+    function draw(s) {
+      var o = [], lo = 2, hi = s.dmax;
+      var sx = function (n) { return X0 + (Math.log10(Math.max(n, 1)) - lo) / (hi - lo) * (X1 - X0); };
+      o.push(T(12, 22, "visual tokens (log scale) · 256 tokens per frame unless noted", { size: 15, fill: C.muted }));
+      // grid decades
+      for (var d = 2; d <= 7; d++) {
+        var x = sx(Math.pow(10, d)); if (x > X1 + 1) continue;
+        o.push(L(x, 40, x, 330, { stroke: C.faint }));
+        o.push(T(x, 352, d === 2 ? "100" : d === 3 ? "1K" : d === 4 ? "10K" : d === 5 ? "100K" : d === 6 ? "1M" : "10M", { size: 15, anchor: "middle", fill: C.muted }));
+      }
+      o.push(T(988, 22, "dashed: context windows", { size: 15, fill: C.orange, anchor: "end" }));
+      WIN.forEach(function (w) {
+        var x = sx(w.n); if (x > X1 + 1) return;
+        o.push(L(x, 40, x, 330, { stroke: C.orange, sw: 1.5, dash: "6 4" }));
+        o.push(T(x + 5, 54, w.lab, { size: 15, fill: C.orange, weight: 600 }));
+      });
+      ROWS.forEach(function (r, i) {
+        var y = 70 + i * 44, g = s.g[i]; if (g < 0.01) return;
+        if (i === 5 && s.low < 0.01) return;
+        var w = (sx(r.n) - X0) * g, over = r.n > 1000000, col = i === 5 ? C.green : over ? C.red : r.n > 131072 ? "#9a6a12" : C.blue;
+        o.push(T(12, y + 21, r.lab, { size: 15, fill: C.ink, op: i === 5 ? s.low : g }));
+        o.push(R(X0, y + 4, Math.min(w, X1 - X0 + 30), 26, { fill: col, op: (i === 5 ? s.low : 1) * 0.9 }));
+        if (g > 0.6) o.push(T(Math.min(X0 + w + 8, 975), y + 23, V.short(r.n), { size: 15, fill: col, weight: 600, anchor: X0 + w + 70 > 990 ? "end" : "start", op: (g - 0.6) / 0.4 * (i === 5 ? s.low : 1) }));
+      });
+      if (s.att > 0.01) {
+        o.push(R(0, 30, 1000, 340, { fill: "#f7f6f3", op: 0.72 * s.att }));
+        o.push(R(260, 120, 560, 92, { fill: "#f7f6f3", stroke: C.ink, sw: 1.5, op: s.att }));
+        o.push(T(280, 152, "attention cost ∝ N²", { size: 19, weight: 700, op: s.att, family: "Bricolage Grotesque, system-ui, sans-serif" }));
+        o.push(T(280, 182, "1 hour ÷ 1 minute: 60× the tokens,", { size: 16, fill: C.soft, op: s.att }));
+        o.push(T(280, 202, "about 3,600× the attention", { size: 16, fill: C.red, weight: 600, op: s.att }));
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-budget", { states: S, notes: notes, draw: draw });
+  })();
+
+  /* ================= Figure 3: interactive frame sampling ================= */
+  (function () {
+    var svg = document.getElementById("svg-sampling"); if (!svg) return;
+    var UN = [2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256], FPS = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 3, 4, 6, 8, 10];
+    var mode = "uniform", k = 2, tpf = 256;
+    var slider = document.getElementById("smp-k"), out = document.getElementById("smp-k-out"), lab = document.getElementById("smp-k-label"), sel = document.getElementById("smp-tpf");
+    slider.max = 11; slider.value = k;
+    var X0 = 175, X1 = 975;
+    function times() {
+      var t = [];
+      if (mode === "uniform") { var N = UN[k]; for (var i = 0; i < N; i++) t.push((i + 0.5) * 60 / N); }
+      else { var f = FPS[k], dt = 1 / f; for (var j = 0; j * dt + dt / 2 < 60; j++) t.push(j * dt + dt / 2); }
+      return t;
+    }
+    function render() {
+      var ts = times(), o = [], sx = function (t) { return X0 + t / 60 * (X1 - X0); };
+      out.textContent = mode === "uniform" ? String(UN[k]) : FPS[k] + " fps";
+      lab.textContent = mode === "uniform" ? "frames N" : "frame rate";
+      slider.setAttribute("aria-valuetext", out.textContent);
+      // thumbnails if few frames
+      if (ts.length <= 12) {
+        ts.forEach(function (t) { var x = V.clamp(sx(t) - 33, X0 - 30, X1 - 66); o.push(V.scene(t, x, 6, 66, 45)); });
+      } else {
+        o.push(T(X0, 34, ts.length + " frames: thumbnails hidden, ticks below", { size: 15, fill: C.muted }));
+      }
+      var seen = 0, roll = 0;
+      V.EVENTS.forEach(function (ev, i) {
+        var y = 66 + i * 30, hit = ts.some(function (t) { return t >= ev.s && t <= ev.e; });
+        if (hit) seen++;
+        if (i === 0) roll = ts.filter(function (t) { return t >= ev.s && t <= ev.e; }).length;
+        o.push(T(12, y + 16, ev.name, { size: 15, fill: C.soft }));
+        o.push(R(X0, y, X1 - X0, 22, { fill: "#efede9" }));
+        var x1 = sx(ev.s), x2 = sx(ev.e);
+        o.push(R(x1, y, Math.max(3, x2 - x1), 22, { fill: hit ? C.green : "#f7f6f3", stroke: hit ? C.green : C.red, sw: 2 }));
+        var lx = x2 + 8, anchor = "start"; if (lx > X1 - 70) { lx = x1 - 8; anchor = "end"; }
+        o.push(T(lx, y + 16, hit ? "seen" : "missed", { size: 15, fill: hit ? C.green : C.red, weight: 600, anchor: anchor }));
+      });
+      ts.forEach(function (t) { var x = sx(t); o.push(L(x, 58, x, 220, { stroke: C.orange, sw: ts.length > 100 ? 0.6 : 1.4, op: 0.85 })); });
+      o.push(L(X0, 224, X1, 224, { stroke: C.ink }));
+      for (var tt = 0; tt <= 60; tt += 10) { var xx = sx(tt); o.push(L(xx, 224, xx, 230, { stroke: C.ink })); o.push(T(xx, 248, tt + " s", { size: 15, anchor: "middle", fill: C.soft })); }
+      o.push(T(12, 248, "time", { size: 15, fill: C.muted }));
+      var gap = mode === "uniform" ? 60 / UN[k] : 1 / FPS[k];
+      o.push(T(X1, 284, "one frame every " + (gap >= 1 ? gap.toFixed(gap < 10 ? 1 : 0) : gap.toFixed(2)) + " s on this clip", { size: 15, anchor: "end", fill: C.ink, weight: 600 }));
+      svg.innerHTML = o.join("");
+      var n = ts.length, tok = n * tpf;
+      document.getElementById("r-frames").textContent = V.fmt(n);
+      document.getElementById("r-tokens").textContent = V.fmt(tok);
+      var ev = document.getElementById("r-events"); ev.textContent = seen + " / 5"; ev.className = seen === 5 ? "ok" : "warn";
+      var d = document.getElementById("r-dir"); d.textContent = roll >= 2 ? "yes (" + roll + " frames in roll)" : "no"; d.className = roll >= 2 ? "ok" : "warn";
+      var hr = document.getElementById("r-hour");
+      if (mode === "uniform") { var g = 3600 / UN[k]; hr.textContent = V.fmt(tok) + " tokens, 1 frame per " + (g >= 60 ? (g / 60).toFixed(g >= 600 ? 0 : 1) + " min" : g.toFixed(0) + " s"); hr.className = g > 30 ? "warn" : ""; }
+      else { var ht = Math.round(3600 * FPS[k]) * tpf; hr.textContent = V.fmt(ht) + " tokens"; hr.className = ht > 131072 ? "warn" : ""; }
+    }
+    document.querySelectorAll("#fig-sampling [data-mode]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        mode = b.dataset.mode;
+        document.querySelectorAll("#fig-sampling [data-mode]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        k = mode === "uniform" ? 2 : 5; slider.value = k; render();
+      });
+    });
+    slider.addEventListener("input", function () { k = parseInt(slider.value, 10); render(); });
+    sel.addEventListener("change", function () { tpf = parseInt(sel.value, 10); render(); });
+    render();
+  })();
+})();
+
+(function () {
+  "use strict";
+  var V = window.__VIS, C = V.C, T = V.T, R = V.R, L = V.L, DISP = "Bricolage Grotesque, system-ui, sans-serif";
+
+  /* ================= Figure 4: tubelets ================= */
+  (function () {
+    var FT = [10, 12.5, 15, 17.5], FW = 150, FH = 103;
+    var S = [
+      { grid4: 0, grid2: 0, pair: 0, tok: 0, tokOp: 0, tube: 0, lab: "0" },
+      { grid4: 1, grid2: 0, pair: 0, tok: 64, tokOp: 1, tube: 0, lab: "1" },
+      { grid4: 1, grid2: 0, pair: 1, tok: 32, tokOp: 1, tube: 1, lab: "2" },
+      { grid4: 0, grid2: 1, pair: 1, tok: 8, tokOp: 1, tube: 1, lab: "3" },
+      { grid4: 0, grid2: 1, pair: 1, tok: 8, tokOp: 1, tube: 1, lab: "4" }
+    ];
+    var notes = [
+      "Four sampled frames from the roll, 2.5 seconds apart.",
+      "Per-frame patching: each frame is cut into a 4×4 grid. Four frames give 64 tokens, and no token sees two frames.",
+      "Tubelets of depth 2: the same patch in two consecutive frames becomes one token. 32 tokens, and each one can see the ball move inside its tube.",
+      "A 2×2 spatial merge on top: each group of four neighbouring tubes becomes one token. 8 tokens.",
+      "This is Qwen2-VL's recipe: a 3D convolution of depth 2, then a 2×2 merge. Eight times fewer tokens than per-frame patches, before any other compression."
+    ];
+    var LABS = { "0": "", "1": "per-frame patches: 4 frames × 16 = 64 tokens", "2": "tubelets of depth 2: 2 tubes × 16 = 32 tokens", "3": "plus 2×2 merge: 2 × 4 = 8 tokens", "4": "3D patch (depth 2) + 2×2 merge = 8× fewer tokens" };
+    function pos(i, p) {
+      var bx = 20 + i * 165, by = 96;
+      if (i % 2 === 1) { var tx = 20 + (i - 1) * 165 + 34, ty = 62; return { x: V.lerp(bx, tx, p), y: V.lerp(by, ty, p) }; }
+      return { x: bx, y: by };
+    }
+    function grid(x, y, n, op, col) {
+      var o = [];
+      for (var k = 1; k < n; k++) {
+        o.push(L(x + k * FW / n, y, x + k * FW / n, y + FH, { stroke: col, sw: 1.5, op: op }));
+        o.push(L(x, y + k * FH / n, x + FW, y + k * FH / n, { stroke: col, sw: 1.5, op: op }));
+      }
+      return o.join("");
+    }
+    function draw(s) {
+      var o = [];
+      o.push(T(12, 24, "four frames of the rolling ball", { size: 15, fill: C.muted }));
+      // draw back frames (odd) first so they sit behind
+      [1, 3, 0, 2].forEach(function (i) {
+        var p = pos(i, s.pair);
+        o.push(V.scene(FT[i], p.x, p.y, FW, FH, { stroke: C.ink, sw: 1.2 }));
+        o.push(grid(p.x, p.y, 4, s.grid4, C.blue));
+        o.push(grid(p.x, p.y, 2, s.grid2, C.orange));
+        o.push(T(p.x + FW / 2, p.y + FH + 20, "t = " + FT[i] + " s", { size: 15, anchor: "middle", fill: C.soft, op: 1 - s.pair }));
+      });
+      if (s.tube > 0.01) {
+        [0, 2].forEach(function (i) {
+          var a = pos(i, 1), b = pos(i + 1, 1);
+          [[0, 0], [FW, 0], [FW, FH]].forEach(function (c) { o.push(L(a.x + c[0], a.y + c[1], b.x + c[0], b.y + c[1], { stroke: C.orange, sw: 1.6, op: s.tube })); });
+          o.push(T(a.x + FW / 2 + 17, a.y + FH + 20, "tube: " + FT[i] + "–" + FT[i + 1] + " s", { size: 15, anchor: "middle", fill: C.orange, weight: 600, op: s.tube }));
+        });
+      }
+      // tokens panel
+      var px = 700, py = 70;
+      o.push(R(px - 10, py - 30, 300, 290, { fill: "#efede9" }));
+      o.push(T(px, py - 8, "tokens to the LLM", { size: 15, fill: C.muted }));
+      var n = Math.round(s.tok), cols = 8, sz = 26;
+      for (var k = 0; k < 64; k++) {
+        var on = k < n ? 1 : 0, cx = px + (k % cols) * (sz + 8), cy = py + 6 + Math.floor(k / cols) * (sz + 4);
+        if (k < s.tok + 1) o.push(R(cx, cy, sz, sz * 0.7, { fill: n <= 8 ? C.orange : n <= 32 ? "#c98a3c" : C.blue, op: s.tokOp * (on ? 1 : V.clamp(s.tok - k, 0, 1)) }));
+      }
+      o.push(T(px + 140, py + 268, n ? n + " tokens" : "", { size: 22, anchor: "middle", weight: 700, family: DISP, op: s.tokOp }));
+      var lab = LABS[s.lab] || "";
+      o.push(T(20, 372, lab, { size: 17, weight: 600, fill: C.ink }));
+      return o.join("");
+    }
+    V.Stepper("fig-tubelet", { states: S, notes: notes, draw: draw });
+  })();
+
+  /* ================= Figure 5: temporal position encoding ================= */
+  (function () {
+    // single-video tokens: 2 text, 3 frames x 4, 1 text
+    var toks = [];
+    toks.push({ kind: "txt", w: "What", id: 0, tri: "(0,0,0)" });
+    toks.push({ kind: "txt", w: "happens", id: 1, tri: "(1,1,1)" });
+    for (var f = 0; f < 3; f++) for (var r = 0; r < 2; r++) for (var c = 0; c < 2; c++) toks.push({ kind: "vis", f: f, r: r, c: c, id: 2 + f * 4 + r * 2 + c, tri: "(" + (2 + f) + "," + (2 + r) + "," + (2 + c) + ")" });
+    toks.push({ kind: "txt", w: "?", id: 14, tri: "(5,5,5)" });
+    var CW = 76, CH = 44;
+    function lay1(i) { return { x: 22 + i * 64, y: 150, w: 58, h: 40 }; }
+    function lay3(tk, i) {
+      if (tk.kind === "txt") { var x = i === 0 ? 20 : i === 1 ? 104 : 760; return { x: x, y: 150, w: CW, h: CH }; }
+      return { x: 200 + tk.f * 182 + tk.c * CW, y: 128 + tk.r * CH, w: CW, h: CH };
+    }
+    var IDX = [0, 1, 2, 3], ABS_B = [0, 0.5, 1, 1.5];
+    var S = [
+      { sv: 1, u3: 0, tv: 0, xb: IDX, mode: "idx", con: 0, long: 0, ts: 0 },
+      { sv: 1, u3: 1, tv: 0, xb: IDX, mode: "idx", con: 0, long: 0, ts: 0 },
+      { sv: 0, u3: 1, tv: 1, xb: IDX, mode: "idx", con: 1, long: 0, ts: 0 },
+      { sv: 0, u3: 1, tv: 1, xb: ABS_B, mode: "abs", con: 1, long: 0, ts: 0 },
+      { sv: 0, u3: 1, tv: 1, xb: ABS_B, mode: "abs", con: 0.25, long: 1, ts: 0 },
+      { sv: 0, u3: 1, tv: 1, xb: IDX, mode: "text", con: 0, long: 0, ts: 1 }
+    ];
+    var notes = [
+      "Ordinary 1D RoPE: every token gets one position. Text and three frames of four visual tokens each are one long line.",
+      "M-RoPE (Qwen2-VL): each token gets three IDs, temporal, height and width. Text tokens repeat one number. Frame tokens share a temporal ID and spread over height and width.",
+      "Two videos of the same event, one at 1 fps and one at 2 fps. With frame-index IDs, the fourth frame of each gets t = 3, although one is at 3.0 s and the other at 1.5 s.",
+      "Absolute time (Qwen2.5-VL): temporal IDs follow the clock, so video B's frames slide into place. Equal seconds now mean equal gaps.",
+      "The cost at hour scale: IDs that follow the clock become very large and sparse, which Qwen3-VL reports hurt long-video understanding.",
+      "Text timestamps (Qwen3-VL): positions stay compact and the time is written as tokens before each frame, for example <1.5 s>."
+    ];
+    var RX = function (sec) { return 70 + sec * 200; };
+    function thumbRow(o, y, times, xs, label, ids, s, isB) {
+      o.push(T(735, y + 26, label.split(" · ")[0], { size: 15, fill: C.ink, weight: 600, op: s.tv * (1 - s.long) }));
+      o.push(T(735, y + 46, label.split(" · ")[1], { size: 15, fill: C.soft, op: s.tv * (1 - s.long) }));
+      times.forEach(function (t, k) {
+        var x = xs[k] - 45;
+        o.push('<g opacity="' + s.tv.toFixed(3) + '">' + V.scene(7 + t * 4, x, y, 90, 62, { stroke: C.ink, sw: 1 }) + "</g>");
+        var tid = s.mode === "abs" ? "t ↔ " + t.toFixed(1) + " s" : "t = " + k;
+        if (s.mode === "text") tid = "pos " + k;
+        o.push(T(xs[k], y + 84, tid, { size: 15, anchor: "middle", fill: C.soft, op: s.tv }));
+        if (s.con > 0.01) {
+          var tx = RX(t), off = Math.abs(tx - xs[k]) > 6;
+          o.push(L(xs[k], y, tx, 70, { stroke: off ? C.red : C.green, sw: 1.6, dash: "5 4", op: s.con * s.tv }));
+        }
+        if (s.ts > 0.01) {
+          o.push(R(x + 2, y - 30, 86, 24, { fill: "#fff3e3", stroke: C.orange, op: s.ts }));
+          o.push(T(xs[k], y - 13, "<" + t.toFixed(1) + " s>", { size: 15, anchor: "middle", fill: C.orange, weight: 600, op: s.ts }));
+        }
+      });
+    }
+    function draw(s) {
+      var o = [];
+      if (s.sv > 0.01) {
+        o.push('<g opacity="' + s.sv.toFixed(3) + '">');
+        o.push(T(12, 30, s.u3 < 0.5 ? "1D RoPE: one position per token" : "M-RoPE: (temporal, height, width) per token", { size: 17, weight: 600 }));
+        toks.forEach(function (tk, i) {
+          var a = lay1(i), b = lay3(tk, i), u = s.u3;
+          var x = V.lerp(a.x, b.x, u), y = V.lerp(a.y, b.y, u), w = V.lerp(a.w, b.w, u), h = V.lerp(a.h, b.h, u);
+          var fill = tk.kind === "txt" ? "#ffffff" : ["#dbe7f3", "#c9dbee", "#b8cfe8"][tk.f];
+          o.push(R(x, y, w - 3, h - 3, { fill: fill, stroke: tk.kind === "txt" ? C.ink : C.blue, sw: 1.2 }));
+          var lbl = u < 0.5 ? String(tk.id) : tk.tri;
+          o.push(T(x + (w - 3) / 2, y + (h - 3) / 2 + 5, lbl, { size: 15, anchor: "middle", fill: C.ink }));
+          if (tk.kind === "txt" && u < 0.5) o.push(T(x + (w - 3) / 2, y - 10, tk.w, { size: 15, anchor: "middle", fill: C.soft, op: 1 - u * 2 }));
+        });
+        var u3 = s.u3;
+        if (u3 > 0.01) {
+          for (var f = 0; f < 3; f++) o.push(T(200 + f * 182 + CW, 118, "frame " + f, { size: 15, anchor: "middle", fill: C.blue, op: u3 }));
+          o.push(L(200, 250, 740, 250, { stroke: C.ink, sw: 1.5, op: u3 }));
+          o.push(T(470, 276, "temporal ID +1 per frame; height and width follow the grid", { size: 15, anchor: "middle", fill: C.soft, op: u3 }));
+          o.push(T(20, 330, "Text tokens use equal IDs, so for text M-RoPE is ordinary RoPE.", { size: 16, fill: C.ink, op: u3 }));
+        } else {
+          o.push(T(22, 240, "positions 0 … 14: frames are just more of the line", { size: 15, fill: C.soft }));
+        }
+        o.push("</g>");
+      }
+      if (s.tv > 0.01) {
+        // ruler
+        o.push(T(12, 34, "real time", { size: 15, fill: C.muted, op: s.tv }));
+        o.push(L(RX(0), 70, RX(3.2), 70, { stroke: C.ink, op: s.tv }));
+        for (var q = 0; q <= 6; q++) { var sec = q * 0.5, x = RX(sec); o.push(L(x, 64, x, 76, { stroke: C.ink, op: s.tv })); if (q % 2 === 0) o.push(T(x, 56, sec.toFixed(0) + " s", { size: 15, anchor: "middle", op: s.tv })); }
+        var xa = [0, 1, 2, 3].map(function (k) { return RX(k); });
+        var xb = s.xb.map(function (k) { return RX(k); });
+        // video A always at 1 fps
+        thumbRow(o, 128, [0, 1, 2, 3], s.mode === "text" ? [0, 1, 2, 3].map(function (k) { return RX(k); }) : xa, "video A · 1 fps", null, s, false);
+        thumbRow(o, 268, [0, 0.5, 1, 1.5], xb, "video B · 2 fps", null, s, true);
+        var mlab = s.mode === "idx" ? "frame-index temporal IDs (Qwen2-VL)" : s.mode === "abs" ? "temporal IDs aligned to absolute time (Qwen2.5-VL)" : "compact positions + text timestamps (Qwen3-VL)";
+        o.push(T(990, 34, mlab, { size: 16, anchor: "end", weight: 600, fill: C.orange, op: s.tv }));
+        if (s.long > 0.01) {
+          o.push(R(740, 110, 250, 250, { fill: "#f7f6f3", stroke: C.ink, op: s.long }));
+          o.push(T(755, 138, "one hour of video", { size: 15, weight: 600, op: s.long }));
+          o.push(L(760, 300, 955, 300, { stroke: C.ink, op: s.long }));
+          [0, 1800, 3600].forEach(function (v, i) { var x = 760 + i * 97; o.push(L(x, 296, x, 304, { stroke: C.ink, op: s.long })); o.push(T(x, 324, V.fmt(v) + (i ? " s" : ""), { size: 15, anchor: i === 2 ? "end" : "middle", op: s.long })); });
+          for (var d = 0; d < 8; d++) o.push(R(760 + d * 26, 250, 8, 40, { fill: C.blue, op: s.long * 0.7 }));
+          o.push(T(755, 170, "temporal IDs grow into", { size: 15, fill: C.soft, op: s.long }));
+          o.push(T(755, 190, "the thousands: large,", { size: 15, fill: C.soft, op: s.long }));
+          o.push(T(755, 210, "sparse position values", { size: 15, fill: C.red, weight: 600, op: s.long }));
+        }
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-mrope", { states: S, notes: notes, draw: draw, hold: 3200, tween: 1300 });
+  })();
+
+  /* ================= Figure 6: slow-fast allocation ================= */
+  (function () {
+    var N = 16, FW = 56, FH = 39, GAP = 61, X0 = 15;
+    var S = [
+      { eq: 0, fast: 0, slow: 0, seq: 0, sum: 0 },
+      { eq: 1, fast: 0, slow: 0, seq: 0, sum: 0 },
+      { eq: 0, fast: 1, slow: 0, seq: 0, sum: 0 },
+      { eq: 0, fast: 1, slow: 1, seq: 0, sum: 0 },
+      { eq: 0, fast: 1, slow: 1, seq: 1, sum: 0 },
+      { eq: 0, fast: 1, slow: 1, seq: 1, sum: 1 }
+    ];
+    var notes = [
+      "Sixteen frames sampled from the clip. The budget is 1,024 visual tokens.",
+      "Equal allocation: every frame gets 64 tokens. Nothing is very detailed and nothing is skipped.",
+      "Fast view: pool every frame hard, to 16 tokens. 256 tokens follow the motion across all sixteen frames.",
+      "Slow view: every fourth frame also gets 192 detailed tokens. 768 tokens keep small objects and text readable.",
+      "Interleave both views in time order. The language model receives 1,024 tokens, the same budget as equal allocation.",
+      "Same budget, different allocation. SlowFast-LLaVA and LLaVA-Video use this idea to fit more frames and more detail at once."
+    ];
+    function blockSquares(o, x, y, cols, rows, cell, gap, col, op) {
+      if (op < 0.01) return;
+      for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) o.push(R(x + c * (cell + gap), y + r * (cell + gap), cell, cell, { fill: col, op: op }));
+    }
+    function draw(s) {
+      var o = [];
+      o.push(T(12, 20, "16 sampled frames · budget 1,024 tokens", { size: 15, fill: C.muted }));
+      for (var i = 0; i < N; i++) {
+        var x = X0 + i * GAP, slow = i % 4 === 0;
+        o.push(V.scene(2 + i * 3.7, x, 32, FW, FH, { stroke: slow && s.slow > 0.5 ? C.blue : C.rule, sw: slow && s.slow > 0.5 ? 2.5 : 1 }));
+        blockSquares(o, x + 2, 82, 8, 8, 5, 1, C.ink, s.eq * 0.75);
+        blockSquares(o, x + 2, 82, 4, 4, 11, 1, C.orange, s.fast * (1 - s.eq * 0.6));
+        if (slow) blockSquares(o, x + 2, 140, 8, 24, 5, 1, C.blue, s.slow);
+      }
+      o.push(T(12, 300, s.eq > 0.5 && s.fast < 0.5 ? "64 tokens per frame × 16 = 1,024" : s.fast > 0.5 ? "fast: 16 × 16 = 256" : "", { size: 16, fill: s.fast > 0.5 ? C.orange : C.ink, weight: 600 }));
+      if (s.slow > 0.01) o.push(T(330, 300, "slow: 4 × 192 = 768", { size: 16, fill: C.blue, weight: 600, op: s.slow }));
+      if (s.slow > 0.01) o.push(T(580, 300, "total 1,024", { size: 16, fill: C.ink, weight: 600, op: s.slow }));
+      if (s.seq > 0.01) {
+        var px = 15, scale = 970 / 1024, y = 322;
+        o.push(T(12, y - 4 + 0, "", {}));
+        for (var k = 0; k < N; k++) {
+          var w1 = 16 * scale * s.seq; o.push(R(px, y, w1, 26, { fill: C.orange, op: s.seq })); px += w1;
+          if (k % 4 === 0) { var w2 = 192 * scale * s.seq; o.push(R(px, y, w2, 26, { fill: C.blue, op: s.seq })); px += w2; }
+        }
+        o.push(T(12, 372, "one interleaved sequence: fast (orange) for every frame, slow (blue) for every fourth", { size: 15, fill: C.soft, op: s.seq }));
+      }
+      if (s.sum > 0.01) {
+        o.push(T(12, 398, "equal: 64 tokens each, coarse everywhere.", { size: 15, fill: C.ink, weight: 600, op: s.sum }));
+        o.push(T(12, 418, "slow-fast: 16 each + 192 on every fourth: motion at every frame, detail on some.", { size: 15, fill: C.blue, weight: 600, op: s.sum }));
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-slowfast", { states: S, notes: notes, draw: draw });
+  })();
+
+  /* ================= Figure 7: lineage ================= */
+  (function () {
+    var PTS = [
+      { n: "MovieChat", d: 2023.55, f: 10000, k: "c", g: 0, lx: 10, ly: 5, a: "start" },
+      { n: "Video-LLaVA", d: 2023.87, f: 8, k: "s", g: 0, lx: 10, ly: 5, a: "start" },
+      { n: "SlowFast-LLaVA", d: 2024.55, f: 50, k: "c", g: 1, lx: -10, ly: -8, a: "end" },
+      { n: "LLaVA-OneVision", d: 2024.6, f: 32, k: "s", g: 1, lx: -10, ly: 20, a: "end" },
+      { n: "LLaVA-Video", d: 2024.76, f: 64, k: "c", g: 1, lx: 0, ly: -14, a: "middle" },
+      { n: "InternVL 2.5", d: 2024.93, f: 64, k: "s", g: 1, lx: 10, ly: 20, a: "start" },
+      { n: "LongVA", d: 2024.47, f: 2000, k: "l", g: 2, lx: -10, ly: 5, a: "end" },
+      { n: "LongVILA", d: 2024.63, f: 2048, k: "l", g: 2, lx: 10, ly: -6, a: "start" },
+      { n: "Qwen2-VL", d: 2024.71, f: 768, k: "l", g: 2, lx: -10, ly: 5, a: "end" },
+      { n: "VideoChat-Flash", d: 2024.99, f: 10000, k: "c", g: 3, lx: 10, ly: 5, a: "start" },
+      { n: "VideoLLaMA 3", d: 2025.06, f: 180, k: "c", g: 3, lx: 10, ly: 5, a: "start" },
+      { n: "Qwen2.5-VL", d: 2025.14, f: 768, k: "l", g: 3, lx: 10, ly: 5, a: "start" }
+    ];
+    var X0 = 110, X1 = 960, Y0 = 330, Y1 = 50, D0 = 2023.3, D1 = 2025.6, F0 = 0.7, F1 = 4.15;
+    var sx = function (d) { return X0 + (d - D0) / (D1 - D0) * (X1 - X0); }, sy = function (f) { return Y0 - (Math.log10(f) - F0) / (F1 - F0) * (Y0 - Y1); };
+    var S = [
+      { g: [1, 0, 0, 0], leg: 0 }, { g: [1, 1, 0, 0], leg: 0 }, { g: [1, 1, 1, 0], leg: 0 }, { g: [1, 1, 1, 1], leg: 0 }, { g: [1, 1, 1, 1], leg: 1 }
+    ];
+    var notes = [
+      "2023: the first wave. Most models saw about 8 frames. MovieChat reached ten thousand only through a compressing memory.",
+      "2024, image-first models: LLaVA-OneVision, SlowFast-LLaVA, LLaVA-Video and InternVL 2.5 use tens of frames with moderate compression.",
+      "2024, long context: LongVA, LongVILA and Qwen2-VL take hundreds to thousands of frames by extending what the language model can read.",
+      "2025: VideoChat-Flash compresses to about 16 tokens per frame and tests 10,000 frames; Qwen2.5-VL and VideoLLaMA 3 add explicit time.",
+      "Two routes to many frames: long context (blue) and heavy compression or memory (orange). Grey marks models that stack moderately compressed frames."
+    ];
+    var COL = { l: C.blue, c: C.orange, s: C.soft };
+    function draw(s) {
+      var o = [];
+      o.push(T(12, 22, "maximum frames per video as reported (log scale)", { size: 15, fill: C.muted }));
+      [10, 100, 1000, 10000].forEach(function (f) { var y = sy(f); o.push(L(X0, y, X1, y, { stroke: C.faint })); o.push(T(X0 - 10, y + 5, V.fmt(f), { size: 15, anchor: "end", fill: C.muted })); });
+      [2024, 2025].forEach(function (d) { var x = sx(d); o.push(L(x, Y1 - 10, x, Y0, { stroke: C.rule, dash: "4 4" })); });
+      [[2023.3, "2023"], [2024, "2024"], [2025, "2025"]].forEach(function (p) { o.push(T(sx(p[0]) + 8, Y0 + 26, p[1], { size: 15, fill: C.soft })); });
+      o.push(L(X0, Y0, X1, Y0, { stroke: C.ink }));
+      PTS.forEach(function (p) {
+        var a = s.g[p.g]; if (a < 0.01) return;
+        var x = sx(p.d), y = sy(p.f), col = COL[p.k];
+        o.push('<circle cx="' + x.toFixed(1) + '" cy="' + (y + (1 - a) * 20).toFixed(1) + '" r="7" fill="' + col + '" opacity="' + a.toFixed(3) + '"/>');
+        o.push(T(x + p.lx, y + p.ly, p.n, { size: 15, anchor: p.a, fill: C.ink, op: a }));
+      });
+      if (s.leg > 0.01) {
+        o.push(R(130, 150, 330, 70, { fill: "#f7f6f3", stroke: C.rule, op: s.leg }));
+        [["long context / native resolution", C.blue], ["heavy compression or memory", C.orange], ["stacked, moderate compression", C.soft]].forEach(function (r, i) {
+          o.push('<circle cx="146" cy="' + (167 + i * 19) + '" r="6" fill="' + r[1] + '" opacity="' + s.leg.toFixed(3) + '"/>');
+          o.push(T(160, 172 + i * 19, r[0], { size: 15, op: s.leg }));
+        });
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-lineage", { states: S, notes: notes, draw: draw, hold: 3200 });
+  })();
+
+  /* ================= Figure 8: three routes for long video ================= */
+  (function () {
+    var S = [
+      { a: 0, aop: 0, b: 0, bop: 0, lost: 0, c1: 0, c2: 0, cop: 0 },
+      { a: 0.55, aop: 1, b: 0, bop: 0, lost: 0, c1: 0, c2: 0, cop: 0 },
+      { a: 1.25, aop: 1, b: 0, bop: 0, lost: 0, c1: 0, c2: 0, cop: 0 },
+      { a: 1.25, aop: 1, b: 1, bop: 1, lost: 0, c1: 0, c2: 0, cop: 0 },
+      { a: 1.25, aop: 1, b: 1, bop: 1, lost: 1, c1: 0, c2: 0, cop: 0 },
+      { a: 1.25, aop: 1, b: 1, bop: 1, lost: 1, c1: 1, c2: 0, cop: 1 },
+      { a: 1.25, aop: 1, b: 1, bop: 1, lost: 1, c1: 1, c2: 1, cop: 1 }
+    ];
+    var notes = [
+      "An hour of footage and one question about a one-second moment near minute 47.",
+      "Route 1, read everything: at 2 fps and 256 tokens per frame the frames pour into the context window.",
+      "The hour needs 1.84 million tokens. It overflows a one-million-token window, and attention cost grows with the square.",
+      "Route 2, compress or remember: a fixed memory of twelve slots. When it is full, the two most similar neighbouring slots are averaged.",
+      "The one-second put-down looks like its neighbours, so it is merged away. The memory stays small, but the moment is gone.",
+      "Route 3, search then look: a retriever scores moments against the question and returns three candidates.",
+      "The model inspects one candidate densely and answers with a time. Few tokens are spent, but everything depends on the retriever."
+    ];
+    var X0 = 250, X1 = 970;
+    function draw(s) {
+      var o = [];
+      o.push(R(10, 8, 980, 40, { fill: "#efede9" }));
+      o.push(T(24, 34, "Q: When did the person put the cup down?", { size: 18, weight: 700, family: DISP }));
+      o.push(T(976, 34, "input: 60 minutes of video", { size: 15, anchor: "end", fill: C.soft }));
+      // lane A
+      var yA = 70;
+      o.push(T(12, yA + 26, "1 · read all", { size: 16, weight: 600, op: 0.35 + 0.65 * s.aop }));
+      o.push(R(X0, yA + 8, X1 - X0 - 120, 28, { stroke: C.ink, sw: 1.5, op: 0.35 + 0.65 * s.aop }));
+      var full = X1 - X0 - 120, fw = full * s.a;
+      o.push(T(X0 + full, yA + 2, "1M-token window", { size: 15, anchor: "end", fill: C.soft, op: 0.35 + 0.65 * s.aop }));
+      o.push(R(X0, yA + 8, Math.min(fw, full), 28, { fill: C.blue, op: 0.85 * s.aop }));
+      if (fw > full) o.push(R(X0 + full, yA + 8, Math.min(fw - full, 115), 28, { fill: C.red, op: 0.9 * s.aop }));
+      for (var i = 0; i < 40; i++) { var x = X0 + i * (full / 40); if (x < X0 + fw) o.push(L(x, yA + 8, x, yA + 36, { stroke: "#f7f6f3", op: 0.5 * s.aop })); }
+      if (s.a > 1) o.push(T(X0, yA + 58, "7,200 frames · 1.84M tokens: over the window", { size: 15, fill: C.red, weight: 600, op: s.aop }));
+      // lane B
+      var yB = 170;
+      o.push(T(12, yB + 26, "2 · compress", { size: 16, weight: 600, op: 0.35 + 0.65 * s.bop }));
+      for (var k = 0; k < 12; k++) {
+        var bx = X0 + k * 58, fillc = k === 9 ? C.orange : "#9fb6cc";
+        var opk = s.bop * V.clamp(s.b * 12 - k, 0, 1);
+        o.push(R(bx, yB + 6, 50, 32, { stroke: C.ink, sw: 1, op: 0.3 + 0.7 * s.bop }));
+        if (k === 9) {
+          o.push(R(bx + 4, yB + 10, 42, 24, { fill: fillc, op: opk * (1 - s.lost) }));
+          o.push(R(bx + 4, yB + 10, 42, 24, { fill: "#9fb6cc", op: opk * s.lost }));
+        } else o.push(R(bx + 4, yB + 10, 42, 24, { fill: fillc, op: opk }));
+      }
+      if (s.lost > 0.01) {
+        o.push(L(X0 + 9 * 58 + 25, yB + 46, X0 + 8 * 58 + 25, yB + 46, { stroke: C.red, sw: 2, op: s.lost }));
+        o.push(T(X0 + 9 * 58 + 25, yB + 66, "put-down merged into its neighbour", { size: 15, anchor: "middle", fill: C.red, weight: 600, op: s.lost }));
+      } else if (s.b > 0.5) o.push(T(X0, yB + 64, "fixed memory: 12 slots for 3,600 seconds", { size: 15, fill: C.soft, op: s.bop }));
+      // lane C
+      var yC = 270;
+      o.push(T(12, yC + 26, "3 · search", { size: 16, weight: 600, op: 0.35 + 0.65 * s.cop }));
+      o.push(L(X0, yC + 22, X1, yC + 22, { stroke: C.ink, op: 0.35 + 0.65 * s.cop }));
+      [0, 15, 30, 45, 60].forEach(function (m) { var x = X0 + m / 60 * (X1 - X0); o.push(L(x, yC + 18, x, yC + 26, { stroke: C.ink, op: 0.35 + 0.65 * s.cop })); o.push(T(x, yC + 44, m + " min", { size: 15, anchor: "middle", fill: C.soft, op: 0.35 + 0.65 * s.cop })); });
+      [[12.5, 0.4], [47.2, 1], [33, 0.6]].forEach(function (c, i) {
+        var x = X0 + c[0] / 60 * (X1 - X0), a = s.c1 * V.clamp(s.c1 * 3 - i, 0, 1);
+        o.push(R(x - 9, yC + 4, 18, 36, { stroke: C.orange, sw: c[1] === 1 ? 3 : 1.5, op: a }));
+        o.push(T(x, yC + 2, "score " + c[1].toFixed(1), { size: 15, anchor: "middle", fill: C.orange, op: a }));
+      });
+      if (s.c2 > 0.01) {
+        var zx = X0 + 47.2 / 60 * (X1 - X0);
+        o.push('<path d="M' + (zx - 9) + ',' + (yC + 40) + ' L' + (X0 + 20) + ',' + (yC + 60) + ' M' + (zx + 9) + ',' + (yC + 40) + ' L' + (X0 + 20 + 4 * 92) + ',' + (yC + 60) + '" stroke="' + C.orange + '" fill="none" opacity="' + s.c2.toFixed(3) + '"/>');
+        [51.2, 51.9, 52.5, 53.2].forEach(function (t, j) {
+          o.push('<g opacity="' + s.c2.toFixed(3) + '">' + V.scene(t, X0 + 20 + j * 92, yC + 62, 84, 58, { stroke: j === 2 ? C.orange : C.rule, sw: j === 2 ? 2.5 : 1 }) + "</g>");
+        });
+        o.push(T(X0 + 410, yC + 92, "answer: about 47:12, when the cup", { size: 16, weight: 600, fill: C.ink, op: s.c2 }));
+        o.push(T(X0 + 410, yC + 114, "touches the table", { size: 16, weight: 600, fill: C.ink, op: s.c2 }));
+      }
+      return o.join("");
+    }
+    V.Stepper("fig-routes", { states: S, notes: notes, draw: draw, hold: 3000 });
+  })();
+
+  /* ================= Figure 9: temporal IoU (interactive) ================= */
+  (function () {
+    var svg = document.getElementById("svg-tiou"); if (!svg) return;
+    var gs = 13.4, ge = 16.6, snap = 0;
+    var si = document.getElementById("tiou-s"), ei = document.getElementById("tiou-e");
+    var X0 = 60, X1 = 960, sx = function (t) { return X0 + t / 30 * (X1 - X0); };
+    function iou(a, b, c, d) { var inter = Math.max(0, Math.min(b, d) - Math.max(a, c)), uni = Math.max(b, d) - Math.min(a, c); return uni > 0 ? inter / uni : 0; }
+    function q(t) { return snap ? Math.round(t / snap) * snap : t; }
+    function best() {
+      if (!snap) return 1;
+      var b = 0; for (var a = 0; a <= 30 + 1e-9; a += snap) for (var c = a + snap; c <= 30 + 1e-9; c += snap) b = Math.max(b, iou(a, c, gs, ge));
+      return b;
+    }
+    function render() {
+      var s = parseFloat(si.value), e = parseFloat(ei.value);
+      if (e < s) { var tmp = s; s = e; e = tmp; }
+      s = q(s); e = q(e);
+      document.getElementById("tiou-s-out").textContent = s.toFixed(1) + " s";
+      document.getElementById("tiou-e-out").textContent = e.toFixed(1) + " s";
+      var v = iou(s, e, gs, ge), o = [];
+      o.push(T(12, 22, "a 30-second clip · true moment: the cup is lifted to drink (13.4–16.6 s)", { size: 15, fill: C.muted }));
+      if (snap) for (var t = 0; t <= 30 + 1e-9; t += snap) o.push(L(sx(t), 40, sx(t), 200, { stroke: C.muted, dash: "3 4", op: 0.8 }));
+      o.push(T(12, 80, "truth", { size: 15, fill: C.green, weight: 600 }));
+      o.push(R(sx(gs), 62, sx(ge) - sx(gs), 28, { fill: C.green, op: 0.85 }));
+      o.push(T(12, 128, "prediction", { size: 15, fill: C.orange, weight: 600 }));
+      o.push(R(sx(s), 110, Math.max(2, sx(e) - sx(s)), 28, { fill: C.orange, op: 0.85 }));
+      var is = Math.max(s, gs), ie = Math.min(e, ge), us = Math.min(s, gs), ue = Math.max(e, ge);
+      o.push(T(12, 176, "overlap / union", { size: 15, fill: C.ink, weight: 600 }));
+      o.push(R(sx(us), 158, sx(ue) - sx(us), 26, { stroke: C.ink, sw: 1.5, dash: "5 3" }));
+      if (ie > is) o.push(R(sx(is), 158, sx(ie) - sx(is), 26, { fill: C.ink, op: 0.75 }));
+      o.push(L(X0, 214, X1, 214, { stroke: C.ink }));
+      for (var k = 0; k <= 30; k += 5) { o.push(L(sx(k), 214, sx(k), 220, { stroke: C.ink })); o.push(T(sx(k), 240, k + " s", { size: 15, anchor: "middle", fill: C.soft })); }
+      o.push(T(X1, 264, "tIoU = " + v.toFixed(2), { size: 17, anchor: "end", weight: 700 }));
+      svg.innerHTML = o.join("");
+      var vEl = document.getElementById("tiou-v"); vEl.textContent = v.toFixed(2);
+      var r5 = document.getElementById("tiou-r5"), r7 = document.getElementById("tiou-r7");
+      r5.textContent = v >= 0.5 ? "pass" : "fail"; r5.className = v >= 0.5 ? "ok" : "warn";
+      r7.textContent = v >= 0.7 ? "pass" : "fail"; r7.className = v >= 0.7 ? "ok" : "warn";
+      var b = best(), bEl = document.getElementById("tiou-best"); bEl.textContent = b.toFixed(2) + (snap ? " (frames every " + snap + " s)" : " (no snapping)"); bEl.className = b < 0.7 ? "warn" : "";
+    }
+    si.addEventListener("input", render); ei.addEventListener("input", render);
+    document.querySelectorAll("#fig-tiou [data-snap]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        snap = parseFloat(b.dataset.snap);
+        document.querySelectorAll("#fig-tiou [data-snap]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        render();
+      });
+    });
+    render();
+  })();
+
+  /* ================= Figure 10: shuffle test ================= */
+  (function () {
+    var FT = [3, 14, 23, 36, 46, 54];
+    function posFromOrder(order) { var p = []; order.forEach(function (f, slot) { p[f] = slot; }); return p; }
+    function st(order, single, sum) { return { pos: posFromOrder(order), arr: order.join(","), single: single || 0, sum: sum || 0 }; }
+    var S = [st([0, 1, 2, 3, 4, 5]), st([4, 1, 3, 0, 5, 2]), st([5, 4, 3, 2, 1, 0]), st([0, 1, 2, 3, 4, 5], 1), st([0, 1, 2, 3, 4, 5], 0, 1)];
+    var notes = [
+      "Six frames in their true order. An idealised model that trusts the order it is given answers all three questions correctly.",
+      "Shuffled. The colour question still works. The direction and order questions now get wrong answers, because they depend on sequence.",
+      "Reversed. Played backwards, the ball rolls left and the cup is lifted before the fall. Only the appearance answer survives.",
+      "One centre frame. The appearance question is still answered. The temporal questions cannot be answered at all.",
+      "A question whose answer survives all three changes does not test time. Run these controls on any video benchmark before trusting its score."
+    ];
+    function answers(arr, single) {
+      var order = arr.split(",").map(Number), at = function (f) { return order.indexOf(f); };
+      var a1 = "orange", a2, a3;
+      if (single > 0.5) { a2 = "cannot tell"; a3 = "cannot tell"; }
+      else { a2 = at(0) < at(1) ? "right" : "left"; a3 = at(2) < at(4) ? "yes" : "no"; }
+      return [[ "What colour is the cup?", a1, "orange"], ["Which way did the ball roll?", a2, "right"], ["Did the ball fall before the cup was lifted?", a3, "yes"]];
+    }
+    function draw(s) {
+      var o = [];
+      o.push(T(12, 22, "frames as presented to the model (true time below each frame)", { size: 15, fill: C.muted }));
+      for (var f = 0; f < 6; f++) {
+        var x = 18 + s.pos[f] * 163, y = 38, op = f === 3 ? 1 : 1 - 0.85 * s.single;
+        o.push('<g opacity="' + op.toFixed(3) + '">' + V.scene(FT[f], x, y, 150, 103, { stroke: C.ink, sw: 1 }) + "</g>");
+        o.push(T(x + 75, y + 124, "t = " + FT[f] + " s", { size: 15, anchor: "middle", fill: C.soft, op: op }));
+      }
+      for (var k = 0; k < 6; k++) o.push(T(18 + k * 163 + 75, 186, "slot " + (k + 1), { size: 15, anchor: "middle", fill: C.muted }));
+      var ans = answers(s.arr, s.single);
+      o.push(R(10, 202, 980, 186, { fill: "#efede9" }));
+      ans.forEach(function (a, i) {
+        var y = 238 + i * 50, ok = a[1] === a[2], cant = a[1] === "cannot tell";
+        o.push(T(26, y, a[0], { size: 17, weight: 600, fill: C.ink }));
+        o.push(T(26, y + 22, "model answer: " + a[1], { size: 15, fill: C.soft }));
+        var col = ok ? C.green : cant ? "#9a6a12" : C.red;
+        o.push(R(820, y - 18, 150, 30, { fill: "#f7f6f3", stroke: col, sw: 2 }));
+        o.push(T(895, y + 3, ok ? "correct" : cant ? "no answer" : "wrong", { size: 16, anchor: "middle", fill: col, weight: 700 }));
+      });
+      if (s.sum > 0.01) {
+        o.push(R(470, 214, 330, 40, { fill: "#f7f6f3", stroke: C.orange, op: s.sum }));
+        o.push(T(486, 240, "only the first answer never changes", { size: 15, fill: C.orange, weight: 600, op: s.sum }));
+      }
+      return o.join("");
+    }
+    var api = V.Stepper("fig-shuffle", { states: S, notes: notes, draw: draw, hold: 3000 });
+    function rnd() { var a = [0, 1, 2, 3, 4, 5]; for (var i = 5; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+    var bS = document.getElementById("shuffle-btn"), bR = document.getElementById("reverse-btn"), bO = document.getElementById("order-btn");
+    if (api && bS) {
+      bS.addEventListener("click", function () { var o = rnd(); api.custom(st(o), "Your shuffle: frames presented in slot order " + o.map(function (f) { return FT[f] + " s"; }).join(", ") + ". Check which answers changed."); });
+      bR.addEventListener("click", function () { api.custom(st([5, 4, 3, 2, 1, 0]), "Reversed by you. The ball now appears to roll left, and the cup is lifted before the fall."); });
+      bO.addEventListener("click", function () { api.custom(st([0, 1, 2, 3, 4, 5]), "True order restored. All three answers are correct again."); });
+    }
+  })();
+})();
+
+    </script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>
