@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="An interactive tour of my research, built from the live slides of my talk: REPLICA rebuilds a document page as FID-HTML, then M3Grounder, DoCoG and DocLayout-VL ground answers, reasoning steps and the whole page with masks." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL" />
+    <meta property="og:description" content="An interactive tour of my research, built from the live slides of my talk: REPLICA rebuilds a document page as FID-HTML, then M3Grounder, DoCoG and DocLayout-VL ground answers, reasoning steps and the whole page with masks." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL" />
+    <meta name="twitter:description" content="An interactive tour of my research, built from the live slides of my talk: REPLICA rebuilds a document page as FID-HTML, then M3Grounder, DoCoG and DocLayout-VL ground answers, reasoning steps and the whole page with masks." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png" />
+    <title>Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" },
+        "headline": "Building Grounded Document Intelligence",
+        "description": "An interactive tour of my research, built from the live slides of my talk: REPLICA rebuilds a document page as FID-HTML, then M3Grounder, DoCoG and DocLayout-VL ground answers, reasoning steps and the whole page with masks.",
+        "image": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["Document AI", "Visual grounding", "Vision-language models"],
+        "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      /* Style only the inline TOC here. The shared blog shell creates and safely
+         positions the Distill-inspired desktop rail from these same links. */
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-panel { margin: 30px 0; padding: 22px; overflow-x: auto; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; }
+      .animation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+      .animation-controls button { min-height: 38px; padding: 7px 11px; color: #dce4e9; background: #161c22; border: 1px solid #39454e; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .animation-controls button:hover,
+      .animation-controls button[aria-pressed="true"] { color: #06120e; background: #3fd1a0; border-color: #3fd1a0; }
+      .animation-controls button:focus-visible { outline: 2px solid #5ab2e8; outline-offset: 2px; }
+      .animation-status { margin-left: auto; color: #93a0a8; font: 11px/1.4 var(--mono); }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+      }
+    .paper-map { margin: 32px 0; padding: 22px; color: #e4eaee; background: var(--panel); border: 1px solid #242c34; text-align: center; }
+      .paper-map a { color: inherit; text-decoration: none; }
+      .paper-map strong { display: block; color: #f7f6f3; font: 700 22px/1.2 var(--display); }
+      .paper-map span { display: block; font: 12px/1.5 var(--mono); color: #93a0a8; }
+      .paper-map .paper-map-kicker { color: #3fd1a0; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+      .paper-map-root { display: inline-block; padding: 14px 28px; border: 1px solid #3fd1a0; }
+      .paper-map-arrow { margin: 8px 0; color: #3fd1a0; font: 12px/1.6 var(--mono); }
+      .paper-map-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+      .paper-map-row a { display: block; padding: 14px 10px; border: 1px solid #39454e; background: #161c22; }
+      .paper-map a:hover, .paper-map a:focus-visible { border-color: #3fd1a0; outline: none; }
+      .paper-map figcaption { margin-top: 16px; color: #93a0a8; font: 12px/1.5 var(--mono); }
+      .how-to-read { margin: 0 0 30px; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid #d66f00; font-size: 16.5px; }
+      .deck-window { width: min(1080px, calc(100vw - 40px)); margin: 28px 0 34px calc(50% - min(540px, 50vw - 20px)); padding: 12px 12px 14px; background: var(--panel); border: 1px solid #242c34; }
+      .dw-stage { position: relative; width: 100%; overflow: hidden; background: #fff; }
+      .dw-inner { position: absolute; top: 0; left: 0; transform-origin: top left; }
+      .dw-inner iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+      .dw-placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: #7b8388; background: #efede9; font: 12px/1.4 var(--mono); }
+      .dw-placeholder[hidden] { display: none; }
+      .deck-window .animation-controls { margin-top: 12px; }
+      .deck-window .animation-controls button:disabled { opacity: 0.35; cursor: default; }
+      .dw-open { color: #9fd8c4; font: 600 11px/1 var(--mono); text-decoration: none; border-bottom: 1px solid #39454e; }
+      .dw-open:hover { color: #3fd1a0; }
+      .deck-window figcaption { margin-top: 10px; color: #a9b4bb; font: 12.5px/1.55 var(--mono); }
+      .article-content kbd { padding: 1px 6px; border: 1px solid var(--rule); background: var(--paper-bright); font: 13px var(--mono); }
+      .article-content ul { margin: 0 0 18px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 8px; }
+      @media (max-width: 640px) { .paper-map-row { grid-template-columns: 1fr; } }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article building-grounded-document-intelligence-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Document AI</p>
+        <h1 class="article-title" style="max-width:16ch">Building Grounded Document Intelligence</h1>
+        <p class="article-subtitle">Four papers, one story, told with the live slides from my talk: rebuild a document page, then ground the answer, every reasoning step, and the whole page.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Document AI</span><span>Grounding</span><span>VLMs</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>22 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <main class="article-content">
+      <!-- Required TOC source for both layouts: this inline version remains
+           visible at every width, while assets/js/blogs.js derives the shared
+           side rail only after this main TOC has scrolled past. On large desktop
+           screens it owns a fixed left column, and the shared shell keeps wide
+           figures, tables, and interactives in the content canvas to its right.
+           Keep every href paired with a stable section id. Do not add a separate
+           fixed rail or a viewport-centred exception. -->
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#story">The story in one picture</a></li>
+          <li><a href="#rebuild">Rebuild the page: REPLICA</a></li>
+          <li><a href="#grounding">Why grounding matters</a></li>
+          <li><a href="#m3grounder">Ground the answer: M3Grounder</a></li>
+          <li><a href="#docog">Ground every step: DoCoG</a></li>
+          <li><a href="#doclayoutvl">Ground the whole page: DocLayout-VL</a></li>
+          <li><a href="#recipe">One recipe, four papers</a></li>
+          <li><a href="#talk">Watch the talk</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <p class="how-to-read"><strong>How to read this post.</strong> Most figures are the actual slides from my talk, running live. Use <em>Next</em> and <em>Previous</em> under each one to step through its build-up, or press <em>Play</em>. Click inside a slide and the arrow keys work too. The live figures (the pipeline walkthrough, the forward passes, the example galleries) have their own controls.</p>
+
+      <section id="story">
+        <h2>The story in one picture</h2>
+        <p>A document page is a picture that was written down. A model that only sees pixels can read it, but it cannot easily say <em>where</em> an answer came from. A model that only sees extracted text has lost the layout that gave the words their meaning. My work over the last two years has been about closing that gap: first make the page <strong>representable</strong> in a form a machine can use, then make it <strong>queryable</strong> in a way that always points back at the page.</p>
+        <p>The four papers below tell one story in that order. REPLICA rebuilds a page as structured, visually faithful HTML. The other three train vision-language models that answer with evidence, reason with evidence, and segment the whole page, and their training data is built on that representation.</p>
+
+        <figure class="paper-map" aria-label="How the four papers connect">
+          <a class="paper-map-root" href="#rebuild"><span class="paper-map-kicker">Part 1 &middot; ICDAR 2026 Oral</span><strong>REPLICA</strong><span>page &rarr; FID-HTML</span></a>
+          <div class="paper-map-arrow" aria-hidden="true">&darr; supervision for &darr;</div>
+          <div class="paper-map-row">
+            <a href="#m3grounder"><span class="paper-map-kicker">CVPR 2026</span><strong>M3Grounder</strong><span>grounded answers</span></a>
+            <a href="#docog"><span class="paper-map-kicker">ECCV 2026 Spotlight</span><strong>DoCoG</strong><span>grounded reasoning</span></a>
+            <a href="#doclayoutvl"><span class="paper-map-kicker">ECCV 2026</span><strong>DocLayout-VL</strong><span>layout trees and masks</span></a>
+          </div>
+          <figcaption>Part 1 builds the representation. Part 2 builds three models on top of it. Click a box to jump to that paper.</figcaption>
+        </figure>
+      </section>
+
+      <section id="rebuild">
+        <h2>Rebuild the page: REPLICA</h2>
+
+        <h3>A document is not just its words</h3>
+        <p>Start with what we lose when we convert a document. Below, the same invoice appears twice: the original on the left, and on the right a rebuild that adds one layer at a time. Text only gives you every word in order, but as a wall of prose: the heading, the table and the total all look the same. Adding logical structure (headings, tables, lists) is what Markdown-class output gives you. Adding physical position brings the page shape and the columns back, so you can finally tell which number belongs to which item. Only the last layer, visual fidelity, brings back typography, colour, the strikethrough on the cancelled line and the <em>OVERDUE</em> stamp. Without it, the overdue notice does not exist at all.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="1"><figcaption>Rebuilding an invoice one layer at a time: text, then structure, then position, then visual fidelity. At the last step the two sides are the same markup.</figcaption></figure>
+
+        <p>Those four layers are the specification. A faithful reconstruction has to get the <strong>text</strong> right, the <strong>hierarchy</strong> right (reading order, nesting, tables), the <strong>geometry</strong> right (where each block sits) and the <strong>appearance</strong> right. On top of that, the output has to be web-native, so it opens anywhere, and machine-readable, so downstream models can use the structure directly.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="2"><figcaption>The four axes of a document, plus two requirements on the output format.</figcaption></figure>
+
+        <h3>Where the field stands</h3>
+        <p>Measured against that checklist, every strong system fails in the same place. Marker, a solid pipeline tool, flattens three columns into one. GPT-5 gets most of the text right, then drifts on placement, font and column count. Qwen3-VL does the same. All of them roughly pass text and structure, and all of them fail geometry and appearance.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="3"><figcaption>Three strong systems on the same page. Text passes, hierarchy partly passes, and geometry and appearance fail every time.</figcaption></figure>
+
+        <p>That is not a model failure. It is a format failure. Markdown and plain text have no syntax for a coordinate or a font colour, so the information cannot be written down. Generic HTML does have the syntax, but a <code>div</code> with no style is perfectly valid HTML, so position and style are optional, and optional things get left out. The sentence to keep: <em>what a format does not require, a system does not produce.</em></p>
+        <figure class="deck-window" data-deck="replica" data-slide="4"><figcaption>Four axes go in, but the output format only has room for two.</figcaption></figure>
+
+        <h3>FID-HTML: a format that requires fidelity</h3>
+        <p>So we changed the target. When the output format is required to carry position and style, the same page comes out with all four boxes ticked: one HTML file, rendered by your browser, that keeps everything you can see about the original. We call it <strong>FID-HTML</strong>.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="5"><figcaption>The same input page, rebuilt as FID-HTML: text, hierarchy, geometry and visual style all survive.</figcaption></figure>
+
+        <p>FID-HTML encodes six things: text at word and block level; hierarchy through nested containers; semantic tags such as <code>li</code>, <code>table</code> and <code>td</code>; position, with absolute placement for blocks and relative containers for alignment; styling such as size, colour, weight, italics and strikethrough as inline CSS; and figures and backgrounds with generated alt-text, which also makes the output accessible to screen readers. Click a dimension in the figure below to see exactly where it lives in the real source.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="6"><figcaption>The six aspects of FID-HTML. The code on the right is the real source of the page on the left.</figcaption></figure>
+
+        <p>Put every representation the field uses side by side and the same wall appears. Markdown, plain text, LaTeX, DocTags, hOCR and generic HTML all carry text and hierarchy. None of them requires geometry and style. FID-HTML is the only one where both are mandatory, inline and per element, so fidelity becomes a property of the format rather than a hope.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="7"><figcaption>Every existing representation against the four axes, and the second door FID-HTML opens.</figcaption></figure>
+
+        <h3>Four stages, with agents where judgment is needed</h3>
+        <p>Asking a single model to detect, recognise, order and style a whole page at once, with no way to check its own render, is asking too much. REPLICA decomposes the job into four questions. <strong>Segment</strong>: how do we divide the page? A detector ensemble proposes regions, a labelling agent fixes mis-segmentation, and a grouping agent builds the layout tree. <strong>Localize</strong>: how does each region become HTML? A router agent picks one of six specialists (text, table, image, form, list, equation) from the crop itself. <strong>Assemble</strong>: merge bottom-up and put the pieces in semantic reading order. <strong>Refine</strong>: render the result, compare it against the source, and repair it until the appearance stabilises. Fidelity has to be checked on the render, not on the markup.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="8"><figcaption>The agentic framework, built up stage by stage: Segment, Localize, Assemble, Refine.</figcaption></figure>
+
+        <p>Here is the whole framework running on a real page, a Telugu newspaper, with every intermediate output. Watch the grouping agent draw an outline around each article, and the reading-order agent reject top-to-bottom order for story-by-story order, because a newspaper has no fixed reading order. Press play, or step through it.</p>
+        <figure class="deck-window" data-live="replica/index.html?embed=demo&amp;doc=newspaper" data-autoheight="1"><figcaption>Live walkthrough of REPLICA on a newspaper page, with every agent's intermediate output.</figcaption></figure>
+
+        <h3>Measuring what nobody measured</h3>
+        <p>Nothing existed that could score position or appearance, because you cannot score them against a Markdown reference. So we built <strong>VFDR-Bench</strong>: 5,000 real documents, all annotated in FID-HTML by trained annotators. It covers newspapers, government records, textbooks and exam papers, invoices with handwriting and stamps, archival material on aged paper, and magazine layouts. Hover the gallery or click a page to enlarge it.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="10"><figcaption>A sample of VFDR-Bench, grouped by document type.</figcaption></figure>
+
+        <p>Each axis gets its own metric family. Text and structure already had metrics: word and character recovery, and tree edit distance. Position and appearance had none, so we introduced them. <strong>GPS</strong> and <strong>LPS</strong> score where every block and line lands, penalising both missed and hallucinated boxes. <strong>VFS</strong> has a vision-language model judge the rendered page against the annotated reference. The overall score is the mean of the four, so no system can win by excelling on one axis.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="11"><figcaption>Which metric measures what. Both new metrics read the rendered page, not the markup.</figcaption></figure>
+
+        <p>The results tell the story of the whole field. Text extraction is largely solved. Structure is fine for the better systems. On position the field collapses: the best baseline reaches 0.43 GPS and most stay under 0.30. GPT-5 and Gemini produce good-looking pages, but they are not the source page. REPLICA reaches 0.86 GPS, 0.93 visual fidelity and 0.86 overall. With an 8B backbone it beats Qwen3-VL-30B by 39% overall at 3.75 times smaller: structured decomposition beats brute-force scale. Click a category to expand it.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="12"><figcaption>All sixteen methods on VFDR-Bench. Each category starts collapsed to its best system.</figcaption></figure>
+
+        <p>Spot the difference. On the left is the source scan; on the right, REPLICA's FID-HTML rendered live, with real selectable text. Both are forced into the same rectangle, so any size difference would be a real layout error.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="13"><figcaption>Source scans next to live FID-HTML renders: a Gujarati government notice, a dense receipt, a magazine spread and a scientific paper.</figcaption></figure>
+
+        <h3>What the format unlocks</h3>
+        <p>Because FID-HTML is web-native and carries both meaning and geometry, it is useful well beyond reconstruction: layout-preserving translation, preservation and archiving, search, chunking for retrieval that follows the document's structure, retrieval by position, and grounded document intelligence. That last one is where the rest of this post goes.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="15"><figcaption>Applications of FID-HTML. Hover an application to zoom into it.</figcaption></figure>
+
+        <p>Every page REPLICA rebuilds is labelled by construction: text, structure, position and style, all explicit. That makes it a data generator. Three models are built on that supervision, and it runs both ways: better segmentation, reading order and grounding feed straight back into REPLICA's own stages.</p>
+        <figure class="deck-window" data-deck="replica" data-slide="16"><figcaption>REPLICA as a data generator for grounded document models, and the loop back.</figcaption></figure>
+      </section>
+
+      <section id="grounding">
+        <h2>Why grounding matters</h2>
+        <p>An answer about a document is only as useful as your ability to check it. Grounding means the model points at the evidence on the page. That lets you verify an answer at a glance instead of re-reading the page, cite and audit it in domains like healthcare, law and finance, and act on the region directly: redact it, extract it, click it.</p>
+        <figure class="deck-window" data-deck="main" data-slide="5"><figcaption>Three reasons grounding matters: verify, audit, act.</figcaption></figure>
+
+        <p>Today most models ground with boxes written out as coordinates, and that breaks in four ways. It takes hundreds of tokens per span. Nothing ties those numbers to the page, so they can be hallucinated like any other text. Rectangles overshoot pie wedges, curved text and diagram parts. And evidence is often in more than one place, which one box cannot express.</p>
+        <figure class="deck-window" data-deck="main" data-slide="6"><figcaption>How grounding works today, and the four places it cracks.</figcaption></figure>
+      </section>
+
+      <section id="m3grounder">
+        <h2>Ground the answer: M3Grounder</h2>
+        <p>M3Grounder answers a question and grounds each cited span with a <strong>mask</strong>, not a box. A mask can follow any shape (a curved river, a pie wedge), and one answer can point at many places at once: a logo and three city rows each get their own mask.</p>
+        <figure class="deck-window" data-deck="main" data-slide="7"><figcaption>Any shape, one span or many. The model writes the span tags itself, then a pointer token.</figcaption></figure>
+
+        <p>The same evidence also comes at three granularities, nested inside each other: the phrase, the line, and the block. On a bank statement that is the difference between citing the number, redacting the transaction row and chunking the whole table.</p>
+        <figure class="deck-window" data-deck="main" data-slide="8"><figcaption>Phrase inside line inside block: three nested masks from one grounding token.</figcaption></figure>
+
+        <p>The obvious alternative is to chain two tools: OCR reads the page, you look the answer up in the OCR text, and a segmenter turns the matching line into a mask. One OCR misread on a curved banner breaks the whole chain: no line matches, so there is no box, and the segmenter never sees the right region. Nothing downstream looks at the pixels again. M3Grounder does it end to end instead.</p>
+        <figure class="deck-window" data-deck="main" data-slide="9"><figcaption>Why not just chain two tools?</figcaption></figure>
+
+        <p>The architecture is simple. The vision-language model answers normally and drops a <code>[GROUND]</code> token after each span it cites. Three small heads turn that token's hidden state into three prompts for a SAM segmenter, which returns the three nested masks. Grounding adds only about 63 ms per sample. Watch a full forward pass below.</p>
+        <figure class="deck-window" data-live="grounding/interactive/m3grounder.html?v=2"><figcaption>M3Grounder's forward pass, animated: from the page and question to the answer and its nested masks.</figcaption></figure>
+
+        <p>Two losses encode what we know about documents. A <strong>bleed</strong> loss stops masks from spilling onto icons and graphics around the text. A <strong>hierarchy</strong> loss keeps the phrase mask inside the line mask and the line inside the block.</p>
+        <figure class="deck-window" data-deck="main" data-slide="12"><figcaption>Two document-specific losses: bleed suppression and hierarchical enclosure.</figcaption></figure>
+
+        <p>The training data is where Part 1 pays off. Every element of a FID-HTML page is addressable, so a language model can write a question and cite element <code>e47</code> instead of writing coordinates. Perception happens first, reasoning second, and HTML is what language models already read well. That gives 2M grounded question-answer pairs with no coordinate ever written by a model.</p>
+        <figure class="deck-window" data-deck="main" data-slide="14"><figcaption>Why FID-HTML plus a language model makes better grounded QA.</figcaption></figure>
+
+        <p>For charts, the data engine goes one step further: it intercepts the plotting library's renderer, so every bar, tick and label is logged with its box and an ID before a single question is written.</p>
+        <figure class="deck-window" data-deck="main" data-slide="17"><figcaption>The chart data engine: render, write questions that cite element IDs, then map the IDs back to masks.</figcaption></figure>
+
+        <p>On GDQA-Bench, our new benchmark of 2.5K documents with every mask checked by a second annotator, M3Grounder reaches 79.0 grounding F1. It also beats the best prior method on every other benchmark we tried.</p>
+        <figure class="deck-window" data-deck="main" data-slide="19"><figcaption>Grounding F1 on GDQA-Bench, and gains on BoundingDocs, DOGR-Bench and MMDocBench.</figcaption></figure>
+
+        <p>Try it on real documents: switch between examples, and between phrase, line and block granularity.</p>
+        <figure class="deck-window" data-live="grounding/interactive/m3g_examples.html"><figcaption>M3Grounder examples. The tabs switch documents; Phrase, Line and Block switch granularity.</figcaption></figure>
+      </section>
+
+      <section id="docog">
+        <h2>Ground every step: DoCoG</h2>
+        <p>Some questions need more than one lookup. &ldquo;Is the Net Sales total in this image correct?&rdquo; The model has to find the column, read six values, add them up and compare the sum with the printed total. If the answer is wrong, you want to know which number it misread. So we asked: what if every step pointed at the image?</p>
+        <figure class="deck-window" data-deck="main" data-slide="22"><figcaption>A harder question that has to be answered in steps.</figcaption></figure>
+        <figure class="deck-window" data-deck="main" data-slide="23"><figcaption>The same chain, with every value pointing back at its cell.</figcaption></figure>
+
+        <p>Reasoning and grounding are needed together. Ask &ldquo;how much should I pay for the blood test?&rdquo; and the answer, $27.50, is printed nowhere on the bill, so grounding alone has nothing to point at. Chain-of-thought alone says &ldquo;the cost is $50&rdquo; but cannot show which cell it read. DoCoG grounds every step that reads something and leaves the arithmetic steps unmasked.</p>
+        <figure class="deck-window" data-deck="main" data-slide="24"><figcaption>A real output: seven reasoning steps, each reading step with its own masks.</figcaption></figure>
+
+        <p>Here is the forward pass, step by step.</p>
+        <figure class="deck-window" data-live="grounding/interactive/docog.html?v=2"><figcaption>DoCoG's forward pass, animated.</figcaption></figure>
+
+        <p>In a chain, the pointers depend on each other. If step one points at the label &ldquo;HDFC Bank&rdquo; and its pie wedge, then step two's value must come from that same wedge. Projected one at a time, nothing makes them agree. DoCoG adds a module, GIM, between the language model and the segmenter, which refines all the grounding tokens of a chain together so related pointers agree.</p>
+        <figure class="deck-window" data-deck="main" data-slide="26"><figcaption>Why DoCoG needs GIM: a chain of pointers that constrain each other.</figcaption></figure>
+
+        <p>Supervised training is not enough on its own. Two chains can reach the same right answer, one through the right evidence and one through a mask on the wrong row and a step with no evidence at all. Token-by-token training cannot tell them apart. Preference training compares whole chains and pushes the model toward the better one.</p>
+        <figure class="deck-window" data-deck="main" data-slide="28"><figcaption>Chain A and chain B reach the same answer. Only one of them is right.</figcaption></figure>
+
+        <p>The catch: in this stage only the language model is trained, while GIM and the segmenter stay frozen. Done naively, the grounding states drift away from what GIM was trained on, and the masks collapse into blobs. The fix is an anchor loss that keeps each GIM-refined grounding embedding close to its value in the supervised model.</p>
+        <figure class="deck-window" data-deck="main" data-slide="30"><figcaption>Preference training with an anchor, so the masks do not drift.</figcaption></figure>
+
+        <p>On DoCoG-Bench, DoCoG is best on both axes at once: 85.8 answer quality and 81.9 grounding. General question answering stays intact too: 92.7 on ChartQA, 89.4 on TabFact and 93.4 on DocVQA.</p>
+        <figure class="deck-window" data-deck="main" data-slide="31"><figcaption>Answer quality against grounding quality. Every baseline gives up one to get the other.</figcaption></figure>
+
+        <p>Click any grounding token in the examples below to replay its mask.</p>
+        <figure class="deck-window" data-live="grounding/interactive/docog-examples.html?v=3"><figcaption>DoCoG examples. The tabs switch examples; click a [GND] token to re-sweep its mask.</figcaption></figure>
+      </section>
+
+      <section id="doclayoutvl">
+        <h2>Ground the whole page: DocLayout-VL</h2>
+        <p>The first two models ground answers to questions. The last one grounds the page itself. Today's layout tools fall short in three ways: real pages are messy (curved seals, pie wedges, rotated text) and rectangles cannot trace them; every domain has its own vocabulary that fixed label sets cannot keep up with; and a page is a tree, not a list.</p>
+        <figure class="deck-window" data-deck="main" data-slide="35"><figcaption>Why today's layout tools fall short.</figcaption></figure>
+
+        <p>So a layout model needs masks of any shape, open-set labels that the prompt defines, the page as a tree, and the ability to be asked for any region in words, all in one model. That should sound familiar: it is the same recipe as the two grounding models, applied to the whole page.</p>
+        <figure class="deck-window" data-deck="main" data-slide="36"><figcaption>What a layout model needs.</figcaption></figure>
+
+        <p>Ask for the full hierarchical parse of a newspaper and you get the masthead, the main grid, and every headline, media unit and caption inside it, each with its own mask.</p>
+        <figure class="deck-window" data-deck="main" data-slide="39"><figcaption>The page as a tree, down to captions.</figcaption></figure>
+
+        <p>And because it is promptable, you can ask for regions in plain language: all the personal information on a passport, the figure to the left of a table, only the Hindi text on a cover page.</p>
+        <figure class="deck-window" data-deck="main" data-slide="40"><figcaption>Promptable layout: ask for any region in words.</figcaption></figure>
+
+        <p>The key architectural piece is HGC, which makes each layout token attend only to its parent, children and siblings in the tree. That keeps a headline with its own article and a dish with its own menu section, so regions from different branches never merge.</p>
+        <figure class="deck-window" data-deck="main" data-slide="42"><figcaption>Why attention should follow the tree.</figcaption></figure>
+        <figure class="deck-window" data-live="grounding/interactive/doclayoutvl.html?v=2"><figcaption>DocLayout-VL in action, animated.</figcaption></figure>
+
+        <p>The losses carry M3Grounder's two priors over to a tree. Enclosure becomes <strong>containment</strong>: a child's mask must stay inside its parent, and siblings may not claim the same pixels. Bleed becomes <strong>background</strong>: masks stay off whitespace.</p>
+        <figure class="deck-window" data-deck="main" data-slide="44"><figcaption>Structure-aware losses.</figcaption></figure>
+
+        <p>Training follows a three-stage curriculum: flat layouts first to learn to see regions, then hierarchical layouts to learn structure, then instructions to learn to be asked.</p>
+        <figure class="deck-window" data-deck="main" data-slide="45"><figcaption>A three-stage curriculum.</figcaption></figure>
+
+        <p>On our HOPLay-Docs-Bench, DocLayout-VL reaches 79.4 overall. On the hierarchical track the gap is stark: Gemini 3 Pro scores 6.9 open mIoU and DocLayout-VL scores 77.5. It is also competitive zero-shot on classic benchmarks. And to the question we kept being asked, &ldquo;what matters more, architecture or data?&rdquo;, the answer is both, but architecture wins.</p>
+        <figure class="deck-window" data-deck="main" data-slide="47"><figcaption>Results on HOPLay-Docs-Bench.</figcaption></figure>
+        <figure class="deck-window" data-deck="main" data-slide="48"><figcaption>Architecture against scale of data.</figcaption></figure>
+      </section>
+
+      <section id="recipe">
+        <h2>One recipe, four papers</h2>
+        <p>Step back and the three models are one recipe. A vision-language model writes text and pointer tokens; a segmenter turns pointers into masks. What changes is how the pointers talk to each other: not at all in M3Grounder, along a chain in DoCoG, and along a tree in DocLayout-VL.</p>
+        <figure class="deck-window" data-deck="main" data-slide="50"><figcaption>Three papers, one recipe.</figcaption></figure>
+
+        <p>Three things made it possible. Data engines that reconstruct first and then cite element IDs, so masks are never typed out as coordinates. Full fine-tuning of 8B backbones on 32 to 64 H100s. And the right split of work between data and design: data brings the backbone into the task, and the architecture closes the rest of the gap.</p>
+        <figure class="deck-window" data-deck="main" data-slide="51"><figcaption>Data, compute and design: the same 8B backbone at zero-shot, with our data, and with our model.</figcaption></figure>
+        <figure class="deck-window" data-deck="main" data-slide="52"><figcaption>Pushing the frontier, one paper at a time.</figcaption></figure>
+      </section>
+
+      <section id="talk">
+        <h2>Watch the talk</h2>
+        <p>Everything above comes from an hour-long talk, <em>Building Grounded Document Intelligence</em>. <a href="../../research/docai-talk/" target="_blank" rel="noopener">Open the full deck</a> to present it end to end (arrow keys step through it, <kbd>G</kbd> shows an overview), or see each paper's own page on the <a href="../../research.html">research tab</a>.</p>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by paper. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Rebuilding</h3>
+          <ul>
+            <li><a href="https://replica-agents.github.io/" target="_blank" rel="noopener noreferrer">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</a> &middot; Srinivasan, Raghuveer, Venna, Sreevatsa, Jain, Kukkala, Sarvadevabhatla, ICDAR 2026 (<a href="https://link.springer.com/chapter/10.1007/978-3-032-36023-6_29" target="_blank" rel="noopener noreferrer">proceedings</a>)</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Grounding and reasoning</h3>
+          <ul>
+            <li><a href="https://openaccess.thecvf.com/content/CVPR2026/papers/Venna_M3Grounder_Mask-Based_Multi-Span_and_Multi-Granular_Grounding_for_Document_QA_CVPR_2026_paper.pdf" target="_blank" rel="noopener noreferrer">M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA</a> &middot; Venna, Gunda, Jinka, Rachakonda, Srinivasan, Sarvadevabhatla, CVPR 2026 (<a href="https://m3grounder.github.io/" target="_blank" rel="noopener noreferrer">project page</a>)</li>
+            <li><a href="https://docog-eccv.github.io/" target="_blank" rel="noopener noreferrer">DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</a> &middot; Gunda, Jinka, Rachakonda, Jain, Venna, Srinivasan, Sarvadevabhatla, ECCV 2026</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Layout</h3>
+          <ul>
+            <li><a href="https://doclayoutvl.github.io/" target="_blank" rel="noopener noreferrer">DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation</a> &middot; Srinivasan, Venna, Bandarupalli, Raghuveer, Gunda, Sarvadevabhatla, ECCV 2026</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <!-- Keep References as the final section inside <main>. The citation block
+         sits after the article body and before the quiet article footer. -->
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Building Grounded Document Intelligence</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/">https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026grounded,
+  author       = {Srinivasan, Anirudh},
+  title        = {Building Grounded Document Intelligence},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Building Grounded Document Intelligence</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <!-- Provides the shared theme, navigation, sharing, citations, and the
+         responsive Distill-inspired side TOC. Do not duplicate these per post. -->
+    <script>
+      /* Deck windows: each figure is one live slide from the talk deck, loaded in a
+         same-origin iframe and driven from here. The deck keeps its own animations;
+         this script only steps its build-ups, keeps it on its slide, and loads or
+         unloads it as the reader scrolls so dozens of slides stay light. */
+      (function () {
+        const BASE = "../../research/docai-talk/";
+        const VW = 1280, VH = 720;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const STEP_MS = 2600, HOLD_MS = 4200;
+        const NAV_KEYS = { ArrowRight: 1, " ": 1, Spacebar: 1, PageDown: 1, ArrowLeft: -1, PageUp: -1, Backspace: -1 };
+        const BLOCK_KEYS = new Set(["ArrowUp", "ArrowDown", "Home", "End", "g", "G", "f", "F", "v", "V", "o", "O", "n", "N", "h", "H", "?"]);
+        const states = [];
+
+        function srcFor(fig) {
+          const kind = fig.dataset.deck, n = fig.dataset.slide;
+          if (kind === "replica") return { src: BASE + "replica/slides.html?host=1#" + n, open: BASE + "replica/slides.html#" + n };
+          if (kind === "main") return { src: BASE + "index.html#" + n, open: BASE + "index.html#" + n };
+          let live = BASE + fig.dataset.live;
+          if (fig.dataset.live.indexOf("embed=demo") >= 0 && !reduceMotion) live += "&autoplay=1&rate=1";
+          return { src: live, open: BASE + fig.dataset.live.replace(/[?&]embed=demo.*$/, "#demo") };
+        }
+
+        function build(fig) {
+          const kind = fig.dataset.deck || "";
+          const urls = srcFor(fig);
+          const stage = document.createElement("div");
+          stage.className = "dw-stage";
+          const inner = document.createElement("div");
+          inner.className = "dw-inner";
+          const iframe = document.createElement("iframe");
+          iframe.title = (fig.querySelector("figcaption") || {}).textContent || "Slide from the talk";
+          iframe.setAttribute("tabindex", "0");
+          const ph = document.createElement("div");
+          ph.className = "dw-placeholder";
+          ph.textContent = "Loading slide…";
+          inner.appendChild(iframe);
+          stage.append(inner, ph);
+
+          const bar = document.createElement("div");
+          bar.className = "animation-controls";
+          bar.setAttribute("role", "group");
+          bar.setAttribute("aria-label", kind ? "Slide controls" : "Figure links");
+          if (kind) {
+            bar.innerHTML =
+              '<button type="button" data-a="prev" aria-label="Previous build-up step">Previous</button>' +
+              '<button type="button" data-a="play" aria-label="Play the build-up" aria-pressed="false">Play</button>' +
+              '<button type="button" data-a="next" aria-label="Next build-up step">Next</button>' +
+              '<button type="button" data-s="0.5" aria-label="Play at half speed" aria-pressed="false">0.5x</button>' +
+              '<button type="button" data-s="1" aria-label="Play at normal speed" aria-pressed="true">1x</button>' +
+              '<button type="button" data-s="2" aria-label="Play at double speed" aria-pressed="false">2x</button>' +
+              '<span class="animation-status" aria-live="polite">Loading…</span>';
+          } else {
+            bar.innerHTML = '<span class="animation-status">Live figure · use its own controls</span>';
+          }
+          const open = document.createElement("a");
+          open.className = "dw-open";
+          open.href = urls.open;
+          open.target = "_blank";
+          open.rel = "noopener";
+          open.textContent = "Open full screen ↗";
+          bar.appendChild(open);
+
+          fig.insertBefore(stage, fig.firstChild);
+          stage.after(bar);
+          if (fig.dataset.autoheight) fig.classList.add("dw-auto");
+
+          const st = { fig, kind, stage, inner, iframe, ph, bar, src: urls.src, want: +fig.dataset.slide,
+            step: 0, total: 0, loaded: false, playing: false, user: false, visible: false, speed: 1, timer: null };
+          states.push(st);
+
+          bar.addEventListener("click", (e) => {
+            const b = e.target.closest("button");
+            if (!b) return;
+            if (b.dataset.a === "prev") { st.user = true; pause(st); prev(st); }
+            else if (b.dataset.a === "next") { st.user = true; pause(st); next(st); }
+            else if (b.dataset.a === "play") { st.user = true; st.playing ? pause(st) : play(st); }
+            else if (b.dataset.s) {
+              st.speed = +b.dataset.s;
+              bar.querySelectorAll("[data-s]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+              if (st.playing) schedule(st);
+            }
+          });
+          fig.setAttribute("tabindex", "-1");
+          iframe.addEventListener("load", () => onLoad(st));
+          return st;
+        }
+
+        function fit(st) {
+          const w = st.stage.clientWidth;
+          if (!w) return;
+          const s = w / VW;
+          let h = VH;
+          if (st.fig.classList.contains("dw-auto") && st.loaded) {
+            try { h = Math.max(360, st.iframe.contentDocument.documentElement.scrollHeight); } catch (e) { h = VH; }
+          }
+          st.inner.style.width = VW + "px";
+          st.inner.style.height = h + "px";
+          st.inner.style.transform = "scale(" + s + ")";
+          st.stage.style.height = Math.ceil(h * s) + "px";
+        }
+
+        function slideEl(st) {
+          try {
+            const all = st.iframe.contentDocument.querySelectorAll("section.slide, .slide");
+            return st.kind === "main" ? all[st.want - 1] : all[st.want];
+          } catch (e) { return null; }
+        }
+
+        function onLoad(st) {
+          if (!st.iframe.getAttribute("src") || st.iframe.getAttribute("src") === "about:blank") return;
+          let w, d;
+          try { w = st.iframe.contentWindow; d = st.iframe.contentDocument; } catch (e) { return; }
+          st.loaded = true;
+          st.ph.hidden = true;
+          if (st.kind) {
+            const css = d.createElement("style");
+            css.textContent = "#bar,#count,.navbtns,#help,.help{display:none!important}";
+            d.head.appendChild(css);
+            w.addEventListener("keydown", (e) => {
+              if (w.__blogPass) return;
+              if (e.metaKey || e.ctrlKey || e.altKey) return;
+              if (e.key in NAV_KEYS && !e.shiftKey) {
+                e.preventDefault(); e.stopImmediatePropagation();
+                st.user = true; pause(st);
+                NAV_KEYS[e.key] > 0 ? next(st) : prev(st);
+              } else if (BLOCK_KEYS.has(e.key)) {
+                e.stopImmediatePropagation();
+              }
+            }, true);
+            const slide = slideEl(st);
+            if (slide) {
+              // Clicks inside the slide still reach its own widgets, but never the
+              // deck-level handler that would advance to another slide.
+              slide.addEventListener("click", (e) => e.stopPropagation());
+              const declared = parseInt(slide.dataset.frags, 10);
+              st.total = st.kind === "replica" && !isNaN(declared) ? declared : slide.querySelectorAll(".frag").length;
+            }
+            st.step = 0;
+            setTimeout(() => guard(st), 120);
+          } else if (st.fig.classList.contains("dw-auto")) {
+            try {
+              new ResizeObserver(() => fit(st)).observe(d.body);
+            } catch (e) { /* older browsers: the initial fit is enough */ }
+          }
+          fit(st);
+          status(st);
+          if (st.visible) maybeAutoplay(st);
+        }
+
+        function key(st, k) {
+          const w = st.iframe.contentWindow;
+          if (!w) return;
+          w.__blogPass = true;
+          try { w.dispatchEvent(new w.KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); }
+          finally { w.__blogPass = false; }
+        }
+
+        function current(st) {
+          try { return parseInt(st.iframe.contentWindow.location.hash.slice(1), 10); } catch (e) { return NaN; }
+        }
+
+        // If anything moved the deck off this slide, step straight back onto it.
+        function guard(st) {
+          const now = current(st);
+          if (isNaN(now) || now === st.want) return;
+          if (now > st.want) { key(st, "ArrowLeft"); st.step = st.total; }
+          else { key(st, "ArrowRight"); st.step = 0; }
+          status(st);
+        }
+
+        function next(st) {
+          if (!st.loaded || st.step >= st.total) return false;
+          key(st, "ArrowRight"); st.step++; guard(st); status(st);
+          return true;
+        }
+        function prev(st) {
+          if (!st.loaded || st.step <= 0) return false;
+          key(st, "ArrowLeft"); st.step--; guard(st); status(st);
+          return true;
+        }
+        function rewind(st) {
+          while (st.step > 0) { key(st, "ArrowLeft"); st.step--; }
+          guard(st); status(st);
+        }
+
+        function status(st) {
+          const out = st.bar.querySelector(".animation-status");
+          if (!st.kind || !out) return;
+          const btns = st.bar.querySelectorAll("button");
+          if (!st.loaded) { out.textContent = "Loading…"; return; }
+          if (!st.total) {
+            out.textContent = "Single view · interact with the slide";
+            btns.forEach((b) => (b.disabled = true));
+            return;
+          }
+          btns.forEach((b) => (b.disabled = false));
+          const pad = (n) => String(n + 1).padStart(2, "0");
+          out.textContent = "Step " + pad(st.step) + " / " + pad(st.total);
+          const p = st.bar.querySelector('[data-a="play"]');
+          p.textContent = st.playing ? "Pause" : "Play";
+          p.setAttribute("aria-pressed", String(st.playing));
+          p.setAttribute("aria-label", st.playing ? "Pause the build-up" : "Play the build-up");
+        }
+
+        function schedule(st) {
+          clearTimeout(st.timer);
+          if (!st.playing) return;
+          const wait = (st.step >= st.total ? HOLD_MS : STEP_MS) / st.speed;
+          st.timer = setTimeout(() => {
+            if (!st.playing) return;
+            if (st.step >= st.total) rewind(st); else next(st);
+            schedule(st);
+          }, wait);
+        }
+        function play(st) {
+          if (!st.loaded || !st.total) return;
+          st.playing = true; status(st); schedule(st);
+        }
+        function pause(st) {
+          st.playing = false; clearTimeout(st.timer); status(st);
+        }
+        function maybeAutoplay(st) {
+          if (!reduceMotion && !st.user && st.loaded && st.total && !st.playing) play(st);
+        }
+
+        document.querySelectorAll("figure.deck-window").forEach(build);
+
+        const loader = new IntersectionObserver((entries) => {
+          entries.forEach((en) => {
+            const st = states.find((s) => s.fig === en.target);
+            if (en.isIntersecting && !st.iframe.getAttribute("src")) {
+              st.ph.hidden = false;
+              st.iframe.setAttribute("src", st.src);
+            }
+          });
+        }, { rootMargin: "900px 0px" });
+        const unloader = new IntersectionObserver((entries) => {
+          entries.forEach((en) => {
+            const st = states.find((s) => s.fig === en.target);
+            if (!en.isIntersecting && st.iframe.getAttribute("src")) {
+              pause(st);
+              st.loaded = false; st.step = 0; st.user = false;
+              st.iframe.removeAttribute("src");
+              st.iframe.src = "about:blank";
+              st.iframe.removeAttribute("src");
+              status(st);
+            }
+          });
+        }, { rootMargin: "3200px 0px" });
+        const watcher = new IntersectionObserver((entries) => {
+          entries.forEach((en) => {
+            const st = states.find((s) => s.fig === en.target);
+            st.visible = en.isIntersecting;
+            if (st.visible) maybeAutoplay(st); else if (st.playing) pause(st);
+          });
+        }, { threshold: 0.55 });
+        states.forEach((st) => { loader.observe(st.fig); unloader.observe(st.fig); watcher.observe(st.fig); fit(st); });
+        window.addEventListener("resize", () => states.forEach(fit));
+      })();
+    </script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>
