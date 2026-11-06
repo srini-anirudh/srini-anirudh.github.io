@@ -32,3 +32,11 @@ body.dark-mode .summary-kicker { color: #ffbf73; }
 .pc-row a:hover, .pc-root a:hover strong { color: #3fd1a0; }
 .paper-connect p { margin: 16px 0 0; font-size: 14px; color: #93a0a8; }
 .paper-connect p a { color: #3fd1a0; text-decoration: underline; }
+
+/* Talks reuse the research-card layout; label each card by its kind. */
+body.talks-page .research-card::before { content: "Talk"; }
+body.talks-page #programming-for-ai::before { content: "Guest lecture"; }
+body.talks-page #vllm-meetup-mumbai::before { content: "Invited talk"; }
+body.talks-page #docai-research::before { content: "Research talk"; }
+body.talks-page #docog-eccv::before { content: "Spotlight · ECCV 2026"; }
+body.talks-page #replica-icdar::before { content: "Oral · ICDAR 2026"; }

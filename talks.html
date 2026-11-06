@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=4" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=5" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -43,7 +43,7 @@
     </script>
   </head>
 
-  <body class="talks-page">
+  <body class="research-page talks-page">
     <div id="particles-js"></div>
     <div class="content-wrapper"></div>
 
@@ -85,49 +85,188 @@
         <p>Guest lectures, conference talks, and meetup presentations on my research and engineering work.</p>
       </section>
 
-      <section class="talk-list">
-        <article class="talk-card" id="programming-for-ai">
-          <div class="talk-meta"><span class="talk-date">Nov 5, 2026</span><span class="talk-venue">IIIT Hyderabad</span></div>
-          <h2>Building production-grade offline VLM inference engines at scale</h2>
-          <p class="talk-event">Guest lecture · Programming AI Accelerators, a course by
-            <a href="https://scholar.google.co.in/citations?user=3HKjt_IAAAAJ&amp;hl=en">Prof. P. J. Narayanan</a></p>
-          <p>A tour of how vLLM works, then how Patram-Ingest keeps GPUs busy, survives crashes, and runs graphs of stages.</p>
-          <a class="talk-button" href="talks/programming-for-ai-lecture/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
-        </article>
+      <section class="research-card" id="programming-for-ai">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/talk-ai-accelerators-thumb.jpg"
+            alt="Building production-grade offline VLM inference engines at scale"
+            class="research-media"
+            data-image="assets/images/talk-ai-accelerators.jpg"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="talks/programming-for-ai-lecture/" target="_self">
+            <span class="papertitle">Building production-grade offline VLM inference engines at scale</span>
+          </a>
+          <br />
+          <em>Guest lecture</em>, Programming AI Accelerators, a course by <a href="https://scholar.google.co.in/citations?user=3HKjt_IAAAAJ&amp;hl=en">Prof. P. J. Narayanan</a> &middot; IIIT Hyderabad &middot; Nov 5, 2026
+          <br />
+          <button onclick="window.open('talks/programming-for-ai-lecture/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>A tour of how vLLM works, then how Patram-Ingest keeps GPUs busy, survives crashes, and runs graphs of stages.</p>
+            </div>
+          </details>
+        </div>
+      </section>
 
-        <article class="talk-card" id="vllm-meetup-mumbai">
-          <div class="talk-meta"><span class="talk-date">Oct 24, 2026</span><span class="talk-venue">IIT Bombay, Mumbai</span></div>
-          <h2>Durable execution around vLLM for large-scale data generation</h2>
-          <p class="talk-event">Invited speaker · <a href="https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/">vLLM Meetup Mumbai 2026</a></p>
-          <p>How Patram-Ingest wraps vLLM in durable execution so weeks-long generation runs over 100M+ examples survive node failures and lent-out GPUs.</p>
-          <a class="talk-button" href="talks/patram-ingest-slides/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
-        </article>
+      <section class="research-card" id="vllm-meetup-mumbai">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/talk-vllm-mumbai-thumb.jpg"
+            alt="Durable execution around vLLM for large-scale data generation"
+            class="research-media"
+            data-image="assets/images/talk-vllm-mumbai.jpg"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="talks/patram-ingest-slides/" target="_self">
+            <span class="papertitle">Durable execution around vLLM for large-scale data generation</span>
+          </a>
+          <br />
+          <em>Invited talk</em>, <a href="https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/">vLLM Meetup Mumbai 2026</a> &middot; IIT Bombay &middot; Oct 24, 2026
+          <br />
+          <button onclick="window.open('talks/patram-ingest-slides/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('https://inferenceops.io/workshops/vllm-meetup-mumbai-2026/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            event
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>How Patram-Ingest wraps vLLM in durable execution so weeks-long generation runs over 100M+ examples survive node failures and lent-out GPUs.</p>
+            </div>
+          </details>
+        </div>
+      </section>
 
-        <article class="talk-card" id="docog-eccv">
-          <div class="talk-meta"><span class="talk-date">Sep 12, 2026</span><span class="talk-venue">ECCV 2026, Malm&ouml;, Sweden</span></div>
-          <h2>DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</h2>
-          <p class="talk-event">Spotlight talk · <a href="research.html#docog" target="_self">Paper details</a></p>
-          <p>Making a vision-language model's step-by-step reasoning on documents, charts, tables, and flowcharts visually grounded, with a segmentation mask for each evidence step.</p>
-          <a class="talk-button" href="https://docog-eccv.github.io/slides/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
-          <a class="talk-button" href="https://docog-eccv.github.io/" target="_blank" rel="noopener"><i class="fas fa-globe"></i> Project website</a>
-        </article>
+      <section class="research-card" id="docai-research">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/talk-grounded-docai-thumb.jpg"
+            alt="Building Grounded Document Intelligence"
+            class="research-media"
+            data-image="assets/images/talk-grounded-docai.jpg"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="research/docai-talk/" target="_self">
+            <span class="papertitle">Building Grounded Document Intelligence</span>
+          </a>
+          <br />
+          <em>Research talk</em> &middot; REPLICA, M3Grounder, DoCoG and DocLayout-VL
+          <br />
+          <button onclick="window.open('research/docai-talk/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('blogs/building-grounded-document-intelligence/', '_self')" class="arxiv-button">
+            <i class="fas fa-pen-nib"></i>
+            blog
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>An hour-long talk that ties my document AI work together: a text representation of the page that loses nothing (REPLICA and FID-HTML), and grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop.</p>
+            </div>
+          </details>
+        </div>
+      </section>
 
-        <article class="talk-card" id="replica-icdar">
-          <div class="talk-meta"><span class="talk-date">Sep 1, 2026</span><span class="talk-venue">ICDAR 2026</span></div>
-          <h2>REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</h2>
-          <p class="talk-event">Oral talk · <a href="research.html#replica" target="_self">Paper details</a></p>
-          <p>A four-stage agentic pipeline (Segment, Localize, Assemble, Refine) that rebuilds document pages as FID-HTML, plus VFDR-Bench, 5,000 expert-annotated documents.</p>
-          <a class="talk-button" href="https://replica-agents.github.io/slides.html" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
-          <a class="talk-button" href="https://replica-agents.github.io/" target="_blank" rel="noopener"><i class="fas fa-globe"></i> Project website</a>
-        </article>
+      <section class="research-card" id="docog-eccv">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-docog-thumb.jpg"
+            alt="DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA"
+            class="research-media"
+            data-image="assets/images/paper-docog.png"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://docog-eccv.github.io/">
+            <span class="papertitle">DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</span>
+          </a>
+          <br />
+          <a href="https://eccv.ecva.net/virtual/2026/spotlight/6173" target="_blank" rel="noopener noreferrer"><em>Spotlight talk at ECCV &#39;26</em></a> &middot; Malm&ouml;, Sweden &middot; Sep 12, 2026
+          <br />
+          <button onclick="window.open('https://docog-eccv.github.io/slides/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('https://docog-eccv.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('research.html#docog', '_self')" class="arxiv-button">
+            <i class="fas fa-file-lines"></i>
+            paper details
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>Making a vision-language model&#39;s step-by-step reasoning on documents, charts, tables, and flowcharts visually grounded, with a segmentation mask for each evidence step.</p>
+            </div>
+          </details>
+        </div>
+      </section>
 
-        <article class="talk-card" id="docai-research">
-          <div class="talk-meta"><span class="talk-date">Research summary</span><span class="talk-venue">Research talk</span></div>
-          <h2>Building Grounded Document Intelligence</h2>
-          <p class="talk-event">Hour-long research talk · <a href="blogs/building-grounded-document-intelligence/" target="_self">Read the written version</a></p>
-          <p>A story that ties my work together: REPLICA rebuilds a document page, then M3Grounder, DoCoG and DocLayout-VL make it grounded, reasoned over, and segmented.</p>
-          <a class="talk-button" href="research/docai-talk/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View slides</a>
-        </article>
+      <section class="research-card" id="replica-icdar">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/paper-replica-thumb.jpg"
+            alt="REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction"
+            class="research-media"
+            data-image="assets/images/paper-replica.png"
+          />
+        </div>
+        <div class="research-card-content">
+          <a href="https://replica-agents.github.io/">
+            <span class="papertitle">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</span>
+          </a>
+          <br />
+          <a href="https://icdar2026.org/index.php/program-detail/" target="_blank" rel="noopener noreferrer"><em>Oral talk at ICDAR &#39;26</em></a> &middot; Sep 1, 2026
+          <br />
+          <button onclick="window.open('https://replica-agents.github.io/slides.html', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('https://replica-agents.github.io/', '_blank')" class="arxiv-button">
+            <i class="fas fa-globe"></i>
+            website
+          </button>
+          <button onclick="window.open('research.html#replica', '_self')" class="arxiv-button">
+            <i class="fas fa-file-lines"></i>
+            paper details
+          </button>
+          <br />
+          <details class="research-details">
+            <summary class="abstract-toggle">
+              description <i class="fas fa-chevron-down"></i>
+            </summary>
+            <div class="research-abstract">
+              <p>A four-stage agentic pipeline (Segment, Localize, Assemble, Refine) that rebuilds document pages as FID-HTML, plus VFDR-Bench, 5,000 expert-annotated documents.</p>
+            </div>
+          </details>
+        </div>
       </section>
     </main>
 
