@@ -192,7 +192,7 @@
               </dd>
             </div>
             <div><dt>Time</dt><dd>About 3 hours, plus model downloads</dd></div>
-            <div><dt>Hardware</dt><dd>A CPU is enough. No step needs a GPU. Every output here ran on an AMD EPYC 7R13 with 8 threads.</dd></div>
+            <div><dt>Hardware</dt><dd>A CPU is enough. No step needs a GPU. Every CPU output here ran on an AMD EPYC 7R13 with 8 threads. Two runs were repeated once on a GPU for comparison.</dd></div>
             <div><dt>You need</dt><dd>Python 3.10+, the raw loop from C1, and these libraries: transformers 5.x, datasets, accelerate, peft, trl</dd></div>
             <div><dt>Package</dt><dd><code>hfstack</code></dd></div>
           </dl>
@@ -275,7 +275,7 @@ $ python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"</code></pre>
           <p class="callout-label">Nuance</p>
           <p>Hugging Face APIs change between major versions. This code runs on transformers 5.22, datasets 5.1, accelerate 1.15, peft 0.21, trl 1.17 and torch 2.15. Some details below are specific to transformers 5: configs are dataclasses, <code>rope_theta</code> moved into <code>rope_parameters</code>, and <code>apply_chat_template(tokenize=True)</code> returns a <code>BatchEncoding</code>. The ideas carry over. Check the exact names against your version.</p>
         </aside>
-        <p>Every output here came from an AMD EPYC 7R13 CPU limited to 8 threads, with no GPU. The one exception is the Accelerate comparison in step 9, which uses 1 thread per process. Most outputs are shapes and equalities, which do not depend on hardware. Timings do. Each timing is a single run on a busy shared machine, with the load average above 70 and no variance estimate. Read them as rough guides only, and do not read a ranking into small gaps.</p>
+        <p>Every output here came from an AMD EPYC 7R13 CPU limited to 8 threads, with no GPU. The Accelerate comparison in step 9 uses 1 thread per process. Steps 10 and 11 also show one GPU run each, on one NVIDIA H100 80GB HBM3 (torch 2.15.0, CUDA 13.2), always labelled and kept apart from the CPU numbers. Most outputs are shapes and equalities, which do not depend on hardware. Timings do. Each timing is a single run on a busy shared machine, with the load average above 70 and no variance estimate. Read them as rough guides only, and do not read a ranking into small gaps.</p>
       </section>
 
       <section class="build-step" id="step-01" data-step-title="Config and Auto classes">
@@ -1581,7 +1581,19 @@ sampling with the same seed, tokens identical: True</code></pre>
   all three produced the same tokens: True</code></pre>
 </figure>
         <p>All three produced the same tokens. The cached loop took 3.79 s and the no-cache loop took 5.39 s. A cache should win, because it does not recompute the history, and the gap should grow with length, because the no-cache cost per step keeps growing. We did not measure longer runs, and this single run on a busy machine does not pin down the ratio.</p>
-        <p>Our loop also finished ahead of <code>model.generate</code>, at 16.9 against 14.3 tokens/s. We draw no conclusion from that order. There are no repeats, so it may be noise. This benchmark on a GPU is not yet measured.</p>
+        <p>Our loop also finished ahead of <code>model.generate</code>, at 16.9 against 14.3 tokens/s. We draw no conclusion from that order. There are no repeats, so it may be noise.</p>
+        <p>We ran the same benchmark once on one NVIDIA H100 80GB HBM3 (torch 2.15.0, CUDA 13.2).</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c02-hf-stack/benchmarks/bench_generate.py --device cuda</code></pre>
+        </figure>
+<figure class="code-output" data-from="benchmarks/bench_generate.py --device cuda, NVIDIA H100">
+<pre><code>SmolLM2-135M, prompt 6 tokens, 64 new tokens, NVIDIA H100 80GB HBM3, torch 2.15.0, CUDA 13.2, float32
+  no cache (recompute history)      2.38 s     26.9 tokens/s
+  our loop with KV cache            2.16 s     29.7 tokens/s
+  model.generate                    3.16 s     20.3 tokens/s
+  all three produced the same tokens: True</code></pre>
+</figure>
+        <p>On the H100 the tokens were again identical. The cache helped far less than on the CPU: 29.7 against 26.9 tokens/s. <code>model.generate</code> was the slowest of the three, at 20.3 tokens/s. With batch 1 and a 135 M model, each new token is one small forward pass, so the time likely goes to launching kernels and to Python, not to arithmetic. We did not profile it. This is one run, and a larger batch or model would change the picture.</p>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
           <p>Pad on the right when generating. The last position of the shorter row is now padding, and the model predicts the next token from there. The text changes.</p>
@@ -1704,7 +1716,22 @@ seed 0 run a second time, same accuracy, loss curve, merge gap and adapter hash:
 </figure>
         <p>Exact-match accuracy on 182 held-out sums went from 0.000 to between 0.560 and 0.593, with a mean of 0.573. None of these sums appear in training. Three seeds give a range, not a confidence interval. A repeat of seed 0 gave the same result, down to the adapter's hash, so a fixed seed is reproducible on this machine.</p>
         <p>Do not read the whole jump as arithmetic the adapter learned. The 0.000 is mostly a format effect. The base model opens with <code>To add 86 and</code>, and the script cuts each reply at 6 tokens. So the base model fails even on sums it might get right with more room. We did not measure that. After training, the model replies with a bare number.</p>
-        <p>So a small adapter can change what a model does. It does not make a good calculator: 41% to 44% of the answers are still wrong after this short run. The same runs on a GPU are not yet measured.</p>
+        <p>So a small adapter can change what a model does. It does not make a good calculator: 41% to 44% of the answers are still wrong after this short run.</p>
+        <p>We repeated the three seeds once on one NVIDIA H100 80GB HBM3 (torch 2.15.0, CUDA 13.2).</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c02-hf-stack/scripts/11b_lora_seeds.py --device cuda --prefix gpu_</code></pre>
+        </figure>
+<figure class="code-output" data-from="scripts/11b_lora_seeds.py --device cuda, NVIDIA H100">
+<pre><code>182 held-out sums, 150 steps, exact match within 6 tokens
+seed  before   after  final loss  merge gap  s/step  adapter sha256
+   0   0.000   0.593       0.295   8.20e-05    0.22  31b1e7195ad46470
+   1   0.000   0.560       0.326   5.91e-05    0.29  db852f0579c19c36
+   2   0.000   0.566       0.267   4.72e-05    0.28  f528e9dc7d1a978e
+
+after: min 0.560, mean 0.573, max 0.593
+seed 0 run a second time, same accuracy, loss curve, merge gap and adapter hash: True</code></pre>
+</figure>
+        <p>On the H100 a step took 0.22 to 0.29 s, against 1.08 to 1.30 s on the CPU. Accuracy and final loss match the CPU runs to the printed digits for each seed. The adapter hashes differ, so the weights agree only up to float rounding.</p>
         <p>The adapter file ties to the shapes too: 921,600 &times; 4 = 3,686,400 bytes of weights, plus a header, gives the 3,717,656 bytes on disk. That is 0.69% of the full model in float32.</p>
         <table class="shape-table">
           <caption>One wrapped q_proj on SmolLM2-135M (r = 8, D = 576)</caption>
@@ -1717,16 +1744,16 @@ seed 0 run a second time, same accuracy, loss curve, merge gap and adapter hash:
           </tbody>
         </table>
         <p>An adapter saves only the small matrices. To load it you need the base model too, which is why <code>PeftModel.from_pretrained</code> takes two arguments. <code>merge_and_unload</code> folds the update into W and removes the wrappers. You get a plain <code>LlamaForCausalLM</code> back, with no PEFT dependency at inference.</p>
-        <p>The merge is not exact. Logits moved by up to 1.03e-04 for seed 0, and by 7.82e-05 to 1.03e-04 over the three seeds, so about 1e-4. The likely cause is rounding: the merged path rounds <code>W + 2 B A</code> to float32 once, where the adapter path rounds two terms separately. We did not test that explanation.</p>
+        <p>The merge is not exact. On the CPU, logits moved by up to 1.03e-04 for seed 0, and by 7.82e-05 to 1.03e-04 over the three seeds, so about 1e-4. On the H100 the gaps were 4.72e-05 to 8.20e-05. The likely cause is rounding: the merged path rounds <code>W + 2 B A</code> to float32 once, where the adapter path rounds two terms separately. We did not test that explanation.</p>
         <aside class="callout callout-test">
           <p class="callout-label">Test</p>
-          <p>Four tests pin this down. <code>test_only_lora_tensors_are_trainable</code> checks what trains. <code>test_fresh_adapter_changes_nothing</code> checks that B starts at zero. <code>test_manual_formula_equals_peft</code> checks the arithmetic. <code>test_merge_preserves_logits</code> checks that merging keeps the logits within 1e-4. That test runs on the tiny model. On SmolLM2, seed 0 landed just above that bound, so the bound does not carry over to larger models.</p>
+          <p>Four tests pin this down. <code>test_only_lora_tensors_are_trainable</code> checks what trains. <code>test_fresh_adapter_changes_nothing</code> checks that B starts at zero. <code>test_manual_formula_equals_peft</code> checks the arithmetic. <code>test_merge_preserves_logits</code> checks that merging keeps the logits within 1e-4. That test runs on the tiny model. On SmolLM2, seed 0 on the CPU landed just above that bound, so the bound does not carry over to larger models.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
           <ul>
             <li>Every trainable name contains <code>lora_</code>.</li>
-            <li>The adapter reloads with no change in logits. Merging moves them by about 1e-4 on SmolLM2.</li>
+            <li>The adapter reloads with no change in logits. Merging moves them by about 1e-4 on SmolLM2 (CPU), and by up to 8.20e-05 on the H100.</li>
           </ul>
         </footer>
       </section>
