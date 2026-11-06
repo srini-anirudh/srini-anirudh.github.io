@@ -1,0 +1,1933 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT
+
+    Apply these requirements to every animated figure in the article:
+
+    1. Build detailed, cinematic sequences with many meaningful frames or finely
+       interpolated states. Motion should explain the idea rather than merely
+       decorate it; avoid abrupt two-state transitions.
+    2. Every animation must provide Previous and Next controls for manual,
+       frame-by-frame or stage-by-stage exploration.
+    3. Animations should play automatically when appropriate and provide one
+       clear Play/Pause control that supports pausing and resuming from the
+       current frame.
+    4. Provide 0.5x, 1x, and 2x playback-speed controls. The selected speed must
+       be visually and programmatically indicated with aria-pressed.
+    5. Use cinematic camera language where it improves explanation: smooth zoom
+       in/out, pans, focus transitions, tracked highlights, staged reveals, and
+       deliberate easing. Keep labels readable throughout every camera move.
+    6. Display the current frame/stage and total frame/stage count, and preserve
+       the current position when playback speed changes or playback resumes.
+    7. Pause automatic playback while the reader is manually interacting with a
+       figure. Resume only through an explicit action or a clearly documented,
+       gentle timeout.
+    8. Honor prefers-reduced-motion. In reduced-motion mode, disable autoplay,
+       zooms, pans, and non-essential transitions while retaining Previous/Next
+       access to every explanatory state.
+    9. Keep controls keyboard accessible, use semantic buttons, add visible focus
+       states, and provide useful aria-labels and live status text.
+    10. Export one representative animation as a seamless GIF for the blog index
+        card. Use the article's strongest explanatory moment, not a generic
+        decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
+        optimized file size around 3 MB or less. Save it as
+        blogs/[ARTICLE-SLUG]/preview.gif. Also export a matching static poster
+        as blogs/[ARTICLE-SLUG]/preview.png for prefers-reduced-motion and slow connections.
+        Add both assets and useful alt text to the article card in blogs/index.html.
+
+    Recommended control order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
+
+    Blog-index preview deliverables:
+    blogs/[ARTICLE-SLUG]/preview.gif + blogs/[ARTICLE-SLUG]/preview.png
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How vision-language models show where they see: points, boxes, polygons and masks, coordinate tokens versus segmentation decoders, granularity, grounded reasoning and grounding metrics." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/when-language-must-point/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="When Language Must Point: Grounding in Vision-Language Models" />
+    <meta property="og:description" content="How vision-language models show where they see: points, boxes, polygons and masks, coordinate tokens versus segmentation decoders, granularity, grounded reasoning and grounding metrics." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/when-language-must-point/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/when-language-must-point/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="When Language Must Point: Grounding in Vision-Language Models" />
+    <meta name="twitter:description" content="A VLM can say what it sees. Grounding is how it shows where: points, boxes, polygons and masks, typed as tokens or drawn by a decoder." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/when-language-must-point/preview.png" />
+    <title>When Language Must Point: Grounding in Vision-Language Models | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/when-language-must-point/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/when-language-must-point/" },
+        "headline": "When Language Must Point",
+        "description": "How vision-language models show where they see: points, boxes, polygons and masks, coordinate tokens versus segmentation decoders, granularity, grounded reasoning and grounding metrics.",
+        "image": "https://srini-anirudh.github.io/blogs/when-language-must-point/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["visual grounding", "referring segmentation", "vision-language models", "coordinate tokens", "SAM"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#vlms" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* prose furniture */
+      .article-content code { padding: 1px 5px; background: rgba(20, 23, 26, 0.06); font: 0.82em var(--mono); }
+      .article-content ul.plain, .article-content ol.plain { margin: 0 0 20px; padding-left: 1.2em; }
+      .article-content ul.plain li, .article-content ol.plain li { margin: 0 0 8px; }
+      .eq-block { margin: 22px 0 24px; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); font: 19px/1.6 var(--body); text-align: center; overflow-x: auto; }
+      .eq-block .eq-name { display: block; margin-bottom: 6px; color: var(--muted); font: 600 10.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; text-align: left; }
+      .eq { white-space: nowrap; font-style: normal; }
+      .callout { margin: 30px 0; padding: 16px 20px 14px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); }
+      .callout-insight { border-left-color: #0b5ea8; }
+      .callout-nuance { border-left-color: #d66f00; }
+      .callout-label { margin: 0 0 6px !important; color: var(--muted); font: 600 11px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .callout-insight .callout-label { color: #0b5ea8; }
+      .callout-nuance .callout-label { color: #b35c00; }
+      .callout p { font-size: 17.5px; }
+      .callout p:last-child { margin-bottom: 0; }
+      .keylist { margin: 0 0 20px; padding: 0; list-style: none; counter-reset: k; }
+      .keylist li { position: relative; margin: 0 0 14px; padding: 12px 16px 12px 48px; background: var(--paper-bright); border: 1px solid var(--rule); font-size: 17px; line-height: 1.5; }
+      .keylist li::before { counter-increment: k; content: counter(k, decimal-leading-zero); position: absolute; left: 14px; top: 13px; color: var(--muted); font: 600 12px/1.4 var(--mono); }
+      .keylist .k-tag { display: inline-block; margin-right: 6px; font: 600 10.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+      .keylist .k-ins { color: #0b5ea8; }
+      .keylist .k-nua { color: #b35c00; }
+      .table-note { margin: -8px 0 26px; color: var(--ink-soft); font-size: 16.5px; line-height: 1.55; }
+      .table-note strong { color: var(--ink); }
+      .blog-article .comparison-table td.na { color: #9a9fa3; font-style: italic; }
+      .blog-article .comparison-table th[scope="row"] { white-space: nowrap; }
+      .comparison-table tr.own th, .comparison-table tr.own td { background: rgba(214, 111, 0, 0.06); }
+
+      /* ---------- figures: light paper panels ---------- */
+      .wl-fig { margin: 40px 0 44px; padding: 18px 18px 14px; color: #14171a; background: #f7f6f3; border: 1px solid #cac6bd; }
+      .wl-fig.wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      .wl-kicker { margin: 0 0 10px !important; color: #7b8388; font: 600 11px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .wl-fig svg { display: block; width: 100%; height: auto; overflow: hidden; }
+      .wl-fig svg text { font-family: var(--mono); }
+      .wl-fig svg text:not([fill]) { fill: #14171a; }
+      .wl-fig svg .serif { font-family: var(--body); }
+      .wl-fig svg .disp { font-family: var(--display); font-weight: 700; }
+      .wl-stage { position: relative; background: #fbfaf8; border: 1px solid #e2ded6; }
+      .wl-note { min-height: 3.2em; margin: 12px 0 0 !important; color: #474e53; font: 14.5px/1.55 var(--mono); }
+      .wl-note b { color: #14171a; font-weight: 600; }
+      .wl-note .o { color: #b35c00; font-weight: 600; }
+      .wl-note .b { color: #0b5ea8; font-weight: 600; }
+      .wl-fig figcaption { margin: 14px 0 0; padding-top: 12px; color: #474e53; border-top: 1px solid #e2ded6; font: italic 16px/1.55 var(--body); }
+      .wl-fig figcaption b { font-style: normal; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #14171a; margin-right: 6px; }
+      .fig-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; }
+      .wl-fig button, .wl-fig .wl-btn { min-height: 38px; padding: 7px 11px; color: #14171a; background: #f7f6f3; border: 1px solid #14171a; border-radius: 2px; cursor: pointer; font: 600 11.5px/1 var(--mono); }
+      .wl-fig button:hover { background: #ece9e2; }
+      .wl-fig button[aria-pressed="true"], .wl-fig button[aria-selected="true"] { color: #fff; background: #d66f00; border-color: #d66f00; }
+      .wl-fig button[data-action="play-pause"][aria-pressed="true"] { color: #fff; background: #14171a; border-color: #14171a; }
+      .wl-fig button:focus-visible, .wl-fig input:focus-visible, .wl-fig [tabindex]:focus-visible { outline: 2px solid #0b5ea8; outline-offset: 2px; }
+      .fig-controls .status { margin-left: auto; color: #474e53; font: 12px/1.4 var(--mono); }
+      .wl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+      .wl-chips li { padding: 5px 9px; color: #7b8388; background: #fbfaf8; border: 1px solid #cac6bd; font: 600 11.5px/1.2 var(--mono); transition: color .35s, background .35s, border-color .35s; }
+      .wl-chips li.on { color: #fff; background: #d66f00; border-color: #d66f00; }
+      .wl-chips li.done { color: #14171a; border-color: #14171a; }
+      .wl-out { margin: 10px 0 0; padding: 10px 12px; min-height: 3.6em; background: #fff; border: 1px solid #e2ded6; font: 13.5px/1.6 var(--mono); color: #14171a; overflow-wrap: anywhere; }
+      .wl-out .q { color: #7b8388; }
+      .wl-out .tag { color: #b35c00; }
+      .wl-readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 12px 0 0; }
+      .wl-readout div { padding: 8px 10px; background: #fff; border: 1px solid #e2ded6; }
+      .wl-readout span { display: block; color: #7b8388; font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .wl-readout strong { display: block; margin-top: 3px; color: #14171a; font: 600 17px/1.25 var(--mono); }
+      .wl-readout strong.good { color: #2f8f5b; }
+      .wl-readout strong.bad { color: #b8432f; }
+      .wl-tokens { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 0; min-height: 2.2em; }
+      .wl-tokens span { padding: 3px 5px; color: #14171a; background: #fff; border: 1px solid #cac6bd; font: 600 13px/1.2 var(--mono); opacity: 0; transform: translateY(4px); transition: opacity .25s, transform .25s, background .3s, color .3s; }
+      .wl-tokens span.in { opacity: 1; transform: none; }
+      .wl-tokens span.special { color: #b35c00; border-color: #e3b27c; }
+      .wl-tokens span.loc { color: #0b5ea8; border-color: #8fb3d6; }
+      .wl-tokens span.err { color: #fff; background: #b8432f; border-color: #b8432f; }
+      .wl-tokens span.cur { outline: 2px solid #d66f00; outline-offset: 1px; }
+      .wl-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 12px 0 0; }
+      .wl-ctl label { display: flex; align-items: center; gap: 8px; color: #474e53; font: 600 12px/1.3 var(--mono); }
+      .wl-ctl input[type=range] { width: 170px; accent-color: #d66f00; }
+      .wl-ctl output { min-width: 4.5em; color: #14171a; font: 600 13px var(--mono); }
+      .wl-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+      .wl-steps { margin: 12px 0 0; padding: 0; list-style: none; font: 13.5px/1.45 var(--mono); }
+      .wl-steps li { display: flex; gap: 10px; align-items: baseline; padding: 6px 8px; color: #9a9fa3; border-left: 3px solid transparent; transition: color .35s, border-color .35s, background .35s; }
+      .wl-steps li .sn { flex: 0 0 auto; width: 4.2em; color: inherit; font-weight: 600; }
+      .wl-steps li .rg { margin-left: auto; flex: 0 0 auto; font-size: 12px; }
+      .wl-steps li.done { color: #474e53; }
+      .wl-steps li.on { color: #14171a; background: rgba(214, 111, 0, 0.08); border-left-color: #d66f00; }
+      .wl-steps li.bad { color: #b8432f; }
+      .f-fade { transition: opacity .55s ease; }
+      .wl-flow { animation: wlflow 1.1s linear infinite; }
+      @keyframes wlflow { to { stroke-dashoffset: -30; } }
+      .wl-drag { cursor: move; touch-action: none; }
+      .wl-handle { touch-action: none; }
+      .wl-handle { cursor: nwse-resize; }
+      @media (prefers-reduced-motion: reduce) {
+        .f-fade, .wl-tokens span, .wl-chips li, .wl-steps li { transition: none !important; }
+        .wl-flow { animation: none; }
+      }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .wl-fig { padding: 12px 10px 10px; }
+        .wl-note { font-size: 13px; }
+        .fig-controls .status { margin-left: 0; width: 100%; }
+        .wl-ctl input[type=range] { width: 130px; }
+        .wl-steps li .rg { display: none; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article when-language-must-point-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">A field guide · Vision-language models</p>
+        <h1 class="article-title">When Language Must Point</h1>
+        <p class="article-subtitle">A vision-language model can say what it sees. Grounding is how it shows where: as a point, a box, an outline or a mask, typed out as tokens or drawn by a decoder.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Visual grounding</span><span>Segmentation</span><span>Vision-language models</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>42 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">09 of 20 &middot; Grounding</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../aligning-vision-language-models/"><span>Previous &middot; 08</span><strong>Aligning Vision-Language Models</strong></a><a class="ml-series-nav__link" href="../how-vlms-read-documents/"><span>Next &middot; 10</span><strong>How VLMs Read Documents</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#question">Saying where, not only what</a></li>
+          <li><a href="#ladder">From recognising to localising</a></li>
+          <li><a href="#tasks">The family of grounding tasks</a></li>
+          <li><a href="#representations">Point, box, polygon, mask</a></li>
+          <li><a href="#coordinates">Writing coordinates as tokens</a></li>
+          <li><a href="#autoregressive">Grounding as next-token prediction</a></li>
+          <li><a href="#decoders">Handing the location to a decoder</a></li>
+          <li><a href="#granularity">What counts as one region</a></li>
+          <li><a href="#reasoning">Grounding each reasoning step</a></li>
+          <li><a href="#uses">Why grounding matters beyond explanation</a></li>
+          <li><a href="#evaluation">Measuring grounding</a></li>
+          <li><a href="#comparison">Comparing grounding models</a></li>
+          <li><a href="#choosing">Choosing a grounding interface</a></li>
+          <li><a href="#insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="question">
+        <h2>Saying where, not only what</h2>
+        <p>Show a vision-language model a bank statement and ask: &ldquo;How much did I pay for electricity in March?&rdquo; It answers &ldquo;$84.20&rdquo;. The answer may well be right. But you cannot tell which number on the page it read. It might have read the March row or the February row. It might have read the amount or the running balance. To check, you have to find the number yourself, and then the model has saved you nothing.</p>
+        <p>Now ask the model to show its evidence. A useful model highlights the one cell that holds $84.20. You glance at the highlight and see that it sits in the March row, under the Amount column. Checking now takes one second instead of one minute.</p>
+        <p>That second ability is called <strong>grounding</strong>. Grounding links a piece of language to a place in the image. The place can be a point, a box, an outline or an exact set of pixels. The language can be a noun (&ldquo;the mug&rdquo;), a referring expression (&ldquo;the mug to the left of the laptop&rdquo;), an answer, or one step of a longer argument.</p>
+        <p>This post is about one question. <em>A vision-language model can say what it sees. How does it communicate where it sees it?</em></p>
+        <p>The question sounds narrow, but it is not. A language model produces a sequence of tokens. A location is geometry. Every grounding system therefore has to decide how geometry becomes tokens, or how tokens become geometry. That one decision reaches into the tokenizer, the loss, the decoder, the training data, the metrics and the reward. It also limits what kind of evidence the model can show at all. A rectangle cannot follow a curved line of text. A single point cannot cover a table row.</p>
+        <p>Earlier posts built the pieces we need. <a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a> showed how an image becomes a sequence of tokens. <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> showed how resolution and patch size decide what the model can see. <a href="../how-models-know-where-they-are/">How Models Know Where They Are</a> showed how two-dimensional positions are encoded inside the model, for example with M-RoPE. Those posts move location <em>into</em> the model. Grounding is the other direction. It gets location back <em>out</em>, in a form a person or a program can check.</p>
+        <p>We will build the topic in order. First we place grounding on a ladder of vision tasks and list the task family. Then we compare four shapes an answer can take: point, box, polygon and mask. Next we look at how coordinates are written as tokens and what that costs. After that comes the main alternative, where the language model hands the location to a dedicated decoder such as SAM. Then come granularity, grounded reasoning, the uses of grounding, and how to measure it. A comparison of models and a short guide to choosing an interface close the post.</p>
+      </section>
+
+      <section id="ladder">
+        <h2>From recognising to localising</h2>
+        <p>Vision tasks form a ladder. Each rung asks the model to commit to more about location. It helps to walk up the ladder with one picture and watch what the output gains at each step.</p>
+        <ol class="plain">
+          <li><strong>Classification</strong> gives one label for the whole image, such as &ldquo;office desk&rdquo;. It says nothing about where anything is.</li>
+          <li><strong>Captioning</strong> writes a sentence. Objects now have names, but they still have no positions.</li>
+          <li><strong>Visual question answering (VQA)</strong> answers a question about the image. To answer &ldquo;What colour is the mug on the left?&rdquo; the model must find that mug inside its own computation. But the output is still only text, so nobody can see where it looked.</li>
+          <li><strong>Referring expression comprehension</strong> takes a phrase and returns the region it describes. For the first time the location is the output.</li>
+          <li><strong>Pointing</strong> and <strong>box grounding</strong> return that region as one point or one rectangle.</li>
+          <li><strong>Segmentation</strong> returns the exact pixels of the region.</li>
+        </ol>
+
+        <figure class="wl-fig" id="fig-ladder" data-fig="ladder">
+          <p class="wl-kicker">The localisation ladder</p>
+          <div class="wl-stage"><svg viewBox="0 0 600 340" role="img" aria-label="A drawn desk scene with two mugs, a laptop and a plant. The model's output moves from a label to a caption, an answer, a box, a point and finally a mask on the left mug."></svg></div>
+          <ul class="wl-chips" aria-hidden="true"><li>Label</li><li>Caption</li><li>Answer</li><li>Box</li><li>Point</li><li>Mask</li></ul>
+          <div class="wl-out" aria-live="polite"></div>
+          <div class="fig-controls" role="group" aria-label="Figure 1 animation controls"></div>
+          <figcaption><b>Figure 1</b>The same scene walked up the ladder. Below the referring step, location exists only inside the model. From the referring step upward, it is part of the output, so a reader can check it. Each rung also makes a sharper claim: a box claims an extent, and a mask claims every pixel.</figcaption>
+        </figure>
+
+        <p>The step from VQA to referring is the one that matters most. Below it, a location exists only as an internal state. Above it, the location is an output that a person, a program or a reward function can check. Everything in this post lives above that line.</p>
+        <p>Higher rungs do not replace lower ones. To draw a mask on &ldquo;the mug left of the laptop&rdquo; the model must still recognise mugs, laptops and the relation &ldquo;left of&rdquo;. Grounding adds a commitment. It does not add a new kind of understanding. That is why grounding is a basic multimodal ability and not a niche detection task. It is the part of perception that can be checked.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Grounding can be a means, not only an output. Molmo is trained to count by pointing at each instance first and then stating the number. The authors report that this point-then-count chain works clearly better than producing the count alone. The points also make the count checkable: each point is numbered, so the final count is the number on the last point. In practice, when a task requires enumerating things, ask the model to point at each one first. You gain both accuracy and something you can audit.</p>
+        </aside>
+      </section>
+
+      <section id="tasks">
+        <h2>The family of grounding tasks</h2>
+        <p>&ldquo;Grounding&rdquo; covers a family of tasks. They differ in three ways. The language can be the input or the output. There can be one target, many targets or none. The target can be a region in space, a span in time, or both. Here is the family, one task at a time.</p>
+        <p><strong>Phrase grounding.</strong> The input is an image and a sentence. The output is a region for each noun phrase in the sentence. Flickr30k Entities is the standard dataset. It links phrases in Flickr30k captions to boxes in the images.</p>
+        <p><strong>Referring expression comprehension (REC).</strong> The input is one expression that picks out one object, such as &ldquo;the man in the red shirt on the right&rdquo;. The output is that object&rsquo;s box. ReferItGame started this line. RefCOCO, RefCOCO+ and RefCOCOg moved it onto COCO images. RefCOCO+ forbids location words, so the expression must use appearance. RefCOCOg has longer expressions.</p>
+        <p><strong>Referring expression segmentation (RES).</strong> This is the same task with a mask as the output. Classic RES assumes that every expression matches exactly one object. GRES and its dataset gRefCOCO drop that assumption. Their expressions can match several objects, or no object at all.</p>
+        <p><strong>Referring expression generation (REG).</strong> This is the inverse of REC. The input is a region and the output is text that describes it well enough to pick it out. Shikra and Ferret accept regions as input, so a user can point at something and ask about it. Ferret accepts free-form regions such as points, boxes and scribbles.</p>
+        <p><strong>Grounded VQA and grounded captioning.</strong> The model writes an answer or a caption and attaches a region to the phrases it mentions. GLaMM calls the caption version grounded conversation generation. In it, every phrase in a multi-sentence reply gets its own mask.</p>
+        <p><strong>Reasoning segmentation.</strong> The query names no object directly. LISA introduced this task with its ReasonSeg benchmark. A query might be &ldquo;the part of the kitchen you would use to boil water&rdquo;. The model has to reason its way to the kettle and then segment it.</p>
+        <p><strong>Open-vocabulary detection.</strong> The input is one or more category names in free text. The output is a box for every instance of each category. MDETR, GLIP, OWL-ViT and Grounding DINO are the specialist models here. Unlike REC, the number of outputs is not known in advance.</p>
+        <p><strong>Text grounding.</strong> Here the regions are pieces of text: characters, words or lines. Text spotting finds and reads text with its location. Region-specific OCR inverts it: &ldquo;read what is written inside this box&rdquo;. Kosmos-2.5 writes each text line of a page together with its box.</p>
+        <p><strong>Document grounding.</strong> A question about a page is answered together with the regions that support the answer. The evidence is often a cell, a row, a paragraph, or several scattered places. BoundingDocs, DOGR-Bench and MMDocBench measure this. The next post, <a href="../how-vlms-read-documents/">How VLMs Read Documents</a>, covers document models in depth.</p>
+        <p><strong>Chart-element grounding.</strong> The targets are parts of a chart: a bar, a pie wedge, a legend entry, an axis label. These shapes are often not rectangles, and they are tied to each other. A legend colour, for example, tells you which wedge to read.</p>
+        <p><strong>GUI grounding.</strong> The input is a screenshot and an instruction such as &ldquo;open the settings&rdquo;. The output is a point to click. SeeClick introduced the ScreenSpot benchmark for this task. <a href="../vlms-that-act/">VLMs That Act</a> covers it further.</p>
+        <p><strong>Temporal and spatio-temporal grounding.</strong> In video, the target can be a time interval (&ldquo;when does the person open the fridge?&rdquo;). Charades-STA, built in the TALL paper, is a standard benchmark for this. The target can also be a mask that follows an object across frames, as in Sa2VA. <a href="../seeing-in-time/">Seeing in Time</a> covers video.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>The grounding task family at a glance</caption>
+            <thead><tr><th scope="col">Task</th><th scope="col">Input language</th><th scope="col">Output</th><th scope="col">Targets</th><th scope="col">Typical benchmark</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Phrase grounding</th><td>caption</td><td>box per phrase</td><td>one per phrase</td><td>Flickr30k Entities</td></tr>
+              <tr><th scope="row">REC</th><td>referring expression</td><td>box</td><td>exactly one</td><td>RefCOCO, RefCOCO+, RefCOCOg</td></tr>
+              <tr><th scope="row">RES / GRES</th><td>referring expression</td><td>mask</td><td>one (RES); zero or more (GRES)</td><td>RefCOCO family, gRefCOCO</td></tr>
+              <tr><th scope="row">REG</th><td>none (region is the input)</td><td>text</td><td>one</td><td>RefCOCO family</td></tr>
+              <tr><th scope="row">Grounded captioning</th><td>none or instruction</td><td>text with a mask per phrase</td><td>many</td><td>GranD<sub>f</sub> (GLaMM)</td></tr>
+              <tr><th scope="row">Reasoning segmentation</th><td>implicit query</td><td>mask</td><td>usually one</td><td>ReasonSeg</td></tr>
+              <tr><th scope="row">Open-vocabulary detection</th><td>category names</td><td>boxes</td><td>all instances</td><td>COCO, LVIS-style sets</td></tr>
+              <tr><th scope="row">Document grounding</th><td>question</td><td>answer with evidence regions</td><td>one or many</td><td>BoundingDocs, DOGR-Bench, MMDocBench</td></tr>
+              <tr><th scope="row">GUI grounding</th><td>instruction</td><td>click point</td><td>one</td><td>ScreenSpot</td></tr>
+              <tr><th scope="row">Temporal grounding</th><td>query about events</td><td>time interval</td><td>one</td><td>Charades-STA</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note"><strong>How to read this table.</strong> Read down the &ldquo;Targets&rdquo; column. The older benchmarks assume exactly one target. Most real uses have many targets or none. That gap explains several failure modes later in the post.</p>
+
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Classic REC data contains no expression that matches nothing. A model trained only on it learns that some box is always the right answer. Ask it for &ldquo;the giraffe&rdquo; in a kitchen photo and it will draw a confident box anyway. This is a grounding hallucination that comes straight from the data format. GRES added no-target expressions for exactly this case. Ferret&rsquo;s GRIT data includes about 95K hard negatives, and Molmo&rsquo;s pointing data includes &ldquo;not present&rdquo; examples. In practice, any grounding training mix should contain queries whose correct answer is &ldquo;there is no such region&rdquo;.</p>
+        </aside>
+      </section>
+
+      <section id="representations">
+        <h2>Point, box, polygon, mask</h2>
+        <p>Before we ask how a model writes a location, we need to decide what kind of location it writes. There are four common shapes. Each one trades precision against cost.</p>
+        <p><strong>A point</strong> is two numbers, <span class="eq">(<i>x</i>, <i>y</i>)</span>. It is the cheapest answer to annotate: one click. It says &ldquo;here&rdquo; but not &ldquo;how big&rdquo;. That is enough for clicking a button, counting objects, or telling a robot where to grasp. It is checked with an inside test: does the point fall inside the target?</p>
+        <p><strong>A box</strong> is four numbers, <span class="eq">(<i>x</i><sub>1</sub>, <i>y</i><sub>1</sub>, <i>x</i><sub>2</sub>, <i>y</i><sub>2</sub>)</span>. It adds extent. It is the default of object detection, cheap to draw, and easy to compare with intersection over union. Its weakness is shape. A box always includes the background between the object and the box edges.</p>
+        <p><strong>A polygon</strong> is a list of <i>k</i> vertices, so it costs <span class="eq">2<i>k</i></span> numbers. It can follow an outline as closely as you like, if you are willing to pay for more vertices. Florence-2 writes polygons as sequences of quantised vertices. PolyFormer predicts them one vertex at a time.</p>
+        <p><strong>A mask</strong> marks every pixel as in or out. It can represent anything: holes, thin curves, and several disconnected parts at once. Masks used to be the most expensive annotation by far. The Segment Anything Model (SAM) changed that. An annotator clicks once or twice and SAM fills in the mask. That is how SAM&rsquo;s own SA-1B dataset reached over a billion masks on 11 million images.</p>
+        <p>The cleanest way to compare boxes and masks is to ask a simple question. Suppose a model predicts the best possible box. How good is that box as a description of the region? Let <i>S</i> be the true region and <i>B</i>* its tightest enclosing box. Because <i>S</i> lies inside <i>B</i>*, their intersection is <i>S</i> itself and their union is <i>B</i>*. So:</p>
+        <div class="eq-block"><span class="eq-name">Best-box quality equals fill ratio</span>IoU(<i>B</i>*, <i>S</i>) = |<i>B</i>* &cap; <i>S</i>| / |<i>B</i>* &cup; <i>S</i>| = |<i>S</i>| / |<i>B</i>*| = <i>f</i>(<i>S</i>)</div>
+        <p>Here <i>f</i>(<i>S</i>) is the fraction of the box that the region fills. For a full rectangle, <i>f</i> = 1. For an ellipse, <i>f</i> = &pi;/4 &asymp; 0.79, because an ellipse fills that share of its bounding box. For a curved line of text, like the one in Figure 2, the figure is about 0.34. For a thin text line at 45 degrees it can fall below 0.1. Even a perfect box can therefore mostly describe background.</p>
+
+        <figure class="wl-fig" id="fig-repr" data-fig="repr">
+          <p class="wl-kicker">Four ways to say where, on one curved line of text</p>
+          <div class="wl-stage"><svg viewBox="0 0 600 330" role="img" aria-label="A curved band of text around a seal. A centroid point lands outside the band, a box covers mostly background, polygons with more vertices fit better, and a pixel mask fits exactly."></svg></div>
+          <div class="wl-readout" aria-live="polite">
+            <div><span>Representation</span><strong data-r="name">&ndash;</strong></div>
+            <div><span>Numbers to write</span><strong data-r="nums">&ndash;</strong></div>
+            <div><span>Approx. text tokens</span><strong data-r="toks">&ndash;</strong></div>
+            <div><span>IoU with true region</span><strong data-r="iou">&ndash;</strong></div>
+          </div>
+          <p class="wl-note" aria-live="polite"></p>
+          <div class="fig-controls" role="group" aria-label="Figure 2 animation controls"></div>
+          <figcaption><b>Figure 2</b>One region, five answers. The centroid of a curved band lies outside the band, so a point must be chosen to sit on the evidence. The tightest box has IoU equal to the band&rsquo;s fill ratio. Polygons approach the shape as vertices are added, but their cost grows by two numbers per vertex. A mask fits the shape and can be produced from a single token when a decoder draws it. Token counts assume three-digit coordinates and a tokenizer that splits digits.</figcaption>
+        </figure>
+
+        <p>Figure 2 also shows a trap with points. The obvious point to emit is the centre of mass of the region. For a convex object such as a ball, the centroid lies inside the object. For a curved band, a crescent or a ring, it lies outside. A model that learns to point at centroids will point at background for exactly these shapes. Pointing datasets therefore ask annotators to click <em>on</em> the object, not at its centre.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Output representations compared</caption>
+            <thead><tr><th scope="col">Representation</th><th scope="col">Precision</th><th scope="col">Annotation cost</th><th scope="col">Token cost as text</th><th scope="col">Many regions</th><th scope="col">Irregular shapes</th><th scope="col">How it is checked</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Point</th><td>location only, no extent</td><td>lowest: one click</td><td>2 numbers</td><td>easy: a list of points</td><td>poor: says nothing about shape</td><td>inside test, hit or miss</td></tr>
+              <tr><th scope="row">Box</th><td>extent, plus background</td><td>low: two corners</td><td>4 numbers</td><td>a list of boxes; order must be chosen</td><td>poor: IoU capped by fill ratio</td><td>IoU against a box</td></tr>
+              <tr><th scope="row">Polygon</th><td>grows with vertex count</td><td>medium to high: many clicks</td><td>2<i>k</i> numbers for <i>k</i> vertices</td><td>long sequences</td><td>good, at a cost in length</td><td>IoU after rasterising</td></tr>
+              <tr><th scope="row">Mask</th><td>pixel-exact</td><td>high by hand; low with SAM-assisted clicks</td><td>very long as raw text; one token with a decoder</td><td>natural: one mask per region, or one mask covering several parts</td><td>exact: holes, curves, disconnected parts</td><td>mask IoU, boundary IoU</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note"><strong>How to read this table.</strong> Precision rises from top to bottom. As text, cost rises with it. The last row breaks the pattern only because a decoder can turn a single token into a mask. That exception is what the decoder section of this post is about.</p>
+      </section>
+
+      <section id="coordinates">
+        <h2>Writing coordinates as tokens</h2>
+        <p>Suppose the model must output a box. A language model can only emit tokens, so the box has to become tokens somehow. Here is the same box around a dog, written the way eight different systems write it. The box spans 26.8% to 58.4% of the image width and 37.2% to 81.1% of its height.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>One box, eight encodings</caption>
+            <thead><tr><th scope="col">System</th><th scope="col">What the model writes</th><th scope="col">Convention</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Shikra</th><td><code>[0.268,0.372,0.584,0.811]</code></td><td>plain-text decimals in [0, 1], three decimal places</td></tr>
+              <tr><th scope="row">Qwen-VL</th><td><code>&lt;ref&gt;the dog&lt;/ref&gt;&lt;box&gt;(268,372),(584,811)&lt;/box&gt;</code></td><td>plain-text integers on a 0&ndash;1000 grid, special tags</td></tr>
+              <tr><th scope="row">CogVLM</th><td><code>[[268,372,584,811]]</code></td><td>three-digit integers 000&ndash;999</td></tr>
+              <tr><th scope="row">MiniGPT-v2</th><td><code>{&lt;27&gt;&lt;37&gt;&lt;58&gt;&lt;81&gt;}</code></td><td>integers on a 0&ndash;100 grid</td></tr>
+              <tr><th scope="row">Florence-2</th><td><code>&lt;loc_268&gt;&lt;loc_372&gt;&lt;loc_584&gt;&lt;loc_811&gt;</code></td><td>1,000 dedicated location tokens</td></tr>
+              <tr><th scope="row">PaliGemma</th><td><code>&lt;loc0380&gt;&lt;loc0274&gt;&lt;loc0830&gt;&lt;loc0598&gt; dog</code></td><td>1,024 location tokens, <em>y</em> before <em>x</em></td></tr>
+              <tr><th scope="row">Qwen2.5-VL</th><td><code>{"bbox_2d": [233, 240, 507, 522], "label": "dog"}</code></td><td>absolute pixels of the resized input (here 868 &times; 644)</td></tr>
+              <tr><th scope="row">Molmo (point)</th><td><code>&lt;point x="42.6" y="59.2" alt="dog"&gt;dog&lt;/point&gt;</code></td><td>a point, plain-text decimals on a 0&ndash;100 scale</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note"><strong>How to read this table.</strong> The rows look different, but they make only four choices. The choices are text numbers or new tokens, normalised or absolute, how many bins, and which axis comes first. The rest of this section takes the four choices one at a time.</p>
+
+        <h3>Text numbers or new location tokens</h3>
+        <p>The first choice is whether a coordinate is ordinary text or a new token. Shikra, Qwen-VL, CogVLM, MiniGPT-v2, Ferret and Molmo all write coordinates as ordinary text. Nothing is added to the vocabulary. The model reuses whatever it already knows about numbers, and the output stays readable by a person and parseable by a regular expression.</p>
+        <p>The cost is length. Many tokenizers split numbers into single digits. LLaMA&rsquo;s tokenizer does this, for example. Then &ldquo;584&rdquo; is three tokens, and a box with brackets and commas runs to roughly twenty. Each digit is also a separate prediction, which matters for the error analysis in the next section.</p>
+        <p>The alternative is to add location tokens to the vocabulary. Pix2Seq did this first for detection. It cut each coordinate into a fixed number of bins and gave each bin a token. Those tokens share one vocabulary and one embedding matrix with the class labels. OFA carried the idea into a general vision-language model. Its official training scripts use 1,000 bins. Kosmos-2 split a 224-pixel input into a 32 &times; 32 grid of cells. That gives 1,024 location tokens, one per cell. A box is two of them: the top-left cell and the bottom-right cell. Florence-2 uses 1,000 bins per coordinate. PaliGemma uses 1,024 tokens named <code>&lt;loc0000&gt;</code> to <code>&lt;loc1023&gt;</code>.</p>
+        <p>Location tokens make a box short: two tokens in Kosmos-2 and four in PaliGemma. Each coordinate becomes one decision instead of three. But the embeddings of these new tokens start from nothing. The model has to learn from grounding data alone that <code>&lt;loc0500&gt;</code> lies between <code>&lt;loc0499&gt;</code> and <code>&lt;loc0501&gt;</code>. Text digits come with some of that order already learned during language pretraining.</p>
+
+        <figure class="wl-fig" id="fig-coords" data-fig="coords">
+          <p class="wl-kicker">Streaming a box, token by token</p>
+          <div class="wl-stage"><svg viewBox="0 0 600 300" role="img" aria-label="A drawn dog in a field. As coordinate tokens arrive, the left, top, right and bottom edges of the box appear one by one. One wrong digit later moves the right edge far away."></svg></div>
+          <div class="wl-tokens" aria-hidden="true"></div>
+          <div class="wl-readout" aria-live="polite">
+            <div><span>Encoding</span><strong data-r="enc">&ndash;</strong></div>
+            <div><span>Tokens for one box</span><strong data-r="n">&ndash;</strong></div>
+            <div><span>IoU with true box</span><strong data-r="iou">&ndash;</strong></div>
+          </div>
+          <p class="wl-note" aria-live="polite"></p>
+          <div class="fig-controls" role="group" aria-label="Figure 3 animation controls"></div>
+          <figcaption><b>Figure 3</b>The same box streamed in three encodings: decimals as text, integers on a 0&ndash;1000 grid, and four location tokens. An edge appears only when its last token arrives. In the last two steps one digit is wrong. When the hundreds digit is wrong, the right edge moves by 30% of the image. When the units digit is wrong, it barely moves. To the training loss, both mistakes are one wrong token.</figcaption>
+        </figure>
+
+        <h3>Normalised or absolute coordinates</h3>
+        <p>The second choice is the frame of reference. Most systems normalise coordinates by the image size. Shikra uses [0, 1]. Qwen-VL and Qwen2-VL use [0, 1000). MiniGPT-v2 uses 0&ndash;100, and so does Molmo for points. Gemini&rsquo;s documented detection format is also normalised to 0&ndash;1000. A normalised box means the same thing at any resolution, so data from many image sizes can be mixed freely.</p>
+        <p>Qwen2.5-VL broke with this. Its report says it uses coordinates based on the actual size of the input image, for both boxes and points. The argument is that a model which sees images at their native resolution should also learn real scale. The catch is the word &ldquo;actual&rdquo;. These are pixels of the <em>resized</em> input that the model receives, not of the original file. The official cookbook rescales outputs using the resized width and height. One model generation later, Qwen3-VL went back. Its report states that, unlike Qwen2.5-VL, it uses a normalised system scaled to [0, 1000].</p>
+
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Two models of the same family can write the same box with different numbers. Qwen2.5-VL writes pixels of its resized input. Qwen3-VL writes positions on a 0&ndash;1000 grid. PaliGemma, Gemini and Pix2Seq put <em>y</em> before <em>x</em>, while most others put <em>x</em> first. A parser that assumes the wrong convention still produces valid-looking boxes. They are simply in the wrong place, and nothing raises an error. In practice, treat the coordinate convention as part of the model&rsquo;s interface. Pin the model version, write a test that draws a known box, and never reuse a parser across model families without checking it.</p>
+        </aside>
+
+        <h3>How many bins: the cost of a coordinate grid</h3>
+        <p>The third choice is the number of bins, <i>N</i>. It sets how finely a coordinate can be stated. The arithmetic is short, and it is worth deriving. Take an image that is <i>W</i> pixels wide. Cut each axis into <i>N</i> bins, so each bin is <span class="eq">&Delta; = <i>W</i> / <i>N</i></span> pixels wide. If a coordinate is rounded to the nearest bin centre, each edge of a box can be off by at most &Delta;/2.</p>
+        <p>What does that do to IoU in the worst case? Take a square object of side <i>s</i>. The worst case is when all four edges move inward by &Delta;/2. Then the predicted box is a square of side <span class="eq"><i>s</i> &minus; &Delta;</span> that sits inside the true box. Its IoU is the ratio of the two areas. (A brute-force check over every combination of edge errors confirms that this is the minimum.)</p>
+        <div class="eq-block"><span class="eq-name">Worst-case IoU from quantisation alone</span>IoU<sub>min</sub> = ( (<i>s</i> &minus; &Delta;) / <i>s</i> )<sup>2</sup>, &nbsp; where &nbsp; &Delta; = <i>W</i> / <i>N</i></div>
+        <p>Two facts follow. First, the error is set by the <em>original</em> image width, not by the resolution the model sees. A 0&ndash;1000 grid on a 448-pixel image has bins narrower than a pixel. The same grid on a 3840-pixel screenshot has bins almost four pixels wide. Second, small objects suffer most, because &Delta; is compared with <i>s</i>. Kosmos-2&rsquo;s 32-cell grid is fine for a dog that fills half the photo. On a full-page scan 2,000 pixels wide, each cell is 62 pixels, wider than most words on the page. Try it in Figure 4.</p>
+
+        <figure class="wl-fig" id="fig-quant" data-fig="quant">
+          <p class="wl-kicker">Interactive · quantisation error</p>
+          <div class="wl-tabs" role="group" aria-label="Bin presets">
+            <button type="button" data-bins="32" aria-pressed="false">32 bins &middot; Kosmos-2</button>
+            <button type="button" data-bins="100" aria-pressed="false">100 &middot; MiniGPT-v2</button>
+            <button type="button" data-bins="1000" aria-pressed="true">1000 &middot; Qwen-VL, Florence-2</button>
+            <button type="button" data-bins="1024" aria-pressed="false">1024 &middot; PaliGemma</button>
+          </div>
+          <div class="wl-stage"><svg viewBox="0 0 600 250" role="img" aria-label="A zoomed strip of the image with bin boundaries drawn as vertical lines, the true object as an orange square and the worst-case quantised box as a dashed blue square inside it."></svg></div>
+          <div class="wl-ctl">
+            <label>Bins <input type="range" min="0" max="1000" value="750" data-k="bins" aria-label="Number of bins (logarithmic)"><output data-o="bins">1000</output></label>
+            <label>Image width <input type="range" min="224" max="3840" step="16" value="1344" data-k="w" aria-label="Image width in pixels"><output data-o="w">1344 px</output></label>
+            <label>Object size <input type="range" min="6" max="300" value="24" data-k="s" aria-label="Object size in pixels"><output data-o="s">24 px</output></label>
+          </div>
+          <div class="wl-readout" aria-live="polite">
+            <div><span>Bin width &Delta;</span><strong data-r="d">&ndash;</strong></div>
+            <div><span>Max error per edge</span><strong data-r="e">&ndash;</strong></div>
+            <div><span>Worst-case IoU</span><strong data-r="iou">&ndash;</strong></div>
+            <div><span>Acc@0.5, worst case</span><strong data-r="pass">&ndash;</strong></div>
+          </div>
+          <figcaption><b>Figure 4</b>Bins, image width and object size together decide how much localisation error the coordinate format alone forces on a perfect model. Try 100 bins on a 3840-pixel screenshot with a 24-pixel icon. Each bin is wider than the icon, so even a perfect model cannot name the icon&rsquo;s edges.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Bin count is a resolution budget, and it is spent in pixels of the original image. Take MiniGPT-v2&rsquo;s 0&ndash;100 grid on a 3840-pixel 4K screenshot. Each bin is 38.4 pixels wide, so an edge can be off by up to 19.2 pixels. For a 24-pixel icon that error is larger than half the icon. Even a perfect model on this grid could click outside the icon. On a 1000-bin grid the bin is 3.8 pixels, and the worst-case IoU for the same icon is about 0.71. In practice, size the grid for the smallest target at the largest image you will serve. Do not size it for the training resolution.</p>
+        </aside>
+
+        <h3>Which axis first, and other conventions</h3>
+        <p>The fourth choice looks trivial: the order of the numbers. Pix2Seq writes <span class="eq">[<i>y</i><sub>min</sub>, <i>x</i><sub>min</sub>, <i>y</i><sub>max</sub>, <i>x</i><sub>max</sub>]</span>. PaliGemma and Gemini keep that order. Qwen-VL, Shikra, Ferret and Florence-2 put <i>x</i> first. Kosmos-2 needs only two tokens, because each token already names a cell. A model trained on mixed conventions has to learn the convention from context. A pipeline that mixes conventions will fail silently, as the nuance above warned.</p>
+        <p>Points need one more convention: which point. A point for a button is its centre. A point for a curved object must be a point <em>on</em> the object, as Figure 2 showed. Molmo writes several points in a fixed order, top to bottom and then left to right. We return to ordering in the next section.</p>
+      </section>
+
+      <section id="autoregressive">
+        <h2>Grounding as next-token prediction</h2>
+        <p>Once a box is a string of tokens, grounding becomes ordinary language modelling. The model reads the image and the question. Then it writes something like <code>&lt;box&gt; 123 084 622 531 &lt;/box&gt;</code>, one token at a time. Training is the same cross-entropy loss used for every other token. This idea runs from Pix2Seq through OFA, Kosmos-2, Shikra, Qwen-VL, Florence-2 and PaliGemma to most open models today.</p>
+        <h3>What this buys</h3>
+        <ul class="plain">
+          <li><strong>One interface for every task.</strong> Detection, referring, grounded captioning and VQA all become &ldquo;write the right tokens&rdquo;. A single model can be trained on all of them with one loss.</li>
+          <li><strong>No extra decoder.</strong> The architecture is the plain vision-language model described in <a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a>. Nothing new has to be served.</li>
+          <li><strong>Text and location mix freely.</strong> A box can sit in the middle of a sentence, a list or a JSON object.</li>
+          <li><strong>The output is easy to check.</strong> A regular expression extracts the box, so a program can compute IoU. That is what makes grounding usable as a reward for reinforcement learning.</li>
+        </ul>
+        <h3>What it costs</h3>
+        <p>The costs are less obvious. Each one comes from treating a quantity in space as a sequence of symbols.</p>
+        <p><strong>The loss is blind to distance.</strong> Cross-entropy for one coordinate token is <span class="eq">&minus;log <i>p</i>(true bin)</span>. It depends only on the probability given to the correct bin. It does not care where the rest of the probability went. Missing by one bin and missing by three hundred bins cost exactly the same. Figure 5 shows this with two predictions that have identical loss and very different boxes.</p>
+
+        <figure class="wl-fig" id="fig-ce" data-fig="ce">
+          <p class="wl-kicker">Cross-entropy cannot tell a near miss from a far miss</p>
+          <div class="wl-stage"><svg viewBox="0 0 600 320" role="img" aria-label="Three predicted probability distributions over the bins of the right edge coordinate, the resulting boxes on a strip of the image, and the cross-entropy loss and IoU for each."></svg></div>
+          <div class="wl-readout" aria-live="polite">
+            <div><span>Prediction</span><strong data-r="name">&ndash;</strong></div>
+            <div><span>Cross-entropy</span><strong data-r="ce">&ndash;</strong></div>
+            <div><span>IoU of the box</span><strong data-r="iou">&ndash;</strong></div>
+            <div><span>IoU reward</span><strong data-r="rw">&ndash;</strong></div>
+          </div>
+          <p class="wl-note" aria-live="polite"></p>
+          <div class="fig-controls" role="group" aria-label="Figure 5 animation controls"></div>
+          <figcaption><b>Figure 5</b>The true right edge is bin 584. Prediction B puts 90% of its mass one bin away. Prediction C puts 90% of its mass three hundred bins away. Both give 10% to the true bin, so both have the same cross-entropy, 2.30. An IoU reward separates them at once. This is the reason reinforcement learning with IoU rewards helps grounding.</figcaption>
+        </figure>
+
+        <p><strong>Errors compound digit by digit.</strong> With text digits, one coordinate is several predictions in a row. The hundreds digit comes first, and every later digit is conditioned on it. An early mistake is large, and the following digits cannot repair it. Location tokens remove the chain, because each coordinate becomes one decision. They do not remove the blindness to distance.</p>
+        <p><strong>Many objects need an order.</strong> A set of boxes has no natural order, but a token sequence does. Pix2Seq shuffles the object order during training, so the model learns that any order is acceptable. Molmo goes the other way and writes points in a fixed reading order, top to bottom and then left to right. A fixed order is easier to learn. But one skipped object then shifts the position of everything after it. Evaluation has to match predicted and true regions as sets, not as sequences.</p>
+        <p><strong>Shapes beyond boxes get long.</strong> A polygon with 30 vertices is 60 numbers, which can mean more than 200 tokens as text. PolyFormer avoids quantisation altogether by predicting vertex coordinates as continuous values with a regression head. Masks are worse still as raw text. PaliGemma compresses a mask into 16 tokens drawn from a learned codebook of 128 entries, which a small decoder expands back into pixels. Text4Seg labels each cell of a 16 &times; 16 patch grid with a word and then compresses each row with run-length coding. That compression shortens the text by 74%.</p>
+        <p><strong>Nothing anchors the numbers to the pixels.</strong> A coordinate token is predicted like any other word. The model can write a fluent, well-formed box for an object that is not there, just as it can write a fluent sentence that is false. <a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a> covers hallucination in general. In grounding it takes the form of a confident box on empty background.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Supervised fine-tuning and IoU rewards teach different things about coordinates. Cross-entropy rewards only the exact bin. An IoU reward gives partial credit that grows smoothly as the box gets closer. VLM-R1 uses the IoU between the predicted and the true box directly as the reward for referring expression comprehension. Its authors report that the RL-trained model generalises better than a supervised baseline. Visual-RFT uses an IoU-based reward for detection. In practice, once a model writes parseable boxes, RL with an IoU reward is a cheap way to add the sense of distance that cross-entropy lacks. The post <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> develops this.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>An IoU reward is only as good as its definition. VLM-R1 reports reward hacking in object detection. A policy rewarded for matched boxes can find ways to raise the score that are not better detection. Seg-Zero avoids a continuous IoU reward. It gives a binary reward when IoU exceeds 0.5 and another binary reward for small coordinate error. In practice, check what a grounding reward can be gamed by, such as many boxes, huge boxes or empty answers, before trusting a rising reward curve.</p>
+        </aside>
+      </section>
+
+      <section id="decoders">
+        <h2>Handing the location to a decoder</h2>
+        <p>Typing coordinates asks a language model to do geometry in text. There is another option. The language model can decide <em>what</em> to localise and leave <em>where</em> to a module built for it. Three interfaces follow from this. The model can type the location, select it from candidates, or emit an embedding that a decoder turns into a location.</p>
+        <h3>Type, select or decode</h3>
+        <p><strong>Type.</strong> This is the approach of the previous section. The model writes coordinates as tokens. It is simple and portable, and it carries all the costs listed above.</p>
+        <p><strong>Select.</strong> A separate detector proposes candidate regions. Each candidate becomes a token that the language model can refer to. Groma works this way. A class-agnostic proposer based on Deformable DETR finds candidate regions. A region encoder turns each one into a region token, registered as <code>&lt;r1&gt;</code> to <code>&lt;rn&gt;</code>. The language model grounds a phrase by writing <code>&lt;p&gt;A dog&lt;/p&gt; &lt;roi&gt;&lt;r4&gt;&lt;/roi&gt;</code>. Localisation becomes a choice among candidates. The model never writes a coordinate. The ceiling is the proposer: a region that was never proposed can never be selected.</p>
+        <p>Ferret uses region features in the other direction, for input. Its hybrid region representation pairs a region&rsquo;s discrete coordinates with a continuous feature. A spatial-aware visual sampler extracts that feature from inside the region, whatever its shape. That lets a user refer to a scribble or a free-form outline. Ferret&rsquo;s outputs are still coordinates written as text, on a 0&ndash;999 grid.</p>
+        <p><strong>Decode.</strong> The model emits a special token, and that token&rsquo;s hidden state, not its text, carries the location. LISA introduced this as &ldquo;embedding as mask&rdquo;. The recipe has four steps:</p>
+        <ol class="plain">
+          <li>Add a token <code>&lt;SEG&gt;</code> to the vocabulary. The language model writes it where a mask is needed: &ldquo;It is the kettle &lt;SEG&gt;.&rdquo;</li>
+          <li>Take that token&rsquo;s last-layer hidden state, <i>h</i><sub>SEG</sub>.</li>
+          <li>Project it with a small MLP into the prompt space of SAM&rsquo;s mask decoder.</li>
+          <li>SAM&rsquo;s decoder combines this prompt with SAM&rsquo;s own image features and outputs a mask.</li>
+        </ol>
+        <div class="eq-block"><span class="eq-name">Embedding as mask</span><i>p</i> = MLP(<i>h</i><sub>SEG</sub>), &nbsp;&nbsp; <i>M</i> = Dec<sub>SAM</sub>(<i>F</i><sub>img</sub>, <i>p</i>), &nbsp;&nbsp; <i>L</i> = <i>L</i><sub>text</sub> + &lambda;<sub>bce</sub><i>L</i><sub>bce</sub>(<i>M</i>, <i>M</i>*) + &lambda;<sub>dice</sub><i>L</i><sub>dice</sub>(<i>M</i>, <i>M</i>*)</div>
+        <p>The mask losses compare the predicted mask <i>M</i> with the true mask <i>M</i>* pixel by pixel. Because every step is differentiable, the mask loss flows back through the decoder and the MLP into the language model. The language model therefore learns to put into <i>h</i><sub>SEG</sub> exactly what the decoder needs. No coordinate is ever typed.</p>
+
+        <figure class="wl-fig wide" id="fig-iface" data-fig="iface">
+          <p class="wl-kicker">Three ways to hand over a location</p>
+          <div class="wl-stage"><svg viewBox="0 0 960 430" role="img" aria-label="A pipeline: an image and a question go into a vision-language model. Three output lanes follow. Type: coordinate tokens are parsed into a box. Select: a region proposer offers candidate boxes and the model picks one by token. Decode: a SEG token's hidden state is projected into a prompt for the SAM mask decoder, which draws a mask, and the mask loss flows back to the language model."></svg></div>
+          <p class="wl-note" aria-live="polite"></p>
+          <div class="fig-controls" role="group" aria-label="Figure 6 animation controls"></div>
+          <figcaption><b>Figure 6</b>One question, three interfaces. <em>Type</em> writes coordinates as tokens and parses them into a box. <em>Select</em> chooses one of a detector&rsquo;s proposals by emitting its region token. <em>Decode</em> emits a single &lt;SEG&gt; token. Its hidden state becomes a prompt for SAM&rsquo;s mask decoder, and the mask loss trains the whole chain end to end. In the decode lane the language model decides what, and the segmenter decides where.</figcaption>
+        </figure>
+
+        <h3>The VLM + SAM family</h3>
+        <p>LISA showed that this design gives reasoning segmentation almost for free. The reasoning comes from the language model and the mask comes from SAM. Trained only on data without reasoning queries, LISA still handles reasoning segmentation zero-shot. Its authors report that fine-tuning on just 239 reasoning-segmentation samples improves it further. Many follow-ups change one part of the recipe each.</p>
+        <ul class="plain">
+          <li><strong>GLaMM</strong> adds a region encoder for region inputs and a SAM-based grounding encoder and pixel decoder for outputs. It writes multi-sentence replies in which every phrase carries its own <code>&lt;SEG&gt;</code> mask. Its GranD dataset was built by an automatic annotation pipeline. It holds 810M regions with masks on 11M images, along with 84M referring expressions and 33M grounded captions.</li>
+          <li><strong>PixelLM</strong> drops SAM. It uses a lightweight pixel decoder and a learned segmentation codebook, which keeps the cost down and handles several targets in one reply. It was trained with MUSE, a set of 246K question-answer pairs covering 0.9M instances.</li>
+          <li><strong>OMG-LLaVA</strong> uses a frozen universal segmenter, OMG-Seg, as both the visual encoder and the mask decoder. One encoder, one decoder and one language model handle image-level, object-level and pixel-level tasks.</li>
+          <li><strong>Sa2VA</strong> joins SAM 2 to an InternVL-style model. A <code>[SEG]</code> token prompts SAM 2, and SAM 2&rsquo;s memory carries the mask across video frames. The same model grounds images and videos.</li>
+          <li><strong>NExT-Chat</strong> calls the idea pix2emb. Location embeddings are decoded into boxes by one decoder and into masks by another. <strong>VisionLLM v2</strong> generalises it into a &ldquo;super link&rdquo; that routes embeddings to many task decoders. <strong>LLaVA-Grounding</strong> attaches a grounding model to a LLaVA-style chat model and introduces Grounding-Bench.</li>
+        </ul>
+        <p>One hybrid sits between typing and decoding. <strong>Seg-Zero</strong> lets Qwen2.5-VL-3B write a box and points as text. A frozen SAM 2 then uses them as prompts and draws the mask. The language model is trained with reinforcement learning, with rewards on the box and the points. The output stays parseable text, and the mask still comes from a segmenter.</p>
+
+        <h3>Grounding documents with masks</h3>
+        <p>My own research applies the decode interface to documents. The framing behind it is simple. A person shows you where something is by pointing, underlining or highlighting. Nobody reads out coordinates. A single point works well in natural images, where the evidence is usually one object. Evidence in a document rarely looks like that. It is a paragraph, a table row, a line of text curving around a seal, a pie wedge, or several cells scattered across a page. For regions like these people reach for a highlighter. A mask is a smart highlighter. It covers exactly the evidence, at any shape and size, and nothing else.</p>
+        <p>Three models from this line of work share one recipe. A vision-language model writes text and grounding tokens, and SAM turns each token into a mask, trained end to end. <strong>M3Grounder</strong> (CVPR 2026) answers document questions and attaches masks to every cited span. Each grounding token yields three nested masks: the phrase, its line and its block. <strong>DoCoG</strong> (ECCV 2026) grounds every reading step of a chain of thought. <strong>DocLayout-VL</strong> (ECCV 2026) emits a layout token for every node of a page&rsquo;s layout tree. The full story, with the data engines behind them, is in <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a>.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>For irregular and multi-region evidence, the interface matters more than more data. All three of these papers use the same 8B backbone, which makes the comparison clean. On DocLayout-VL&rsquo;s hierarchical track, the backbone writing boxes as text reaches 32.5 open mIoU. Adding SAM as the segmenter lifts it to 58.3. A module that lets layout tokens follow the tree adds another 11 points, and structure-aware losses take it to 77.5. On M3Grounder&rsquo;s benchmark, the same backbone fine-tuned on the same data reaches 60.6 grounding F1. The full model reaches 79.0. In practice, if the targets are not boxes, change the output interface before scaling the data.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>A decoder is not free. It adds a second image encoder or a large decoder to serve. M3Grounder reports about 63 ms of grounding overhead per sample. The output is also no longer plain text. A mask cannot be returned inside a JSON string without an encoding. It cannot be scored by a reward function that only parses text, and it cannot be produced by a closed API model that only emits tokens. Several regions also need several grounding tokens, each with enough information to separate them. In practice, choose decoding when the shape and the number of regions matter. Choose typed coordinates when portability and simple rewards matter more.</p>
+        </aside>
+      </section>
+
+      <section id="granularity">
+        <h2>What counts as one region</h2>
+        <p>So far each query has had one obvious target. Real queries often do not. Look at a single bank statement and three requests about it. &ldquo;Cite the amount&rdquo; wants one number. &ldquo;Redact the transaction&rdquo; wants the whole row. &ldquo;Chunk the table for retrieval&rdquo; wants the whole table. The page is the same in all three. Only the question changed, and with it the right size of region.</p>
+        <p>This is <strong>granularity</strong>: the level at which a region is defined. On a document the levels form a ladder of their own:</p>
+        <ul class="plain">
+          <li>character and word,</li>
+          <li>span (a phrase or a number with its unit),</li>
+          <li>line and paragraph (also called a block),</li>
+          <li>table cell, row, column and whole table,</li>
+          <li>chart element: a bar, a wedge, a legend entry, an axis label,</li>
+          <li>figure, section and page region.</li>
+        </ul>
+        <p>Natural images have their own ladder: part, object, group of objects, and amorphous regions such as sky or road. A question about the handle of a mug wants a part. A question about &ldquo;all the mugs&rdquo; wants a group. That group may be several disconnected regions, which is the multi-target case of gRefCOCO.</p>
+
+        <figure class="wl-fig" id="fig-gran" data-fig="gran">
+          <p class="wl-kicker">One page, many granularities</p>
+          <div class="wl-stage"><svg viewBox="0 0 640 400" role="img" aria-label="A drawn report page with a paragraph, a table and a pie chart. The camera zooms to a paragraph, a line, a span, a word and a character, then to the table, a row, a cell, scattered cells and a pie wedge."></svg></div>
+          <ul class="wl-chips" aria-hidden="true"><li>Paragraph</li><li>Line</li><li>Span</li><li>Word</li><li>Character</li><li>Table</li><li>Row</li><li>Cell</li><li>Many cells</li><li>Wedge</li></ul>
+          <p class="wl-note" aria-live="polite"></p>
+          <div class="fig-controls" role="group" aria-label="Figure 7 animation controls"></div>
+          <figcaption><b>Figure 7</b>The camera walks down two granularity ladders on one page. In the text column it goes paragraph, line, span, word, character. In the table it goes table, row, cell, then several scattered cells for a single query. The pie wedge at the end is a region that no box describes well. Each step names the request that would want that granularity.</figcaption>
+        </figure>
+
+        <p>Several systems build granularity into the output. Kosmos-2.5 reads a page as a list of text lines, each with its own box, so its unit is the line. M3Grounder makes granularity explicit. Each grounding token has three small heads, which produce three SAM prompts. Those prompts become three nested masks for the phrase, the line and the block. A hierarchy loss keeps the phrase mask inside the line mask, and the line mask inside the block mask. DocLayout-VL goes further and outputs a whole tree of regions. Its attention module lets each region token look only at its parent, its children and its siblings. A headline therefore stays with its own article.</p>
+        <p>Multi-region answers need a separate mention. A query such as &ldquo;which months were over budget?&rdquo; can point at three cells in three rows. A point list handles this naturally, and so does a list of masks. One box around all three cells would cover most of the table. This is the plainest case where the answer is a set of regions, not one region.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Granularity belongs to the question, not to the image. The same pixels are the right answer at one granularity and a wrong answer at another. M3Grounder&rsquo;s three nested masks exist because one citation is used in three ways downstream. Citing a value needs the phrase. Redacting it needs the row. Chunking the page for retrieval needs the block. In practice, decide which granularity each downstream use needs, and make the model emit it explicitly. Nested outputs are one way to serve several uses at once.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Benchmarks usually annotate one granularity. A model that returns the correct line, when the label is a word inside that line, gets a low IoU and counts as wrong. Its evidence was correct. It was simply coarser than the label. Low scores on document grounding benchmarks can therefore mix two failures: wrong evidence and mismatched granularity. In practice, before comparing models on such a benchmark, check whether their output unit matches the annotation unit.</p>
+        </aside>
+      </section>
+
+      <section id="reasoning">
+        <h2>Grounding each reasoning step</h2>
+        <p>Some questions cannot be answered by pointing at one place. Take a pie chart of revenue by region and ask: &ldquo;By how many points does Asia&rsquo;s share exceed Europe&rsquo;s?&rdquo; The answer, 24 points, is printed nowhere. The model must find Asia in the legend, then find the wedge with that colour, then read its label, and then do the same for Europe. Only then can it subtract. Grounding only the final answer gives nothing to point at. Chain-of-thought alone says &ldquo;Asia is 42%&rdquo; without showing which label it read.</p>
+        <p>The fix is to ground the steps. Step 1 points at region A. Step 2 points at region B. Each later reading step points at its own region, up to the answer. Steps that only do arithmetic point at nothing. <a href="../thinking-in-tokens/">Thinking in Tokens</a> explains why written reasoning steps help a language model. Grounded steps add one thing: each reading step becomes checkable against the image.</p>
+
+        <figure class="wl-fig" id="fig-chain" data-fig="chain">
+          <p class="wl-kicker">A grounded chain of thought</p>
+          <div class="wl-stage"><svg viewBox="0 0 600 300" role="img" aria-label="A pie chart with a legend. Reasoning steps highlight the Asia legend entry, the Asia wedge, its 42% label, the Europe legend entry and wedge with its 18% label. The subtraction step highlights nothing. A final step shows an inconsistent chain in which the wedge and the label do not belong together."></svg></div>
+          <ol class="wl-steps"></ol>
+          <div class="fig-controls" role="group" aria-label="Figure 8 animation controls"></div>
+          <figcaption><b>Figure 8</b>Each reading step carries its own region, and the arithmetic step carries none. The last frame shows why the regions of one chain must agree. The chain points at Europe&rsquo;s wedge but reads Asia&rsquo;s label. The text alone looks fine. The regions expose the error.</figcaption>
+        </figure>
+
+        <p>Three lines of work show the range of designs.</p>
+        <p><strong>Visual CoT</strong> builds a dataset of 438K question-answer pairs, each with a box around the key region. About 98K of them also have detailed reasoning steps. The model first predicts the box, then looks again at that region, and then answers. Here grounding is a step that decides where to look, which is the theme of <a href="../thinking-with-images/">Thinking With Images</a>.</p>
+        <p><strong>GRIT</strong> (Fan and colleagues, 2025) trains a model to interleave boxes inside its reasoning text. It uses reinforcement learning with only two rewards: a correct final answer and a well-formed grounded reasoning format. The paper reports that as few as 20 training samples are enough to learn the behaviour. (This GRIT is a method. Ferret&rsquo;s dataset is also called GRIT, and Kosmos-2&rsquo;s dataset is called GrIT. They are three different things.)</p>
+        <p><strong>DoCoG</strong>, from my own work, grounds every reading step of a document chain with masks across text, tables, charts and flowcharts. It adds a module that sees all grounding tokens of one chain together before they reach SAM. That lets related pointers agree, such as a legend entry and its wedge, or a value and its column. The language model is causal: when it writes the first pointer, it cannot yet see the second, so it cannot make them agree itself. Training starts with supervised fine-tuning on step-wise data and continues with preference training over whole chains.</p>
+
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Boxes inside a chain of thought are not automatically evidence. GRIT&rsquo;s rewards check only the final answer and the format. No reward checks whether a box covers the right region. Those boxes show where the model chose to look. Nothing guarantees that they mark the correct evidence. In practice, when a paper reports grounded reasoning, find out whether the regions were supervised or scored. If not, measure their accuracy separately before using them as citations.</p>
+        </aside>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Answer accuracy and grounding accuracy can come apart completely. On DoCoG-Bench, Gemini 3 Pro scores 84.2 on answer quality but 11.4 on grounding. DoCoG scores 85.8 on answers and 81.9 on grounding. A model can reach the right answer and still be unable to show where it read it. In practice, never use answer accuracy as a proxy for grounding. If you need evidence, evaluate the evidence.</p>
+        </aside>
+      </section>
+
+      <section id="uses">
+        <h2>Why grounding matters beyond explanation</h2>
+        <p>Grounding is often presented as explainability: the model shows its work. That is true, but it undersells it. A location is also an input to the next step, whether that step is taken by a program, a robot or a training loop. Here are the main uses, each with what it needs from the representation.</p>
+        <p><strong>Verifiable perception.</strong> A grounded claim can be checked in seconds, and an ungrounded one cannot. This is the bank-statement example from the start. It needs regions at the right granularity. A box around a whole table does not verify a number.</p>
+        <p><strong>Region-specific reading.</strong> &ldquo;Read the text inside this box&rdquo; turns grounding into a tool for OCR. Kosmos-2.5 reads a page as text lines paired with their boxes. The location tells you where each piece of text came from. It also lets later steps read one region again at higher resolution.</p>
+        <p><strong>Crop and zoom.</strong> A box is an action as well as an answer. A model that can name a small region can crop it, zoom in, and look again with more visual tokens. Visual CoT trains exactly this. <a href="../thinking-with-images/">Thinking With Images</a> covers how reasoning models use it at test time.</p>
+        <p><strong>Clicking in interfaces.</strong> A GUI agent acts by clicking points. SeeClick showed that GUI grounding is the bottleneck for visual GUI agents and built ScreenSpot to measure it. ScreenSpot has over 600 screenshots and about 1,200 instructions across mobile, desktop and web. UGround scaled the training data to 10M GUI elements on 1.3M screenshots. Here precision is measured in pixels of a large screen, so the grid arithmetic of Figure 4 applies directly. See <a href="../vlms-that-act/">VLMs That Act</a>.</p>
+        <p><strong>Robotics.</strong> A robot needs a target in the image: where to grasp, where to place, where to go. RoboPoint predicts sets of image points as spatial affordances. The Molmo authors expect pointing to let models act by pointing at waypoints, objects and buttons. <a href="../index.html?series=vlms" data-series-pending="from-vlms-to-vlas/">From VLMs to VLAs</a> picks this up.</p>
+        <p><strong>Rewards for reinforcement learning.</strong> A box or a mask can be scored against a reference with IoU, without a learned judge. That makes perception a verifiable reward, much like a math answer checked by a program. VLM-R1, Visual-RFT and Seg-Zero all use this. <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> covers the method.</p>
+        <p><strong>Visual citations.</strong> A document assistant that cites the cell it read can be audited by its users. This is the strongest argument for mask-level, multi-region grounding on documents. <a href="../how-vlms-read-documents/">How VLMs Read Documents</a> and <a href="../index.html?series=vlms" data-series-pending="searching-with-pixels/">Searching With Pixels</a> cover documents and visual retrieval.</p>
+        <p><strong>Less hallucination.</strong> A model that must place every object it mentions has a harder time mentioning objects that are not there. Ferret&rsquo;s authors report that training with GRIT, including its hard negatives, reduces object hallucination. The mechanism matters more than the size of the effect. Grounding turns &ldquo;is there a dog?&rdquo; into &ldquo;where is the dog?&rdquo;, and &ldquo;nowhere&rdquo; must be a valid answer.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>One output shape serves many consumers. A point is a click for a GUI agent, a grasp target for a robot, a count marker for Molmo, and a prompt for SAM in Seg-Zero. A box is a crop for a zoom step and a scorable answer for an RL reward. In practice, a reliable grounding head is reusable infrastructure. Teaching a model to point well pays off in agents, robotics and training at once. Each use differs only in what consumes the point.</p>
+        </aside>
+      </section>
+
+      <section id="evaluation">
+        <h2>Measuring grounding</h2>
+        <p>Each output shape comes with its own metric, and each metric rewards something slightly different. <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a> covers VLM benchmarks in general. This section goes deeper on grounding.</p>
+        <h3>Points</h3>
+        <p>A point is scored with an inside test. The pointing game, introduced to evaluate attention maps, counts a hit when the maximum of the map falls on an annotated instance, allowing a tolerance of 15 pixels. GUI grounding uses the same idea as click accuracy: a click counts if it lands inside the target element&rsquo;s box. Point metrics say nothing about extent, and they are lenient for large targets.</p>
+        <h3>Boxes</h3>
+        <p>Boxes are scored with intersection over union, IoU = |<i>A</i> &cap; <i>B</i>| / |<i>A</i> &cup; <i>B</i>|. Referring expression comprehension on the RefCOCO family reports <strong>Acc@0.5</strong>: the share of expressions whose predicted box has IoU of at least 0.5 with the true box. Phrase grounding on Flickr30k Entities reports a similar recall at the same threshold. Detection reports average precision. In the COCO style, AP is averaged over IoU thresholds from 0.5 to 0.95, which rewards tight boxes more than Acc@0.5 does.</p>
+        <h3>Masks</h3>
+        <p>Masks are also scored with IoU, but at the pixel level, and there are two ways to average it. Referring segmentation papers such as LISA report both.</p>
+        <div class="eq-block"><span class="eq-name">Two averages of mask IoU</span>gIoU = (1/<i>n</i>) &sum;<sub><i>i</i></sub> |<i>P</i><sub><i>i</i></sub> &cap; <i>G</i><sub><i>i</i></sub>| / |<i>P</i><sub><i>i</i></sub> &cup; <i>G</i><sub><i>i</i></sub>| &nbsp;&nbsp;&nbsp; cIoU = &sum;<sub><i>i</i></sub> |<i>P</i><sub><i>i</i></sub> &cap; <i>G</i><sub><i>i</i></sub>| / &sum;<sub><i>i</i></sub> |<i>P</i><sub><i>i</i></sub> &cup; <i>G</i><sub><i>i</i></sub>|</div>
+        <p>Here <i>P</i><sub><i>i</i></sub> is the predicted mask and <i>G</i><sub><i>i</i></sub> the true mask for example <i>i</i>. gIoU is the mean of per-example IoUs, so every example counts equally. cIoU adds up all intersections and all unions before dividing. Large objects contribute many pixels, so they dominate cIoU. LISA prefers gIoU for exactly this reason. IoU over a whole mask is also forgiving at the edges, because a large interior hides a ragged boundary. Boundary IoU computes IoU only in a thin band around the contours, so it rewards sharp edges.</p>
+
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>&ldquo;gIoU&rdquo; means two unrelated things. In referring segmentation it is the per-example mean IoU defined above. In detection, &ldquo;GIoU&rdquo; is generalised IoU from Rezatofighi and colleagues. That is a loss and metric for boxes that adds a penalty based on the smallest box enclosing both. The two numbers are not comparable. In practice, when a paper reports gIoU, check which definition it uses before putting the number in a table next to another paper&rsquo;s.</p>
+        </aside>
+
+        <h3>Many regions, no region, and phrases</h3>
+        <p>When an answer has several regions, a single IoU no longer works. The usual approach is to match predicted regions to true regions first, typically one-to-one at an IoU threshold. Then precision, recall and F1 are computed over the matches. M3Grounder and DoCoG report grounding scores of this matched kind. When a query may have no target, as in gRefCOCO, the metric must also reward the model for correctly answering &ldquo;nothing&rdquo;. Grounded captioning has to score two things together: the text and whether each phrase got the right mask. GLaMM therefore evaluates grounded conversation generation with caption metrics and mask metrics side by side.</p>
+        <h3>Time</h3>
+        <p>Temporal grounding uses the same idea in one dimension. Temporal IoU compares the predicted interval with the true interval. Charades-STA results are usually reported as recall at temporal IoU thresholds such as 0.5 and 0.7.</p>
+
+        <figure class="wl-fig" id="fig-iou" data-fig="iou">
+          <p class="wl-kicker">Interactive · box IoU versus mask IoU</p>
+          <div class="wl-tabs" role="group" aria-label="Choose a target shape">
+            <button type="button" data-shape="blob" aria-pressed="true">Compact object</button>
+            <button type="button" data-shape="wedge" aria-pressed="false">Pie wedge</button>
+            <button type="button" data-shape="band" aria-pressed="false">Curved text line</button>
+            <button type="button" data-shape="diag" aria-pressed="false">Diagonal text line</button>
+          </div>
+          <div class="wl-stage"><svg viewBox="0 0 600 330" role="img" aria-label="A target shape with a draggable predicted box. Readouts compare the box's IoU against the target's bounding box with its IoU against the target's mask."></svg></div>
+          <div class="wl-ctl">
+            <button type="button" data-act="tight">Snap to tightest box</button>
+            <button type="button" data-act="reset">Reset</button>
+            <span style="font:12px/1.4 var(--mono);color:#7b8388">Drag the box to move it. Drag its corner to resize. Arrow keys move it; Shift + arrows resize.</span>
+          </div>
+          <div class="wl-readout" aria-live="polite">
+            <div><span>IoU vs true box</span><strong data-r="bi">&ndash;</strong></div>
+            <div><span>IoU vs true mask</span><strong data-r="mi">&ndash;</strong></div>
+            <div><span>Shape fill ratio</span><strong data-r="f">&ndash;</strong></div>
+            <div><span>Acc@0.5: box / mask</span><strong data-r="acc">&ndash;</strong></div>
+          </div>
+          <figcaption><b>Figure 9</b>Box IoU and mask IoU agree for compact objects and disagree for everything else. Snap to the tightest box on the diagonal text line. Box IoU reads 1.00, while mask IoU equals the fill ratio of the shape. A box metric would call this prediction perfect, even though most of the box is background.</figcaption>
+        </figure>
+
+        <h3>Benchmarks</h3>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Grounding benchmarks and what they score</caption>
+            <thead><tr><th scope="col">Benchmark</th><th scope="col">Task</th><th scope="col">Output</th><th scope="col">Main metric</th><th scope="col">What it does not test</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">ReferItGame</th><td>REC on natural photos</td><td>box</td><td>Acc@0.5</td><td>multiple or absent targets</td></tr>
+              <tr><th scope="row">RefCOCO / + / g</th><td>REC and RES on COCO</td><td>box or mask</td><td>Acc@0.5; mask IoU</td><td>multiple or absent targets; RefCOCO+ removes location words</td></tr>
+              <tr><th scope="row">Flickr30k Entities</th><td>phrase grounding</td><td>box per phrase</td><td>recall at IoU 0.5</td><td>masks</td></tr>
+              <tr><th scope="row">gRefCOCO</th><td>generalised RES</td><td>mask, possibly empty</td><td>mask IoU; no-target accuracy</td><td>reasoning queries</td></tr>
+              <tr><th scope="row">ReasonSeg</th><td>reasoning segmentation</td><td>mask</td><td>gIoU, cIoU</td><td>scale: 1,218 samples in total</td></tr>
+              <tr><th scope="row">GranD<sub>f</sub></th><td>grounded conversation</td><td>text with masks</td><td>caption and mask metrics</td><td>documents</td></tr>
+              <tr><th scope="row">ScreenSpot</th><td>GUI grounding</td><td>click point</td><td>click accuracy</td><td>extent of elements</td></tr>
+              <tr><th scope="row">Charades-STA</th><td>temporal grounding</td><td>time interval</td><td>recall at tIoU 0.5 / 0.7</td><td>spatial location</td></tr>
+              <tr><th scope="row">BoundingDocs</th><td>document QA with locations</td><td>answer and box</td><td>answer and location scores</td><td>non-rectangular evidence</td></tr>
+              <tr><th scope="row">DOGR-Bench</th><td>document grounding and referring</td><td>boxes and text</td><td>task-specific</td><td>masks; 3.6K samples over charts, posters, PDFs</td></tr>
+              <tr><th scope="row">MMDocBench</th><td>fine-grained document understanding</td><td>answer and supporting regions</td><td>answer and region scores</td><td>masks; 4,338 QA pairs, 11,353 regions</td></tr>
+              <tr class="own"><th scope="row">GDQA-Bench, DoCoG-Bench</th><td>mask-grounded document QA; grounded chains</td><td>masks, many per answer or step</td><td>grounding F1; answer and grounding scores</td><td>natural images</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note"><strong>How to read this table.</strong> The last column matters most. Most benchmarks fix one output shape and one target count. A model that is good at the benchmark&rsquo;s shape can still be weak at the shape your application needs. The shaded row is from the author&rsquo;s own work.</p>
+
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Acc@0.5 with box IoU is a lenient metric for irregular evidence, and the fill-ratio result shows how lenient. Any box with IoU of at least 0.5 against the tightest box passes. If the shape fills only 30% of that box, a passing prediction can still be mostly background. Figure 9 makes this visible. In practice, when the target is not box-shaped, report mask IoU or boundary IoU alongside Acc@0.5. Box metrics alone will rank models by how well they frame regions, not by how well they find them.</p>
+        </aside>
+      </section>
+
+      <section id="comparison">
+        <h2>Comparing grounding models</h2>
+        <p>We can now compare the main grounding models along the aspects this post introduced: output shape, coordinate encoding, decoder, granularity, multi-region ability and training data. Per-family details such as model sizes, encoders and training stages are in <a href="../index.html?series=vlms" data-series-pending="how-the-open-vlm-families-were-built/">How the Open VLM Families Were Built</a>. Entries say &ldquo;not reported&rdquo; where the primary source does not state them.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Grounding approaches compared</caption>
+            <thead><tr><th scope="col">Model</th><th scope="col">Output type</th><th scope="col">Coordinate encoding</th><th scope="col">Decoder</th><th scope="col">Granularity</th><th scope="col">Multi-region</th><th scope="col">Grounding training data</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Pix2Seq (2021)</th><td>boxes</td><td>location tokens; 2,000 bins (COCO from scratch) or 1,000; y before x; shared vocabulary with classes</td><td>none</td><td>object</td><td>yes; order shuffled in training</td><td>COCO; Objects365 for pretraining</td></tr>
+              <tr><th scope="row">OFA (2022)</th><td>boxes</td><td>location tokens in a unified vocabulary; 1,000 bins in official scripts</td><td>none</td><td>object</td><td>one per query</td><td>public data, including the RefCOCO family</td></tr>
+              <tr><th scope="row">Kosmos-2 (2023)</th><td>boxes</td><td>1,024 location tokens (32 &times; 32 grid); two tokens per box</td><td>none</td><td>phrase to object</td><td>yes, joined by a delimiter token</td><td>GrIT: about 91M images, 115M phrases, 137M boxes</td></tr>
+              <tr><th scope="row">Shikra (2023)</th><td>boxes, points</td><td>decimals in [0, 1] as text, three places</td><td>none</td><td>object</td><td>yes, inline in dialogue</td><td>public REC and phrase-grounding sets; GPT-4-generated referential dialogue (Shikra-RD)</td></tr>
+              <tr><th scope="row">MiniGPT-v2 (2023)</th><td>boxes</td><td>integers on a 0&ndash;100 grid as text</td><td>none</td><td>object</td><td>yes</td><td>public multi-task mix</td></tr>
+              <tr><th scope="row">Ferret (2023)</th><td>boxes (in and out)</td><td>integers on a 0&ndash;999 grid as text; region inputs add a sampled feature</td><td>visual sampler for region inputs</td><td>object, free-form regions as input</td><td>yes</td><td>GRIT: about 1.1M samples including 95K hard negatives</td></tr>
+              <tr><th scope="row">CogVLM (2023)</th><td>boxes</td><td>three-digit integers 000&ndash;999 as text</td><td>none</td><td>object</td><td>yes</td><td>REC data in stage-2 pretraining</td></tr>
+              <tr><th scope="row">Qwen-VL / Qwen2-VL</th><td>boxes</td><td>integers on a 0&ndash;1000 grid as text, inside box and ref tags</td><td>none</td><td>phrase to object</td><td>yes</td><td>GrIT, Visual Genome, RefCOCO family (Qwen-VL); later versions not itemised</td></tr>
+              <tr><th scope="row">Qwen2.5-VL (2025)</th><td>boxes, points</td><td>absolute pixels of the resized input; JSON output</td><td>none</td><td>object</td><td>yes</td><td class="na">not itemised</td></tr>
+              <tr><th scope="row">Qwen3-VL (2025)</th><td>boxes, points</td><td>back to a normalised 0&ndash;1000 grid; JSON output</td><td>none</td><td>object</td><td>yes</td><td class="na">not itemised</td></tr>
+              <tr><th scope="row">Florence-2 (2023)</th><td>boxes, quad boxes, polygons</td><td>1,000 location tokens; polygons as vertex sequences</td><td>none</td><td>object, region, text line</td><td>yes</td><td>FLD-5B: 5.4B annotations on 126M images</td></tr>
+              <tr><th scope="row">PaliGemma (2024)</th><td>boxes, masks</td><td>1,024 location tokens, y before x; masks as 16 codebook tokens (128-entry VQ-VAE)</td><td>small VQ-VAE mask decoder</td><td>object</td><td>yes</td><td>multitask pretraining mix including detection and referring segmentation</td></tr>
+              <tr><th scope="row">Molmo (2024)</th><td>points</td><td>decimals on a 0&ndash;100 scale as text, in XML-like tags</td><td>none</td><td>object, part</td><td>yes, in reading order</td><td>PixMo-Points: about 2.3M question-point pairs on 223K images</td></tr>
+              <tr><th scope="row">Groma (2024)</th><td>boxes (selected)</td><td>none typed; region tokens <code>&lt;r1&gt;</code>&hellip;</td><td>Deformable-DETR region proposer</td><td>object</td><td>yes</td><td class="na">not reported here</td></tr>
+              <tr><th scope="row">LISA (2023)</th><td>masks</td><td>none; &lt;SEG&gt; hidden state</td><td>SAM (ViT-H)</td><td>object, reasoning targets</td><td>one per &lt;SEG&gt;</td><td>semantic and referring segmentation, VQA; 239 ReasonSeg samples</td></tr>
+              <tr><th scope="row">GLaMM (2023)</th><td>masks, region inputs</td><td>none; &lt;SEG&gt; per phrase</td><td>SAM-based pixel decoder</td><td>phrase to object</td><td>yes, many per reply</td><td>GranD: 810M masked regions on 11M images; GranD<sub>f</sub></td></tr>
+              <tr><th scope="row">PixelLM (2023)</th><td>masks</td><td>none; codebook tokens</td><td>lightweight pixel decoder, no SAM</td><td>object</td><td>yes</td><td>MUSE: 246K QA pairs, 0.9M instances</td></tr>
+              <tr><th scope="row">Sa2VA (2025)</th><td>masks in images and video</td><td>none; [SEG] token</td><td>SAM 2 with memory</td><td>object across frames</td><td>yes</td><td>image and video referring segmentation; Ref-SAV</td></tr>
+              <tr><th scope="row">Text4Seg (2024)</th><td>masks as text</td><td>a word per patch on a 16 &times; 16 grid, row-wise run-length coding</td><td>optional SAM refiner</td><td>object</td><td>yes</td><td class="na">not reported here</td></tr>
+              <tr class="own"><th scope="row">M3Grounder, DoCoG, DocLayout-VL</th><td>masks</td><td>none; grounding tokens</td><td>SAM, with an interaction module (DoCoG, DocLayout-VL)</td><td>phrase, line, block; reasoning steps; layout tree</td><td>yes, many per answer, step or page</td><td>about 2M grounded QA; 1.5M step-wise QA plus 20K preference pairs; 80M masks on 2.5M pages</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note"><strong>How to read this table.</strong> Read the &ldquo;Decoder&rdquo; column first. It splits the table into two groups. Models with no decoder type their locations and almost all output boxes or points. Models with a decoder output masks and type no coordinates at all. Then read the &ldquo;Coordinate encoding&rdquo; column within the first group. The bin count and the order of the axes change from model to model, and even across versions of one family. The shaded row is the author&rsquo;s own work.</p>
+      </section>
+
+      <section id="choosing">
+        <h2>Choosing a grounding interface</h2>
+        <p>There is no single best interface. The right choice follows from the shape of the evidence, the number of regions, and what consumes the output.</p>
+        <ul class="plain">
+          <li><strong>The target is a small, compact object, and the consumer clicks, counts or grasps.</strong> Use points as text. They are cheap to label and cheap to emit, and they are checked by an inside test. Make sure the points are trained to land on the object, not at its centroid.</li>
+          <li><strong>The consumer crops, zooms or computes a reward.</strong> Use boxes as text on a normalised grid. Check that the grid is fine enough for the smallest target at the largest resolution you serve. If the boxes will be scored, consider RL with an IoU reward after supervised training.</li>
+          <li><strong>The evidence is irregular, nested or spread over several places.</strong> Use masks from a decoder. Typed polygons and masks get long and lossy. A grounding token that prompts a segmenter keeps the language model&rsquo;s job to deciding what and at which granularity.</li>
+          <li><strong>The answer needs several reading steps.</strong> Ground each reading step, and leave arithmetic steps ungrounded. Measure the regions directly, because a correct answer says little about whether they are right.</li>
+          <li><strong>The input is video.</strong> Use a segmenter with memory across frames, such as SAM 2 in Sa2VA, or interval outputs for purely temporal questions.</li>
+          <li><strong>The model is behind an API that only returns text.</strong> Typed coordinates are the only option. Pin the version and test the coordinate convention, as the nuance on coordinate frames advised.</li>
+        </ul>
+        <p>The thread through all of this is a division of labour. Language models are good at deciding what a question refers to and at what granularity. Geometry is better handled by something that works in pixels, whether that is a fine coordinate grid, a proposer, or a promptable segmenter. The next posts build on this. <a href="../how-vlms-read-documents/">How VLMs Read Documents</a> applies grounding to pages. <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> turns IoU into a training signal.</p>
+      </section>
+
+      <section id="insights">
+        <h2>Key insights and nuances</h2>
+        <ol class="keylist">
+          <li><span class="k-tag k-ins">Insight</span>Grounding can be a means as well as an output. Molmo&rsquo;s point-then-count beats counting directly, and the points make the count checkable. <a href="#ladder">From recognising to localising</a></li>
+          <li><span class="k-tag k-nua">Nuance</span>Data in which every query has exactly one target teaches the model to always draw a box. Training needs queries whose answer is &ldquo;no such region&rdquo;. <a href="#tasks">The family of grounding tasks</a></li>
+          <li><span class="k-tag k-ins">Insight</span>The best possible box has IoU equal to the shape&rsquo;s fill ratio. That is about 0.34 for a curved text line and below 0.1 for a thin diagonal one. <a href="#representations">Point, box, polygon, mask</a></li>
+          <li><span class="k-tag k-ins">Insight</span>Quantisation error is set by the original image width divided by the bin count. A 0&ndash;100 grid cannot localise a 24-pixel icon on a 4K screen. <a href="#coordinates">Writing coordinates as tokens</a></li>
+          <li><span class="k-tag k-nua">Nuance</span>Coordinate conventions change across models and even across versions of one family. Qwen2.5-VL uses absolute pixels, while Qwen3-VL returned to a 0&ndash;1000 grid. Wrong parsers fail silently. <a href="#coordinates">Writing coordinates as tokens</a></li>
+          <li><span class="k-tag k-ins">Insight</span>Cross-entropy cannot tell a near miss from a far miss. IoU rewards can, which is why RL helps grounding. <a href="#autoregressive">Grounding as next-token prediction</a></li>
+          <li><span class="k-tag k-ins">Insight</span>For irregular, multi-region evidence, changing the interface from typed boxes to a segmentation decoder helps more than more data on the same backbone. <a href="#decoders">Handing the location to a decoder</a></li>
+          <li><span class="k-tag k-ins">Insight</span>Granularity belongs to the question. The same pixels are right for &ldquo;cite&rdquo; and wrong for &ldquo;redact&rdquo;. <a href="#granularity">What counts as one region</a></li>
+          <li><span class="k-tag k-nua">Nuance</span>Boxes inside reasoning chains are not evidence unless something checks them. Answer accuracy and grounding accuracy can differ by 70 points. <a href="#reasoning">Grounding each reasoning step</a></li>
+          <li><span class="k-tag k-nua">Nuance</span>&ldquo;gIoU&rdquo; means a per-example mean in segmentation and generalised IoU in detection. cIoU favours large objects. <a href="#evaluation">Measuring grounding</a></li>
+        </ol>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li><li><a href="../how-vlms-read-documents/">How VLMs Read Documents</a></li><li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../vlms-that-act/">VLMs That Act</a></li><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li></ul></nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Coordinates as tokens</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2109.10852" target="_blank" rel="noopener noreferrer">Pix2seq: A Language Modeling Framework for Object Detection</a> &middot; Chen et al., ICLR 2022</li>
+            <li><a href="https://arxiv.org/abs/2202.03052" target="_blank" rel="noopener noreferrer">OFA: Unifying Architectures, Tasks, and Modalities Through a Simple Sequence-to-Sequence Learning Framework</a> &middot; Wang et al., ICML 2022</li>
+            <li><a href="https://arxiv.org/abs/2306.14824" target="_blank" rel="noopener noreferrer">Kosmos-2: Grounding Multimodal Large Language Models to the World</a> &middot; Peng et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2306.15195" target="_blank" rel="noopener noreferrer">Shikra: Unleashing Multimodal LLM&rsquo;s Referential Dialogue Magic</a> &middot; Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.09478" target="_blank" rel="noopener noreferrer">MiniGPT-v2: Large Language Model as a Unified Interface for Vision-Language Multi-task Learning</a> &middot; Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.07704" target="_blank" rel="noopener noreferrer">Ferret: Refer and Ground Anything Anywhere at Any Granularity</a> &middot; You et al., ICLR 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.03079" target="_blank" rel="noopener noreferrer">CogVLM: Visual Expert for Pretrained Language Models</a> &middot; Wang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2308.12966" target="_blank" rel="noopener noreferrer">Qwen-VL: A Versatile Vision-Language Model for Understanding, Localization, Text Reading, and Beyond</a> &middot; Bai et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2409.12191" target="_blank" rel="noopener noreferrer">Qwen2-VL: Enhancing Vision-Language Model&rsquo;s Perception of the World at Any Resolution</a> &middot; Wang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener noreferrer">Qwen2.5-VL Technical Report</a> &middot; Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2511.21631" target="_blank" rel="noopener noreferrer">Qwen3-VL Technical Report</a> &middot; Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2311.06242" target="_blank" rel="noopener noreferrer">Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks</a> &middot; Xiao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2407.07726" target="_blank" rel="noopener noreferrer">PaliGemma: A Versatile 3B VLM for Transfer</a> &middot; Beyer et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2409.17146" target="_blank" rel="noopener noreferrer">Molmo and PixMo: Open Weights and Open Data for State-of-the-Art Vision-Language Models</a> &middot; Deitke et al., 2024</li>
+            <li><a href="https://aistudio.google.com/docs/image-understanding" target="_blank" rel="noopener noreferrer">Gemini API: image understanding, object detection</a> &middot; Google, official documentation</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Region tokens and segmentation decoders</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.02643" target="_blank" rel="noopener noreferrer">Segment Anything</a> &middot; Kirillov et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2408.00714" target="_blank" rel="noopener noreferrer">SAM 2: Segment Anything in Images and Videos</a> &middot; Ravi et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2308.00692" target="_blank" rel="noopener noreferrer">LISA: Reasoning Segmentation via Large Language Model</a> &middot; Lai et al., CVPR 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.03356" target="_blank" rel="noopener noreferrer">GLaMM: Pixel Grounding Large Multimodal Model</a> &middot; Rasheed et al., CVPR 2024</li>
+            <li><a href="https://arxiv.org/abs/2312.02228" target="_blank" rel="noopener noreferrer">PixelLM: Pixel Reasoning with Large Multimodal Model</a> &middot; Ren et al., CVPR 2024</li>
+            <li><a href="https://arxiv.org/abs/2406.19389" target="_blank" rel="noopener noreferrer">OMG-LLaVA: Bridging Image-level, Object-level, Pixel-level Reasoning and Understanding</a> &middot; Zhang et al., NeurIPS 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.04001" target="_blank" rel="noopener noreferrer">Sa2VA: Marrying SAM2 with MLLM for Dense Grounded Understanding of Images and Videos</a> &middot; Yuan et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2404.13013" target="_blank" rel="noopener noreferrer">Groma: Localized Visual Tokenization for Grounding Multimodal Large Language Models</a> &middot; Ma et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2311.04498" target="_blank" rel="noopener noreferrer">NExT-Chat: An LMM for Chat, Detection and Segmentation</a> &middot; Zhang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2406.08394" target="_blank" rel="noopener noreferrer">VisionLLM v2: An End-to-End Generalist Multimodal Large Language Model for Hundreds of Vision-Language Tasks</a> &middot; Wu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2312.02949" target="_blank" rel="noopener noreferrer">LLaVA-Grounding: Grounded Visual Chat with Large Multimodal Models</a> &middot; Zhang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2302.07387" target="_blank" rel="noopener noreferrer">PolyFormer: Referring Image Segmentation as Sequential Polygon Generation</a> &middot; Liu et al., CVPR 2023</li>
+            <li><a href="https://arxiv.org/abs/2410.09855" target="_blank" rel="noopener noreferrer">Text4Seg: Reimagining Image Segmentation as Text Generation</a> &middot; Lan et al., ICLR 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Specialist grounding and open-vocabulary detection</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2104.12763" target="_blank" rel="noopener noreferrer">MDETR: Modulated Detection for End-to-End Multi-Modal Understanding</a> &middot; Kamath et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2112.03857" target="_blank" rel="noopener noreferrer">Grounded Language-Image Pre-training</a> &middot; Li et al., CVPR 2022</li>
+            <li><a href="https://arxiv.org/abs/2205.06230" target="_blank" rel="noopener noreferrer">Simple Open-Vocabulary Object Detection with Vision Transformers</a> &middot; Minderer et al., ECCV 2022</li>
+            <li><a href="https://arxiv.org/abs/2303.05499" target="_blank" rel="noopener noreferrer">Grounding DINO: Marrying DINO with Grounded Pre-Training for Open-Set Object Detection</a> &middot; Liu et al., 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Documents and grounded reasoning</h3>
+          <ul>
+            <li><a href="https://openaccess.thecvf.com/content/CVPR2026/papers/Venna_M3Grounder_Mask-Based_Multi-Span_and_Multi-Granular_Grounding_for_Document_QA_CVPR_2026_paper.pdf" target="_blank" rel="noopener noreferrer">M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA</a> &middot; Venna et al., CVPR 2026</li>
+            <li><a href="https://docog-eccv.github.io/" target="_blank" rel="noopener noreferrer">DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</a> &middot; Gunda et al., ECCV 2026</li>
+            <li><a href="https://doclayoutvl.github.io/" target="_blank" rel="noopener noreferrer">DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation</a> &middot; Srinivasan et al., ECCV 2026</li>
+            <li><a href="https://arxiv.org/abs/2309.11419" target="_blank" rel="noopener noreferrer">Kosmos-2.5: A Multimodal Literate Model</a> &middot; Lv et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.16999" target="_blank" rel="noopener noreferrer">Visual CoT: Advancing Multi-Modal Language Models with a Comprehensive Dataset and Benchmark for Chain-of-Thought Reasoning</a> &middot; Shao et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2505.15879" target="_blank" rel="noopener noreferrer">GRIT: Teaching MLLMs to Think with Images</a> &middot; Fan et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Acting and rewarding with locations</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2401.10935" target="_blank" rel="noopener noreferrer">SeeClick: Harnessing GUI Grounding for Advanced Visual GUI Agents</a> &middot; Cheng et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.05243" target="_blank" rel="noopener noreferrer">Navigating the Digital World as Humans Do: Universal Visual Grounding for GUI Agents</a> &middot; Gou et al., ICLR 2025</li>
+            <li><a href="https://arxiv.org/abs/2406.10721" target="_blank" rel="noopener noreferrer">RoboPoint: A Vision-Language Model for Spatial Affordance Prediction for Robotics</a> &middot; Yuan et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2503.01785" target="_blank" rel="noopener noreferrer">Visual-RFT: Visual Reinforcement Fine-Tuning</a> &middot; Liu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.07615" target="_blank" rel="noopener noreferrer">VLM-R1: A Stable and Generalizable R1-style Large Vision-Language Model</a> &middot; Shen et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.06520" target="_blank" rel="noopener noreferrer">Seg-Zero: Reasoning-Chain Guided Segmentation via Cognitive Reinforcement</a> &middot; Liu et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Benchmarks and datasets</h3>
+          <ul>
+            <li><a href="https://aclanthology.org/D14-1086/" target="_blank" rel="noopener noreferrer">ReferItGame: Referring to Objects in Photographs of Natural Scenes</a> &middot; Kazemzadeh et al., EMNLP 2014</li>
+            <li><a href="https://arxiv.org/abs/1608.00272" target="_blank" rel="noopener noreferrer">Modeling Context in Referring Expressions (RefCOCO, RefCOCO+)</a> &middot; Yu et al., ECCV 2016</li>
+            <li><a href="https://arxiv.org/abs/1511.02283" target="_blank" rel="noopener noreferrer">Generation and Comprehension of Unambiguous Object Descriptions (RefCOCOg)</a> &middot; Mao et al., 2016</li>
+            <li><a href="https://arxiv.org/abs/1505.04870" target="_blank" rel="noopener noreferrer">Flickr30k Entities: Collecting Region-to-Phrase Correspondences for Richer Image-to-Sentence Models</a> &middot; Plummer et al., 2015</li>
+            <li><a href="https://arxiv.org/abs/2306.00968" target="_blank" rel="noopener noreferrer">GRES: Generalized Referring Expression Segmentation (gRefCOCO)</a> &middot; Liu et al., CVPR 2023</li>
+            <li><a href="https://arxiv.org/abs/1602.07332" target="_blank" rel="noopener noreferrer">Visual Genome: Connecting Language and Vision Using Crowdsourced Dense Image Annotations</a> &middot; Krishna et al., IJCV 2017</li>
+            <li><a href="https://arxiv.org/abs/1705.02101" target="_blank" rel="noopener noreferrer">TALL: Temporal Activity Localization via Language Query (Charades-STA)</a> &middot; Gao et al., ICCV 2017</li>
+            <li><a href="https://arxiv.org/abs/2312.02051" target="_blank" rel="noopener noreferrer">TimeChat: A Time-sensitive Multimodal Large Language Model for Long Video Understanding</a> &middot; Ren et al., CVPR 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.03403" target="_blank" rel="noopener noreferrer">BoundingDocs: A Unified Dataset for Document Question Answering with Spatial Annotations</a> &middot; Giovannini et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2411.17125" target="_blank" rel="noopener noreferrer">DOGR: Towards Versatile Visual Document Grounding and Referring</a> &middot; Zhou et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.21311" target="_blank" rel="noopener noreferrer">MMDocBench: Benchmarking Large Vision-Language Models for Fine-Grained Visual Document Understanding</a> &middot; Zhu et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Metrics</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2103.16562" target="_blank" rel="noopener noreferrer">Boundary IoU: Improving Object-Centric Image Segmentation Evaluation</a> &middot; Cheng et al., CVPR 2021</li>
+            <li><a href="https://arxiv.org/abs/1902.09630" target="_blank" rel="noopener noreferrer">Generalized Intersection over Union: A Metric and A Loss for Bounding Box Regression</a> &middot; Rezatofighi et al., CVPR 2019</li>
+            <li><a href="https://arxiv.org/abs/1608.00507" target="_blank" rel="noopener noreferrer">Top-down Neural Attention by Excitation Backprop (the pointing game)</a> &middot; Zhang et al., ECCV 2016</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>When Language Must Point</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/when-language-must-point/">https://srini-anirudh.github.io/blogs/when-language-must-point/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026whenlanguagemustpoint,
+  author       = {Srinivasan, Anirudh},
+  title        = {When Language Must Point},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/when-language-must-point/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; When Language Must Point</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var C = { ink: '#14171a', soft: '#474e53', muted: '#7b8388', rule: '#cac6bd', paper: '#f7f6f3', paper2: '#fbfaf8', blue: '#0b5ea8', orange: '#d66f00', green: '#2f8f5b', red: '#b8432f', lblue: '#8fb3d6', gray: '#b9b4aa' };
+  window.__figs = window.__figs || {};
+
+  function S(tag, attrs, parent) {
+    var e = document.createElementNS(NS, tag);
+    if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function T(parent, x, y, txt, attrs) {
+    var e = S('text', Object.assign({ x: x, y: y }, attrs || {}), parent);
+    e.textContent = txt;
+    return e;
+  }
+  function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function tween(dur, fn, done) {
+    if (RM || !dur || dur <= 0) { fn(1); if (done) done(); return { stop: function () {} }; }
+    var st = null, stopped = false;
+    function f(ts) {
+      if (stopped) return;
+      if (st === null) st = ts;
+      var t = Math.min(1, (ts - st) / dur);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(f); else if (done) done();
+    }
+    requestAnimationFrame(f);
+    return { stop: function () { stopped = true; } };
+  }
+  // tween numeric attributes; key separates independent channels (geometry vs opacity)
+  function to(e, attrs, dur, key) {
+    key = '_tw' + (key || 'g');
+    if (e[key]) e[key].stop();
+    var from = {};
+    for (var k in attrs) { var v = parseFloat(e.getAttribute(k)); from[k] = isNaN(v) ? attrs[k] : v; }
+    e[key] = tween(dur, function (p) {
+      for (var k in attrs) e.setAttribute(k, (from[k] + (attrs[k] - from[k]) * p).toFixed(3));
+    });
+  }
+  function op(e, o, dur) { to(e, { opacity: o }, dur, 'o'); }
+  function cam(svg, vb, dur) {
+    var from = svg._vb || vb.slice();
+    if (svg._cam) svg._cam.stop();
+    svg._cam = tween(RM ? 0 : dur, function (p) {
+      var c = from.map(function (v, i) { return v + (vb[i] - v) * p; });
+      svg._vb = c;
+      svg.setAttribute('viewBox', c.map(function (v) { return v.toFixed(2); }).join(' '));
+    });
+  }
+  function ptsToD(pts) { return 'M' + pts.map(function (p) { return p[0].toFixed(2) + ' ' + p[1].toFixed(2); }).join(' L') + ' Z'; }
+  function morph(path, pts, dur) {
+    var from = path._pts || pts;
+    if (path._tw) path._tw.stop();
+    path._tw = tween(dur, function (p) {
+      var cur = pts.map(function (q, i) { return [from[i][0] + (q[0] - from[i][0]) * p, from[i][1] + (q[1] - from[i][1]) * p]; });
+      path._pts = cur;
+      path.setAttribute('d', ptsToD(cur));
+    });
+  }
+  function resample(pts, M) {
+    // distribute M points over the edges in proportion to their length, always keeping every vertex
+    var n = pts.length, lens = [], tot = 0, i, k;
+    for (i = 0; i < n; i++) { var a = pts[i], b = pts[(i + 1) % n]; lens.push(Math.hypot(b[0] - a[0], b[1] - a[1])); tot += lens[i]; }
+    var counts = lens.map(function (l) { return Math.max(1, Math.round(M * l / tot)); });
+    var diff = M - counts.reduce(function (x, y) { return x + y; }, 0);
+    while (diff !== 0) { var j = counts.indexOf(Math.max.apply(null, counts)); counts[j] += diff > 0 ? 1 : -1; diff += diff > 0 ? -1 : 1; }
+    var out = [];
+    for (i = 0; i < n; i++) {
+      var A = pts[i], B = pts[(i + 1) % n];
+      for (k = 0; k < counts[i]; k++) { var t = k / counts[i]; out.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
+    }
+    return out;
+  }
+  function inPoly(x, y, p) {
+    var c = false;
+    for (var i = 0, j = p.length - 1; i < p.length; j = i++) {
+      var xi = p[i][0], yi = p[i][1], xj = p[j][0], yj = p[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c;
+    }
+    return c;
+  }
+  function arrowDefs(svg, id, color) {
+    var d = svg.querySelector('defs') || S('defs', {}, svg);
+    var m = S('marker', { id: id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, d);
+    S('path', { d: 'M0 0 L10 5 L0 10 Z', fill: color }, m);
+    return 'url(#' + id + ')';
+  }
+  function pad(k) { return (k < 10 ? '0' : '') + k; }
+  function setR(fig, key, val, cls) {
+    var e = fig.querySelector('[data-r="' + key + '"]');
+    if (!e) return;
+    e.innerHTML = val;
+    e.className = cls || '';
+  }
+
+  /* ---------- the one shared stepper ---------- */
+  function Stepper(fig, n, render, opt) {
+    opt = opt || {};
+    var box = fig.querySelector('.fig-controls');
+    function mk(txt, attrs) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = txt;
+      for (var k in attrs) b.setAttribute(k, attrs[k]);
+      box.appendChild(b);
+      return b;
+    }
+    var prev = mk('Previous', { 'data-action': 'previous', 'aria-label': 'Previous step' });
+    var pp = mk('Play', { 'data-action': 'play-pause', 'aria-label': 'Play animation', 'aria-pressed': 'false' });
+    var next = mk('Next', { 'data-action': 'next', 'aria-label': 'Next step' });
+    var names = { '0.5': 'half', '1': 'normal', '2': 'double' };
+    var sp = ['0.5', '1', '2'].map(function (s) {
+      return mk(s + 'x', { 'data-speed': s, 'aria-label': 'Play at ' + names[s] + ' speed', 'aria-pressed': s === '1' ? 'true' : 'false' });
+    });
+    var st = document.createElement('span');
+    st.className = 'status'; st.setAttribute('aria-live', 'polite');
+    box.appendChild(st);
+    var i = 0, playing = false, speed = 1, timer = null, userPaused = false;
+    function show(k, anim) {
+      i = ((k % n) + n) % n;
+      st.textContent = 'Step ' + pad(i + 1) + ' / ' + pad(n);
+      render(i, anim && !RM ? (opt.dur || 800) / speed : 0, speed);
+    }
+    function sched() {
+      clearTimeout(timer);
+      if (!playing) return;
+      var h = (opt.hold ? opt.hold(i) : 2900) / speed;
+      timer = setTimeout(function () { show(i + 1, true); sched(); }, h);
+    }
+    function setPlay(p) {
+      playing = p;
+      pp.textContent = p ? 'Pause' : 'Play';
+      pp.setAttribute('aria-pressed', p ? 'true' : 'false');
+      pp.setAttribute('aria-label', p ? 'Pause animation' : 'Play animation');
+      sched();
+    }
+    pp.addEventListener('click', function () {
+      if (playing) { userPaused = true; setPlay(false); } else { userPaused = false; setPlay(true); }
+    });
+    prev.addEventListener('click', function () { userPaused = true; setPlay(false); show(i - 1, true); });
+    next.addEventListener('click', function () { userPaused = true; setPlay(false); show(i + 1, true); });
+    sp.forEach(function (b) {
+      b.addEventListener('click', function () {
+        speed = parseFloat(b.getAttribute('data-speed'));
+        sp.forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        sched();
+      });
+    });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting) { if (!userPaused && !RM && !playing) setPlay(true); }
+          else if (playing) setPlay(false);
+        });
+      }, { threshold: 0.5 }).observe(fig);
+    }
+    show(0, false);
+    var api = {
+      n: n,
+      go: function (k) { show(k, false); },
+      goAnim: function (k) { show(k, true); },
+      pause: function () { userPaused = true; setPlay(false); },
+      get i() { return i; }
+    };
+    window.__figs[opt.name || fig.id] = api;
+    return api;
+  }
+  function narrow(fig) { return fig.clientWidth < 560; }
+
+  window.__wl = { S: S, T: T, to: to, op: op, cam: cam, morph: morph, resample: resample, inPoly: inPoly, arrowDefs: arrowDefs, Stepper: Stepper, C: C, RM: RM, tween: tween, setR: setR, narrow: narrow, ptsToD: ptsToD };
+})();
+(function () {
+  'use strict';
+  var W = window.__wl, S = W.S, T = W.T, to = W.to, op = W.op, cam = W.cam, C = W.C;
+
+  /* shared desk scene (600 x 340 units) */
+  var MUG_D = 'M120 190 L170 190 L170 240 Q170 252 158 252 L132 252 Q120 252 120 240 Z M120 198 C93 198 93 242 120 242 L120 234 C104 234 104 206 120 206 Z';
+  var MUG_BOX = [99, 190, 170, 252];
+  function deskScene(g) {
+    S('rect', { x: 0, y: 0, width: 600, height: 340, fill: '#f1ede5' }, g);
+    S('rect', { x: 40, y: 36, width: 150, height: 108, fill: '#e3ecf3', stroke: '#b9c4cc', 'stroke-width': 4 }, g);
+    S('path', { d: 'M115 36 V144 M40 90 H190', stroke: '#b9c4cc', 'stroke-width': 4 }, g);
+    S('rect', { x: 0, y: 252, width: 600, height: 88, fill: '#e2d7c3' }, g);
+    S('rect', { x: 0, y: 252, width: 600, height: 7, fill: '#cdbfa6' }, g);
+    S('rect', { x: 240, y: 150, width: 130, height: 92, rx: 5, fill: '#5d666c' }, g);
+    S('rect', { x: 248, y: 158, width: 114, height: 76, fill: '#dfe7ec' }, g);
+    S('path', { d: 'M258 172 H330 M258 186 H345 M258 200 H310', stroke: '#b5c2cb', 'stroke-width': 5 }, g);
+    S('path', { d: 'M222 242 L388 242 L398 254 L212 254 Z', fill: '#7b8388' }, g);
+    S('path', { d: MUG_D, fill: '#0b5ea8' }, g);
+    S('ellipse', { cx: 145, cy: 190, rx: 25, ry: 4, fill: '#084a85' }, g);
+    S('path', { d: 'M420 196 L466 196 L466 242 Q466 252 456 252 L430 252 Q420 252 420 242 Z M466 204 C490 204 490 240 466 240 L466 232 C480 232 480 212 466 212 Z', fill: '#2f8f5b' }, g);
+    S('ellipse', { cx: 443, cy: 196, rx: 23, ry: 4, fill: '#246f47' }, g);
+    S('path', { d: 'M502 214 L550 214 L544 252 L508 252 Z', fill: '#b07a52' }, g);
+    [[526, 186, 9, 30, -25], [512, 194, 8, 24, -55], [540, 194, 8, 24, 50], [526, 170, 7, 20, 5]].forEach(function (l) {
+      S('ellipse', { cx: l[0], cy: l[1], rx: l[2], ry: l[3], fill: '#3f8a5f', transform: 'rotate(' + l[4] + ' ' + l[0] + ' ' + l[1] + ')' }, g);
+    });
+  }
+  window.__wl.deskScene = deskScene; window.__wl.MUG_D = MUG_D; window.__wl.MUG_BOX = MUG_BOX;
+
+  /* ---------- Figure 1: the localisation ladder ---------- */
+  (function () {
+    var fig = document.getElementById('fig-ladder'); if (!fig) return;
+    var svg = fig.querySelector('svg'); svg._vb = [0, 0, 600, 340];
+    deskScene(S('g', {}, svg));
+    var frame = S('rect', { x: 5, y: 5, width: 590, height: 330, fill: 'none', stroke: C.orange, 'stroke-width': 5, opacity: 0 }, svg);
+    var ghost = S('rect', { x: 99, y: 190, width: 71, height: 62, fill: 'none', stroke: C.ink, 'stroke-width': 2, 'stroke-dasharray': '6 5', opacity: 0 }, svg);
+    var box = S('rect', { x: 5, y: 5, width: 590, height: 330, fill: 'none', stroke: C.orange, 'stroke-width': 4, opacity: 0 }, svg);
+    var mask = S('path', { d: MUG_D, fill: C.orange, 'fill-opacity': 0.55, stroke: C.orange, 'stroke-width': 2.5, opacity: 0 }, svg);
+    var pt = S('circle', { cx: 145, cy: 221, r: 0, fill: C.orange, stroke: '#fff', 'stroke-width': 3 }, svg);
+    var chips = fig.querySelectorAll('.wl-chips li');
+    var out = fig.querySelector('.wl-out');
+    var nx = function (v) { return Math.round(v / 600 * 1000); }, ny = function (v) { return Math.round(v / 340 * 1000); };
+    var boxStr = '&lt;box&gt;(' + nx(99) + ',' + ny(190) + '),(' + nx(170) + ',' + ny(252) + ')&lt;/box&gt;';
+    var O = [
+      '<span class="q">input</span> an image of a desk. No question yet.',
+      '<span class="q">classify</span> &rarr; <b>office desk</b><br><span class="q">One label for the whole frame. No location.</span>',
+      '<span class="q">caption</span> &rarr; Two mugs and a plant stand beside a laptop on a desk.<br><span class="q">Objects are named, not placed.</span>',
+      '<span class="q">Q:</span> What colour is the mug to the left of the laptop? <span class="q">A:</span> <b>Blue.</b><br><span class="q">The model must have found the mug, but the output does not say where.</span>',
+      '<span class="q">refer:</span> the mug to the left of the laptop &rarr; <span class="tag">' + boxStr + '</span><br><span class="q">Location is now the output: a 0&ndash;1000 box a program can check.</span>',
+      '<span class="q">point:</span> &rarr; <span class="tag">&lt;point x="24.2" y="65.0"&gt;mug&lt;/point&gt;</span><br><span class="q">Cheaper: one click, no extent.</span>',
+      '<span class="q">segment:</span> &rarr; <span class="tag">&lt;SEG&gt;</span> &rarr; a mask of exactly the mug&rsquo;s pixels, handle included.<br><span class="q">The dashed box shows the background a box would also claim.</span>',
+      '<span class="q">summary</span> label &rarr; caption &rarr; answer &rarr; box &rarr; point &rarr; mask.<br><span class="q">From the box onward, each claim about location can be checked.</span>'
+    ];
+    var chipAt = [-1, 0, 1, 2, 3, 4, 5, 6];
+    function render(i, d) {
+      out.innerHTML = O[i];
+      chips.forEach(function (c, k) {
+        c.className = (chipAt[i] === k) ? 'on' : (k < chipAt[i] ? 'done' : '');
+      });
+      op(frame, i === 1 || i === 2 ? 1 : (i === 3 ? 0.25 : 0), d);
+      if (i >= 4 && i <= 4) { op(box, 1, d * 0.4); to(box, { x: 99, y: 190, width: 71, height: 62 }, d * 1.3); }
+      else if (i < 4) { op(box, 0, d * 0.5); to(box, { x: 5, y: 5, width: 590, height: 330 }, 0); }
+      else if (i === 5) { op(box, 0, d); to(box, { x: 140, y: 216, width: 10, height: 10 }, d); }
+      else if (i === 6) { op(box, 0, d * 0.5); }
+      else if (i === 7) { to(box, { x: 99, y: 190, width: 71, height: 62 }, d); op(box, 0.9, d); }
+      to(pt, { r: i === 5 ? 9 : (i === 7 ? 7 : 0) }, d * 0.8);
+      op(mask, i === 6 ? 1 : (i === 7 ? 0.8 : 0), d);
+      op(ghost, i === 6 ? 1 : 0, d);
+      var narrowNow = W.narrow(fig);
+      if (i === 6) cam(svg, narrowNow ? [60, 165, 180, 102] : [40, 150, 240, 136], d * 1.6);
+      else cam(svg, [0, 0, 600, 340], d * 1.4);
+    }
+    W.Stepper(fig, 8, render, { name: 'ladder', hold: function (i) { return i === 6 ? 3800 : 3100; }, dur: 900 });
+  })();
+
+  /* ---------- Figure 2: point, box, polygon, mask on a curved line of text ---------- */
+  (function () {
+    var fig = document.getElementById('fig-repr'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var cx = 300, cy = 272, r1 = 150, r2 = 190, a0 = 20, a1 = 160;
+    function P(r, a) { return [cx + r * Math.cos(a * Math.PI / 180), cy - r * Math.sin(a * Math.PI / 180)]; }
+    function bandPts(n) {
+      var o = [], q = [], k;
+      for (k = 0; k < n; k++) o.push(P(r2, a1 - (a1 - a0) * k / (n - 1)));
+      for (k = 0; k < n; k++) q.push(P(r1, a0 + (a1 - a0) * k / (n - 1)));
+      return o.concat(q);
+    }
+    function inBand(x, y) {
+      var dx = x - cx, dy = cy - y, r = Math.hypot(dx, dy);
+      if (r < r1 || r > r2) return false;
+      var a = Math.atan2(dy, dx) * 180 / Math.PI;
+      return a >= a0 && a <= a1;
+    }
+    var bx1 = P(r2, a1)[0], bx2 = P(r2, a0)[0], by1 = cy - r2, by2 = P(r1, a0)[1];
+    function iou(test) {
+      var I = 0, U = 0;
+      for (var y = 74; y < 232; y++) for (var x = 112; x < 490; x++) {
+        var a = inBand(x + 0.5, y + 0.5), b = test(x + 0.5, y + 0.5);
+        if (a && b) I++; if (a || b) U++;
+      }
+      return I / U;
+    }
+    var M = 128;
+    var exact = W.resample(bandPts(64), M);
+    var ys = P(r2, a1)[1];
+    var boxPts = W.resample([[bx1, ys], [bx1, by1], [bx2, by1], [bx2, by2], [bx1, by2]], M);
+    function circ(x, y, r) { var p = []; for (var k = 0; k < M; k++) { var t = Math.PI - 2 * Math.PI * k / M; p.push([x + r * Math.cos(t), y - r * Math.sin(t)]); } return p; }
+    // centroid of an annular sector
+    var al = (a1 - a0) / 2 * Math.PI / 180;
+    var rc = (2 / 3) * (Math.pow(r2, 3) - Math.pow(r1, 3)) / (r2 * r2 - r1 * r1) * Math.sin(al) / al;
+    var cen = [cx, cy - rc], onb = [cx, cy - (r1 + r2) / 2];
+    var polys = { 6: bandPts(3), 16: bandPts(8), 48: bandPts(24) };
+    var cell = 6, cells = [];
+    for (var yy = 78; yy < 228; yy += cell) for (var xx = 114; xx < 488; xx += cell) if (inBand(xx + cell / 2, yy + cell / 2)) cells.push([xx, yy]);
+    var cellSet = {}; cells.forEach(function (c) { cellSet[c[0] + ',' + c[1]] = 1; });
+    var ious = {
+      box: iou(function (x, y) { return x >= bx1 && x <= bx2 && y >= by1 && y <= by2; }),
+      6: iou(function (x, y) { return W.inPoly(x, y, polys[6]); }),
+      16: iou(function (x, y) { return W.inPoly(x, y, polys[16]); }),
+      48: iou(function (x, y) { return W.inPoly(x, y, polys[48]); }),
+      mask: iou(function (x, y) { var gx = 114 + Math.floor((x - 114) / cell) * cell, gy = 78 + Math.floor((y - 78) / cell) * cell; return !!cellSet[gx + ',' + gy]; })
+    };
+    // drawing
+    var defs = S('defs', {}, svg);
+    var cp = S('clipPath', { id: 'wl-repr-clip' }, defs); S('rect', { x: 0, y: 0, width: 600, height: 330 }, cp);
+    var g = S('g', { 'clip-path': 'url(#wl-repr-clip)' }, svg);
+    S('rect', { x: 0, y: 0, width: 600, height: 330, fill: '#fbf8f1' }, g);
+    S('circle', { cx: cx, cy: cy, r: 144, fill: '#efe6d8', stroke: '#c9b79a', 'stroke-width': 3 }, g);
+    S('circle', { cx: cx, cy: cy, r: 110, fill: 'none', stroke: '#c9b79a', 'stroke-width': 2, 'stroke-dasharray': '4 6' }, g);
+    T(g, cx, cy + 34, 'OFFICIAL', { 'font-size': 22, 'text-anchor': 'middle', fill: '#a8946f', class: 'serif', 'letter-spacing': 3 });
+    var p0 = P(160, 168), p1 = P(160, 12);
+    S('path', { id: 'wl-arc', d: 'M' + p0[0] + ' ' + p0[1] + ' A160 160 0 0 1 ' + p1[0] + ' ' + p1[1], fill: 'none' }, defs);
+    var tx = S('text', { 'font-size': 29, class: 'serif', 'letter-spacing': 4, fill: '#3b3326' }, g);
+    var tp = S('textPath', { href: '#wl-arc', startOffset: '50%', 'text-anchor': 'middle' }, tx);
+    tp.textContent = 'CERTIFIED TRUE COPY';
+    var gt = S('path', { d: W.ptsToD(exact), fill: C.blue, 'fill-opacity': 0.08, stroke: C.blue, 'stroke-width': 2, 'stroke-dasharray': '6 5' }, svg);
+    var cellsG = S('g', { opacity: 0 }, svg);
+    cells.forEach(function (c) { S('rect', { x: c[0] + 0.5, y: c[1] + 0.5, width: cell - 1, height: cell - 1, fill: C.orange, 'fill-opacity': 0.55 }, cellsG); });
+    var pred = S('path', { d: W.ptsToD(circ(cen[0], cen[1], 0.1)), fill: C.orange, 'fill-opacity': 0.2, stroke: C.orange, 'stroke-width': 3, opacity: 0 }, svg);
+    pred._pts = circ(cen[0], cen[1], 0.1);
+    var verts = S('g', {}, svg);
+    var mark = S('g', { opacity: 0 }, svg);
+    var mx = S('path', { d: 'M-9 -9 L9 9 M-9 9 L9 -9', stroke: C.red, 'stroke-width': 4 }, mark);
+    var mlabel = T(svg, cen[0], cen[1] + 46, 'centroid', { 'font-size': 21, 'text-anchor': 'middle', fill: C.red, opacity: 0 });
+    var note = fig.querySelector('.wl-note');
+    var f2 = function (v) { return v.toFixed(2); };
+    var D = [
+      { s: null, name: 'True region', nums: '&ndash;', toks: '&ndash;', iou: '&ndash;', n: 'The evidence is a line of text that curves around a seal. The dashed blue outline is the true region.' },
+      { s: 'cen', name: 'Point (centroid)', nums: '2', toks: '&asymp;10', iou: 'miss', cls: 'bad', n: 'The obvious point is the centre of mass. For a curved band it lies in the hollow, <b>outside</b> the text.' },
+      { s: 'on', name: 'Point (on text)', nums: '2', toks: '&asymp;10', iou: 'hit', cls: 'good', n: 'A useful point sits <b>on</b> the evidence. It says where, but not how far the text extends.' },
+      { s: 'box', name: 'Box', nums: '4', toks: '&asymp;18', iou: f2(ious.box), n: 'The tightest box. Its IoU equals the fill ratio of the band: <b>most of the box is background</b>.' },
+      { s: 6, name: 'Polygon, 6 vertices', nums: '12', toks: '&asymp;50', iou: f2(ious[6]), n: 'Six vertices cut the curve with straight chords.' },
+      { s: 16, name: 'Polygon, 16 vertices', nums: '32', toks: '&asymp;130', iou: f2(ious[16]), n: 'Sixteen vertices follow the curve closely, at more than a hundred tokens.' },
+      { s: 48, name: 'Polygon, 48 vertices', nums: '96', toks: '&asymp;390', iou: f2(ious[48]), n: 'Forty-eight vertices are almost exact, and cost almost four hundred tokens as text.' },
+      { s: 'mask', name: 'Mask', nums: 'none', toks: '1 (&lt;SEG&gt;)', iou: '1.00', cls: 'good', n: 'A mask marks every pixel of the region, so at full resolution it is exact. (The grid is drawn coarser than real pixels.) With a decoder it costs <b>one token</b>.' }
+    ];
+    function render(i, d) {
+      var s = D[i];
+      W.setR(fig, 'name', s.name); W.setR(fig, 'nums', s.nums); W.setR(fig, 'toks', s.toks); W.setR(fig, 'iou', s.iou, s.cls || '');
+      note.innerHTML = s.n;
+      var target;
+      if (s.s === null) target = circ(cen[0], cen[1], 0.1);
+      else if (s.s === 'cen') target = circ(cen[0], cen[1], 5);
+      else if (s.s === 'on') target = circ(onb[0], onb[1], 7);
+      else if (s.s === 'box') target = boxPts;
+      else if (s.s === 'mask') target = exact;
+      else target = W.resample(polys[s.s], M);
+      W.morph(pred, target, d * 1.2);
+      op(pred, s.s === null ? 0 : (s.s === 'mask' ? 0.35 : 1), d);
+      to(pred, { 'fill-opacity': (s.s === 'on' ? 0.9 : (s.s === 'cen' ? 0 : 0.2)) }, d, 'f');
+      pred.setAttribute('stroke', s.s === 'cen' ? C.red : C.orange);
+      op(mark, s.s === 'cen' ? 1 : 0, d); mark.setAttribute('transform', 'translate(' + cen[0] + ' ' + cen[1] + ')');
+      op(mlabel, s.s === 'cen' ? 1 : 0, d);
+      op(cellsG, s.s === 'mask' ? 1 : 0, d * 1.4);
+      while (verts.firstChild) verts.removeChild(verts.firstChild);
+      if (typeof s.s === 'number') {
+        polys[s.s].forEach(function (p, k) {
+          var c = S('circle', { cx: p[0], cy: p[1], r: s.s > 20 ? 2.6 : 4.5, fill: C.ink, opacity: 0 }, verts);
+          setTimeout(function () { op(c, 1, 200); }, W.RM ? 0 : Math.min(d, 700) * k / polys[s.s].length);
+        });
+      }
+    }
+    W.Stepper(fig, D.length, render, { name: 'repr', hold: function (i) { return i === 0 ? 2400 : 3300; }, dur: 900 });
+  })();
+
+  /* ---------- Figure 3: streaming coordinate tokens ---------- */
+  (function () {
+    var fig = document.getElementById('fig-coords'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var Wd = 600, Ht = 300;
+    var tb = [0.268, 0.372, 0.584, 0.811];
+    var g = S('g', {}, svg);
+    S('rect', { x: 0, y: 0, width: Wd, height: Ht, fill: '#eef1ec' }, g);
+    S('rect', { x: 0, y: 205, width: Wd, height: 95, fill: '#dfe6cf' }, g);
+    S('path', { d: 'M0 205 Q150 192 300 204 T600 200', fill: 'none', stroke: '#c9d3b4', 'stroke-width': 3 }, g);
+    var dog = S('g', {}, g);
+    S('path', { d: 'M180 168 Q166 150 163 132', fill: 'none', stroke: '#8a5a38', 'stroke-width': 9, 'stroke-linecap': 'round' }, dog);
+    [190, 214, 282, 306].forEach(function (x) { S('rect', { x: x, y: 206, width: 13, height: 37, rx: 5, fill: '#8a5a38' }, dog); });
+    S('ellipse', { cx: 255, cy: 186, rx: 80, ry: 37, fill: '#b07a52' }, dog);
+    S('circle', { cx: 322, cy: 150, r: 27, fill: '#b07a52' }, dog);
+    S('path', { d: 'M306 132 L300 113 L320 125 Z', fill: '#8a5a38' }, dog);
+    S('ellipse', { cx: 345, cy: 156, rx: 6, ry: 5, fill: '#14171a' }, dog);
+    S('circle', { cx: 328, cy: 144, r: 3.5, fill: '#14171a' }, dog);
+    var truth = S('rect', { x: tb[0] * Wd, y: tb[1] * Ht, width: (tb[2] - tb[0]) * Wd, height: (tb[3] - tb[1]) * Ht, fill: 'none', stroke: C.ink, 'stroke-width': 2, 'stroke-dasharray': '5 5', opacity: 0 }, svg);
+    var eL = S('line', { x1: 0, y1: 0, x2: 0, y2: Ht, stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '7 5', opacity: 0 }, svg);
+    var eR = S('line', { x1: 0, y1: 0, x2: 0, y2: Ht, stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '7 5', opacity: 0 }, svg);
+    var eT = S('line', { x1: 0, y1: 0, x2: Wd, y2: 0, stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '7 5', opacity: 0 }, svg);
+    var eB = S('line', { x1: 0, y1: 0, x2: Wd, y2: 0, stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '7 5', opacity: 0 }, svg);
+    var boxR = S('rect', { x: 0, y: 0, width: 0, height: 0, fill: C.orange, 'fill-opacity': 0.12, stroke: C.orange, 'stroke-width': 4, opacity: 0 }, svg);
+    var tokBox = fig.querySelector('.wl-tokens'), note = fig.querySelector('.wl-note');
+    function digits(s) { return s.split(''); }
+    var F = ['['].concat(digits('0.268'), [','], digits('0.372'), [','], digits('0.584'), [','], digits('0.811'), [']']);
+    var Ii = function (x2) { return ['<box>', '('].concat(digits('268'), [','], digits('372'), [')', ',', '('], digits(x2), [','], digits('811'), [')', '</box>']); };
+    var L = ['<loc0380>', '<loc0274>', '<loc0830>', '<loc0598>'];
+    // which coordinate completes at which token index
+    var modes = [
+      null,
+      { enc: 'decimals as text', toks: F, done: { 5: 'x1', 11: 'y1', 17: 'x2', 23: 'y2' }, x2: 0.584, n: 'Shikra style: decimals in [0, 1]. Each digit is its own token. An edge exists only once its last digit arrives.' },
+      { enc: '0&ndash;1000 integers', toks: Ii('584'), done: { 4: 'x1', 8: 'y1', 14: 'x2', 18: 'y2' }, x2: 0.584, n: 'Qwen-VL style: integers on a 0&ndash;1000 grid inside &lt;box&gt; tags. Shorter, but still three digit decisions per coordinate.' },
+      { enc: 'location tokens', toks: L, done: { 0: 'y1', 1: 'x1', 2: 'y2', 3: 'x2' }, x2: 0.584, n: 'PaliGemma style: one token per coordinate from 1,024 bins, <b>y before x</b>. Four tokens for the whole box.' },
+      { enc: '0&ndash;1000, one wrong digit', toks: Ii('884'), done: { 4: 'x1', 8: 'y1', 14: 'x2', 18: 'y2' }, x2: 0.884, err: 12, n: 'One wrong <b>hundreds</b> digit: 584 becomes 884. The right edge jumps by 30% of the image width.' },
+      { enc: '0&ndash;1000, one wrong digit', toks: Ii('589'), done: { 4: 'x1', 8: 'y1', 14: 'x2', 18: 'y2' }, x2: 0.589, err: 14, n: 'One wrong <b>units</b> digit: 584 becomes 589. The edge moves by half a percent. To cross-entropy, both errors are one wrong token.' }
+    ];
+    var timers = [];
+    function clearT() { timers.forEach(clearTimeout); timers = []; }
+    function setEdge(name, v, d) {
+      if (name === 'x1') { to(eL, { x1: v * Wd, x2: v * Wd }, 0); op(eL, 1, d); }
+      if (name === 'x2') { to(eR, { x1: v * Wd, x2: v * Wd }, 0); op(eR, 1, d); }
+      if (name === 'y1') { to(eT, { y1: v * Ht, y2: v * Ht }, 0); op(eT, 1, d); }
+      if (name === 'y2') { to(eB, { y1: v * Ht, y2: v * Ht }, 0); op(eB, 1, d); }
+    }
+    function iouX(x2) { var tw = tb[2] - tb[0]; var pw = x2 - tb[0]; var I = Math.min(tw, pw), U = Math.max(tw, pw); return I / U; }
+    function render(i, d, speed) {
+      clearT();
+      [eL, eR, eT, eB, boxR].forEach(function (e) { op(e, 0, 0); });
+      tokBox.innerHTML = '';
+      var m = modes[i];
+      op(truth, i >= 4 ? 1 : (i === 0 ? 1 : 0), d);
+      if (!m) {
+        W.setR(fig, 'enc', '&ndash;'); W.setR(fig, 'n', '&ndash;'); W.setR(fig, 'iou', '&ndash;');
+        note.innerHTML = 'The target: the dashed box around the dog. Next, the model writes this box as tokens, three different ways.';
+        return;
+      }
+      W.setR(fig, 'enc', m.enc); W.setR(fig, 'n', String(m.toks.length)); W.setR(fig, 'iou', '&hellip;');
+      note.innerHTML = m.n;
+      var spans = m.toks.map(function (t, k) {
+        var s = document.createElement('span');
+        s.textContent = t;
+        if (/^<loc/.test(t)) s.className = 'loc';
+        else if (/^</.test(t)) s.className = 'special';
+        if (m.err === k) s.className = 'err';
+        tokBox.appendChild(s);
+        return s;
+      });
+      var vals = { x1: tb[0], y1: tb[1], x2: m.x2, y2: tb[3] };
+      var step = d ? Math.max(70, 2000 / m.toks.length) / speed : 0;
+      function finish() {
+        W.setR(fig, 'iou', iouX(m.x2).toFixed(2), m.err ? (m.x2 > 0.7 ? 'bad' : 'good') : 'good');
+        to(boxR, { x: vals.x1 * Wd, y: vals.y1 * Ht, width: (vals.x2 - vals.x1) * Wd, height: (vals.y2 - vals.y1) * Ht }, 0);
+        op(boxR, 1, d ? 400 : 0);
+        [eL, eR, eT, eB].forEach(function (e) { op(e, 0.35, d ? 400 : 0); });
+      }
+      spans.forEach(function (s, k) {
+        function show() {
+          spans.forEach(function (x) { x.classList.remove('cur'); });
+          s.classList.add('in');
+          if (step) s.classList.add('cur');
+          if (m.done[k]) setEdge(m.done[k], vals[m.done[k]], step ? 250 : 0);
+          if (k === spans.length - 1) { if (step) timers.push(setTimeout(function () { s.classList.remove('cur'); finish(); }, step)); else finish(); }
+        }
+        if (step) timers.push(setTimeout(show, 250 + k * step)); else show();
+      });
+    }
+    W.Stepper(fig, modes.length, render, { name: 'coords', hold: function (i) { return i === 0 ? 2600 : 4800; }, dur: 700 });
+  })();
+
+  /* ---------- Figure 4: interactive quantisation error ---------- */
+  (function () {
+    var fig = document.getElementById('fig-quant'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var rb = fig.querySelector('[data-k="bins"]'), rw = fig.querySelector('[data-k="w"]'), rs = fig.querySelector('[data-k="s"]');
+    var presets = fig.querySelectorAll('[data-bins]');
+    var lo = 16, hi = 2048;
+    function vToN(v) { return Math.round(lo * Math.pow(hi / lo, v / 1000)); }
+    function nToV(n) { return Math.round(1000 * Math.log(n / lo) / Math.log(hi / lo)); }
+    var N = 1000; rb.value = nToV(1000);
+    S('rect', { x: 0, y: 0, width: 600, height: 250, fill: '#fbfaf8' }, svg);
+    var gridG = S('g', {}, svg);
+    var obj = S('rect', { fill: C.orange, 'fill-opacity': 0.22, stroke: C.orange, 'stroke-width': 3 }, svg);
+    var worst = S('rect', { fill: 'none', stroke: C.blue, 'stroke-width': 3, 'stroke-dasharray': '7 5' }, svg);
+    var brace = S('path', { fill: 'none', stroke: C.ink, 'stroke-width': 2 }, svg);
+    var bl = T(svg, 0, 0, '', { 'font-size': 20, 'text-anchor': 'middle' });
+    var cap = T(svg, 300, 244, '', { 'font-size': 20, 'text-anchor': 'middle', fill: C.soft });
+    var legend1 = T(svg, 40, 30, 'true object', { 'font-size': 21, fill: C.orange });
+    var legend2 = T(svg, 210, 30, 'worst case after rounding', { 'font-size': 21, fill: C.blue });
+    function update() {
+      var Wpx = +rw.value, s = +rs.value;
+      var D = Wpx / N, e = D / 2;
+      var win = Math.max(3.3 * s, 5 * D, 20);
+      var sc = 520 / win, x0 = 40;
+      // place the object so its left edge sits on a bin boundary near the window's left third
+      var startBin = Math.ceil((win - s) / 2 / D);
+      var ox = startBin * D;
+      while (gridG.firstChild) gridG.removeChild(gridG.firstChild);
+      var nLines = Math.floor(win / D);
+      if (nLines <= 240) {
+        for (var k = 0; k <= nLines; k++) {
+          var gx = x0 + k * D * sc;
+          S('line', { x1: gx, y1: 44, x2: gx, y2: 214, stroke: '#cfcac0', 'stroke-width': 1.2 }, gridG);
+        }
+      }
+      var side = s * sc, top = 50 + Math.max(0, (160 - side) / 2), hgt = Math.min(side, 160);
+      obj.setAttribute('x', x0 + ox * sc); obj.setAttribute('y', top); obj.setAttribute('width', side); obj.setAttribute('height', hgt);
+      var inset = Math.min(e * sc, side / 2);
+      var ws = Math.max(0, side - 2 * inset), wh = Math.max(0, hgt - 2 * Math.min(e * sc, hgt / 2));
+      worst.setAttribute('x', x0 + ox * sc + inset); worst.setAttribute('y', top + Math.min(e * sc, hgt / 2)); worst.setAttribute('width', ws); worst.setAttribute('height', wh);
+      worst.setAttribute('opacity', ws > 0.5 ? 1 : 0);
+      var bx = x0 + (startBin + 1 + Math.max(0, Math.ceil(s / D))) * D * sc;
+      if (bx + D * sc > 580 || D * sc < 14) bx = 40;
+      var bw = D * sc;
+      if (nLines <= 240 && bw >= 14) {
+        brace.setAttribute('d', 'M' + bx + ' 226 V232 H' + (bx + bw) + ' V226');
+        bl.setAttribute('x', Math.min(540, Math.max(60, bx + bw / 2))); bl.setAttribute('y', 222);
+        bl.textContent = '\u0394';
+        brace.setAttribute('opacity', 1);
+      } else { brace.setAttribute('opacity', 0); }
+      cap.textContent = nLines > 240 ? 'bins too fine to draw here' : 'grey lines = bin edges; view ' + Math.round(win) + ' px';
+      var iou = s > D ? Math.pow((s - D) / s, 2) : 0;
+      W.setR(fig, 'd', D.toFixed(D < 10 ? 2 : 1) + ' px');
+      W.setR(fig, 'e', e.toFixed(e < 10 ? 2 : 1) + ' px');
+      W.setR(fig, 'iou', iou.toFixed(2), iou >= 0.5 ? 'good' : 'bad');
+      W.setR(fig, 'pass', iou >= 0.5 ? 'passes' : 'can fail', iou >= 0.5 ? 'good' : 'bad');
+      fig.querySelector('[data-o="bins"]').textContent = N;
+      fig.querySelector('[data-o="w"]').textContent = Wpx + ' px';
+      fig.querySelector('[data-o="s"]').textContent = s + ' px';
+      presets.forEach(function (b) { b.setAttribute('aria-pressed', +b.getAttribute('data-bins') === N ? 'true' : 'false'); });
+    }
+    rb.addEventListener('input', function () { N = vToN(+rb.value); update(); });
+    rw.addEventListener('input', update); rs.addEventListener('input', update);
+    presets.forEach(function (b) { b.addEventListener('click', function () { N = +b.getAttribute('data-bins'); rb.value = nToV(N); update(); }); });
+    update();
+    window.__figs.quant = { set: function (n, w, s) { N = n; rb.value = nToV(n); rw.value = w; rs.value = s; update(); } };
+  })();
+
+  /* ---------- Figure 5: cross-entropy is blind to distance ---------- */
+  (function () {
+    var fig = document.getElementById('fig-ce'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var X = function (b) { return 40 + b / 1000 * 520; };
+    S('rect', { x: 0, y: 0, width: 600, height: 320, fill: '#fbfaf8' }, svg);
+    T(svg, 40, 26, 'image width, 0–1000 grid', { 'font-size': 20, fill: C.muted });
+    S('rect', { x: 40, y: 36, width: 520, height: 64, fill: '#eef1ec', stroke: '#d6d2c8' }, svg);
+    var truth = S('rect', { x: X(268), y: 42, width: X(584) - X(268), height: 52, fill: 'none', stroke: C.ink, 'stroke-width': 2, 'stroke-dasharray': '5 5' }, svg);
+    var pbox = S('rect', { x: X(268), y: 42, width: X(584) - X(268), height: 52, fill: C.orange, 'fill-opacity': 0.15, stroke: C.orange, 'stroke-width': 3, opacity: 0 }, svg);
+    var chart = S('g', {}, svg);
+    S('line', { x1: 40, y1: 270, x2: 560, y2: 270, stroke: C.ink, 'stroke-width': 1.5 }, chart);
+    [0, 500, 999].forEach(function (b) { T(chart, X(b), 296, String(b), { 'font-size': 20, 'text-anchor': 'middle', fill: C.muted }); });
+    T(chart, 40, 136, 'p(right-edge bin)', { 'font-size': 20, fill: C.muted });
+    S('line', { x1: X(584), y1: 140, x2: X(584), y2: 270, stroke: C.ink, 'stroke-width': 1.5, 'stroke-dasharray': '4 4' }, chart);
+    T(chart, X(584) - 8, 160, 'true 584', { 'font-size': 19, 'text-anchor': 'end' });
+    var bars = {};
+    [583, 584, 884].forEach(function (b) {
+      bars[b] = S('rect', { x: X(b) - 4, y: 270, width: 8, height: 0, fill: b === 584 ? C.green : C.orange }, chart);
+    });
+    var bl1 = T(chart, 0, 0, '', { 'font-size': 19, 'text-anchor': 'middle', fill: C.orange, opacity: 0 });
+    // comparison panel
+    var cmp = S('g', { opacity: 0 }, svg);
+    S('rect', { x: 30, y: 116, width: 540, height: 196, fill: '#fbfaf8' }, cmp);
+    T(cmp, 160, 140, 'cross-entropy', { 'font-size': 20, 'text-anchor': 'middle' });
+    T(cmp, 440, 140, 'IoU reward', { 'font-size': 20, 'text-anchor': 'middle' });
+    var cb = [], rbars = [];
+    [['A', 0, 1.0], ['B', 2.303, 0.997], ['C', 2.303, 0.513]].forEach(function (r, k) {
+      var x1 = 80 + k * 56, x2 = 360 + k * 56;
+      S('line', { x1: x1 - 12, y1: 280, x2: x1 + 40, y2: 280, stroke: C.ink }, cmp);
+      S('line', { x1: x2 - 12, y1: 280, x2: x2 + 40, y2: 280, stroke: C.ink }, cmp);
+      cb.push([S('rect', { x: x1, y: 280, width: 30, height: 0, fill: C.muted }, cmp), r[1] / 2.5 * 110]);
+      rbars.push([S('rect', { x: x2, y: 280, width: 30, height: 0, fill: k === 2 ? C.red : C.green }, cmp), r[2] * 110]);
+      T(cmp, x1 + 15, 302, r[0], { 'font-size': 19, 'text-anchor': 'middle' });
+      T(cmp, x2 + 15, 302, r[0], { 'font-size': 19, 'text-anchor': 'middle' });
+      T(cmp, x1 + 15, 280 - r[1] / 2.5 * 110 - 8, r[1].toFixed(2), { 'font-size': 19, 'text-anchor': 'middle', fill: C.soft });
+      T(cmp, x2 + 15, 280 - r[2] * 110 - 8, r[2].toFixed(2), { 'font-size': 19, 'text-anchor': 'middle', fill: C.soft });
+    });
+    var note = fig.querySelector('.wl-note');
+    var P = [
+      { name: 'none yet', p: {}, ce: '&ndash;', iou: '&ndash;', rw: '&ndash;', n: 'The true box spans bins 268 to 584 on a 0&ndash;1000 grid. We look only at the right edge, x<sub>2</sub> = 584.' },
+      { name: 'A: confident, correct', p: { 584: 1 }, arg: 584, ce: '0.00', iou: '1.00', rw: '1.00', n: 'All probability on the true bin. Zero loss, a perfect box.' },
+      { name: 'B: near miss', p: { 583: 0.9, 584: 0.1 }, arg: 583, ce: '2.30', iou: '0.997', rw: '0.997', n: '90% on bin 583, one bin to the left. The box is almost perfect, yet the loss is <b>&minus;log 0.1 = 2.30</b>.' },
+      { name: 'C: far miss', p: { 884: 0.9, 584: 0.1 }, arg: 884, ce: '2.30', iou: '0.513', rw: '0.513', cls: 'bad', n: '90% on bin 884, three hundred bins away. The box is badly wrong, and the loss is <b>still 2.30</b>.' },
+      { name: 'A, B, C side by side', p: {}, ce: 'B = C', iou: '&ndash;', rw: 'B &gt; C', n: 'Cross-entropy charges B and C the same. An IoU reward ranks them correctly. RL with an IoU reward supplies the sense of distance that the token loss lacks.' }
+    ];
+    function render(i, d) {
+      var s = P[i];
+      W.setR(fig, 'name', s.name); W.setR(fig, 'ce', s.ce); W.setR(fig, 'iou', s.iou, s.cls || ''); W.setR(fig, 'rw', s.rw, s.cls || '');
+      note.innerHTML = s.n;
+      [583, 584, 884].forEach(function (b) { var h = (s.p[b] || 0) * 110; to(bars[b], { y: 270 - h, height: h }, d); });
+      if (s.arg) { op(pbox, 1, d * 0.5); to(pbox, { width: X(s.arg) - X(268) }, d * 1.2); } else op(pbox, 0, d * 0.5);
+      if (i === 2 || i === 3) {
+        bl1.textContent = i === 2 ? '583' : '884'; to(bl1, { x: X(i === 2 ? 583 : 884) + (i === 2 ? -26 : 0), y: 140 }, 0); bl1.setAttribute('x', X(i === 2 ? 583 : 884) + (i === 2 ? -28 : 0)); op(bl1, 1, d);
+      } else op(bl1, 0, d * 0.5);
+      op(chart, i === 4 ? 0 : 1, d * 0.6);
+      op(cmp, i === 4 ? 1 : 0, d * 0.8);
+      cb.concat(rbars).forEach(function (r) { var h = i === 4 ? r[1] : 0; to(r[0], { y: 280 - h, height: h }, d * 1.3); });
+    }
+    W.Stepper(fig, P.length, render, { name: 'ce', hold: function (i) { return i === 4 ? 4200 : 3200; }, dur: 800 });
+  })();
+})();
+(function () {
+  'use strict';
+  var W = window.__wl, S = W.S, T = W.T, to = W.to, op = W.op, cam = W.cam, C = W.C;
+
+  /* ---------- Figure 6: type, select, decode ---------- */
+  (function () {
+    var fig = document.getElementById('fig-iface'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var VW = 960, VH = 460;
+    svg.setAttribute('viewBox', '0 0 ' + VW + ' ' + VH); svg._vb = [0, 0, VW, VH];
+    var arrow = W.arrowDefs(svg, 'wl-ar6', C.ink), arrowO = W.arrowDefs(svg, 'wl-ar6o', C.orange);
+    S('rect', { x: 0, y: 0, width: VW, height: VH, fill: '#fbfaf8' }, svg);
+    function scene(x, y, sc, parent) { var g = S('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + sc + ')' }, parent || svg); W.deskScene(g); return g; }
+    function boxEl(x, y, w, h, lines, fs, parent) {
+      var g = S('g', {}, parent || svg);
+      var r = S('rect', { x: x, y: y, width: w, height: h, rx: 4, fill: '#fff', stroke: C.ink, 'stroke-width': 2 }, g);
+      lines.forEach(function (l, k) { T(g, x + w / 2, y + h / 2 + (k - (lines.length - 1) / 2) * (fs + 3) + fs * 0.35, l, { 'font-size': fs, 'text-anchor': 'middle' }); });
+      g._r = r; return g;
+    }
+    function line(d, parent, o) { return S('path', Object.assign({ d: d, fill: 'none', stroke: C.ink, 'stroke-width': 2, 'marker-end': arrow }, o || {}), parent || svg); }
+    // input side
+    var img = scene(20, 120, 1 / 3, svg);
+    S('rect', { x: 20, y: 120, width: 200, height: 113.3, fill: 'none', stroke: C.ink, 'stroke-width': 1.5 }, svg);
+    T(svg, 20, 266, '“the mug left of', { 'font-size': 17, class: 'serif' });
+    T(svg, 20, 288, 'the laptop”', { 'font-size': 17, class: 'serif' });
+    var enc = boxEl(244, 140, 92, 74, ['vision', 'encoder'], 17);
+    var llm = boxEl(362, 100, 170, 160, ['language', 'model'], 20);
+    line('M220 177 H241'); line('M336 177 H359');
+    // fan out
+    var f1 = line('M532 150 C556 150 552 87 574 87');
+    var f2 = line('M532 180 C556 180 552 226 574 226');
+    var f3 = line('M532 210 C556 210 552 372 574 372');
+    // lane labels
+    var labs = [['TYPE', 40], ['SELECT', 182], ['DECODE', 336]].map(function (l) { return T(svg, 580, l[1], l[0], { 'font-size': 17, fill: C.orange, 'font-weight': 600, 'letter-spacing': 2 }); });
+    // lane 1
+    var tok1 = T(svg, 580, 93, '', { 'font-size': 17, fill: C.ink });
+    var TOK1 = '(165,559),(283,741)';
+    var a1 = line('M782 87 H818');
+    var mini1 = scene(824, 52, 0.2); S('rect', { x: 824, y: 52, width: 120, height: 68, fill: 'none', stroke: C.ink }, svg);
+    var b1 = S('rect', { x: 824 + 99 * 0.2, y: 52 + 190 * 0.2, width: 71 * 0.2, height: 62 * 0.2, fill: 'none', stroke: C.orange, 'stroke-width': 3, opacity: 0 }, svg);
+    T(svg, 884, 140, 'parsed box', { 'font-size': 17, 'text-anchor': 'middle', fill: C.soft });
+    // lane 2
+    var prop = boxEl(580, 196, 186, 40, ['region proposer'], 17);
+    var chips = [], chipG = S('g', {}, svg);
+    ['r1', 'r2', 'r3', 'r4'].forEach(function (t, k) {
+      var x = 580 + k * 48;
+      var r = S('rect', { x: x, y: 248, width: 42, height: 30, rx: 3, fill: '#fff', stroke: C.blue, 'stroke-width': 1.6 }, chipG);
+      T(chipG, x + 21, 269, t, { 'font-size': 17, 'text-anchor': 'middle', fill: C.blue });
+      chips.push(r);
+    });
+    var a2 = line('M782 232 H818');
+    var mini2 = scene(824, 196, 0.2); S('rect', { x: 824, y: 196, width: 120, height: 68, fill: 'none', stroke: C.ink }, svg);
+    var props = [[240, 150, 370, 254], [99, 190, 170, 252], [420, 196, 490, 252], [500, 160, 556, 252]].map(function (b, k) {
+      return S('rect', { x: 824 + b[0] * 0.2, y: 196 + b[1] * 0.2, width: (b[2] - b[0]) * 0.2, height: (b[3] - b[1]) * 0.2, fill: 'none', stroke: C.blue, 'stroke-width': 1.6, 'stroke-dasharray': '3 2', opacity: 0 }, svg);
+    });
+    var pick = T(svg, 884, 286, 'model writes <r2>', { 'font-size': 17, 'text-anchor': 'middle', fill: C.soft, opacity: 0 });
+    // lane 3
+    var seg = S('g', {}, svg);
+    S('rect', { x: 580, y: 354, width: 62, height: 34, rx: 3, fill: '#fff', stroke: C.orange, 'stroke-width': 2 }, seg);
+    T(seg, 611, 377, '[SEG]', { 'font-size': 16, 'text-anchor': 'middle', fill: C.orange, 'font-weight': 600 });
+    var bars = [];
+    for (var k = 0; k < 6; k++) bars.push(S('rect', { x: 652 + k * 6, y: 388, width: 4.5, height: 0, fill: C.orange }, svg));
+    var hlab = T(svg, 668, 412, 'h', { 'font-size': 17, 'text-anchor': 'middle', 'font-style': 'italic', class: 'serif' });
+    var a3a = line('M690 371 H700');
+    var mlp = boxEl(702, 354, 50, 34, ['MLP'], 16);
+    var a3b = line('M752 371 H764');
+    var sam = boxEl(766, 348, 50, 46, ['SAM'], 17);
+    var a3c = line('M816 371 H822');
+    var mini3 = scene(824, 338, 0.2); S('rect', { x: 824, y: 338, width: 120, height: 68, fill: 'none', stroke: C.ink }, svg);
+    var mk = S('path', { d: W.MUG_D, fill: C.orange, 'fill-opacity': 0.7, stroke: C.orange, 'stroke-width': 4, transform: 'translate(824 338) scale(0.2)', opacity: 0 }, svg);
+    var samEnc = boxEl(50, 360, 140, 40, ['SAM encoder'], 17);
+    var aImg = line('M120 234 V357');
+    var feat = S('path', { d: 'M190 420 H791 V397', fill: 'none', stroke: C.blue, 'stroke-width': 2.5, 'marker-end': W.arrowDefs(svg, 'wl-ar6b', C.blue) }, svg);
+    var featL = T(svg, 300, 442, 'SAM image features', { 'font-size': 17, fill: C.blue });
+    var grad = S('path', { d: 'M884 334 V312 H447 V264', fill: 'none', stroke: C.orange, 'stroke-width': 3, 'stroke-dasharray': '8 7', 'marker-end': arrowO, class: 'wl-flow', opacity: 0 }, svg);
+    var gradL = T(svg, 456, 302, 'mask loss flows back', { 'font-size': 17, fill: C.orange, opacity: 0 });
+    var what = T(svg, 447, 92, 'decides WHAT', { 'font-size': 17, 'text-anchor': 'middle', fill: C.orange, 'font-weight': 600, opacity: 0 });
+    var where = T(svg, 791, 452, 'draws WHERE', { 'font-size': 17, 'text-anchor': 'middle', fill: C.orange, 'font-weight': 600, opacity: 0 });
+    var note = fig.querySelector('.wl-note');
+    var lane1 = [labs[0], tok1, a1, b1], lane2 = [labs[1], prop, chipG, a2, pick], lane3 = [labs[2], seg, hlab, a3a, mlp, a3b, sam, a3c, mk, samEnc, aImg, feat, featL];
+    var N = [
+      'One question, three interfaces. The language model is the same in all three. What differs is how its output becomes a location.',
+      'The image is encoded into visual tokens, and the language model reads them together with the question.',
+      '<b>Type.</b> The model writes the box as text, one character at a time: <span class="o">(165,559),(283,741)</span> on a 0&ndash;1000 grid.',
+      '<b>Type.</b> A parser turns the text into a box. Simple and portable, and limited by the grid and by digit-level errors.',
+      '<b>Select.</b> A region proposer, such as Groma&rsquo;s Deformable-DETR head, offers candidate regions. Each becomes a region token r1 to r4.',
+      '<b>Select.</b> The model writes <span class="o">&lt;r2&gt;</span>. The location comes from the proposer, so no coordinate is typed. A region that was never proposed cannot be chosen.',
+      '<b>Decode.</b> The model writes one <span class="o">[SEG]</span> token. Its last-layer hidden state <i>h</i> carries the location.',
+      '<b>Decode.</b> A small MLP maps <i>h</i> into the prompt space of SAM&rsquo;s mask decoder, which also receives SAM&rsquo;s own image features.',
+      '<b>Decode.</b> SAM draws the mask: exactly the mug, handle included.',
+      '<b>Training.</b> The mask loss flows back through SAM&rsquo;s decoder and the MLP into the language model, so <i>h</i> learns to carry what the decoder needs.',
+      'The division of labour: the language model decides <b>what</b> to localise and at what granularity; the decoder draws <b>where</b>.'
+    ];
+    var CAMS = [[0, 0, 960, 460], [0, 60, 560, 268], [470, 0, 490, 235], [470, 0, 490, 235], [470, 150, 490, 235], [470, 150, 490, 235], [470, 225, 490, 235], [30, 225, 930, 235], [470, 225, 490, 235], [200, 90, 760, 364], [0, 0, 960, 460]];
+    var NC = [[300, 200], [280, 190], [760, 95], [760, 95], [760, 235], [760, 235], [720, 380], [700, 390], [780, 380], [640, 320], [300, 200]];
+    function ncam(i) {
+      var w = 480, h = 360, c = NC[i];
+      var x = Math.max(0, Math.min(VW - w, c[0] - w / 2)), y = Math.max(0, Math.min(VH - h, c[1] - h / 2));
+      return [x, y, w, h];
+    }
+    var typer = null;
+    function vis(list, o, d) { list.forEach(function (e) { op(e, o, d); }); }
+    function render(i, d, speed) {
+      note.innerHTML = N[i];
+      var nar = W.narrow(fig);
+      cam(svg, nar ? ncam(i) : CAMS[i], d * 1.5);
+      var all = i === 0 || i === 10;
+      vis(lane1, all || (i >= 2 && i <= 3) ? 1 : 0.22, d);
+      vis(lane2, all || (i >= 4 && i <= 5) ? 1 : 0.22, d);
+      vis(lane3, all || (i >= 6 && i <= 9) ? 1 : 0.22, d);
+      [f1, f2, f3].forEach(function (f, k) { op(f, all || i === 1 || (k === 0 && i >= 2 && i <= 3) || (k === 1 && i >= 4 && i <= 5) || (k === 2 && i >= 6) ? 1 : 0.2, d); });
+      llm._r.setAttribute('stroke', i === 1 || i === 10 ? C.orange : C.ink);
+      sam._r.setAttribute('stroke', i === 8 || i === 10 ? C.orange : C.ink);
+      // lane 1 typing
+      if (typer) { clearInterval(typer); typer = null; }
+      if (i === 2 && d) {
+        var n = 0; tok1.textContent = '';
+        typer = setInterval(function () { n++; tok1.textContent = TOK1.slice(0, n); if (n >= TOK1.length) { clearInterval(typer); typer = null; } }, 110 / speed);
+      } else tok1.textContent = (i >= 2 && i <= 3) || all ? TOK1 : '';
+      op(b1, i === 3 || i === 10 ? 1 : 0, d);
+      // lane 2
+      props.forEach(function (p) { op(p, i === 4 || i === 5 || i === 10 ? 1 : 0, d); });
+      props[1].setAttribute('stroke', i >= 5 ? C.orange : C.blue); props[1].setAttribute('stroke-width', i >= 5 ? 3 : 1.6); props[1].setAttribute('stroke-dasharray', i >= 5 ? 'none' : '3 2');
+      chips.forEach(function (c, k) { c.setAttribute('fill', (k === 1 && (i === 5 || i === 10)) ? '#fde7cf' : '#fff'); c.setAttribute('stroke', (k === 1 && (i === 5 || i === 10)) ? C.orange : C.blue); });
+      op(pick, i === 5 ? 1 : 0, d);
+      // lane 3
+      var hs = [18, 9, 24, 14, 28, 11];
+      bars.forEach(function (b, k) { var h = i >= 6 && i <= 10 && i !== 0 ? hs[k] : 0; setTimeout(function () { to(b, { y: 388 - h, height: h }, d * 0.6); }, (d ? k * 60 : 0)); });
+      op(mk, i >= 8 ? 1 : 0, d);
+      op(grad, i === 9 || i === 10 ? 1 : 0, d);
+      op(gradL, i === 9 ? 1 : 0, d);
+      op(what, i === 10 ? 1 : 0, d); op(where, i === 10 ? 1 : 0, d);
+      op(feat, i >= 7 && i <= 10 ? 1 : (all ? 1 : 0.22), d); op(featL, i === 7 ? 1 : (all ? 1 : 0.22), d);
+    }
+    W.Stepper(fig, N.length, render, { name: 'iface', hold: function (i) { return i === 2 ? 3600 : (i === 0 || i === 10 ? 3400 : 3000); }, dur: 900 });
+    window.addEventListener('resize', function () { var s = window.__figs.iface; if (s) s.go(s.i); });
+  })();
+
+  /* ---------- Figure 7: granularity on one page ---------- */
+  (function () {
+    var fig = document.getElementById('fig-gran'); if (!fig) return;
+    var svg = fig.querySelector('svg'); svg._vb = [0, 0, 640, 400];
+    S('rect', { x: 0, y: 0, width: 640, height: 400, fill: '#e9e5dd' }, svg);
+    S('rect', { x: 22, y: 12, width: 596, height: 378, fill: '#fff', stroke: '#cac6bd' }, svg);
+    T(svg, 50, 48, 'Quarterly operations report', { 'font-size': 18, class: 'serif', 'font-weight': 700 });
+    var FS = 11, CW = FS * 0.6, X0 = 50, Y0 = 80, LH = 17;
+    var LINES = ['Energy costs rose 4.2% this quarter.', 'A new tariff, effective 1 March, raised', 'the unit rate at every site. Three', 'months ran over budget; the table', 'lists actual spend against budget.', 'Energy is now the largest cost share.'];
+    LINES.forEach(function (l, k) {
+      T(svg, X0, Y0 + k * LH, l, { 'font-size': FS, textLength: (l.length * CW).toFixed(1), lengthAdjust: 'spacingAndGlyphs', fill: '#2a2f33' });
+    });
+    for (var k = 0; k < 6; k++) S('rect', { x: X0, y: 214 + k * 17, width: k === 5 ? 150 : 250 - (k % 2) * 16, height: 7, fill: '#d9d5cc' }, svg);
+    T(svg, X0, 202, 'Outlook', { 'font-size': 13, class: 'serif', 'font-weight': 700 });
+    // table
+    var TX = 360, TY = 70, CWs = [86, 80, 80], RH = 30;
+    var rows = [['Month', 'Budget', 'Actual'], ['Jan', '120', '124'], ['Feb', '120', '131'], ['Mar', '120', '116'], ['Apr', '120', '127']];
+    rows.forEach(function (r, ri) {
+      var x = TX;
+      r.forEach(function (c, ci) {
+        S('rect', { x: x, y: TY + ri * RH, width: CWs[ci], height: RH, fill: ri === 0 ? '#efede9' : '#fff', stroke: '#b9b4aa' }, svg);
+        T(svg, x + 10, TY + ri * RH + 20, c, { 'font-size': 12, 'font-weight': ri === 0 ? 600 : 400 });
+        x += CWs[ci];
+      });
+    });
+    // pie
+    var PX = 430, PY = 315, PR = 52;
+    function wedge(a0, a1, r) { var p0 = [PX + r * Math.cos(a0), PY + r * Math.sin(a0)], p1 = [PX + r * Math.cos(a1), PY + r * Math.sin(a1)]; return 'M' + PX + ' ' + PY + ' L' + p0[0] + ' ' + p0[1] + ' A' + r + ' ' + r + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + p1[0] + ' ' + p1[1] + ' Z'; }
+    var shares = [['Energy 42%', 0.42, C.blue], ['Staff 35%', 0.35, C.lblue], ['Other 23%', 0.23, C.gray]], a = -Math.PI / 2, wedges = [];
+    shares.forEach(function (s, k) {
+      var b = a + s[1] * 2 * Math.PI; wedges.push([a, b]);
+      S('path', { d: wedge(a, b, PR), fill: s[2], stroke: '#fff', 'stroke-width': 2 }, svg);
+      S('rect', { x: 500, y: 284 + k * 20, width: 11, height: 11, fill: s[2] }, svg);
+      T(svg, 516, 294 + k * 20, s[0], { 'font-size': 11 });
+      a = b;
+    });
+    T(svg, 372, 252, 'Cost share', { 'font-size': 13, class: 'serif', 'font-weight': 700 });
+    // highlight layer
+    var HL = [];
+    for (k = 0; k < 3; k++) HL.push(S('rect', { x: 320, y: 200, width: 0, height: 0, fill: C.orange, 'fill-opacity': 0.28, stroke: C.orange, 'stroke-width': 2, opacity: 0 }, svg));
+    var wHL = S('path', { d: wedge(wedges[0][0], wedges[0][1], PR + 3), fill: C.orange, 'fill-opacity': 0.45, stroke: C.orange, 'stroke-width': 3, opacity: 0 }, svg);
+    var nest = S('g', { opacity: 0 }, svg);
+    function chr(line, idx, len) { return [X0 + idx * CW - 1.5, Y0 + line * LH - 11, len * CW + 3, 15]; }
+    var tableR = [TX - 3, TY - 3, 246 + 6, 5 * RH + 6];
+    function cellR(r, c) { var x = TX; for (var j = 0; j < c; j++) x += CWs[j]; return [x + 1, TY + r * RH + 1, CWs[c] - 2, RH - 2]; }
+    function rowR(r) { return [TX + 1, TY + r * RH + 1, 244, RH - 2]; }
+    [[tableR, '#14171a'], [rowR(2), '#14171a'], [cellR(2, 2), '#14171a']].forEach(function (q) { S('rect', { x: q[0][0], y: q[0][1], width: q[0][2], height: q[0][3], fill: 'none', stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '6 4' }, nest); });
+    var para = [X0 - 4, Y0 - 14, 39 * CW + 8, 6 * LH + 6];
+    var D = [
+      { r: [], cam: [0, 0, 640, 400], n: 'One page holds evidence at many sizes. Each request below wants a different one.' },
+      { r: [para], cam: [10, 30, 384, 240], chip: 0, n: '&ldquo;Summarise what the report says about costs&rdquo; &rarr; the <b>paragraph</b>.' },
+      { r: [chr(1, 0, 39)], cam: [30, 52, 304, 190], chip: 1, n: '&ldquo;Which line mentions the tariff?&rdquo; &rarr; one <b>line</b>.' },
+      { r: [chr(1, 14, 17)], cam: [86, 72, 192, 120], chip: 2, n: '&ldquo;When did the tariff take effect?&rdquo; &rarr; the <b>span</b> &ldquo;effective 1 March&rdquo;.' },
+      { r: [chr(1, 6, 6)], cam: [62, 79, 112, 70], chip: 3, n: '&ldquo;Highlight the word tariff&rdquo; &rarr; one <b>word</b>.' },
+      { r: [chr(0, 21, 1)], cam: [166, 60, 64, 40], chip: 4, n: '&ldquo;Which character did OCR misread?&rdquo; &rarr; a single <b>character</b>, the % sign.' },
+      { r: [tableR], cam: [330, 40, 304, 190], chip: 5, n: '&ldquo;Chunk the budget table for retrieval&rdquo; &rarr; the whole <b>table</b>.' },
+      { r: [rowR(2)], cam: [340, 72, 272, 170], chip: 6, n: '&ldquo;Redact February&rsquo;s entry&rdquo; &rarr; one <b>row</b>.' },
+      { r: [cellR(2, 2)], cam: [480, 104, 160, 100], chip: 7, n: '&ldquo;What was spent in February?&rdquo; &rarr; one <b>cell</b>: 131.' },
+      { r: [cellR(1, 2), cellR(2, 2), cellR(4, 2)], cam: [340, 72, 272, 170], chip: 8, n: '&ldquo;Which months went over budget?&rdquo; &rarr; <b>three scattered cells</b>. One box around them would cover most of the table.' },
+      { r: [], wedge: true, cam: [350, 236, 240, 150], chip: 9, n: '&ldquo;Highlight the energy share&rdquo; &rarr; a <b>pie wedge</b>, which no box describes well.' },
+      { r: [], nest: true, cam: [330, 40, 304, 190], n: 'Granularities nest: cell inside row inside table. M3Grounder emits nested masks (phrase, line, block) for the same reason.' }
+    ];
+    var chips = fig.querySelectorAll('.wl-chips li'), note = fig.querySelector('.wl-note');
+    function render(i, d) {
+      var s = D[i];
+      note.innerHTML = s.n;
+      chips.forEach(function (c, k) { c.className = s.chip === k ? 'on' : ''; });
+      HL.forEach(function (h, k) {
+        var r = s.r[k];
+        if (r) { if (+h.getAttribute('opacity') < 0.05) to(h, { x: r[0], y: r[1], width: r[2], height: r[3] }, 0); else to(h, { x: r[0], y: r[1], width: r[2], height: r[3] }, d * 1.2); op(h, 1, d * 0.6); }
+        else op(h, 0, d * 0.5);
+        h.setAttribute('stroke-width', s.cam[2] < 120 ? 1 : 2);
+      });
+      op(wHL, s.wedge ? 1 : 0, d);
+      op(nest, s.nest ? 1 : 0, d);
+      var c = s.cam;
+      if (W.narrow(fig) && c[2] > 400) c = [0, 20, 576, 360];
+      cam(svg, c, d * 1.6);
+    }
+    W.Stepper(fig, D.length, render, { name: 'gran', hold: function (i) { return i === 0 ? 2600 : 3100; }, dur: 900 });
+  })();
+
+  /* ---------- Figure 8: grounded chain of thought ---------- */
+  (function () {
+    var fig = document.getElementById('fig-chain'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    S('rect', { x: 0, y: 0, width: 600, height: 300, fill: '#fff' }, svg);
+    T(svg, 20, 30, 'Revenue share by region, 2024', { 'font-size': 21, class: 'serif', 'font-weight': 700 });
+    var PX = 170, PY = 168, PR = 100;
+    var data = [['Asia', 42, C.blue], ['Europe', 18, C.lblue], ['Americas', 28, C.green], ['Other', 12, C.gray]];
+    function wedge(a0, a1, r) { var p0 = [PX + r * Math.cos(a0), PY + r * Math.sin(a0)], p1 = [PX + r * Math.cos(a1), PY + r * Math.sin(a1)]; return 'M' + PX + ' ' + PY + ' L' + p0[0].toFixed(1) + ' ' + p0[1].toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + ' Z'; }
+    var a = -Math.PI / 2, W8 = [], LB = [], LG = [];
+    data.forEach(function (dd, k) {
+      var b = a + dd[1] / 100 * 2 * Math.PI, m = (a + b) / 2;
+      W8.push([a, b]);
+      S('path', { d: wedge(a, b, PR), fill: dd[2], stroke: '#fff', 'stroke-width': 2 }, svg);
+      var lx = PX + (PR + 26) * Math.cos(m), ly = PY + (PR + 26) * Math.sin(m) + 7;
+      T(svg, lx, ly, dd[1] + '%', { 'font-size': 21, 'text-anchor': 'middle' });
+      LB.push([lx - 27, ly - 22, 54, 30]);
+      var gy = 74 + k * 50;
+      S('rect', { x: 370, y: gy, width: 24, height: 24, fill: dd[2] }, svg);
+      T(svg, 404, gy + 19, dd[0], { 'font-size': 21 });
+      LG.push([364, gy - 6, 150, 36]);
+      a = b;
+    });
+    var regs = {
+      A: { t: 'rect', r: LG[0] }, B: { t: 'wedge', w: 0 }, Cc: { t: 'rect', r: LB[0] },
+      D: { t: 'rect', r: LG[1] }, E: { t: 'wedge', w: 1 }, F: { t: 'rect', r: LB[1] }
+    };
+    var hlG = S('g', {}, svg), els = {};
+    Object.keys(regs).forEach(function (k) {
+      var g = regs[k], e;
+      if (g.t === 'rect') e = S('rect', { x: g.r[0], y: g.r[1], width: g.r[2], height: g.r[3], fill: C.orange, 'fill-opacity': 0.12, stroke: C.orange, 'stroke-width': 3, rx: 3, opacity: 0 }, hlG);
+      else e = S('path', { d: wedge(W8[g.w][0], W8[g.w][1], PR + 4), fill: C.orange, 'fill-opacity': 0.1, stroke: C.orange, 'stroke-width': 4, opacity: 0 }, hlG);
+      els[k] = e;
+    });
+    var link = S('path', { d: '', fill: 'none', stroke: C.orange, 'stroke-width': 2.5, 'stroke-dasharray': '6 5', opacity: 0 }, svg);
+    var bad = S('path', { d: '', fill: 'none', stroke: C.red, 'stroke-width': 3, opacity: 0 }, svg);
+    var badT = S('g', { opacity: 0 }, svg); T(badT, 370, 274, 'wedge and label', { 'font-size': 20, fill: C.red }); T(badT, 370, 296, 'do not match', { 'font-size': 20, fill: C.red });
+    var ol = fig.querySelector('.wl-steps');
+    var STEPS = [
+      ['S1', 'Asia is the dark-blue legend entry.', 'region A'],
+      ['S2', 'The dark-blue wedge is Asia&rsquo;s share.', 'region B'],
+      ['S3', 'That wedge is labelled 42%.', 'region C'],
+      ['S4', 'Europe is the light-blue entry.', 'region D'],
+      ['S5', 'The light-blue wedge is labelled 18%.', 'regions E, F'],
+      ['S6', '42 &minus; 18 = 24.', 'no region'],
+      ['Answer', 'Asia&rsquo;s share is 24 points larger.', 'regions A&ndash;F'],
+      ['Bad S2', 'Points at Europe&rsquo;s wedge, then reads 42%.', 'inconsistent']
+    ];
+    var lis = STEPS.map(function (s) { var li = document.createElement('li'); li.innerHTML = '<span class="sn">' + s[0] + '</span><span>' + s[1] + '</span><span class="rg">' + s[2] + '</span>'; ol.appendChild(li); return li; });
+    var show = [[], ['A'], ['A', 'B'], ['B', 'Cc'], ['D'], ['D', 'E', 'F'], [], ['A', 'B', 'Cc', 'D', 'E', 'F'], ['E', 'Cc']];
+    function cen(r) { return [r[0] + r[2] / 2, r[1] + r[3] / 2]; }
+    var mA = (W8[0][0] + W8[0][1]) / 2, mE = (W8[1][0] + W8[1][1]) / 2;
+    var wA = [PX + 70 * Math.cos(mA), PY + 70 * Math.sin(mA)], wE = [PX + 70 * Math.cos(mE), PY + 70 * Math.sin(mE)];
+    function render(i, d) {
+      Object.keys(els).forEach(function (k) {
+        var on = show[i].indexOf(k) >= 0;
+        op(els[k], on ? (i === 7 ? 0.6 : 1) : 0, d);
+        els[k].setAttribute('stroke', i === 8 ? C.red : C.orange);
+        els[k].setAttribute('fill', i === 8 ? C.red : C.orange);
+      });
+      lis.forEach(function (li, k) {
+        var stepIdx = k + 1;
+        li.className = (i === 8 && k === 7) ? 'on bad' : (stepIdx === i ? 'on' : (stepIdx < i && k < 7 ? 'done' : ''));
+        li.style.display = (k === 7 && i !== 8) ? 'none' : '';
+      });
+      var lA = cen(LG[0]), lD = cen(LG[1]);
+      if (i === 2) { link.setAttribute('d', 'M' + (LG[0][0]) + ' ' + lA[1] + ' Q300 60 ' + wA[0] + ' ' + wA[1]); op(link, 1, d); }
+      else if (i === 5) { link.setAttribute('d', 'M' + (LG[1][0]) + ' ' + lD[1] + ' Q320 150 ' + wE[0] + ' ' + wE[1]); op(link, 1, d); }
+      else op(link, 0, d * 0.5);
+      if (i === 8) { var lc = cen(LB[0]); bad.setAttribute('d', 'M' + wE[0] + ' ' + wE[1] + ' Q260 140 ' + lc[0] + ' ' + lc[1]); op(bad, 1, d); op(badT, 1, d); }
+      else { op(bad, 0, d * 0.5); op(badT, 0, d * 0.5); }
+    }
+    var first = document.createElement('li');
+    first.innerHTML = '<span class="sn">Q</span><span>By how many points does Asia&rsquo;s share exceed Europe&rsquo;s?</span><span class="rg"></span>';
+    ol.insertBefore(first, ol.firstChild);
+    var render0 = render;
+    W.Stepper(fig, 9, function (i, d) { first.className = i === 0 ? 'on' : 'done'; render0(i, d); }, { name: 'chain', hold: function (i) { return i === 8 ? 4200 : 2900; }, dur: 800 });
+  })();
+
+  /* ---------- Figure 9: interactive IoU playground ---------- */
+  (function () {
+    var fig = document.getElementById('fig-iou'); if (!fig) return;
+    var svg = fig.querySelector('svg');
+    var VW = 600, VH = 330, G = 2, GW = VW / G, GH = VH / G;
+    S('rect', { x: 0, y: 0, width: VW, height: VH, fill: '#fbfaf8' }, svg);
+    function polyBlob() { var p = []; for (var k = 0; k < 120; k++) { var t = k / 120 * 2 * Math.PI, r = 1 + 0.09 * Math.sin(3 * t) + 0.05 * Math.cos(5 * t); p.push([300 + 118 * r * Math.cos(t), 165 + 84 * r * Math.sin(t)]); } return p; }
+    function polyWedge() { var p = [[190, 285]], a0 = -80, a1 = -22; for (var k = 0; k <= 40; k++) { var a = (a0 + (a1 - a0) * k / 40) * Math.PI / 180; p.push([190 + 250 * Math.cos(a), 285 + 250 * Math.sin(a)]); } return p; }
+    function polyBand() { var p = [], cx = 300, cy = 330, r1 = 150, r2 = 186, k, a; for (k = 0; k <= 40; k++) { a = (155 - 130 * k / 40) * Math.PI / 180; p.push([cx + r2 * Math.cos(a), cy - r2 * Math.sin(a)]); } for (k = 0; k <= 40; k++) { a = (25 + 130 * k / 40) * Math.PI / 180; p.push([cx + r1 * Math.cos(a), cy - r1 * Math.sin(a)]); } return p; }
+    function polyDiag() { var cx = 300, cy = 165, L = 440, t = 24, ang = -27 * Math.PI / 180, ca = Math.cos(ang), sa = Math.sin(ang); return [[-L / 2, -t / 2], [L / 2, -t / 2], [L / 2, t / 2], [-L / 2, t / 2]].map(function (q) { return [cx + q[0] * ca - q[1] * sa, cy + q[0] * sa + q[1] * ca]; }); }
+    var SH = { blob: polyBlob(), wedge: polyWedge(), band: polyBand(), diag: polyDiag() };
+    var shapeP = S('path', { d: '', fill: C.blue, 'fill-opacity': 0.25, stroke: C.blue, 'stroke-width': 2 }, svg);
+    var tight = S('rect', { fill: 'none', stroke: C.blue, 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, svg);
+    var inter = S('path', { d: '', fill: C.orange, 'fill-opacity': 0.35 }, svg);
+    var pred = S('rect', { fill: C.orange, 'fill-opacity': 0.06, stroke: C.orange, 'stroke-width': 3, class: 'wl-drag', tabindex: 0, role: 'slider', 'aria-label': 'Predicted box. Arrow keys move it, Shift plus arrow keys resize it.' }, svg);
+    var handle = S('circle', { r: 9, fill: C.orange, stroke: '#fff', 'stroke-width': 2, class: 'wl-handle' }, svg);
+    T(svg, 14, 26, 'true region', { 'font-size': 21, fill: C.blue });
+    T(svg, 14, 52, 'predicted box', { 'font-size': 21, fill: C.orange });
+    var grid, pre, area, tb, cur = 'blob', B = null;
+    function build(name) {
+      cur = name;
+      var p = SH[name];
+      shapeP.setAttribute('d', W.ptsToD(p));
+      grid = new Uint8Array(GW * GH); area = 0;
+      var xs = p.map(function (q) { return q[0]; }), ys = p.map(function (q) { return q[1]; });
+      tb = [Math.min.apply(null, xs), Math.min.apply(null, ys), Math.max.apply(null, xs), Math.max.apply(null, ys)];
+      tb = [Math.max(0, tb[0]), Math.max(0, tb[1]), Math.min(VW, tb[2]), Math.min(VH, tb[3])];
+      for (var y = 0; y < GH; y++) for (var x = 0; x < GW; x++) { if (W.inPoly(x * G + 1, y * G + 1, p)) { grid[y * GW + x] = 1; area++; } }
+      pre = new Uint32Array((GW + 1) * (GH + 1));
+      for (y = 0; y < GH; y++) for (x = 0; x < GW; x++) pre[(y + 1) * (GW + 1) + x + 1] = grid[y * GW + x] + pre[y * (GW + 1) + x + 1] + pre[(y + 1) * (GW + 1) + x] - pre[y * (GW + 1) + x];
+      tight.setAttribute('x', tb[0]); tight.setAttribute('y', tb[1]); tight.setAttribute('width', tb[2] - tb[0]); tight.setAttribute('height', tb[3] - tb[1]);
+      fig.querySelectorAll('[data-shape]').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-shape') === name ? 'true' : 'false'); });
+      reset();
+    }
+    function sumIn(b) {
+      var x0 = Math.max(0, Math.round(b[0] / G)), y0 = Math.max(0, Math.round(b[1] / G)), x1 = Math.min(GW, Math.round(b[2] / G)), y1 = Math.min(GH, Math.round(b[3] / G));
+      if (x1 <= x0 || y1 <= y0) return 0;
+      return pre[y1 * (GW + 1) + x1] - pre[y0 * (GW + 1) + x1] - pre[y1 * (GW + 1) + x0] + pre[y0 * (GW + 1) + x0];
+    }
+    function boxIoU(a, b) { var ix = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])), iy = Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1])), I = ix * iy, U = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - I; return U > 0 ? I / U : 0; }
+    function update() {
+      pred.setAttribute('x', B[0]); pred.setAttribute('y', B[1]); pred.setAttribute('width', B[2] - B[0]); pred.setAttribute('height', B[3] - B[1]);
+      handle.setAttribute('cx', B[2]); handle.setAttribute('cy', B[3]);
+      var I = sumIn(B) * G * G, A = area * G * G, PB = (B[2] - B[0]) * (B[3] - B[1]);
+      var mi = I / (A + PB - I), bi = boxIoU(B, tb), f = A / ((tb[2] - tb[0]) * (tb[3] - tb[1]));
+      inter.setAttribute('d', '');
+      W.setR(fig, 'bi', bi.toFixed(2), bi >= 0.5 ? 'good' : 'bad');
+      W.setR(fig, 'mi', mi.toFixed(2), mi >= 0.5 ? 'good' : 'bad');
+      W.setR(fig, 'f', f.toFixed(2));
+      W.setR(fig, 'acc', (bi >= 0.5 ? 'pass' : 'fail') + ' / ' + (mi >= 0.5 ? 'pass' : 'fail'), (bi >= 0.5) === (mi >= 0.5) ? '' : 'bad');
+    }
+    function reset() { var w = tb[2] - tb[0], h = tb[3] - tb[1]; B = [tb[0] + w * 0.08, tb[1] + h * 0.1, tb[2] - w * 0.02 + 12, tb[3] + 8]; clampB(); update(); }
+    function clampB() {
+      var w = Math.max(12, B[2] - B[0]), h = Math.max(12, B[3] - B[1]);
+      B[0] = Math.max(0, Math.min(VW - w, B[0])); B[1] = Math.max(0, Math.min(VH - h, B[1])); B[2] = Math.min(VW, B[0] + w); B[3] = Math.min(VH, B[1] + h);
+    }
+    function svgPt(ev) { var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; var m = svg.getScreenCTM(); return m ? p.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+    var drag = null;
+    pred.addEventListener('pointerdown', function (ev) { var p = svgPt(ev); drag = { mode: 'move', x: p.x, y: p.y, b: B.slice() }; pred.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+    handle.addEventListener('pointerdown', function (ev) { var p = svgPt(ev); drag = { mode: 'size', x: p.x, y: p.y, b: B.slice() }; handle.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+    function mv(ev) {
+      if (!drag) return; var p = svgPt(ev), dx = p.x - drag.x, dy = p.y - drag.y, b = drag.b;
+      if (drag.mode === 'move') { var w = b[2] - b[0], h = b[3] - b[1]; B = [b[0] + dx, b[1] + dy, b[0] + dx + w, b[1] + dy + h]; }
+      else { B = [b[0], b[1], Math.max(b[0] + 12, Math.min(VW, b[2] + dx)), Math.max(b[1] + 12, Math.min(VH, b[3] + dy))]; }
+      clampB(); update();
+    }
+    pred.addEventListener('pointermove', mv); handle.addEventListener('pointermove', mv);
+    ['pointerup', 'pointercancel'].forEach(function (t) { pred.addEventListener(t, function () { drag = null; }); handle.addEventListener(t, function () { drag = null; }); });
+    pred.addEventListener('keydown', function (ev) {
+      var k = ev.key, s = 6, dx = 0, dy = 0;
+      if (k === 'ArrowLeft') dx = -s; else if (k === 'ArrowRight') dx = s; else if (k === 'ArrowUp') dy = -s; else if (k === 'ArrowDown') dy = s; else return;
+      ev.preventDefault();
+      if (ev.shiftKey) { B[2] = Math.max(B[0] + 12, B[2] + dx); B[3] = Math.max(B[1] + 12, B[3] + dy); }
+      else { B[0] += dx; B[2] += dx; B[1] += dy; B[3] += dy; }
+      clampB(); update();
+    });
+    fig.querySelectorAll('[data-shape]').forEach(function (b) { b.addEventListener('click', function () { build(b.getAttribute('data-shape')); }); });
+    fig.querySelector('[data-act="tight"]').addEventListener('click', function () { B = tb.slice(); update(); });
+    fig.querySelector('[data-act="reset"]').addEventListener('click', reset);
+    build('blob');
+    window.__figs.iou = { shape: build, tight: function () { B = tb.slice(); update(); } };
+  })();
+})();
+    </script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>

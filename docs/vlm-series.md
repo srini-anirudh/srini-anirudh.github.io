@@ -21,7 +21,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 07 | Measuring What a VLM Can Do | `measuring-what-a-vlm-can-do` | Benchmarks, metrics, languages | Published |
 | 08 | Aligning Vision-Language Models | `aligning-vision-language-models` | Preferences, hallucination, safety | Published |
 | **Capabilities** |||||
-| 09 | When Language Must Point | `when-language-must-point` | Grounding and structured visual outputs | In progress |
+| 09 | When Language Must Point | `when-language-must-point` | Grounding and structured visual outputs | Published |
 | 10 | How VLMs Read Documents | `how-vlms-read-documents` | Document and OCR VLMs | Published |
 | 11 | Seeing in Time | `seeing-in-time` | Video understanding | Published |
 | 12 | Rewarding What the Model Sees | `rewarding-what-the-model-sees` | RL for VLMs | Published |

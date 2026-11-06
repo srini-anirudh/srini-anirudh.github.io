@@ -254,7 +254,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">10 of 20 &middot; Documents</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../aligning-vision-language-models/"><span>Previous &middot; 08</span><strong>Aligning Vision-Language Models</strong></a><a class="ml-series-nav__link" href="../seeing-in-time/"><span>Next &middot; 11</span><strong>Seeing in Time</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../when-language-must-point/"><span>Previous &middot; 09</span><strong>When Language Must Point</strong></a><a class="ml-series-nav__link" href="../seeing-in-time/"><span>Next &middot; 11</span><strong>Seeing in Time</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -652,7 +652,7 @@
 
       <section id="grounding">
         <h2>Answers that point to evidence</h2>
-        <p>A document answer is often used for something that matters: a payment, a claim, a compliance check. In those settings the reader needs to verify it. The answer should come with the place on the page it came from. The <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">previous post on grounding</a> covers how VLMs point in general. Documents add their own demands.</p>
+        <p>A document answer is often used for something that matters: a payment, a claim, a compliance check. In those settings the reader needs to verify it. The answer should come with the place on the page it came from. The <a href="../when-language-must-point/">previous post on grounding</a> covers how VLMs point in general. Documents add their own demands.</p>
         <p>There are three ways a document model can show evidence.</p>
         <p><strong>Cite an element that already has a box.</strong> If the parse carries positions, as Kosmos-2.5's text lines, QwenVL HTML, DocTags and dots.ocr's JSON all do, then an answer can cite an element and inherit its box. This is cheap and exact, but only as fine-grained as the elements.</p>
         <p><strong>Write the box as text.</strong> General VLMs such as Qwen2.5-VL output coordinates as tokens, and TextMonkey added positions to its answers to make them checkable. This works, but the numbers are ordinary next-token predictions. Nothing ties them to the pixels, a long or curved region needs many tokens, and evidence that sits in several places needs several boxes.</p>
@@ -706,7 +706,7 @@
         <h2 id="related-articles-title">Continue reading</h2>
         <ul>
           <li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li>
-          <li><a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a></li>
+          <li><a href="../when-language-must-point/">When Language Must Point</a></li>
           <li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li>
           <li><a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a></li>
           <li><a href="../index.html?series=vlms" data-series-pending="searching-with-pixels/">Searching With Pixels</a></li>

@@ -249,7 +249,7 @@
 
         <p>Three things change when we move from answering to acting. Each one gets its own part of this post.</p>
         <ul class="plain">
-          <li><strong>The output must execute.</strong> An answer can be roughly right. A click either lands on the button or it does not. Grounding, which <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> treated as an output format, becomes the action itself.</li>
+          <li><strong>The output must execute.</strong> An answer can be roughly right. A click either lands on the button or it does not. Grounding, which <a href="../when-language-must-point/">When Language Must Point</a> treated as an output format, becomes the action itself.</li>
           <li><strong>The input depends on the output.</strong> Each action decides the next screenshot. A small mistake leads to a screen the model has never seen in training. Errors compound over a long task.</li>
           <li><strong>Success is a fact about the world.</strong> We cannot grade a computer-use agent by reading its text. We have to check whether the report was actually saved. That needs a live environment, not a fixed test set.</li>
         </ul>
@@ -346,7 +346,7 @@
       <section id="grounding-action">
         <h2>Grounding becomes action</h2>
         <p>Suppose the model has decided: "Click Submit." Four things must now happen. The model must find the Submit button in the screenshot. It must express that location as numbers. The harness must convert those numbers to screen coordinates. Then it must send a click event to the operating system.</p>
-        <p>The second step is ordinary visual grounding. <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> explains how VLMs output points and boxes: as text numbers, as special tokens, or through a dedicated head. Here we look at what makes grounding on screens different from grounding in photos.</p>
+        <p>The second step is ordinary visual grounding. <a href="../when-language-must-point/">When Language Must Point</a> explains how VLMs output points and boxes: as text numbers, as special tokens, or through a dedicated head. Here we look at what makes grounding on screens different from grounding in photos.</p>
 
         <figure class="fig" id="fig-ground" data-fig="ground">
           <div class="fig__stage"></div>
@@ -490,7 +490,7 @@
         <p>UI-TARS (Qin et al.) continued training Qwen2-VL at 7B and 72B on about 50 billion tokens. It has three phases: continual pretraining, an annealing phase, and DPO on reflective pairs. Its data covers perception (captions and element descriptions), grounding, unified action traces and tutorials. OpenCUA (Wang et al.) trained Qwen2.5-VL models up to 72B on AgentNet, with reflective long chain-of-thought and 189,000 boxes parsed from accessibility trees. Its 72B model reported 45.0% on OSWorld-Verified.</p>
 
         <h3>Change what the model outputs</h3>
-        <p>Writing coordinates as text has a weakness. The model must turn a spatial judgement into digits, one token at a time. GUI-Actor (Wu et al.) replaces this with an attention-based action head. A special <code>&lt;ACTOR&gt;</code> token attends to the visual patches, and the most attended patches give the target. Its 7B version on Qwen2.5-VL reported 44.6 on ScreenSpot-Pro. The output-format trade-offs are discussed in <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a>.</p>
+        <p>Writing coordinates as text has a weakness. The model must turn a spatial judgement into digits, one token at a time. GUI-Actor (Wu et al.) replaces this with an attention-based action head. A special <code>&lt;ACTOR&gt;</code> token attends to the visual patches, and the most attended patches give the target. Its 7B version on Qwen2.5-VL reported 44.6 on ScreenSpot-Pro. The output-format trade-offs are discussed in <a href="../when-language-must-point/">When Language Must Point</a>.</p>
 
         <h3>Spend fewer tokens on empty space</h3>
         <p>Screens have large flat areas. ShowUI (Lin et al.) treats patches with identical colour as connected components and skips part of each component during training. This removes 33% of visual tokens and speeds training by 1.4 times. Built on Qwen2-VL-2B with 256,000 training examples, it reached 75.1% on ScreenSpot zero-shot. Token reduction more broadly is the topic of <a href="../index.html?series=vlms" data-series-pending="the-cost-of-a-picture/">The Cost of a Picture</a>.</p>
@@ -719,7 +719,7 @@
         </ul>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../inside-an-ai-agent-harness/">Inside an AI Agent Harness</a></li><li><a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a></li><li><a href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement Learning for Agents From First Principles</a></li><li><a href="../the-agent-evaluation-playbook/">The Agent Evaluation Playbook</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../index.html?series=vlms" data-series-pending="from-vlms-to-vlas/">From VLMs to VLAs</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../inside-an-ai-agent-harness/">Inside an AI Agent Harness</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement Learning for Agents From First Principles</a></li><li><a href="../the-agent-evaluation-playbook/">The Agent Evaluation Playbook</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../index.html?series=vlms" data-series-pending="from-vlms-to-vlas/">From VLMs to VLAs</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>

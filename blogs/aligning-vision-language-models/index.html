@@ -210,7 +210,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">08 of 20 &middot; Alignment</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../measuring-what-a-vlm-can-do/"><span>Previous &middot; 07</span><strong>Measuring What a VLM Can Do</strong></a><a class="ml-series-nav__link" href="../how-vlms-read-documents/"><span>Next &middot; 10</span><strong>How VLMs Read Documents</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../measuring-what-a-vlm-can-do/"><span>Previous &middot; 07</span><strong>Measuring What a VLM Can Do</strong></a><a class="ml-series-nav__link" href="../when-language-must-point/"><span>Next &middot; 09</span><strong>When Language Must Point</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -259,7 +259,7 @@
 
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>A helpfulness score can rise while grounding gets worse. In LLaVA-RLHF, the policy trained against a standard reward model learned to write longer answers. Those scored better on LLaVA-Bench, a helpfulness benchmark, and worse on MMHal-Bench, a hallucination benchmark. In practice, never judge a multimodal alignment run by a helpfulness benchmark alone. Pair it with a hallucination benchmark.</p></aside>
         <h3>Where this sits in the series</h3>
-        <p>Alignment comes after <a href="../one-model-many-visual-skills/">visual instruction tuning</a>. By then the model can follow instructions about images. It can also invent things about them. Evaluation of those skills is the subject of <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>. This article goes deeper into one part of evaluation, hallucination, because alignment methods are built around it. Later posts take the ideas further. <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> makes answers checkable by tying words to regions. <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> replaces learned rewards with verifiable ones.</p>
+        <p>Alignment comes after <a href="../one-model-many-visual-skills/">visual instruction tuning</a>. By then the model can follow instructions about images. It can also invent things about them. Evaluation of those skills is the subject of <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>. This article goes deeper into one part of evaluation, hallucination, because alignment methods are built around it. Later posts take the ideas further. <a href="../when-language-must-point/">When Language Must Point</a> makes answers checkable by tying words to regions. <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> replaces learned rewards with verifiable ones.</p>
       </section>
 
       <section id="priors">
@@ -747,7 +747,7 @@
         <p>There is a balance to keep. A model rewarded only for avoiding errors learns to abstain from everything, in the same way that CHAIR rewards a one-word caption. Abstention has to be paid for in coverage, and the cost <span class="m">c</span> has to be stated explicitly.</p>
 
         <h3>Making answers checkable</h3>
-        <p>Abstention handles the case where the model cannot answer. A related tool handles the case where the user cannot verify. If the model points to the region that supports each claim, a person can check it at a glance. That turns grounding from a hidden property of the model into a visible property of the answer. <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a> covers how models output boxes, points and masks. <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a> shows the same idea applied to documents, with masks that mark the evidence for each answer.</p>
+        <p>Abstention handles the case where the model cannot answer. A related tool handles the case where the user cannot verify. If the model points to the region that supports each claim, a person can check it at a glance. That turns grounding from a hidden property of the model into a visible property of the answer. <a href="../when-language-must-point/">When Language Must Point</a> covers how models output boxes, points and masks. <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a> shows the same idea applied to documents, with masks that mark the evidence for each answer.</p>
       </section>
 
       <section id="takeaways">
@@ -765,7 +765,7 @@
           <li>Put safety data into every multimodal training stage, and treat text inside images as data.</li>
         </ol>
         <p>Several problems remain open. Reward models still fail on basic perception. Judges and policies share encoders and blind spots. Alignment methods concentrate on object errors and say little about counts, reading and actions. Multi-image and video settings add new ways to be wrong; MIA-DPO is an early step for multiple images, and <a href="../seeing-in-time/">Seeing in Time</a> covers video. Agents that act on screens turn a hallucination into a wrong click.</p>
-        <p>The next article, <a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a>, takes the most direct route to grounding: making the model say <em>where</em> each claim comes from. After that, <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> replaces learned preferences with rewards that can be checked.</p>
+        <p>The next article, <a href="../when-language-must-point/">When Language Must Point</a>, takes the most direct route to grounding: making the model say <em>where</em> each claim comes from. After that, <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a> replaces learned preferences with rewards that can be checked.</p>
       </section>
 
       <section id="key-insights">
@@ -784,7 +784,7 @@
         </ul>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../teaching-a-model-what-we-prefer/">Teaching a Model What We Prefer</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../index.html?series=vlms" data-series-pending="when-language-must-point/">When Language Must Point</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../teaching-a-model-what-we-prefer/">Teaching a Model What We Prefer</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>
