@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="How M3Grounder grounds document answers as pixel masks: a VLM emits a grounding token after each cited span, three heads prompt SAM at phrase, line and block level, and the whole model is trained end to end." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="M3Grounder: mask-based, multi-span and multi-granular grounding for document QA" />
+    <meta property="og:description" content="How M3Grounder grounds document answers as pixel masks: a VLM emits a grounding token after each cited span, three heads prompt SAM at phrase, line and block level, and the whole model is trained end to end." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="M3Grounder: mask-based, multi-span and multi-granular grounding for document QA" />
+    <meta name="twitter:description" content="How M3Grounder grounds document answers as pixel masks: a VLM emits a grounding token after each cited span, three heads prompt SAM at phrase, line and block level, and the whole model is trained end to end." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/preview.png" />
+    <title>M3Grounder: mask-based, multi-span and multi-granular grounding for document QA | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/" },
+        "headline": "Grounding Document Answers With Masks",
+        "description": "How M3Grounder grounds document answers as pixel masks: a VLM emits a grounding token after each cited span, three heads prompt SAM at phrase, line and block level, and the whole model is trained end to end.",
+        "image": "https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["Document AI", "Visual grounding", "Segmentation"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#docai-research" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        /* figure palette (light paper) */
+        --f-bg: #f7f6f3;
+        --f-rule: #cac6bd;
+        --f-ink: #14171a;
+        --f-soft: #474e53;
+        --f-muted: #7b8388;
+        --f-blue: #0b5ea8;
+        --f-orange: #d66f00;
+        --f-green: #2f8f5b;
+        --f-red: #b8432f;
+        --f-faint: #ecebe6;
+        --f-page: #ffffff;
+        --f-blue-t: rgba(11, 94, 168, 0.14);
+        --f-orange-t: rgba(214, 111, 0, 0.26);
+        --f-red-t: rgba(184, 67, 47, 0.14);
+        --f-green-t: rgba(47, 143, 91, 0.22);
+      }
+      html.dark-mode body.blog-article {
+        --f-bg: #0c2135;
+        --f-rule: #24507a;
+        --f-ink: #dbe7f3;
+        --f-soft: #aec5dc;
+        --f-muted: #82a4c2;
+        --f-blue: #6fb7ff;
+        --f-orange: #ffb45c;
+        --f-green: #6fd19a;
+        --f-red: #ff8a73;
+        --f-faint: #102b43;
+        --f-page: #0f2a42;
+        --f-blue-t: rgba(111, 183, 255, 0.18);
+        --f-orange-t: rgba(255, 180, 92, 0.3);
+        --f-red-t: rgba(255, 138, 115, 0.18);
+        --f-green-t: rgba(111, 209, 154, 0.22);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article-specific ---------- */
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .article-content ul, .article-content ol:not(.toc ol) { padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content code { font: 0.86em var(--mono); padding: 1px 4px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .lede { font-size: 20.5px; color: var(--ink-soft); }
+      .eq { white-space: nowrap; font-family: var(--body); font-style: normal; }
+      .eq-block { margin: 22px 0; padding: 15px 18px; overflow-x: auto; background: var(--paper-bright); border-left: 3px solid var(--ink); font: 17px/1.8 var(--body); }
+      .eq-block .row { display: block; white-space: nowrap; }
+      .eq-block .note { display: block; margin-top: 6px; color: var(--muted); font: italic 14.5px/1.5 var(--body); white-space: normal; }
+      .eq-block sub, .eq-block sup, .eq sub, .eq sup { font-size: 0.72em; }
+      .callout { margin: 28px 0; padding: 15px 20px 16px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); }
+      .callout-insight { border-left-color: #0b5ea8; }
+      .callout-nuance { border-left-color: #d66f00; }
+      html.dark-mode .callout-insight { border-left-color: #6fb7ff; }
+      html.dark-mode .callout-nuance { border-left-color: #ffb45c; }
+      .callout-label { margin: 0 0 6px !important; color: var(--muted); font: 600 11px/1.4 var(--mono) !important; letter-spacing: 0.14em; text-transform: uppercase; }
+      .callout-insight .callout-label { color: #0b5ea8; }
+      .callout-nuance .callout-label { color: #b35c00; }
+      html.dark-mode .callout-insight .callout-label { color: #6fb7ff; }
+      html.dark-mode .callout-nuance .callout-label { color: #ffb45c; }
+      .callout p { font-size: 17.5px; }
+      .callout p:last-child { margin-bottom: 0; }
+      .firstbox { margin: 26px 0 30px; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-top: 3px solid var(--ink); }
+      .firstbox p { margin: 0 0 10px !important; font-size: 17.5px; }
+      .firstbox p:last-child { margin-bottom: 0 !important; }
+      .firstbox .fb-k { margin-bottom: 4px !important; color: var(--muted); font: 600 11px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .roles { margin: 26px 0 30px; padding: 16px 20px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid var(--ink); }
+      .roles-h { margin: 0 0 10px !important; color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+      .roles dl { display: grid; grid-template-columns: minmax(150px, 34%) 1fr; gap: 8px 18px; margin: 0; }
+      .roles dt { font: 600 13px/1.5 var(--mono); color: var(--ink); }
+      .roles dd { margin: 0; font-size: 16.5px; line-height: 1.5; color: var(--ink-soft); }
+      .key-list li { margin-bottom: 12px; }
+      .table-note { margin: -8px 0 26px; color: var(--ink-soft); font-size: 16.5px; }
+      .blog-article .comparison-table td strong { font-weight: 600; }
+      .blog-article .comparison-table tbody th { font-weight: 600; color: var(--ink); white-space: normal; min-width: 130px; }
+      .blog-article .comparison-table td.hi { color: #0b5ea8; font-weight: 600; }
+      html.dark-mode .blog-article .comparison-table td.hi { color: #6fb7ff; }
+      .nr { color: var(--muted); font-style: italic; }
+
+      /* ---------- figures (light paper, no dark panels) ---------- */
+      .fx { margin: 38px 0; padding: 18px 18px 14px; background: var(--f-bg); border: 1px solid var(--f-rule); }
+      .fx--wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      .fx-stage { position: relative; overflow-x: auto; overflow-y: hidden; }
+      .fx-stage svg { display: block; width: 100%; height: auto; font-family: var(--display); }
+      .fx-stage svg .t-mono { font-family: var(--mono); }
+      .fx-stage.min640 svg { min-width: 640px; }
+      .fx-stage.min560 svg { min-width: 560px; }
+      .fx-live { min-height: 3.2em; margin: 10px 0 0; padding: 9px 12px; color: var(--f-soft); background: var(--f-faint); border-left: 3px solid var(--f-orange); font: 15.5px/1.5 var(--body); }
+      .fx-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; }
+      .fx-controls button, .fx-knobs button, .fx-tabs button { min-height: 38px; padding: 7px 11px; color: var(--f-ink); background: var(--f-bg); border: 1px solid var(--f-ink); cursor: pointer; font: 600 11px/1 var(--mono); }
+      .fx-controls button:hover, .fx-knobs button:hover, .fx-tabs button:hover { background: var(--f-faint); }
+      .fx-controls button[aria-pressed="true"], .fx-knobs button[aria-pressed="true"], .fx-tabs button[aria-pressed="true"] { color: #fff; background: var(--f-orange); border-color: var(--f-orange); }
+      html.dark-mode .fx-controls button[aria-pressed="true"], html.dark-mode .fx-knobs button[aria-pressed="true"], html.dark-mode .fx-tabs button[aria-pressed="true"] { color: #0c2135; }
+      .fx-controls button:focus-visible, .fx-knobs button:focus-visible, .fx-tabs button:focus-visible, .fx-knobs input:focus-visible { outline: 2px solid var(--f-blue); outline-offset: 2px; }
+      .fx-knobs button:disabled { opacity: .4; cursor: not-allowed; }
+      .fx-status { margin-left: auto; color: var(--f-muted); font: 11px/1.4 var(--mono); }
+      .fx-sep { width: 1px; height: 26px; background: var(--f-rule); }
+      .fx-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 12px; }
+      .fx figcaption { margin: 14px 0 0; padding-top: 12px; color: var(--ink-soft); border-top: 1px solid var(--f-rule); font: 15.5px/1.55 var(--body); }
+      .fx figcaption b { font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--f-ink); margin-right: 6px; }
+      .fx-knobs { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--f-rule); color: var(--f-soft); font: 12px/1.4 var(--mono); }
+      .fx-knob { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+      .fx-knob input[type="range"] { width: 170px; accent-color: #d66f00; }
+      .fx-knob output { min-width: 54px; color: var(--f-ink); font-weight: 600; }
+      .fx-split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+      .fx-split2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+      @media (max-width: 760px) { .fx-split, .fx-split2 { grid-template-columns: 1fr; } }
+
+      /* svg text classes */
+      .t-ink { fill: var(--f-ink); }
+      .t-soft { fill: var(--f-soft); }
+      .t-muted { fill: var(--f-muted); }
+      .t-blue { fill: var(--f-blue); }
+      .t-orange { fill: var(--f-orange); }
+      .t-red { fill: var(--f-red); }
+      .t-green { fill: var(--f-green); }
+      .t-disp { font-family: var(--display); font-weight: 700; }
+      .t-body { font-family: var(--body); }
+
+      /* readouts */
+      .readout { display: grid; gap: 12px; font: 13px/1.45 var(--mono); color: var(--f-soft); }
+      .ro-row { padding: 10px 12px; background: var(--f-page); border: 1px solid var(--f-rule); }
+      .ro-h { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--f-ink); font-weight: 600; }
+      .ro-track { position: relative; height: 14px; background: var(--f-faint); }
+      .ro-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; transition: width .25s ease; }
+      .ro-thr { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; background: var(--f-ink); }
+      .ro-v { margin-top: 5px; }
+      .ro-v .pass { color: var(--f-green); font-weight: 600; }
+      .ro-v .fail { color: var(--f-red); font-weight: 600; }
+      .ro-note { margin: 0 !important; color: var(--f-soft); font: 15px/1.5 var(--body); }
+
+      /* bar charts in html */
+      .hb { display: grid; gap: 5px; }
+      .hb-row { display: grid; grid-template-columns: 170px 1fr 54px; align-items: center; gap: 10px; font: 12.5px/1.3 var(--mono); color: var(--f-soft); }
+      .hb-row .nm small { color: var(--f-muted); }
+      .hb-track { position: relative; height: 18px; background: var(--f-faint); }
+      .hb-bar { display: block; height: 100%; width: 0; transition: width .7s cubic-bezier(.2,.7,.2,1); }
+      .hb-val { text-align: right; color: var(--f-ink); font-weight: 600; }
+      .hb-row.ours .nm { color: var(--f-ink); font-weight: 600; }
+      .c-com { background: #8a8f93; } .c-open { background: #b9bec2; } .c-ft { background: #7fa9cf; } .c-ours { background: var(--f-blue); } .c-dogr { background: #a39b8a; }
+      .hb-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font: 11.5px/1.4 var(--mono); color: var(--f-soft); }
+      .hb-legend i { display: inline-block; width: 11px; height: 11px; margin-right: 6px; vertical-align: -1px; }
+      .hb-note { min-height: 3em; margin: 12px 0 0 !important; padding: 9px 12px; color: var(--f-soft); background: var(--f-faint); border-left: 3px solid var(--f-blue); font: 15.5px/1.5 var(--body); }
+      @media (max-width: 640px) { .hb-row { grid-template-columns: 112px 1fr 46px; font-size: 11.5px; } }
+
+      /* ablation chart */
+      .ab-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; align-items: end; height: 230px; padding: 0 4px; border-bottom: 1px solid var(--f-rule); }
+      .ab-col { position: relative; height: 100%; }
+      .ab-full { position: absolute; left: 12%; right: 12%; bottom: 0; border: 1.5px dashed var(--f-ink); background: transparent; transition: height .6s ease; }
+      .ab-abl { position: absolute; left: 22%; right: 22%; bottom: 0; background: var(--f-orange); transition: height .6s cubic-bezier(.2,.7,.2,1); }
+      .ab-d { position: absolute; left: 0; right: 0; text-align: center; font: 600 12px var(--mono); color: var(--f-red); transition: bottom .6s ease; }
+      .ab-labels { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 6px; text-align: center; font: 11px/1.3 var(--mono); color: var(--f-soft); }
+
+      /* qualitative examples */
+      .qx-img { position: relative; margin: 0 auto; background: #fff; border: 1px solid var(--f-rule); }
+      .qx-img img { display: block; width: 100%; height: auto; }
+      .qx-ov { position: absolute; inset: 0; pointer-events: none; }
+      .qx-ov .m { position: absolute; border: 2px solid; border-radius: 3px; opacity: 0; transition: opacity .35s ease; }
+      .qx-ov .m.on { opacity: 1; }
+      .qx-ov svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .qx-ov polygon { opacity: 0; transition: opacity .35s ease; }
+      .qx-ov polygon.on { opacity: 1; }
+      .qx-q, .qx-a { margin: 0 0 10px !important; padding: 10px 13px; font: 16px/1.6 var(--body); border: 1px solid var(--f-rule); }
+      .qx-q { background: var(--f-faint); }
+      .qx-a { min-height: 6.5em; background: var(--f-page); }
+      .qx-k { display: block; margin-bottom: 3px; color: var(--f-muted); font: 600 10.5px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+      .qx-a .sp { font-weight: 700; }
+      .gtok { display: inline-block; padding: 0 5px; margin: 0 2px; color: #fff; font: 600 11px/1.6 var(--mono); vertical-align: 1px; }
+      .qx-img-wrap { max-height: 560px; overflow: auto; }
+
+      .img-pair { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+      .img-pair img { display: block; width: 100%; height: auto; background: #fff; border: 1px solid var(--f-rule); }
+      .img-pair p { margin: 6px 0 0 !important; font: 13px/1.45 var(--mono); color: var(--f-soft); }
+      @media (max-width: 760px) { .img-pair { grid-template-columns: 1fr; } }
+
+      @media (max-width: 760px) {
+        .roles dl { grid-template-columns: 1fr; gap: 2px 0; }
+        .roles dd { margin-bottom: 8px; }
+      }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .fx { padding: 12px 10px 10px; }
+        .fx--wide { width: calc(100vw - 20px); margin-left: calc(50% - 50vw + 10px); }
+        .fx-status { margin-left: 0; width: 100%; }
+        .fx-knob input[type="range"] { width: 140px; }
+        .ab-grid { height: 190px; gap: 5px; }
+        .ab-labels { gap: 5px; font-size: 9.5px; }
+        .ab-labels span { overflow-wrap: anywhere; }
+        .fx-stage.min640 svg { min-width: 760px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .fx * { transition: none !important; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article m3grounder-mask-based-document-grounding-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Research · Document AI</p>
+        <h1 class="article-title" style="max-width:15ch">Grounding Document Answers With Masks</h1>
+        <p class="article-subtitle">M3Grounder lets a vision-language model decide what to cite and at what granularity, and lets SAM mark where, as a pixel mask. Why typed boxes break on documents, and what end-to-end training, two document-specific losses and a data engine built on REPLICA change.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Document AI</span><span>Visual grounding</span><span>Segmentation</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>36 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Grounded Document Intelligence series">
+      <a class="ml-series-nav__identity" href="../../research.html#grounded-document-intelligence">Grounded Document Intelligence</a>
+      <span class="ml-series-nav__position">03 of 05 &middot; Grounded VQA</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../building-grounded-document-intelligence/"><span>Previous &middot; 01</span><strong>Building Grounded Document Intelligence</strong></a></div>
+    </nav>
+
+    <main class="article-content">
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#why-grounding">Why answers need evidence</a></li>
+          <li><a href="#boxes-as-text">How grounding works today</a></li>
+          <li><a href="#document-evidence">What document evidence looks like</a></li>
+          <li><a href="#chain-two-tools">Why not chain two tools</a></li>
+          <li><a href="#architecture">The architecture</a></li>
+          <li><a href="#granularity">Phrase, line and block</a></li>
+          <li><a href="#losses">Two document-specific losses</a></li>
+          <li><a href="#data-engine">Where the training data comes from</a></li>
+          <li><a href="#benchmark">How grounding is scored</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#data-vs-architecture">Data versus architecture</a></li>
+          <li><a href="#ablations">What the ablations teach</a></li>
+          <li><a href="#examples">Examples on real documents</a></li>
+          <li><a href="#comparison">Comparison with prior methods</a></li>
+          <li><a href="#limits">Cost, failure modes and limits</a></li>
+          <li><a href="#connections">Where M3Grounder sits in the loop</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="overview">
+        <h2>Overview</h2>
+        <p class="lede">Ask a model a question about a bank statement. It answers: &ldquo;2,000 was withdrawn at the ATM on 12 May.&rdquo; Now ask it to show where it read that. This post is about how a model should answer the second request.</p>
+        <p>Most vision-language models (VLMs) answer it by typing a box. They write four numbers, one token at a time, and hope the numbers land on the right pixels. On documents this is brittle. The evidence is often in two places at once. It can be a curved line of text, a wedge of a pie chart, or a whole table row. And a reader may want the number, the row it sits in, or the whole table.</p>
+        <p>M3Grounder, our CVPR 2026 paper, takes a different route. The VLM answers as usual. After each piece of the answer that needs evidence, it writes one special token, <code>[GROUND]</code>. That token's hidden state becomes a prompt for SAM, the Segment Anything Model, and SAM returns a pixel mask. The VLM decides <em>what</em> to ground and <em>at which granularity</em>. SAM marks <em>where</em>. The two are one model, trained end to end.</p>
+        <p>The idea behind it is simple. When people show evidence on a page, they do not read out coordinates. They do not just point either, because a paragraph or a table row has an extent that a point cannot express. They reach for a highlighter. A mask is that highlighter: it covers exactly the evidence, at any shape and size, and nothing else.</p>
+        <aside class="firstbox">
+          <p class="fb-k">First of its kind</p>
+          <p><strong>Mask-based, multi-span, multi-granular grounded document VQA.</strong> One answer can cite several separate regions. Each region is a pixel mask, not a box. Each is returned at three nested levels at once: the phrase, the line it sits on, and the block that contains the line.</p>
+          <p class="fb-k">Also new</p>
+          <p>Prior document QA grounding benchmarks annotate evidence with boxes only. GroundingDocQA (200K documents, 2M QA pairs) and GroundingDocQA-Bench (2.5K documents, 5K QA pairs) annotate it with masks at three granularities.</p>
+        </aside>
+        <p>This is the third post in the <a href="../building-grounded-document-intelligence/">Grounded Document Intelligence</a> series. The hub post gives the whole thesis in one place. The <a href="../replica-visually-faithful-document-reconstruction/">REPLICA post</a> explains how we rebuild a page as FID-HTML, the text form that supplies most of M3Grounder's training data. Here we go deep on M3Grounder: the problem from first principles, every design decision and its reason, the results and ablations, and what we learnt that applies beyond this one paper.</p>
+      </section>
+
+      <section id="why-grounding">
+        <h2>Why answers need evidence</h2>
+        <p>A document answer without evidence has to be trusted or checked by hand. Checking means re-reading the page. On a ten-page contract or a dense lab report that defeats the point of asking a model in the first place.</p>
+        <p>Grounding changes three things. First, a reader can <strong>verify at a glance</strong>: one look at the highlighted region, not a re-read. Second, regulated settings such as healthcare, law and finance need answers that are <strong>auditable</strong>, where every claim can be traced to its source. Third, a grounded region can be <strong>acted on</strong>: redacted, extracted, cropped for a downstream model, or clicked in an interface.</p>
+        <p>Each of these uses wants something slightly different from the evidence. A citation wants the exact number. A redaction wants the whole transaction row, not just the amount. A retrieval system that chunks documents wants the whole table. This difference in granularity will matter later. First, look at how grounding is usually done.</p>
+      </section>
+
+      <section id="boxes-as-text">
+        <h2>How grounding works today</h2>
+        <p>The dominant approach treats a location as more text. Pix2Seq (2021) showed that object detection can be cast as language modelling: quantise each box coordinate into a discrete token and predict the tokens one after another. VLMs adopted the same trick. Kosmos-2 divides the image into 32 bins per side and writes a box as location tokens linked to a text span. Shikra writes normalised coordinates as plain numbers. Florence-2 writes quantised coordinates for detection and grounding in one sequence format. Qwen2.5-VL writes absolute pixel coordinates in JSON. Ferret mixes discrete coordinates with continuous region features, which lets it accept free-form regions as input, but its grounded outputs are still coordinates.</p>
+        <p>Document models followed. mPLUG-DocOwl 1.5 trains on multi-grained text localisation, pairing text with boxes at several levels. TextMonkey adds text spotting and grounding with positions in its answers. DOGR, the strongest prior document grounding model, builds a data engine for grounded document QA and predicts answers together with boxes. BoundingDocs and MMDocBench evaluate document QA with the answer location given as boxes. General VLMs such as Qwen3-VL and InternVL3.5 also output boxes, but they are not optimised for grounding accuracy on documents.</p>
+        <p>In all of these, the evidence is a rectangle, and the rectangle is typed. That breaks in four ways.</p>
+        <ul>
+          <li><strong>Typed coordinates are unanchored.</strong> The numbers are next-token predictions like any other text. Nothing ties them to the pixels, so they can be hallucinated.</li>
+          <li><strong>Rectangles are the wrong shape.</strong> A box around a curved line of text or a pie wedge covers mostly something else.</li>
+          <li><strong>Evidence is plural.</strong> One answer often rests on two or three separate places. A single box around all of them covers half the page.</li>
+          <li><strong>Precise shapes are expensive as text.</strong> A polygon that follows a curved line takes many coordinates, and each coordinate is several tokens.</li>
+        </ul>
+        <p>There is a fifth, quieter problem, and it is about small evidence. Grounding is usually scored as correct when the intersection over union (IoU) between the prediction and the truth exceeds 0.5. Consider a box that is right in every way except that it is shifted by <i>d</i> pixels along a side of length <i>s</i>. A short derivation gives its IoU:</p>
+        <div class="eq-block">
+          <span class="row">intersection = (<i>s</i> &minus; <i>d</i>) &middot; <i>w</i>,&nbsp;&nbsp; union = (<i>s</i> + <i>d</i>) &middot; <i>w</i>&nbsp;&nbsp; &rArr;&nbsp;&nbsp; IoU = (<i>s</i> &minus; <i>d</i>) / (<i>s</i> + <i>d</i>)</span>
+          <span class="row">IoU &gt; 0.5&nbsp;&nbsp; &hArr;&nbsp;&nbsp; <i>d</i> &lt; <i>s</i> / 3</span>
+          <span class="note">w is the length of the other side, which cancels. A 14-pixel-tall line of text tolerates less than 5 pixels of vertical error. A 300-pixel-tall block tolerates 100.</span>
+        </div>
+        <p>So the finest granularity, a single phrase, has the least room for error. A model that types its coordinates must be most precise exactly where precision is hardest. Figure 1 lets you test all of this on drawn document evidence. Pick a kind of evidence, then shift both predictions down and watch which one survives the 0.5 threshold.</p>
+
+        <figure class="fx fx--wide" id="fig-boxmask" data-fig="boxmask">
+          <div class="fx-tabs" role="group" aria-label="Kind of evidence">
+            <button type="button" data-ev="line" aria-pressed="true">One straight line</button>
+            <button type="button" data-ev="two" aria-pressed="false">Two places</button>
+            <button type="button" data-ev="curve" aria-pressed="false">Curved banner</button>
+            <button type="button" data-ev="wedge" aria-pressed="false">Pie wedge</button>
+            <button type="button" data-ev="stamp" aria-pressed="false">Rotated stamp</button>
+          </div>
+          <div class="fx-split">
+            <div class="fx-stage min560"></div>
+            <div class="readout" aria-live="polite">
+              <div class="ro-row" data-ro="box"><div class="ro-h"><span>Typed box</span><span class="ro-num"></span></div><div class="ro-track"><span class="ro-bar" style="background:var(--f-blue)"></span><span class="ro-thr" title="IoU 0.5"></span></div><div class="ro-v"></div></div>
+              <div class="ro-row" data-ro="mask"><div class="ro-h"><span>Mask</span><span class="ro-num"></span></div><div class="ro-track"><span class="ro-bar" style="background:var(--f-orange)"></span><span class="ro-thr" title="IoU 0.5"></span></div><div class="ro-v"></div></div>
+              <p class="ro-note"></p>
+            </div>
+          </div>
+          <div class="fx-knobs">
+            <label class="fx-knob">Shift both predictions down by <input type="range" min="0" max="24" step="1" value="0" aria-label="Shift both predictions down, in pixels" /> <output>0 px</output></label>
+            <span class="fx-knob" role="group" aria-label="How boxes are written">Boxes: <button type="button" data-bm="one" aria-pressed="true">one per answer</button><button type="button" data-bm="each" aria-pressed="false">one per span</button></span>
+          </div>
+          <figcaption><b>Figure 1</b> Box versus mask on the same evidence. Shaded green is the true evidence. The dashed blue rectangle is the tightest box a model could type. The orange outline is a mask with a one-pixel edge error. IoU is computed live by rasterising each shape. The vertical tick in each bar is the usual 0.5 threshold. On a straight line both pass. On a curve, a wedge or a rotated stamp the perfect box already fails before any shift. With two places, one box per answer fails both.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Masks fix shape. They do not fix localisation. In Figure 1, shift both predictions on the straight line and the mask fails at about the same shift as the box, because a thin line leaves little room either way. The advantage of a mask comes from evidence whose shape a rectangle cannot follow, and from not typing the location at all. When you compare box and mask methods, look at curved and multi-span evidence separately. That is where the difference lives.</p></aside>
+      </section>
+
+      <section id="document-evidence">
+        <h2>What document evidence looks like</h2>
+        <p>Natural-image grounding grew up on a simple case: one phrase, one object. &ldquo;The dog on the left&rdquo; is a dog. A box, or even a single point, identifies it well. Some recent VLMs, Molmo for example, answer with points for exactly this reason: a point is cheap and says which object.</p>
+        <p>Document evidence rarely looks like that. Three properties set it apart.</p>
+        <ul>
+          <li><strong>It is multi-span.</strong> &ldquo;Which three Asia Pacific cities have the highest prices?&rdquo; rests on three separate labels. A good answer cites each one separately, so a reader can check each claim.</li>
+          <li><strong>It is irregular.</strong> Text curves around seals and along maps. Charts have wedges and thin bars. Stamps are rotated. Evidence can also sit next to graphics that a loose region would swallow.</li>
+          <li><strong>It is multi-granular.</strong> Documents have a natural hierarchy: words form lines, and lines form blocks. Different questions, and different uses of the answer, need different levels of it.</li>
+        </ul>
+        <p>A point is not enough here. It says which thing, but not how much of it. A paragraph, a table row or a curved street name has an extent, and that extent is the evidence. This is why we model grounding as masks. The VLM decides what to highlight and how much. SAM does the highlighting.</p>
+
+        <figure class="fx fx--wide" id="fig-teaser">
+          <div class="img-pair">
+            <div>
+              <img src="../../research/docai-talk/grounding/assets/m3_teaser_A.png" width="730" height="770" loading="lazy" alt="A street map with the question 'What is the name of the river in the map?'. M3Grounder answers '<e>River Thames</e>[GROUND]' and its mask covers the curved letters R-I-V-E-R and T-H-A-M-E-S that follow the river." />
+              <p>(A) One span, curved: the mask follows the letters along the river.</p>
+            </div>
+            <div>
+              <img src="../../research/docai-talk/grounding/assets/m3_teaser_B.png" width="1245" height="770" loading="lazy" alt="A bar chart of coffee prices by city with a Starbucks logo. Asked which brand is compared and which three Asia Pacific cities have the highest prices, M3Grounder answers with four grounded spans: the Starbucks logo text, Seoul, Jakarta and Tokyo, each with its own coloured mask." />
+              <p>(B) Four spans in one answer: the curved logo text and three city labels, each with its own mask.</p>
+            </div>
+          </div>
+          <figcaption><b>Figure 2</b> Real M3Grounder outputs from the paper's teaser. The model writes the <code>&lt;e&gt;&hellip;&lt;/e&gt;</code> span tags itself, then a <code>[GROUND]</code> token after each span. No box could follow the river's lettering in (A). In (B), one box around all four pieces of evidence would cover most of the chart.</figcaption>
+        </figure>
+      </section>
+
+      <section id="chain-two-tools">
+        <h2>Why not chain two tools</h2>
+        <p>Before building a new model, consider the obvious alternative. VLMs are good at answers. SAM is good at masks. Why not run them one after the other?</p>
+        <p>A typical chain looks like this. An OCR engine reads the page into lines of text with boxes. A VLM answers the question from the image. A matcher looks up the answer string in the OCR text and takes the box of the matching line. SAM turns that box into a mask. Every component is strong on its own, and nothing needs training.</p>
+        <p>The chain fails at its joints. On a poster with a curved banner, OCR misreads the banner as &ldquo;5TH YFAR CE1F8RAT&rdquo;. The VLM, reading the pixels, correctly answers &ldquo;5th Year Celebrations&rdquo;. The matcher finds no line that matches, so SAM never receives a prompt. Other joints fail in other ways. If the answer phrase appears in three places on the page, the matcher has to guess which one. If the VLM paraphrases &ldquo;15 March 2024&rdquo; as &ldquo;March 15, 2024&rdquo;, the strings no longer match. If the answer is abstractive, such as &ldquo;the account is overdrawn&rdquo;, there is no string on the page to match at all.</p>
+        <p>The structure makes this worse than it looks. If each stage succeeds independently with probability <i>r</i><sub>1</sub>, <i>r</i><sub>2</sub> and <i>r</i><sub>3</sub>, the chain succeeds with probability at most <span class="eq"><i>r</i><sub>1</sub> &middot; <i>r</i><sub>2</sub> &middot; <i>r</i><sub>3</sub></span>. Three stages that are each right 90% of the time give at most 73%. And no stage after OCR ever looks at the pixels again, so no stage can repair an earlier error. Figure 3 steps through both designs on the same poster.</p>
+
+        <figure class="fx fx--wide" id="fig-chain" data-fig="chain">
+          <div class="fx-stage min640"></div>
+          <p class="fx-live" aria-live="polite"></p>
+          <div class="fx-controls"></div>
+          <figcaption><b>Figure 3</b> Two tools chained versus one model trained end to end, on a poster with a curved banner (the misread is illustrative, as in the talk). In the chain, an OCR misread leaves the matcher with nothing to match, and SAM never gets a prompt. In M3Grounder, the VLM reads the pixels and its grounding token prompts SAM directly. During training, the mask loss flows back into the language model. In the chain, no error signal flows anywhere.</figcaption>
+        </figure>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The same string-matching joint breaks two different things: grounding at inference time, and grounding data at training time. The M3Grounder paper notes that earlier document grounding datasets located answers by matching generated text to OCR spans, which fails when OCR is noisy or a phrase repeats. M3Grounder removes the joint in both places. At inference, a learned token prompts SAM directly. In the data engine, a language model cites an element ID instead of a string. If a system matches strings to find evidence, expect its errors to cluster on curved text, repeated phrases and paraphrased answers.</p></aside>
+      </section>
+
+      <section id="architecture">
+        <h2>The architecture: a grounding token that prompts SAM</h2>
+        <p>M3Grounder couples a VLM with a promptable segmentation model. Given a document image <i>x</i> and a question <i>q</i>, the VLM generates the answer autoregressively, with span tags and grounding tokens woven into it:</p>
+        <div class="eq-block">
+          <span class="row"><i>&acirc;</i> = ( &hellip; &lt;e&gt; <i>y</i><sub>k</sub> &lt;/e&gt; [GROUND] &hellip; )</span>
+          <span class="row"><i>f</i><sub>&theta;</sub>(<i>x</i>, <i>q</i>) &rarr; ( <i>&acirc;</i>, { <i>M&#770;</i><sub>k</sub><sup>(i)</sup> } ),&nbsp;&nbsp; k = 1 &hellip; K,&nbsp;&nbsp; i &isin; {phrase, line, block}</span>
+          <span class="note">y<sub>k</sub> is the k-th grounded span of the answer, K is the number of grounded spans, and M&#770;<sub>k</sub><sup>(i)</sup> is the predicted mask for span k at granularity i. If K = 0, the model returns no masks.</span>
+        </div>
+        <p>Each <code>[GROUND]</code> token is emitted immediately after its span. That gives a one-to-one link between a piece of the answer and a region of the page. An answer with three cited facts has three tokens and three sets of masks. The token is a new entry in the vocabulary; the VLM learns when to write it like any other token.</p>
+        <h3>From token to mask</h3>
+        <p>Text never carries the location. Instead, the model takes the final hidden state of each <code>[GROUND]</code> token, a vector <i>h&#771;</i><sub>k</sub>. Three small MLP heads project it into three prompt embeddings, one per granularity:</p>
+        <div class="eq-block">
+          <span class="row"><i>h</i><sub>k</sub><sup>(i)</sup> = MLP<sub>i</sub>( <i>h&#771;</i><sub>k</sub> ),&nbsp;&nbsp; i &isin; {p, l, b}</span>
+          <span class="row"><i>z</i> = <i>F</i><sub>enc</sub>(<i>x</i>),&nbsp;&nbsp; <i>M&#770;</i><sub>k</sub><sup>(i)</sup> = <i>F</i><sub>dec</sub>( <i>z</i>, <i>h</i><sub>k</sub><sup>(i)</sup> )</span>
+          <span class="note">F<sub>enc</sub> is SAM's image encoder and F<sub>dec</sub> its mask decoder. The dense image embedding z is computed once per page and reused for every span and every granularity.</span>
+        </div>
+        <p>Each prompt embedding enters SAM where a click or a box prompt would normally go. SAM's mask decoder combines it with the image embedding and returns a mask. Figure 4 follows one forward pass on a blood report, from the question to six masks: three nested masks for each of two cited spans.</p>
+
+        <figure class="fx fx--wide" id="fig-pipeline" data-fig="pipeline">
+          <div class="fx-stage min640"></div>
+          <p class="fx-live" aria-live="polite"></p>
+          <div class="fx-controls"></div>
+          <figcaption><b>Figure 4</b> M3Grounder's forward pass, following the paper's architecture figure. The VLM writes the answer with a <code>[GROUND]</code> token after each cited span. Each token's hidden state goes through three projection heads, giving phrase, line and block prompts. SAM encodes the page once and decodes one mask per prompt. The final step shows training: the mask losses flow back through SAM's decoder and the heads into the language model.</figcaption>
+        </figure>
+
+        <h3>Why each piece is there</h3>
+        <p><strong>Why a token and not coordinates.</strong> A hidden state is a vector of thousands of numbers, computed with the whole page and the whole answer in view. It can carry which span, which instance of a repeated phrase, and what granularity, all at once. Coordinates have to commit to four numbers, one digit at a time. The paper calls this decoupling: the VLM concentrates on accurate answers and span boundaries, and the segmentation module handles geometry.</p>
+        <p><strong>Why SAM.</strong> SAM was trained to turn a prompt into a mask of any shape, on 1.1 billion masks. It already knows how to follow a curved edge or a thin bar. M3Grounder only has to teach it what document prompts mean. The design is backbone-agnostic. The paper trains two variants: M3Grounder-I on InternVL3.5-8B and M3Grounder-Q on Qwen3-VL-8B, both with SAM.</p>
+        <p><strong>Why three heads.</strong> One hidden state has to answer three questions: which phrase, which line, which block. A separate projection for each lets the three prompts differ. The ablations show this matters a great deal; we return to it below.</p>
+        <p><strong>Why end to end.</strong> The mask losses flow back through SAM's decoder, through the heads, into the language model. So the language model learns to put into each grounding token exactly the information the segmenter needs. In a chain, nothing teaches the VLM what a good prompt looks like. In the authors' walkthrough of the model, the language decoder, the projection heads and SAM's mask decoder are trained, while the vision encoder and SAM's image and prompt encoders stay frozen. The mask decoder is kept in full FP32 precision for stability while the VLM uses mixed precision.</p>
+        <div class="roles">
+          <p class="roles-h">Who does what in M3Grounder</p>
+          <dl>
+            <dt>Vision-language model</dt><dd>reads the page and the question, writes the answer, marks each span that needs evidence, and decides what to ground</dd>
+            <dt>[GROUND] hidden state</dt><dd>the message between the two models: what to mask, carried as a vector rather than as coordinates</dd>
+            <dt>Three projection heads</dt><dd>turn that message into three prompts, one per granularity</dd>
+            <dt>SAM</dt><dd>the highlighter: encodes the page once and draws one mask per prompt, at any shape</dd>
+          </dl>
+        </div>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Grounding more spans is cheap once the page is encoded. The heavy part of SAM, its image encoder, runs once per page, and its output is reused for every span and every granularity. Each extra cited span costs one small MLP pass and one pass of the light mask decoder per granularity. The paper's supplementary material, as cited in the talk, reports about 63 ms of added latency per sample for grounding. In a deployed system, the cost of grounding grows with the number of decoder calls, not with the number of pages times spans.</p></aside>
+        <p>M3Grounder is not the first model to join a language model to a segmenter. LISA introduced the embedding-as-mask idea for natural images: a <code>&lt;SEG&gt;</code> token whose hidden state SAM decodes into one mask. GLaMM grounds each phrase of a conversation with its own mask. PixelLM decodes several targets with its own light decoder instead of SAM. These models showed the route works, but they were built for natural scenes, and the M3Grounder paper reports that such models transfer poorly to documents. What M3Grounder adds for documents is the span tags that the model writes itself, one token per span, three granularity heads, two losses that encode document structure, and a document data engine.</p>
+      </section>
+
+      <section id="granularity">
+        <h2>Phrase, line and block</h2>
+        <p>Every <code>[GROUND]</code> token returns three masks, nested inside each other: the <strong>phrase</strong>, the <strong>line</strong> that contains it, and the <strong>block</strong> that contains the line. In a table the rule changes shape but not meaning. The answer cell is the phrase, the cell's row is the line, and the whole table is the block.</p>
+        <p>Why three, and why all at once? Because the right granularity depends on the question and on what the reader will do with the answer. Extractive questions, such as &ldquo;Name:&rdquo; or &ldquo;Address:&rdquo;, want the exact phrase. Abstractive questions, such as &ldquo;Summarise the reason for acceptance&rdquo;, need a whole block. And the same answer serves different uses. On a bank statement, the phrase cites the number, the line redacts the transaction row, and the block chunks the whole table for retrieval. Try it in Figure 5.</p>
+
+        <figure class="fx fx--wide" id="fig-gran" data-fig="gran">
+          <div class="fx-tabs" role="group" aria-label="Granularity">
+            <button type="button" data-g="p" aria-pressed="true">Phrase</button>
+            <button type="button" data-g="l" aria-pressed="false">Line</button>
+            <button type="button" data-g="b" aria-pressed="false">Block</button>
+            <button type="button" data-g="all" aria-pressed="false">All three, nested</button>
+          </div>
+          <div class="fx-split">
+            <div class="fx-stage min560"></div>
+            <div class="readout" aria-live="polite">
+              <div class="ro-row"><div class="ro-h"><span>Question</span></div><p class="ro-note">How much was withdrawn at the ATM on 12 May, and what is the closing balance?</p></div>
+              <div class="ro-row"><div class="ro-h"><span>Answer</span></div><p class="ro-note gran-ans"></p></div>
+              <div class="ro-row"><div class="ro-h"><span class="gran-use-h">Use</span></div><p class="ro-note gran-use"></p></div>
+            </div>
+          </div>
+          <figcaption><b>Figure 5</b> One answer with two grounded spans, at each granularity. Span 1 sits in a table, so phrase, line and block are the cell, the row and the table. Span 2 sits in a summary box, so they are the amount, its line and the box. Choose &ldquo;All three&rdquo; to see the nesting that the enclosure loss enforces: phrase &sub; line &sub; block.</figcaption>
+        </figure>
+
+        <p>A different design would ask the user for a granularity and return one mask. Returning all three costs little, since the image embedding is shared and each mask is one light decoder pass. It also gives the model three related supervision targets for every grounded span. That turns out to matter more than the convenience. As the ablations show, training on all three levels improves the finest level.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Multi-granularity is a property of text documents in this work, not of every input. For charts, the data engine records each element (a bar, a tick label, a legend entry) as a single region, so chart answers are grounded at one level. A bar has no natural &ldquo;line&rdquo; or &ldquo;block&rdquo; above it the way a word does. If your documents are mostly charts, expect single-level masks.</p></aside>
+      </section>
+
+      <section id="losses">
+        <h2>Two document-specific losses</h2>
+        <p>M3Grounder is trained end to end with four terms. Two are standard. Two encode what we know about documents.</p>
+        <div class="eq-block">
+          <span class="row">&#8466;<sub>total</sub> = &lambda;<sub>lm</sub> &#8466;<sub>lm</sub> + &lambda;<sub>seg</sub> &#8466;<sub>seg</sub> + &lambda;<sub>bleed</sub> &#8466;<sub>bleed</sub> + &lambda;<sub>hier</sub> &#8466;<sub>hier</sub></span>
+          <span class="note">&lambda;<sub>lm</sub> = 1, &lambda;<sub>seg</sub> = 2, &lambda;<sub>bleed</sub> = 0.5, &lambda;<sub>hier</sub> = 0.5, fixed and set empirically.</span>
+        </div>
+        <p><strong>&#8466;<sub>lm</sub></strong> is the usual cross-entropy over all output tokens, including the span tags and the <code>[GROUND]</code> tokens. <strong>&#8466;<sub>seg</sub></strong> supervises every predicted mask against its ground truth with Dice loss plus binary cross-entropy (BCE). Its weights fall with granularity. For BCE they are 2.0 for phrases, 1.0 for lines and 0.5 for blocks. For Dice they are 1.0, 0.5 and 0.25.</p>
+        <h3>Bleed suppression</h3>
+        <p>SAM is a general segmenter. Prompted near text, it tends to spill onto nearby icons, bars and graphics, because in natural images those would be part of the same object. Bleed suppression penalises every predicted pixel that falls outside text:</p>
+        <div class="eq-block">
+          <span class="row">&#8466;<sub>bleed</sub> = &Sigma;<sub>i</sub> &Sigma;<sub>k</sub> &nbsp;[ &Sigma;<sub>j</sub> <i>M&#770;</i><sub>k</sub><sup>(i)</sup>(j) &middot; (1 &minus; <i>M</i><sub>ref</sub>(j)) ] / [ &Sigma;<sub>j</sub> <i>M&#770;</i><sub>k</sub><sup>(i)</sup>(j) + &epsilon; ]</span>
+          <span class="note">M<sub>ref</sub> is the union of all text regions on the page. The sum over j runs over all pixels. Each term is the fraction of a predicted mask that lies outside text.</span>
+        </div>
+        <h3>Hierarchical enclosure</h3>
+        <p>The three masks of a span are three separate predictions. Nothing in &#8466;<sub>seg</sub> says a phrase mask must stay inside its line. Enclosure adds that rule:</p>
+        <div class="eq-block">
+          <span class="row">&#8466;<sub>hier</sub> = &Sigma;<sub>k</sub> &Sigma;<sub>(i, j) &isin; {(p, l), (l, b)}</sub> &nbsp;[ &Sigma;<sub>m</sub> <i>M&#770;</i><sub>k</sub><sup>(i)</sup>(m) &middot; (1 &minus; <i>M</i><sub>k</sub><sup>(j)</sup>(m)) ] / [ &Sigma;<sub>m</sub> <i>M&#770;</i><sub>k</sub><sup>(i)</sup>(m) + &epsilon; ]</span>
+          <span class="note">Each term is the fraction of a predicted finer mask that lies outside the ground-truth coarser mask: phrase outside its line, and line outside its block.</span>
+        </div>
+        <p>Two details of these formulas explain a lot. First, both are <em>fractions of the predicted mask</em>, not averages over the page. Second, in &#8466;<sub>hier</sub> the coarser mask is the ground truth, and the block level never appears on the left. Figure 6 makes the first point concrete. Drag the sliders and compare each loss with the share of the whole page that is wrong.</p>
+
+        <figure class="fx fx--wide" id="fig-loss" data-fig="loss">
+          <div class="fx-split2">
+            <div>
+              <div class="fx-stage"></div>
+              <div class="fx-knobs"><label class="fx-knob">Spill onto the bar <input type="range" min="0" max="100" value="45" data-k="spill" aria-label="How far the mask spills onto the bar" /> <output data-o="spill"></output></label></div>
+            </div>
+            <div>
+              <div class="fx-stage"></div>
+              <div class="fx-knobs"><label class="fx-knob">Phrase overflow <input type="range" min="0" max="100" value="40" data-k="over" aria-label="How far the phrase mask overflows its line" /> <output data-o="over"></output></label></div>
+            </div>
+          </div>
+          <figcaption><b>Figure 6</b> The two document priors as numbers. Left: a mask for &ldquo;1 billion active users&rdquo; spills onto the neighbouring bar, as in the paper's example. &#8466;<sub>bleed</sub> is the spilled fraction of the mask. Right: a phrase mask overflows its line into the next one. The (phrase, line) term of &#8466;<sub>hier</sub> is the overflowing fraction. Under each panel, the share of all page pixels that are wrong stays tiny. A per-pixel loss averaged over the page barely notices these errors; the fractional losses do.</figcaption>
+        </figure>
+
+        <p>Because the losses are fractions of the predicted mask, they are scale-invariant. A phrase mask that spills 40% of its area onto a graphic gets the same penalty as a block mask that spills 40% of its area. A per-pixel loss averaged over the page would see the phrase error as a few hundred wrong pixels among a million and barely react. The falling BCE and Dice weights point the same way: small masks get more weight. One reading of the design is that both document losses act mainly as strong, targeted penalties on the errors that small masks make.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Each prior helps where its failure lives, and the ablation shows it. Adding &#8466;<sub>hier</sub> to the base objective raises phrase-level F1 on GroundingDocQA-Bench from 74.0 to 78.2, but block-level F1 only from 84.4 to 84.7. That is expected from the formula: the block mask is never the finer mask in any term, so &#8466;<sub>hier</sub> does not constrain it. Adding &#8466;<sub>bleed</sub> instead moves block-level F1 from 84.4 to 86.5, because large masks are the ones that swallow neighbouring graphics. When you design a structural loss, check which outputs it actually touches before expecting it to help all of them.</p></aside>
+        <p>The remaining training details are conventional. The optimiser is AdamW with a learning rate of 2&times;10<sup>&minus;6</sup>, 3% warmup, cosine decay and gradient clipping at 1.0. Training runs with full fine-tuning on 64 H100 GPUs with DeepSpeed ZeRO-3 and an effective batch size of 128. M3Grounder is trained on GroundingDocQA together with subsets of general document VQA datasets, so that it keeps its question-answering ability while it learns to ground.</p>
+      </section>
+
+      <section id="data-engine">
+        <h2>Where the training data comes from</h2>
+        <p>Training this model needs about two million questions, each with answer spans and three nested masks per span. No such dataset existed. Existing document grounding datasets are mostly extractive and use boxes, and none has the hierarchy needed for multi-granular grounding. Hand-labelling at this scale is not realistic. So the data has to be generated, and the question is how to generate it without the generator itself typing coordinates.</p>
+        <h3>The direct route, and why we avoided it</h3>
+        <p>The obvious generator is a strong VLM: show it the page and ask for a grounded question and answer. That puts every job in one coupled step. The model must read the text, infer the layout, recover the structure, reason, write the question and then type a box. If any step is wrong, nothing shows it. The box is a guess like any other output.</p>
+        <h3>Perception first, reasoning second</h3>
+        <p>For the 140K text-rich documents in GroundingDocQA, we split the jobs. REPLICA first rebuilds each page as FID-HTML (see the <a href="../replica-visually-faithful-document-reconstruction/">REPLICA post</a>). In FID-HTML every element has an ID, its exact text, its place in the tree, its position and its style. A language model (gpt-oss-120b) then reads the HTML, which is the kind of text it reads best, and writes a question and answer. It cites the line-level element IDs that hold the answer, and the key phrases within them. It never sees a pixel, so it cannot invent a coordinate.</p>
+        <p>The masks then come out of the structure, not out of a model's guess:</p>
+        <ul>
+          <li>The <strong>line</strong> box is the box of the cited element, looked up from its ID.</li>
+          <li>The <strong>phrase</strong> box is found by locating the key phrase inside that line.</li>
+          <li>The <strong>block</strong> box is the element's parent in the HTML hierarchy. For tables, the cell is the phrase, the row is the line and the table is the block.</li>
+          <li>Hi-SAM, a SAM-based hierarchical text segmenter, turns each box into a pixel mask that follows the actual text.</li>
+        </ul>
+        <p>Two kinds of pages need different routes, because a rebuilt page is not the natural representation for them. For the 10K documents with <strong>curved and skewed text</strong>, a curved-text segmentation module first produces pixel masks. Each mask is overlaid on the image as a highlight, a visual prompt in the style of Set-of-Mark, and a VLM (Qwen2.5-VL) writes questions only about the highlighted text. The mask exists before the question, so no box-to-mask step is needed. For the 50K <strong>charts</strong>, we start from public chart datasets that come with plotting scripts. Running each script with the plotting libraries' renderer functions intercepted logs every bar, tick, legend and title with its box and an ID. A VLM sees the chart and this ID-tagged record, and writes QA pairs that cite element IDs. The IDs map back to boxes, and Hi-SAM turns them into masks. Figure 7 walks through all three pipelines.</p>
+
+        <figure class="fx fx--wide" id="fig-engine" data-fig="engine">
+          <div class="fx-stage min640"></div>
+          <p class="fx-live" aria-live="polite"></p>
+          <div class="fx-controls"></div>
+          <figcaption><b>Figure 7</b> The GroundingDocQA data engine: 200K documents and 2M QA pairs from three pipelines. Text-rich pages go through REPLICA and a language model that cites element IDs. Curved text is segmented first and asked about second. Charts are rendered with the renderer intercepted, so every element's box is known before any question is written. In none of the three does a model write a coordinate.</figcaption>
+        </figure>
+
+        <p>Every generated pair then passes two checks. The first checks alignment: the text of each answer span is compared, by sentence-embedding similarity, with OCR of the region its mask covers. Pairs with low similarity are removed. The second checks facts: for text documents, an LLM judge reads the document's HTML and the QA pair and decides whether the answer is supported. Pairs that fail are discarded.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>A text form of the page makes the question writer more accurate in a way that is easy to miss: it copies the page's own words. A VLM writing from pixels tends to normalise, turning &ldquo;15 March 2024&rdquo; into &ldquo;March 15, 2024&rdquo;, and then the answer no longer matches the evidence. Reading FID-HTML, the language model sees the exact string and an addressable element. Perception happens once, in a system that was built and checked for it, and the language model only reasons. When you generate grounded data, give the generator something it can cite, not something it has to locate.</p></aside>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The engine inherits its components' errors. A REPLICA segmentation mistake gives a wrong block. A Hi-SAM error gives a ragged mask. The verification stage removes pairs that fail its checks, but filtering removes errors; it does not fix them. It may also remove hard cases more often than easy ones, such as faint scans whose OCR disagrees with a correct mask. Treat the dataset's difficulty as bounded by what its checkers can confirm.</p></aside>
+      </section>
+
+      <section id="benchmark">
+        <h2>How grounding is scored</h2>
+        <p>Existing document QA grounding benchmarks annotate evidence with boxes only, so none could score masks at three granularities. We built <strong>GroundingDocQA-Bench</strong>. It has 2.5K documents and 5K QA pairs, drawn from private sources and from the test sets of public document datasets. It covers text-rich pages, charts, reports, forms, tables, webpages and infographics, and documents with curved and skewed text were included on purpose. 70% of the QA pairs have straight text and 30% curved or skewed text. 2,820 are single-span and 2,180 multi-span. QA pairs were generated with the data engine, then manually curated and verified; in the talk we describe every mask as checked by a second annotator.</p>
+        <p>Grounding is scored as F1 at IoU &gt; 0.5. For multi-span answers, predicted and true regions are paired by bipartite matching before counting hits. The benchmark reports single-span F1 (SS), multi-span F1 (MS), F1 on the curved and skewed subset (CS), and overall grounding F1 (F1<sub>g</sub>). Answer quality (AQ) is scored with G-Eval, an LLM-based evaluation of the answer text.</p>
+        <p>Three external benchmarks test generalisation, all with box annotations. On BoundingDocs (a cleaned test subset of 1K documents and 3K QA pairs) and DOGR-Bench (0.2K documents and 1.1K QA pairs), grounding is F1 at IoU &gt; 0.5, and AQ uses G-Eval. On MMDocBench (2.4K documents and 4.3K QA pairs), the official protocol uses IoU for regions, and exact match and word-level F1 for answers.</p>
+        <p>Comparing box models with mask models needs a conversion rule. If a model predicts boxes and the benchmark has masks, each box is rasterised into a mask. If a model predicts masks and the benchmark has boxes, each mask is replaced by its tightest enclosing box. All cross-benchmark comparisons in the paper are at phrase level.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Three properties of this protocol change how to read the numbers. First, on the three box benchmarks M3Grounder's masks are converted to boxes, so its gains there cannot come from shape. They come from finding the right evidence. Second, F1 at IoU &gt; 0.5 is pass or fail: a mask with IoU 0.51 and one with 0.95 score the same, so the metric hides how tight a mask is. Third, GroundingDocQA-Bench's questions come from the same data engine as the training data, so models fine-tuned on that data have an in-distribution advantage there. The external benchmarks are the guard against that, and M3Grounder leads on them too.</p></aside>
+      </section>
+
+      <section id="results">
+        <h2>Results</h2>
+        <p>Both variants of M3Grounder set the state of the art on all four grounding benchmarks. On GroundingDocQA-Bench, M3Grounder-Q reaches 79.0 grounding F1. The strongest zero-shot model, Gemini-2.5-Pro, reaches 43.4. Qwen3-VL-8B, the same backbone, reaches 12.8 zero-shot and 60.6 after fine-tuning on our data with box outputs. GPT-5 reaches 4.5. On the external benchmarks, M3Grounder-Q moves the best prior result from 70.0 to 81.4 on BoundingDocs (prior best: Gemini-2.5-Pro), from 66.4 to 73.3 on DOGR-Bench (prior best: DOGR at the same 8B scale), and from 49.4 to 68.2 IoU on MMDocBench (prior best: Gemini-2.5-Pro). Figure 8 shows every model on every metric.</p>
+
+        <figure class="fx fx--wide" id="fig-results" data-fig="results">
+          <div class="fx-tabs" role="group" aria-label="Metric">
+            <button type="button" data-m="f1g" aria-pressed="true">GDQA-Bench F1<sub>g</sub></button>
+            <button type="button" data-m="ss" aria-pressed="false">Single-span</button>
+            <button type="button" data-m="ms" aria-pressed="false">Multi-span</button>
+            <button type="button" data-m="cs" aria-pressed="false">Curved / skewed</button>
+            <button type="button" data-m="bd" aria-pressed="false">BoundingDocs</button>
+            <button type="button" data-m="dogr" aria-pressed="false">DOGR-Bench</button>
+            <button type="button" data-m="mmd" aria-pressed="false">MMDocBench IoU</button>
+            <button type="button" data-m="aq" aria-pressed="false">Answer quality</button>
+          </div>
+          <div class="hb" role="img" aria-label="Horizontal bar chart of model scores for the selected metric"></div>
+          <div class="hb-legend"><span><i class="c-com"></i>Commercial, zero-shot</span><span><i class="c-open"></i>Open, zero-shot</span><span><i class="c-dogr"></i>Document grounding model</span><span><i class="c-ft"></i>Fine-tuned on our data (boxes)</span><span><i class="c-ours"></i>M3Grounder</span></div>
+          <p class="hb-note" aria-live="polite"></p>
+          <figcaption><b>Figure 8</b> Results from Table 1 of the paper, all at phrase level, 0 to 100, higher is better. GDQA-Bench is GroundingDocQA-Bench. Models without a reported score on a metric are left out of that view. Fine-tuned baselines are trained on the same splits as M3Grounder, but only with phrase-level boxes, since they cannot output masks or hierarchies.</figcaption>
+        </figure>
+
+        <p>The curved and skewed split shows the largest gap, as the shape argument predicts. M3Grounder-Q scores 85.3 there. The fine-tuned Qwen3-VL scores 38.3 and Gemini-2.5-Pro 32.1. A box around curved text often cannot reach IoU 0.5 even when it is perfectly placed, so box models are capped by geometry, not only by understanding. Multi-span grounding is the next largest gap: 63.5 for M3Grounder-Q against 37.7 for the fine-tuned Qwen3-VL and 14.0 for Gemini-2.5-Pro.</p>
+        <p>Scores rise with granularity. M3Grounder-Q reaches 79.0 F1 at phrase level, 81.37 at line level and 87.5 at block level. M3Grounder-I reaches 71.3, 74.9 and 82.5. The paper reads this as the model using wider spatial context. The derivation in the first section suggests a second, simpler contributor: under IoU &gt; 0.5, larger regions tolerate larger absolute errors, so the same model scores higher on them.</p>
+        <p>Grounding did not cost much general document understanding. Across ten standard document benchmarks, M3Grounder-Q scores 92.1 on DocVQA, 79.6 on InfoVQA, 83.9 on ChartQA and 85.3 on TabFact, and is best or second best among the 8B models compared on eight of the ten.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Grounding does not make the answers better here, and it costs a little against the base model. On GroundingDocQA-Bench, M3Grounder-Q's answer quality is 80.1, against 81.9 for Qwen3-VL fine-tuned on the same data and 83.1 for Gemini-2.5-Pro. On DocVQA it scores 92.1, against 96.1 for the Qwen3-VL-8B base model, and on InfoVQA 79.6 against 83.1. The gains are in grounding, not in answering. If a deployment cares only about answer accuracy, the base model may still be the better choice; if it needs checkable evidence, the trade is small.</p></aside>
+      </section>
+
+      <section id="data-vs-architecture">
+        <h2>Data versus architecture</h2>
+        <p>Is the gain from the data or from the architecture? Table 1 lets us separate the two, because it reports the same 8B backbone three ways. Zero-shot, it barely grounds. Fine-tuned on GroundingDocQA with box outputs, it gets much of the way. With the M3Grounder architecture on the same data, it gets the rest. The hub post summarises this as &ldquo;data brings the backbone into the task; the architecture closes the rest&rdquo;. Splitting the score by evidence type shows <em>which</em> rest the architecture closes.</p>
+
+        <figure class="fx fx--wide" id="fig-dva" data-fig="dva">
+          <div class="fx-tabs" role="group" aria-label="Backbone">
+            <button type="button" data-bb="q" aria-pressed="true">Qwen3-VL-8B backbone</button>
+            <button type="button" data-bb="i" aria-pressed="false">InternVL3.5-8B backbone</button>
+          </div>
+          <div class="fx-stage min560"></div>
+          <p class="fx-live" aria-live="polite"></p>
+          <div class="fx-controls"></div>
+          <figcaption><b>Figure 9</b> One backbone, three stages, on GroundingDocQA-Bench: zero-shot, fine-tuned on our data with box outputs, and the full M3Grounder. The last step splits each gain into the part bought by data and the part bought by architecture. Numbers from Table 1 of the paper.</figcaption>
+        </figure>
+
+        <p>For the Qwen3-VL-8B backbone, data does most of the work on single-span evidence: single-span F1 goes from 15.7 to 68.1 with data, then to 84.2 with the architecture. On curved and skewed evidence the order flips. Data takes it from 11.6 to 38.3. The architecture takes it from 38.3 to 85.3, a gain of 47 points. Multi-span sits in between: 3.8 to 37.7 with data, then to 63.5. The InternVL3.5-8B backbone shows the same pattern, with curved and skewed F1 rising from 33.7 to 81.7 with the architecture.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Data teaches a model what to ground. Architecture decides what it can draw. A box-output model trained on good data learns to find straight single-span evidence nearly as well as a mask model, but it cannot follow a curve no matter how much data it sees, so its curved-text score stalls. The split in Figure 9 is a practical test for any grounding project: if your errors are concentrated on irregular shapes or multiple regions, more data for a box model will not close them; change the output representation.</p></aside>
+      </section>
+
+      <section id="ablations">
+        <h2>What the ablations teach</h2>
+        <p>Table 4 of the paper removes one design choice at a time from M3Grounder-Q. It reports phrase-level F1 on the three external benchmarks and F1 at all three levels on GroundingDocQA-Bench. Pick an ablation in Figure 10 to compare it with the full model.</p>
+
+        <figure class="fx fx--wide" id="fig-abl" data-fig="abl">
+          <div class="fx-tabs" role="group" aria-label="Ablation">
+            <button type="button" data-a="nohier" aria-pressed="true">Phrase-level training only</button>
+            <button type="button" data-a="shared" aria-pressed="false">One shared head</button>
+            <button type="button" data-a="base" aria-pressed="false">&#8466;<sub>lm</sub> + &#8466;<sub>seg</sub> only</button>
+            <button type="button" data-a="hier" aria-pressed="false">+ &#8466;<sub>hier</sub></button>
+            <button type="button" data-a="bleed" aria-pressed="false">+ &#8466;<sub>bleed</sub></button>
+            <button type="button" data-a="lora" aria-pressed="false">LoRA instead of full fine-tuning</button>
+          </div>
+          <div class="ab-grid" role="img" aria-label="Grouped bars comparing the ablation with the full model on six scores"></div>
+          <div class="ab-labels"><span>BoundingDocs</span><span>DOGR-Bench</span><span>MMDocBench</span><span>GDQA phrase</span><span>GDQA line</span><span>GDQA block</span></div>
+          <p class="hb-note" aria-live="polite"></p>
+          <figcaption><b>Figure 10</b> Ablations of M3Grounder-Q. The dashed outline is the full model; the orange bar is the ablation; the red label is the change. Bars start at 40 so that differences are visible; read the numbers, not the bar lengths alone. A dash means the score is not reported for that setting.</figcaption>
+        </figure>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 1 &middot; M3Grounder-Q ablations (paper Table 4), F1 or IoU, higher is better</caption>
+            <thead>
+              <tr><th>Setting</th><th>BoundingDocs</th><th>DOGR-Bench</th><th>MMDocBench</th><th>GDQA phrase</th><th>GDQA line</th><th>GDQA block</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Phrase-level training only (no hierarchy)</th><td>74.8</td><td>58.2</td><td>54.7</td><td>71.3</td><td class="nr">not reported</td><td class="nr">not reported</td></tr>
+              <tr><th>One shared MLP + SAM</th><td>64.2</td><td>61.7</td><td>53.5</td><td>63.6</td><td>69.3</td><td>77.6</td></tr>
+              <tr><th>&#8466;<sub>lm</sub> + &#8466;<sub>seg</sub></th><td>78.3</td><td>70.1</td><td>65.6</td><td>74.0</td><td>77.6</td><td>84.4</td></tr>
+              <tr><th>&#8466;<sub>lm</sub> + &#8466;<sub>seg</sub> + &#8466;<sub>hier</sub></th><td>80.1</td><td>72.8</td><td>67.4</td><td>78.2</td><td>79.1</td><td>84.7</td></tr>
+              <tr><th>&#8466;<sub>lm</sub> + &#8466;<sub>seg</sub> + &#8466;<sub>bleed</sub></th><td>79.6</td><td>72.4</td><td>67.7</td><td>77.3</td><td>78.7</td><td>86.5</td></tr>
+              <tr><th>LoRA on attention projections</th><td>62.4</td><td>54.8</td><td>52.7</td><td>61.5</td><td>67.3</td><td>75.7</td></tr>
+              <tr><th>M3Grounder-Q (full)</th><td class="hi">81.4</td><td class="hi">73.3</td><td class="hi">68.2</td><td class="hi">79.0</td><td class="hi">81.4</td><td class="hi">87.5</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: every row except the last removes or changes one thing. The external benchmarks are scored at phrase level only. Compare each row with the last one, and look at which column moves the most.</p>
+
+        <h3>Coarse supervision improves fine grounding</h3>
+        <p>Training only at phrase level, with no line or block targets, lowers phrase-level F1 on GroundingDocQA-Bench from 79.0 to 71.3. The drop is larger on DOGR-Bench, from 73.3 to 58.2, and on MMDocBench, from 68.2 to 54.7. These are phrase-level evaluations. The model was asked for less, and it got worse at the one thing it was still asked for.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Supervising the line and block teaches the phrase. The coarser masks give the grounding token a context that is easier to find (the right row, the right paragraph), and the phrase only has to be located inside it. The effect is largest on the external benchmarks, which suggests it improves generalisation, not only fit. If you only need one granularity, train on several anyway, provided your data has the hierarchy.</p></aside>
+
+        <h3>One prompt cannot serve three granularities</h3>
+        <p>Replacing the three granularity heads with SAM's default, a single shared MLP that produces one prompt for all levels, gives 63.6 at phrase level on GroundingDocQA-Bench. That is lower than phrase-only training (71.3), and the full model gets 79.0. Asking one prompt to stand for three different regions is worse than not asking for granularity at all.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>When one token must drive several outputs that should differ, give each output its own projection. A single prompt forces the segmenter to recover three nested regions from one vector, and the three targets interfere. Three small heads cost almost nothing and let one hidden state say three different things. The same lesson applies to any multi-output head on a shared representation.</p></aside>
+
+        <h3>Full fine-tuning matters most for the finest masks</h3>
+        <p>Applying LoRA to the attention projections, instead of full fine-tuning, lowers every score. The drop is largest at phrase level: 79.0 to 61.5 on GroundingDocQA-Bench, against 87.5 to 75.7 at block level. The paper concludes that precise grounding, especially at fine granularity, benefits from updating all parameters.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>This makes M3Grounder expensive to adapt. Parameter-efficient fine-tuning is the usual way to fit a large model to a new domain on modest hardware, and here it costs 17.5 points at phrase level. The paper's training run used 64 H100 GPUs. If you plan to adapt the model to a new document domain, budget for full fine-tuning, or expect the finest masks to suffer first.</p></aside>
+      </section>
+
+      <section id="examples">
+        <h2>Examples on real documents</h2>
+        <p>Figure 11 shows four outputs from the project's interactive demo: a financial filing, a legal agreement, a transcript and a chart. Each answer cites two or three spans. Switch the granularity to see the phrase, line and block regions of each span.</p>
+
+        <figure class="fx fx--wide" id="fig-qual" data-fig="qual">
+          <div class="fx-tabs qx-tabs" role="group" aria-label="Example">
+            <button type="button" data-x="0" aria-pressed="true">Finance</button>
+            <button type="button" data-x="1" aria-pressed="false">Legal</button>
+            <button type="button" data-x="2" aria-pressed="false">Transcript</button>
+            <button type="button" data-x="3" aria-pressed="false">Coffee chart</button>
+          </div>
+          <div class="fx-split">
+            <div class="qx-img-wrap"><div class="qx-img"><img alt="" loading="lazy" decoding="async" width="951" height="1239" /><div class="qx-ov"></div></div></div>
+            <div>
+              <p class="qx-q"><span class="qx-k">Question</span><span class="qx-qt"></span></p>
+              <p class="qx-a" aria-live="polite"><span class="qx-k">M3Grounder</span><span class="qx-at"></span></p>
+              <div class="fx-knobs" style="border-top:0;padding-top:0">
+                <span class="fx-knob qx-grans" role="group" aria-label="Granularity"><button type="button" data-g="phrase" aria-pressed="true">Phrase</button><button type="button" data-g="line" aria-pressed="false">Line</button><button type="button" data-g="block" aria-pressed="false">Block</button></span>
+                <button type="button" class="qx-replay">Replay answer</button>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>Figure 11</b> Real M3Grounder answers. Each span's colour matches its region on the page. Regions are redrawn from the project demo's data: for text documents as the outline of each region, for the chart as polygons that follow the logo lettering. Charts have one granularity, so the granularity buttons are disabled there. Images load only when the figure is near the screen.</figcaption>
+        </figure>
+        <p>Two patterns are visible. In the legal agreement, each cited span runs across a line break, so its phrase region is two pieces while its block is one; a single box per span would have to include the end of one line and the start of the next. In the transcript, the grade &ldquo;HD&rdquo; is two characters, but its line is the whole course row and its block the whole table, so the three granularities answer three different questions about the same fact.</p>
+      </section>
+
+      <section id="comparison">
+        <h2>Comparison with prior grounding methods</h2>
+        <p>The table below compares approaches along the aspects this post introduced: what the evidence is, how it is expressed, whether one answer can cite several regions, whether granularity is controlled, whether the location is learned end to end, and whether the method was built for documents.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 2 &middot; Grounding approaches compared along the aspects introduced in this post</caption>
+            <thead>
+              <tr><th>Approach</th><th>Evidence form</th><th>How location is expressed</th><th>Several regions per answer</th><th>Granularity</th><th>Irregular shapes</th><th>Location learned end to end</th><th>Built for documents</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Coordinates as text (Kosmos-2, Shikra, Florence-2, Qwen2.5-VL)</th><td>Box</td><td>Typed coordinates or location tokens</td><td>Yes, one box per span</td><td>Not controlled</td><td>No</td><td>Yes, as next-token prediction</td><td>No, general</td></tr>
+              <tr><th>Hybrid region models (Ferret)</th><td>Box out; free-form regions in</td><td>Typed coordinates plus region features</td><td>Yes</td><td>Not controlled</td><td>As input only</td><td>Yes</td><td>No, general</td></tr>
+              <tr><th>Document box grounding (DocOwl 1.5, TextMonkey, DOGR)</th><td>Box</td><td>Typed coordinates</td><td>Yes in DOGR</td><td>Several levels as separate tasks, one per answer</td><td>No</td><td>Yes, as next-token prediction</td><td>Yes</td></tr>
+              <tr><th>Frontier VLMs zero-shot (Gemini-2.5-Pro, GPT-5)</th><td>Box</td><td>Typed coordinates</td><td>Yes when prompted</td><td>Not controlled</td><td>No</td><td class="nr">not reported</td><td>No, general</td></tr>
+              <tr><th>OCR + matcher + SAM chain</th><td>Mask</td><td>Answer string matched to OCR boxes</td><td>Only if every string matches</td><td>Whatever OCR returns</td><td>Yes, if a prompt arrives</td><td>No, fixed tools</td><td>Partly</td></tr>
+              <tr><th>LLM + segmenter for natural images (LISA, GLaMM, PixelLM)</th><td>Mask</td><td>Hidden state of a segmentation token</td><td>GLaMM and PixelLM: yes; LISA: one target</td><td>Not controlled</td><td>Yes</td><td>Yes</td><td>No, natural images</td></tr>
+              <tr><th>M3Grounder</th><td class="hi">Mask</td><td class="hi">[GROUND] hidden state, three projection heads, SAM</td><td class="hi">Yes, one token per span</td><td class="hi">Phrase, line and block for every span</td><td class="hi">Yes, with bleed suppression</td><td class="hi">Yes</td><td class="hi">Yes, with document losses and data</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">How to read this table: going down, the location moves from typed text to a learned vector, and the evidence from a rectangle to a mask. Only the last row combines masks, several regions, controlled granularity and end-to-end learning on documents. That combination is the first-of-its-kind claim, stated precisely.</p>
+      </section>
+
+      <section id="limits">
+        <h2>Cost, failure modes and limits</h2>
+        <p><strong>Compute.</strong> Masks cost more than boxes. The paper states this as a limitation. In practice the added inference cost is modest, about 63 ms per sample for grounding, because the image encoder is shared. Training is the larger cost: full fine-tuning of an 8B model on 64 H100 GPUs, since LoRA loses most at the finest level.</p>
+        <p><strong>Failure modes the losses target.</strong> The two document losses exist because of two observed failures. SAM spills from text onto neighbouring graphics, as with the bar beside &ldquo;1 billion active users&rdquo;. And the three masks of a span can disagree: a phrase mask that overflows its line, or a line mask that runs into the next column. The losses reduce these failures; they do not forbid them, since they are soft penalties.</p>
+        <p><strong>Single page.</strong> M3Grounder works on one page at a time. Evidence that spans a page break, or a question that needs two pages, is out of scope. The paper names multi-page and long-context grounding as open directions.</p>
+        <p><strong>Metric limits.</strong> F1 at IoU &gt; 0.5 is coarse, as discussed above. Answer quality is judged by an LLM, which is practical at this scale but is itself a model. Cross-benchmark comparisons are at phrase level and pass through box-mask conversion.</p>
+        <p><strong>Availability.</strong> At the time of writing, the project page links the code and a demo, and lists the dataset and models as coming soon.</p>
+      </section>
+
+      <section id="connections">
+        <h2>Where M3Grounder sits in the research loop</h2>
+        <p>M3Grounder is where the series' second idea first becomes a model. The hub post argues that grounding as autoregressive box text is brittle, and that a VLM and SAM should be joined end to end, with the VLM deciding what to ground and at what granularity, and SAM marking where. M3Grounder is that argument made concrete for document question answering.</p>
+        <p>It also shows the series' third idea, the division of tasks between modules, at two levels. Inside the model, the language model reasons and the segmenter draws, and the grounding token is the interface that carries the right signal between them. Inside the data engine, REPLICA perceives, a language model reasons over FID-HTML, and Hi-SAM shapes. Each component does what it is good at.</p>
+        <p>And it is the first payoff of the loop. REPLICA's faithful reconstructions made 140K of GroundingDocQA's 200K documents possible without anyone drawing a box. The next posts build on M3Grounder directly. <a href="../docog-grounded-chain-of-thought/">DoCoG</a> grounds every step of a chain of reasoning, where the pointers of different steps must agree, so it adds a module that lets grounding tokens attend to each other. <a href="../doclayout-vl-promptable-layout-understanding/">DocLayout-VL</a> grounds the whole page as a tree, and carries M3Grounder's two priors over to it: enclosure becomes containment, and bleed suppression becomes a background loss. DocLayout-VL in turn feeds back into REPLICA, replacing its ensemble of layout detectors.</p>
+        <p>For the broader context on VLM grounding, see <a href="../when-language-must-point/">When Language Must Point</a>. For how VLMs read documents in general, see <a href="../how-vlms-read-documents/">How VLMs Read Documents</a>. For why IoU thresholds and LLM judges need care, see <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>.</p>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="key-list">
+          <li><strong>Small evidence is fragile under typed coordinates.</strong> A shift of a third of a side breaks IoU 0.5, so a 14-pixel line tolerates under 5 pixels of error. (<a href="#boxes-as-text">How grounding works today</a>)</li>
+          <li><strong>Masks fix shape, not localisation.</strong> On straight lines box and mask degrade alike; the gap is on curved, rotated and multi-span evidence. (<a href="#boxes-as-text">How grounding works today</a>)</li>
+          <li><strong>String matching is the weak joint.</strong> It breaks chained inference and older data generation alike; learned tokens and element IDs remove it. (<a href="#chain-two-tools">Why not chain two tools</a>)</li>
+          <li><strong>Grounding cost grows with decoder calls.</strong> SAM's image encoder runs once per page, so extra spans and granularities are cheap; about 63 ms per sample in total. (<a href="#architecture">The architecture</a>)</li>
+          <li><strong>A structural loss only helps the outputs it touches.</strong> Enclosure lifts phrase F1 by 4.2 points and block F1 by 0.3, because block masks never appear as the finer mask. (<a href="#losses">Two document-specific losses</a>)</li>
+          <li><strong>Give the data generator something to cite.</strong> FID-HTML lets an LLM copy the page's exact words and cite an element ID instead of locating evidence. (<a href="#data-engine">Where the training data comes from</a>)</li>
+          <li><strong>Data teaches what to ground; architecture decides what can be drawn.</strong> Data lifts single-span F1 by 52 points; the architecture lifts curved-text F1 by 47. (<a href="#data-vs-architecture">Data versus architecture</a>)</li>
+          <li><strong>Coarse supervision improves fine grounding.</strong> Dropping line and block targets costs 7.7 points at phrase level, and 15.1 on DOGR-Bench. (<a href="#ablations">What the ablations teach</a>)</li>
+          <li><strong>One prompt cannot serve three granularities.</strong> A shared head scores below phrase-only training. (<a href="#ablations">What the ablations teach</a>)</li>
+          <li><strong>Box benchmarks measure finding, not shape.</strong> Masks are converted to boxes there, and F1 at IoU 0.5 hides mask tightness. (<a href="#benchmark">How grounding is scored</a>)</li>
+          <li><strong>Grounding does not improve the answers.</strong> Answer quality and DocVQA are slightly below the base or fine-tuned backbone; the gain is checkable evidence. (<a href="#results">Results</a>)</li>
+          <li><strong>Fine masks need full fine-tuning.</strong> LoRA costs 17.5 points at phrase level, so adaptation is expensive. (<a href="#ablations">What the ablations teach</a>)</li>
+        </ul>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title">
+        <h2 id="related-articles-title">Continue reading</h2>
+        <ul>
+          <li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li>
+          <li><a href="../replica-visually-faithful-document-reconstruction/">REPLICA: Visually Faithful Document Reconstruction</a></li>
+          <li><a href="../docog-grounded-chain-of-thought/">DoCoG: Grounded Chain-of-Thought</a></li>
+          <li><a href="../doclayout-vl-promptable-layout-understanding/">DocLayout-VL: Promptable Layout Understanding</a></li>
+          <li><a href="../when-language-must-point/">When Language Must Point</a></li>
+          <li><a href="../how-vlms-read-documents/">How VLMs Read Documents</a></li>
+        </ul>
+      </nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic, the paper first. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>The paper</h3>
+          <ul>
+            <li><a href="https://openaccess.thecvf.com/content/CVPR2026/papers/Venna_M3Grounder_Mask-Based_Multi-Span_and_Multi-Granular_Grounding_for_Document_QA_CVPR_2026_paper.pdf" target="_blank" rel="noopener noreferrer">M3Grounder: Mask-Based Multi-Span and Multi-Granular Grounding for Document QA</a> &middot; Venna, Gunda, Jinka, Rachakonda, Srinivasan, Sarvadevabhatla. CVPR 2026, poster, pp. 23685&ndash;23695 (<a href="https://cvpr.thecvf.com/virtual/2026/poster/38567" target="_blank" rel="noopener noreferrer">poster page</a>)</li>
+            <li><a href="https://m3grounder.github.io/" target="_blank" rel="noopener noreferrer">M3Grounder project page</a> &middot; with the <a href="https://m3grounder.github.io/m3grounder-walkthrough.html" target="_blank" rel="noopener noreferrer">architecture walkthrough</a>, <a href="https://m3grounder.github.io/slides/" target="_blank" rel="noopener noreferrer">slides</a> and <a href="https://www.youtube.com/watch?v=V9GlzdwNi3k" target="_blank" rel="noopener noreferrer">video</a></li>
+            <li><a href="https://bharatgen.com/m3grounder-document-grounding/" target="_blank" rel="noopener noreferrer">M3Grounder on the BharatGen blog</a></li>
+            <li>Also presented at CVPR 2026 workshops: <a href="https://datamfm.github.io/" target="_blank" rel="noopener noreferrer">DataMFM</a>, <a href="https://mmfm-workshop.github.io/" target="_blank" rel="noopener noreferrer">MMFM5</a> and <a href="https://grailworkshops.github.io/papers/" target="_blank" rel="noopener noreferrer">GRAIL-V (Highlight)</a></li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>The series</h3>
+          <ul>
+            <li><a href="https://replica-agents.github.io/" target="_blank" rel="noopener noreferrer">REPLICA: An Agentic Framework for Visually Faithful Document Reconstruction</a> &middot; Raghuveer, Srinivasan, Venna, Sreevatsa, Jain, Kukkala, Sarvadevabhatla. ICDAR 2026, oral (<a href="https://link.springer.com/chapter/10.1007/978-3-032-36023-6_29" target="_blank" rel="noopener noreferrer">proceedings</a>)</li>
+            <li><a href="https://docog-eccv.github.io/" target="_blank" rel="noopener noreferrer">DoCoG: Mask-based Multi-Type Grounded Chain-of-Thought for Document QA</a> &middot; Gunda, Jinka, Rachakonda, Jain, Venna, Srinivasan, Sarvadevabhatla. ECCV 2026, spotlight</li>
+            <li><a href="https://doclayoutvl.github.io/" target="_blank" rel="noopener noreferrer">DocLayout-VL: A Foundational Model for Hierarchical, Open-set, and Promptable Document Layout Segmentation</a> &middot; Venna, Bandarupalli, Srinivasan, Raghuveer, Gunda, Sarvadevabhatla. ECCV 2026</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Locations as text</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2109.10852" target="_blank" rel="noopener noreferrer">Pix2seq: A Language Modeling Framework for Object Detection</a> &middot; Chen et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2306.14824" target="_blank" rel="noopener noreferrer">Kosmos-2: Grounding Multimodal Large Language Models to the World</a> &middot; Peng et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2306.15195" target="_blank" rel="noopener noreferrer">Shikra: Unleashing Multimodal LLM's Referential Dialogue Magic</a> &middot; Chen et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2310.07704" target="_blank" rel="noopener noreferrer">Ferret: Refer and Ground Anything Anywhere at Any Granularity</a> &middot; You et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.06242" target="_blank" rel="noopener noreferrer">Florence-2: Advancing a Unified Representation for a Variety of Vision Tasks</a> &middot; Xiao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2409.17146" target="_blank" rel="noopener noreferrer">Molmo and PixMo: Open Weights and Open Data for State-of-the-Art Vision-Language Models</a> &middot; Deitke et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.13923" target="_blank" rel="noopener noreferrer">Qwen2.5-VL Technical Report</a> &middot; Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2511.21631" target="_blank" rel="noopener noreferrer">Qwen3-VL Technical Report</a> &middot; Bai et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2508.18265" target="_blank" rel="noopener noreferrer">InternVL3.5: Advancing Open-Source Multimodal Models in Versatility, Reasoning, and Efficiency</a> &middot; Wang et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Segmentation and pixel grounding</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2304.02643" target="_blank" rel="noopener noreferrer">Segment Anything</a> &middot; Kirillov et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2401.17904" target="_blank" rel="noopener noreferrer">Hi-SAM: Marrying Segment Anything Model for Hierarchical Text Segmentation</a> &middot; Ye et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2308.00692" target="_blank" rel="noopener noreferrer">LISA: Reasoning Segmentation via Large Language Model</a> &middot; Lai et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.17240" target="_blank" rel="noopener noreferrer">LISA++: An Improved Baseline for Reasoning Segmentation with Large Language Model</a> &middot; Yang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.03356" target="_blank" rel="noopener noreferrer">GLaMM: Pixel Grounding Large Multimodal Model</a> &middot; Rasheed et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.02228" target="_blank" rel="noopener noreferrer">PixelLM: Pixel Reasoning with Large Multimodal Model</a> &middot; Ren et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2312.02949" target="_blank" rel="noopener noreferrer">LLaVA-Grounding: Grounded Visual Chat with Large Multimodal Models</a> &middot; Zhang et al., 2023</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Document grounding and benchmarks</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2411.17125" target="_blank" rel="noopener noreferrer">DOGR: Towards Versatile Visual Document Grounding and Referring</a> &middot; Zhou et al., ICCV 2025</li>
+            <li><a href="https://arxiv.org/abs/2501.03403" target="_blank" rel="noopener noreferrer">BoundingDocs: a Unified Dataset for Document Question Answering with Spatial Annotations</a> &middot; Giovannini et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2410.21311" target="_blank" rel="noopener noreferrer">MMDocBench: Benchmarking Large Vision-Language Models for Fine-Grained Visual Document Understanding</a> &middot; Zhu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.12895" target="_blank" rel="noopener noreferrer">mPLUG-DocOwl 1.5: Unified Structure Learning for OCR-free Document Understanding</a> &middot; Hu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2403.04473" target="_blank" rel="noopener noreferrer">TextMonkey: An OCR-Free Large Multimodal Model for Understanding Document</a> &middot; Liu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2007.00398" target="_blank" rel="noopener noreferrer">DocVQA: A Dataset for VQA on Document Images</a> &middot; Mathew et al., 2021</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Data generation, losses and evaluation</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2310.11441" target="_blank" rel="noopener noreferrer">Set-of-Mark Prompting Unleashes Extraordinary Visual Grounding in GPT-4V</a> &middot; Yang et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2508.10925" target="_blank" rel="noopener noreferrer">gpt-oss-120b &amp; gpt-oss-20b Model Card</a> &middot; OpenAI, 2025</li>
+            <li><a href="https://arxiv.org/abs/2212.03533" target="_blank" rel="noopener noreferrer">Text Embeddings by Weakly-Supervised Contrastive Pre-training</a> (E5) &middot; Wang et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2303.16634" target="_blank" rel="noopener noreferrer">G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment</a> &middot; Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/1606.04797" target="_blank" rel="noopener noreferrer">V-Net: Fully Convolutional Neural Networks for Volumetric Medical Image Segmentation</a> (Dice loss) &middot; Milletari et al., 2016</li>
+            <li><a href="https://arxiv.org/abs/2005.12872" target="_blank" rel="noopener noreferrer">End-to-End Object Detection with Transformers</a> (bipartite matching) &middot; Carion et al., 2020</li>
+            <li><a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener noreferrer">LoRA: Low-Rank Adaptation of Large Language Models</a> &middot; Hu et al., 2021</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Grounding Document Answers With Masks</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/">https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026m3grounderblog,
+  author       = {Srinivasan, Anirudh},
+  title        = {Grounding Document Answers With Masks},
+  year         = {2026},
+  month        = {Nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Grounding Document Answers With Masks</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script id="m3g-figs">
+    (function () {
+      "use strict";
+      var NS = "http://www.w3.org/2000/svg";
+      var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var C = {
+        ink: "var(--f-ink)", soft: "var(--f-soft)", muted: "var(--f-muted)", blue: "var(--f-blue)", orange: "var(--f-orange)",
+        green: "var(--f-green)", red: "var(--f-red)", bg: "var(--f-bg)", rule: "var(--f-rule)", faint: "var(--f-faint)", page: "var(--f-page)",
+        blueT: "var(--f-blue-t)", orangeT: "var(--f-orange-t)", redT: "var(--f-red-t)", greenT: "var(--f-green-t)"
+      };
+      var STYLE_KEYS = { fill: 1, stroke: 1, opacity: 1 };
+      function el(tag, a, parent) {
+        var e = document.createElementNS(NS, tag);
+        if (a) for (var k in a) {
+          var v = a[k];
+          if (k === "text") e.textContent = v;
+          else if (k === "cls") e.setAttribute("class", v);
+          else if (STYLE_KEYS[k]) e.style[k] = v;
+          else e.setAttribute(k, v);
+        }
+        if (parent) parent.appendChild(e);
+        return e;
+      }
+      function tx(p, x, y, s, o) {
+        o = o || {};
+        var e = el("text", { x: x, y: y, "font-size": o.size || 13, "text-anchor": o.anchor || "start", cls: (o.cls || "t-ink") + (o.font ? " " + o.font : "") }, p);
+        if (o.weight) e.setAttribute("font-weight", o.weight);
+        if (o.len) { e.setAttribute("textLength", o.len); e.setAttribute("lengthAdjust", "spacingAndGlyphs"); }
+        e.textContent = s;
+        return e;
+      }
+      function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+      function lerp(a, b, t) { return a + (b - a) * t; }
+      function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+      function seg(v, a, b) { return clamp((v - a) / (b - a), 0, 1); }
+      function op(e, v) { e.style.opacity = v; }
+      function camT(cx, cy, s, W, H) { return "translate(" + (W / 2 - s * cx) + "," + (H / 2 - s * cy) + ") scale(" + s + ")"; }
+      function svgIn(stage, w, h, label) {
+        var svg = el("svg", { viewBox: "0 0 " + w + " " + h, role: "img", "aria-label": label });
+        stage.appendChild(svg);
+        return svg;
+      }
+      function defsArrow(svg, id, color) {
+        var d = svg.querySelector("defs") || el("defs", null, svg);
+        var m = el("marker", { id: id, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, d);
+        el("path", { d: "M0 0 L10 5 L0 10 z", fill: color }, m);
+        return "url(#" + id + ")";
+      }
+      function box(p, x, y, w, h, o) {
+        o = o || {};
+        return el("rect", { x: x, y: y, width: w, height: h, rx: o.rx == null ? 5 : o.rx, fill: o.fill || C.page, stroke: o.stroke || C.rule, "stroke-width": o.sw || 1.5, "stroke-dasharray": o.dash || null }, p);
+      }
+      function hexPts(cx, cy, r) {
+        var s = [];
+        for (var i = 0; i < 6; i++) { var a = Math.PI / 3 * i + Math.PI / 6; s.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1)); }
+        return s.join(" ");
+      }
+      function greyLines(p, x, y, w, n, gap, fill) {
+        for (var i = 0; i < n; i++) el("rect", { x: x, y: y + i * gap, width: w * (i === n - 1 ? 0.62 : (0.86 + 0.14 * ((i * 37) % 7) / 7)), height: 4, rx: 2, fill: fill || C.faint }, p);
+      }
+      window.__figs = {};
+
+      /* ---------- shared stepper: Previous / Play-Pause / Next, speeds, status, autoplay on view ---------- */
+      function stepper(fig, steps, render, opts) {
+        opts = opts || {};
+        var N = steps.length, full = [], acc = Object.assign({}, opts.defaults || {});
+        steps.forEach(function (s) { acc = Object.assign({}, acc, s.p || {}); full.push(acc); });
+        var live = fig.querySelector(".fx-live"), ctr = fig.querySelector(".fx-controls");
+        ctr.setAttribute("role", "group");
+        ctr.setAttribute("aria-label", "Animation controls");
+        ctr.innerHTML = '<button type="button" data-a="prev" aria-label="Previous step">Previous</button>' +
+          '<button type="button" data-a="play" aria-label="Play animation" aria-pressed="false">Play</button>' +
+          '<button type="button" data-a="next" aria-label="Next step">Next</button>' +
+          '<span class="fx-sep" aria-hidden="true"></span>' +
+          '<button type="button" data-s="0.5" aria-pressed="false" aria-label="Play at half speed">0.5x</button>' +
+          '<button type="button" data-s="1" aria-pressed="true" aria-label="Play at normal speed">1x</button>' +
+          '<button type="button" data-s="2" aria-pressed="false" aria-label="Play at double speed">2x</button>' +
+          '<span class="fx-status" aria-live="polite"></span>';
+        var i = 0, cur = Object.assign({}, full[0]), speed = 1, playing = false, userPaused = false, raf = 0, timer = 0;
+        var status = ctr.querySelector(".fx-status"), playBtn = ctr.querySelector('[data-a="play"]');
+        function pad(n) { return (n < 10 ? "0" : "") + n; }
+        function label() { status.textContent = "Step " + pad(i + 1) + " / " + pad(N); if (live) live.textContent = steps[i].cap; }
+        function interp(a, b, t) {
+          var o = {};
+          for (var k in b) {
+            var x = a[k], y = b[k];
+            o[k] = (typeof x === "number" && typeof y === "number") ? x + (y - x) * t : (t >= 0.5 || x === undefined ? y : x);
+          }
+          return o;
+        }
+        function go(j, instant) {
+          j = (j + N) % N;
+          var from = Object.assign({}, cur), to = full[j];
+          i = j; label(); cancelAnimationFrame(raf);
+          if (instant || RM) { cur = Object.assign({}, to); render(cur, i); return; }
+          var d = (steps[j].d || opts.dur || 1200) / speed, t0 = performance.now();
+          var f = function (now) {
+            var k = clamp((now - t0) / d, 0, 1);
+            cur = interp(from, to, ease(k)); render(cur, i);
+            if (k < 1) raf = requestAnimationFrame(f);
+          };
+          raf = requestAnimationFrame(f);
+        }
+        function seek(j, k) {
+          var a = full[(j - 1 + N) % N], b = full[j];
+          i = j; label(); cancelAnimationFrame(raf);
+          cur = interp(a, b, ease(clamp(k, 0, 1))); render(cur, i);
+        }
+        function schedule() {
+          clearTimeout(timer);
+          if (!playing) return;
+          var wait = (steps[i].hold || opts.hold || 2600) + (steps[i].d || opts.dur || 1200);
+          timer = setTimeout(function () { if (!playing) return; go(i + 1); schedule(); }, wait / speed);
+        }
+        function setPlaying(p) {
+          playing = p;
+          playBtn.textContent = p ? "Pause" : "Play";
+          playBtn.setAttribute("aria-pressed", p ? "true" : "false");
+          playBtn.setAttribute("aria-label", p ? "Pause animation" : "Play animation");
+          if (p) schedule(); else clearTimeout(timer);
+        }
+        ctr.addEventListener("click", function (e) {
+          var b = e.target.closest("button"); if (!b) return;
+          if (b.dataset.a === "prev") { userPaused = true; setPlaying(false); go(i - 1); }
+          else if (b.dataset.a === "next") { userPaused = true; setPlaying(false); go(i + 1); }
+          else if (b.dataset.a === "play") {
+            if (playing) { userPaused = true; setPlaying(false); }
+            else { userPaused = false; if (i === N - 1) go(0); setPlaying(true); }
+          } else if (b.dataset.s) {
+            speed = +b.dataset.s;
+            ctr.querySelectorAll("[data-s]").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+            if (playing) schedule();
+          }
+        });
+        if (!RM && "IntersectionObserver" in window) {
+          new IntersectionObserver(function (es) {
+            es.forEach(function (en) {
+              var vis = en.intersectionRatio >= 0.5;
+              if (vis && !userPaused && !playing) setPlaying(true);
+              else if (!vis && playing) setPlaying(false);
+            });
+          }, { threshold: [0, 0.5] }).observe(fig);
+        }
+        render(cur, 0); label();
+        var api = {
+          go: go, seek: seek, N: N, full: full,
+          get i() { return i; }, get cur() { return cur; },
+          pause: function () { userPaused = true; setPlaying(false); cancelAnimationFrame(raf); },
+          rerender: function () { render(cur, i); }
+        };
+        window.__figs[fig.dataset.fig] = api;
+        return api;
+      }
+      function tween(dur, fn, done) {
+        if (RM || dur <= 0) { fn(1); if (done) done(); return function () {}; }
+        var t0 = performance.now(), id = 0, stop = false;
+        function f(now) { if (stop) return; var k = clamp((now - t0) / dur, 0, 1); fn(ease(k)); if (k < 1) id = requestAnimationFrame(f); else if (done) done(); }
+        id = requestAnimationFrame(f);
+        return function () { stop = true; cancelAnimationFrame(id); };
+      }
+      function pressGroup(btns, b) { btns.forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); }); }
+
+      /* ================= FIGURE 1 · box versus mask ================= */
+      (function () {
+        var fig = document.getElementById("fig-boxmask"); if (!fig) return;
+        var W = 640, H = 360;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "A drawn document region with the true evidence, the tightest typed box and a mask");
+        var gCtx = el("g", null, svg), gGt = el("g", null, svg), gMask = el("g", null, svg), gBox = el("g", null, svg), gLab = el("g", null, svg);
+        var slider = fig.querySelector('input[type="range"]'), out = fig.querySelector("output");
+        var evBtns = [].slice.call(fig.querySelectorAll("[data-ev]")), bmBtns = [].slice.call(fig.querySelectorAll("[data-bm]"));
+        var roBox = fig.querySelector('[data-ro="box"]'), roMask = fig.querySelector('[data-ro="mask"]'), note = fig.querySelector(".ro-note");
+        var ev = "line", bm = "one";
+        var A = 220, R = 300;
+        function arcD(cx, cy, r, a1, a2) {
+          var p1 = [cx + r * Math.cos(a1 * Math.PI / 180), cy + r * Math.sin(a1 * Math.PI / 180)];
+          var p2 = [cx + r * Math.cos(a2 * Math.PI / 180), cy + r * Math.sin(a2 * Math.PI / 180)];
+          return "M" + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + " A" + r + " " + r + " 0 0 1 " + p2[0].toFixed(1) + " " + p2[1].toFixed(1);
+        }
+        function wedgeD(cx, cy, r, a1, a2) {
+          var p1 = [cx + r * Math.cos(a1 * Math.PI / 180), cy + r * Math.sin(a1 * Math.PI / 180)];
+          var p2 = [cx + r * Math.cos(a2 * Math.PI / 180), cy + r * Math.sin(a2 * Math.PI / 180)];
+          var large = (a2 - a1) > 180 ? 1 : 0;
+          return "M" + cx + " " + cy + " L" + p1[0].toFixed(1) + " " + p1[1].toFixed(1) + " A" + r + " " + r + " 0 " + large + " 1 " + p2[0].toFixed(1) + " " + p2[1].toFixed(1) + " Z";
+        }
+        function annD(cx, cy, r1, r2, a1, a2) {
+          function pt(r, a) { return (cx + r * Math.cos(a * Math.PI / 180)).toFixed(1) + " " + (cy + r * Math.sin(a * Math.PI / 180)).toFixed(1); }
+          return "M" + pt(r2, a1) + " A" + r2 + " " + r2 + " 0 0 1 " + pt(r2, a2) + " L" + pt(r1, a2) + " A" + r1 + " " + r1 + " 0 0 0 " + pt(r1, a1) + " Z";
+        }
+        /* evidence definitions: spans as shapes */
+        var EV = {
+          line: { spans: [{ k: "rect", x: 318, y: 205, w: 176, h: 16 }],
+            note: "A straight line is the easy case. The tightest box is almost the evidence, so both pass. Shift both down by more than a third of the line's height (6 px here) and both fail together." },
+          two: { spans: [{ k: "rect", x: 62, y: 70, w: 132, h: 16 }, { k: "rect", x: 470, y: 293, w: 96, h: 16 }],
+            note: "The answer cites the invoice number and the total. With one box per answer, the box must cover both and most of the page between them. With one box per span, each box is fine; a mask method gives one mask per span by design." },
+          curve: { spans: [{ k: "fill", d: annD(320, 470, R - 13, R + 13, 236, 304) }],
+            note: "The banner curves. Even a perfectly placed box covers mostly empty poster, so it fails before any shift. The mask follows the letters." },
+          wedge: { spans: [{ k: "fill", d: wedgeD(300, 196, 132, -62, -34.3) }],
+            note: "A 7.7% wedge is a thin triangle with a curved edge. The tightest box contains more of the neighbouring wedges than of this one." },
+          stamp: { spans: [{ k: "rrect", cx: 410, cy: 210, w: 210, h: 58, rot: -28 }],
+            note: "A rotated stamp fills under half of its axis-aligned box. Typed boxes have no way to rotate." }
+        };
+        /* raster helpers */
+        var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+        var cx = cv.getContext("2d", { willReadFrequently: true });
+        function drawShape(c, s, dil) {
+          dil = dil || 0;
+          c.fillStyle = "#000"; c.strokeStyle = "#000"; c.lineJoin = "round";
+          if (s.k === "rect") { c.fillRect(s.x - dil, s.y - dil, s.w + 2 * dil, s.h + 2 * dil); }
+          else if (s.k === "band") { c.lineWidth = s.w + 2 * dil; c.lineCap = "butt"; c.stroke(new Path2D(s.d)); }
+          else if (s.k === "fill") { var p = new Path2D(s.d); c.fill(p); if (dil) { c.lineWidth = 2 * dil; c.stroke(p); } }
+          else if (s.k === "rrect") { c.save(); c.translate(s.cx, s.cy); c.rotate(s.rot * Math.PI / 180); c.fillRect(-s.w / 2 - dil, -s.h / 2 - dil, s.w + 2 * dil, s.h + 2 * dil); c.restore(); }
+        }
+        function rast(fn) {
+          cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, W, H); fn(cx);
+          var d = cx.getImageData(0, 0, W, H).data, a = new Uint8Array(W * H);
+          for (var i = 0, j = 3; i < a.length; i++, j += 4) a[i] = d[j] > 127 ? 1 : 0;
+          return a;
+        }
+        function bboxOf(a) {
+          var x0 = W, y0 = H, x1 = -1, y1 = -1;
+          for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (a[y * W + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+          return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+        }
+        function iou(a, b) { var I = 0, U = 0; for (var i = 0; i < a.length; i++) { var x = a[i], y = b[i]; if (x & y) I++; if (x | y) U++; } return U ? I / U : 0; }
+        var cache = {};
+        function gtOf(name) {
+          if (cache[name]) return cache[name];
+          var spans = EV[name].spans.map(function (s) { var r = rast(function (c) { drawShape(c, s); }); return { s: s, r: r, bb: bboxOf(r) }; });
+          var un = { x: Math.min.apply(null, spans.map(function (q) { return q.bb.x; })), y: Math.min.apply(null, spans.map(function (q) { return q.bb.y; })) };
+          un.w = Math.max.apply(null, spans.map(function (q) { return q.bb.x + q.bb.w; })) - un.x;
+          un.h = Math.max.apply(null, spans.map(function (q) { return q.bb.y + q.bb.h; })) - un.y;
+          cache[name] = { spans: spans, union: un };
+          return cache[name];
+        }
+        function shiftXY(d) { return [0, d]; }
+        /* SVG drawing per evidence */
+        function svgShape(p, s, fill, stroke) {
+          var a = { fill: fill, stroke: stroke || "none", "stroke-width": stroke ? 1.8 : 0 };
+          if (s.k === "rect") return el("rect", Object.assign({ x: s.x, y: s.y, width: s.w, height: s.h, rx: 2 }, a), p);
+          if (s.k === "fill") return el("path", Object.assign({ d: s.d, "stroke-linejoin": "round" }, a), p);
+          if (s.k === "rrect") return el("rect", Object.assign({ x: s.cx - s.w / 2, y: s.cy - s.h / 2, width: s.w, height: s.h, transform: "rotate(" + s.rot + " " + s.cx + " " + s.cy + ")" }, a), p);
+        }
+        function context(name) {
+          gCtx.innerHTML = "";
+          el("rect", { x: 1, y: 1, width: W - 2, height: H - 2, fill: C.page, stroke: C.rule }, gCtx);
+          if (name === "line" || name === "two" || name === "stamp") {
+            tx(gCtx, 40, 46, "INVOICE", { size: 20, weight: 700, font: "t-disp" });
+            tx(gCtx, 62, 64, "Invoice number", { size: 10, cls: "t-muted" });
+            tx(gCtx, 62, 83, "INV-2024-0847", { size: 14, len: 132 });
+            tx(gCtx, 600, 46, "Meridian & Co.", { size: 12, anchor: "end", cls: "t-soft" });
+            greyLines(gCtx, 380, 60, 220, 3, 12);
+            el("line", { x1: 40, y1: 118, x2: 600, y2: 118, stroke: C.rule }, gCtx);
+            var rows = [["Consulting services, Q2", "18,000.00"], ["Software licence, annual", "24,000.00"], ["Support retainer", "6,250.00"]];
+            rows.forEach(function (r, i) { tx(gCtx, 48, 142 + i * 22, r[0], { size: 12, cls: "t-soft" }); tx(gCtx, 590, 142 + i * 22, r[1], { size: 12, anchor: "end", cls: "t-soft" }); });
+            el("line", { x1: 40, y1: 192, x2: 600, y2: 192, stroke: C.rule }, gCtx);
+            if (name === "line") tx(gCtx, 318, 218, "Total due: 48,250.00", { size: 14, weight: 700, len: 176 });
+            else tx(gCtx, 300, 218, "Total due: 48,250.00", { size: 12, cls: "t-soft" });
+            greyLines(gCtx, 48, 250, 240, 4, 14);
+            tx(gCtx, 340, 306, "Amount payable", { size: 12, cls: "t-soft" });
+            if (name === "two") tx(gCtx, 470, 306, "48,250.00", { size: 14, weight: 700, len: 96 });
+            else tx(gCtx, 470, 306, "48,250.00", { size: 12, cls: "t-soft" });
+            if (name === "stamp") {
+              el("rect", { x: 410 - 105, y: 210 - 29, width: 210, height: 58, rx: 6, fill: "none", stroke: C.red, "stroke-width": 3, transform: "rotate(-28 410 210)" }, gCtx);
+              var t = tx(gCtx, 410, 222, "PAID", { size: 36, weight: 800, anchor: "middle", cls: "t-red", font: "t-disp" });
+              t.setAttribute("transform", "rotate(-28 410 210)");
+            }
+          } else if (name === "curve") {
+            el("rect", { x: 120, y: 20, width: 400, height: 320, rx: 8, fill: C.faint, stroke: C.rule }, gCtx);
+            var d = arcD(320, 470, 292, 238, 302);
+            el("path", { id: "bm-arc", d: d, fill: "none" }, gCtx);
+            var t2 = el("text", { "font-size": 19, "font-weight": 700, cls: "t-ink" }, gCtx);
+            var tp = el("textPath", { href: "#bm-arc", startOffset: "50%", "text-anchor": "middle" }, t2);
+            tp.textContent = "5TH YEAR CELEBRATIONS";
+            tx(gCtx, 320, 64, "ANNUAL FEST", { size: 22, weight: 800, anchor: "middle", font: "t-disp" });
+            ["TUG OF WAR", "SACK RACE", "DECORATIVE BIKE CONTEST", "LOCATION: SCHOOL FIELD"].forEach(function (s, i) { tx(gCtx, 320, 250 + i * 22, s, { size: 12, anchor: "middle", cls: "t-soft" }); });
+          } else if (name === "wedge") {
+            var cxp = 300, cyp = 196, r = 132, acc = -62 + 27.7, cols = ["#c9cdd0", "#dfe2e4", "#b9bec2", "#e9ebec", "#d3d7d9"];
+            var parts = [72, 61, 90, 64.6, 44.7];
+            parts.forEach(function (a, i) { el("path", { d: wedgeD(cxp, cyp, r, acc, acc + a), fill: cols[i], stroke: C.page, "stroke-width": 1.5 }, gCtx); acc += a; });
+            el("path", { d: wedgeD(cxp, cyp, r, -62, -34.3), fill: "#b9bec2", stroke: C.page, "stroke-width": 1.5 }, gCtx);
+            tx(gCtx, 432, 70, "Mumbai 7.7%", { size: 13, weight: 700 });
+            el("line", { x1: 428, y1: 74, x2: 378, y2: 100, stroke: C.muted }, gCtx);
+            tx(gCtx, 40, 40, "Share of offices by city", { size: 14, weight: 700, font: "t-disp" });
+          }
+        }
+        function draw() {
+          var g = gtOf(ev), d = +slider.value, sh = shiftXY(d);
+          out.textContent = d + " px";
+          var multi = g.spans.length > 1;
+          bmBtns.forEach(function (b) { b.disabled = !multi; });
+          gGt.innerHTML = ""; gMask.innerHTML = ""; gBox.innerHTML = ""; gLab.innerHTML = "";
+          g.spans.forEach(function (q) { svgShape(gGt, q.s, "rgba(47,143,91,.34)"); });
+          var gm = el("g", { transform: "translate(" + sh[0] + "," + sh[1] + ")" }, gMask);
+          g.spans.forEach(function (q) { svgShape(gm, q.s, "rgba(214,111,0,.1)", C.orange); });
+          var boxes = (multi && bm === "one") ? [g.union] : g.spans.map(function (q) { return q.bb; });
+          boxes.forEach(function (b) { el("rect", { x: b.x + sh[0], y: b.y + sh[1], width: b.w, height: b.h, fill: "none", stroke: C.blue, "stroke-width": 2, "stroke-dasharray": "7 5" }, gBox); });
+          /* IoUs */
+          var boxR = boxes.map(function (b) { return rast(function (c) { c.fillStyle = "#000"; c.fillRect(b.x + sh[0], b.y + sh[1], b.w, b.h); }); });
+          var bIous = g.spans.map(function (q) { return Math.max.apply(null, boxR.map(function (r) { return iou(q.r, r); })); });
+          var mIous = g.spans.map(function (q) { var r = rast(function (c) { c.translate(sh[0], sh[1]); drawShape(c, q.s, 1); }); return iou(q.r, r); });
+          function show(ro, arr) {
+            var m = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length, pass = arr.filter(function (v) { return v > 0.5; }).length;
+            ro.querySelector(".ro-num").textContent = arr.length > 1 ? "IoU " + arr.map(function (v) { return v.toFixed(2); }).join(" · ") : "IoU " + m.toFixed(2);
+            ro.querySelector(".ro-bar").style.width = (m * 100).toFixed(1) + "%";
+            ro.querySelector(".ro-v").innerHTML = arr.length > 1 ?
+              '<span class="' + (pass === arr.length ? "pass" : "fail") + '">' + pass + " of " + arr.length + " spans pass</span> at IoU &gt; 0.5" :
+              (m > 0.5 ? '<span class="pass">counted correct</span> at IoU &gt; 0.5' : '<span class="fail">counted as a miss</span> at IoU &gt; 0.5');
+          }
+          show(roBox, bIous); show(roMask, mIous);
+          note.textContent = EV[ev].note;
+          tx(gLab, 630, 350, "green: evidence · blue: box · orange: mask", { size: 11, anchor: "end", cls: "t-muted" });
+        }
+        var pend = 0;
+        function req() { if (pend) return; pend = requestAnimationFrame(function () { pend = 0; draw(); }); }
+        evBtns.forEach(function (b) { b.addEventListener("click", function () { ev = b.dataset.ev; pressGroup(evBtns, b); context(ev); req(); }); });
+        bmBtns.forEach(function (b) { b.addEventListener("click", function () { bm = b.dataset.bm; pressGroup(bmBtns, b); req(); }); });
+        slider.addEventListener("input", req);
+        context(ev); draw();
+        window.__figs.boxmask = { set: function (e, d) { ev = e; pressGroup(evBtns, fig.querySelector('[data-ev="' + e + '"]')); slider.value = d || 0; context(ev); draw(); } };
+      })();
+
+      /* ---------- shared poster drawing (figures 3 and 7) ---------- */
+      function poster(p, x, y, w, h, opts) {
+        opts = opts || {};
+        var g = el("g", { transform: "translate(" + x + "," + y + ") scale(" + (w / 130) + ")" }, p);
+        el("rect", { x: 0, y: 0, width: 130, height: 160, rx: 4, fill: C.page, stroke: C.rule }, g);
+        tx(g, 65, 22, "ANNUAL FEST", { size: 11, weight: 800, anchor: "middle", font: "t-disp" });
+        var id = "pa-" + Math.random().toString(36).slice(2, 8);
+        el("path", { id: id, d: "M14 70 A 80 80 0 0 1 116 70", fill: "none" }, g);
+        if (opts.mask) el("path", { d: "M14 70 A 80 80 0 0 1 116 70", fill: "none", stroke: C.orangeT, "stroke-width": 13, cls: "pmask" }, g);
+        var t = el("text", { "font-size": 8.6, "font-weight": 700, cls: "t-ink" }, g);
+        var tp = el("textPath", { href: "#" + id, startOffset: "50%", "text-anchor": "middle" }, t);
+        tp.textContent = "5TH YEAR CELEBRATIONS";
+        ["TUG OF WAR", "SACK RACE", "BIKE CONTEST", "POLE CLIMBING"].forEach(function (s, i) { tx(g, 65, 92 + i * 13, s, { size: 7.5, anchor: "middle", cls: "t-soft" }); });
+        tx(g, 65, 148, "SCHOOL FIELD · 4 PM", { size: 7, anchor: "middle", cls: "t-muted" });
+        return g;
+      }
+
+      /* ================= FIGURE 3 · chain versus end to end ================= */
+      (function () {
+        var fig = document.getElementById("fig-chain"); if (!fig) return;
+        var W = 1000, H = 500;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "Two tools chained versus one model trained end to end, on a poster with a curved banner");
+        var arr = defsArrow(svg, "ch-a", "#7b8388"), arrO = defsArrow(svg, "ch-o", "#d66f00"), arrR = defsArrow(svg, "ch-r", "#b8432f");
+        var cam = el("g", null, svg);
+        var G = {};
+        function grp(k) { G[k] = el("g", null, cam); return G[k]; }
+        var g = grp("base");
+        tx(g, 500, 24, "Q: What milestone is being celebrated?", { size: 16, anchor: "middle", weight: 600, cls: "t-ink" });
+        el("line", { x1: 10, y1: 252, x2: 990, y2: 252, stroke: C.rule, "stroke-dasharray": "4 4" }, g);
+        tx(g, 20, 58, "TWO TOOLS, CHAINED", { size: 12, weight: 600, cls: "t-red" });
+        tx(g, 20, 280, "ONE MODEL, TRAINED END TO END", { size: 12, weight: 600, cls: "t-blue" });
+        poster(g, 20, 72, 130, 160);
+        poster(g, 20, 292, 130, 160);
+        /* lane A */
+        g = grp("ocr");
+        el("path", { d: "M152 152 L182 152", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        box(g, 186, 130, 74, 44); tx(g, 223, 157, "OCR", { size: 14, weight: 700, anchor: "middle" });
+        el("path", { d: "M262 152 L286 152", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        box(g, 290, 72, 186, 160, { fill: C.faint });
+        tx(g, 300, 92, "OCR text", { size: 10.5, cls: "t-muted", weight: 600 });
+        ["ANNUAL FEST", "5TH YFAR CE1F8RAT", "TUG OF WAR", "SACK RACE", "BIKE CONTEST", "SCHOOL FIELD · 4 PM"].forEach(function (s, i) {
+          tx(g, 300, 114 + i * 20, s, { size: 12, cls: i === 1 ? "t-red" : "t-soft", weight: i === 1 ? 700 : 400, font: "t-mono" });
+        });
+        el("path", { d: "M300 138 q4 3 8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0 t8 0", fill: "none", stroke: C.red, "stroke-width": 1.4 }, g);
+        g = grp("vlmA");
+        box(g, 510, 72, 200, 52, { stroke: C.ink });
+        tx(g, 522, 92, "VLM answers from the image", { size: 11, cls: "t-muted" });
+        tx(g, 522, 113, "A: 5th Year Celebrations", { size: 14, weight: 600, cls: "t-green" });
+        g = grp("match");
+        el("path", { d: "M478 160 L506 160", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        el("path", { d: "M610 126 L610 136", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        box(g, 510, 140, 200, 64, { stroke: C.red, dash: "6 4" });
+        tx(g, 522, 160, "match the answer string", { size: 11, cls: "t-muted" });
+        tx(g, 522, 180, "to an OCR line", { size: 11, cls: "t-muted" });
+        tx(g, 522, 198, "no line matches: no box", { size: 13, weight: 700, cls: "t-red" });
+        g = grp("samA");
+        el("path", { d: "M712 172 L742 172", stroke: "#b8432f", "stroke-width": 2, "stroke-dasharray": "5 4", "marker-end": arrR }, g);
+        box(g, 746, 148, 80, 48, { fill: C.faint }); tx(g, 786, 177, "SAM", { size: 14, weight: 700, anchor: "middle", cls: "t-muted" });
+        el("path", { d: "M828 172 L852 172", stroke: "#b8432f", "stroke-width": 2, "stroke-dasharray": "5 4", "marker-end": arrR }, g);
+        box(g, 856, 140, 120, 64, { fill: C.faint, dash: "6 4" }); tx(g, 916, 168, "no prompt,", { size: 12, anchor: "middle", cls: "t-red", weight: 600 }); tx(g, 916, 186, "no mask", { size: 12, anchor: "middle", cls: "t-red", weight: 600 });
+        tx(g, 746, 92, "One misread breaks the chain.", { size: 13, weight: 700, cls: "t-red" });
+        tx(g, 746, 112, "No later stage looks at the", { size: 12, cls: "t-soft" });
+        tx(g, 746, 128, "pixels again.", { size: 12, cls: "t-soft" });
+        /* lane B */
+        g = grp("vlmB");
+        el("path", { d: "M152 372 L182 372", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        box(g, 186, 340, 110, 64, { stroke: C.ink, sw: 2 });
+        tx(g, 241, 368, "VLM", { size: 15, weight: 700, anchor: "middle" });
+        tx(g, 241, 388, "reads the pixels", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        el("path", { d: "M298 372 L322 372", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        var ans = tx(g, 330, 377, "", { size: 13 });
+        var a1 = el("tspan", { cls: "t-muted" }, ans), a2 = el("tspan", { cls: "t-blue", "font-weight": 700 }, ans), a3 = el("tspan", { cls: "t-muted" }, ans);
+        g = grp("tokB");
+        var chip = el("g", null, g);
+        el("rect", { x: 556, y: 362, width: 70, height: 21, rx: 3, fill: C.orange }, chip);
+        tx(chip, 591, 375, "[GROUND]", { size: 11, weight: 600, anchor: "middle", cls: "" }).style.fill = "#fff";
+        el("path", { d: "M591 384 L591 412 L650 412", fill: "none", stroke: "#d66f00", "stroke-width": 2 }, g);
+        el("circle", { cx: 664, cy: 412, r: 12, fill: C.orangeT, stroke: C.orange, "stroke-width": 2 }, g);
+        tx(g, 664, 438, "hidden state", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        el("path", { d: "M678 412 L728 412 L728 392 L742 392", fill: "none", stroke: "#d66f00", "stroke-width": 2, "marker-end": arrO }, g);
+        box(g, 746, 360, 80, 52, { stroke: C.ink, sw: 2 }); tx(g, 786, 390, "SAM", { size: 14, weight: 700, anchor: "middle" });
+        g = grp("maskB");
+        el("path", { d: "M828 386 L852 386", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        poster(g, 858, 300, 118, 145, { mask: true });
+        tx(g, 917, 462, "mask on the banner", { size: 11, anchor: "middle", cls: "t-orange", weight: 600 });
+        g = grp("grad");
+        el("path", { d: "M916 296 C 900 262, 820 262, 790 352", fill: "none", stroke: "#d66f00", "stroke-width": 2.2, "stroke-dasharray": "6 5", "marker-end": arrO }, g);
+        el("path", { d: "M748 404 C 720 492, 330 492, 260 410", fill: "none", stroke: "#d66f00", "stroke-width": 2.2, "stroke-dasharray": "6 5", "marker-end": arrO }, g);
+        tx(g, 500, 494, "training: the mask loss flows back into the language model", { size: 12.5, anchor: "middle", cls: "t-orange", weight: 600 });
+        tx(g, 980, 236, "no error signal flows back: fixed tools", { size: 12, anchor: "end", cls: "t-red", weight: 600 });
+        var ANS = ["5th Year Celebrations", "</e>"];
+        function render(p) {
+          cam.setAttribute("transform", camT(p.cx, p.cy, p.s, W, H));
+          ["ocr", "vlmA", "match", "samA", "vlmB", "tokB", "maskB", "grad"].forEach(function (k) { op(G[k], clamp(p[k], 0, 1)); });
+          var n = Math.round(clamp(p.tB, 0, 1) * 30);
+          a1.textContent = "<e>".slice(0, Math.min(3, n));
+          a2.textContent = ANS[0].slice(0, clamp(n - 3, 0, 21));
+          a3.textContent = ANS[1].slice(0, clamp(n - 24, 0, 4));
+        }
+        var z = { ocr: 0, vlmA: 0, match: 0, samA: 0, vlmB: 0, tokB: 0, maskB: 0, grad: 0, tB: 0 };
+        stepper(fig, [
+          { cap: "The same poster and question go to both designs. The answer is on a curved banner.", p: Object.assign({ cx: 500, cy: 250, s: 1 }, z) },
+          { cap: "Chain, tool 1: OCR reads the page into lines of text. The curved banner comes out as “5TH YFAR CE1F8RAT”.", p: { cx: 300, cy: 152, s: 1.75, ocr: 1 } },
+          { cap: "A VLM reading the image answers correctly: “5th Year Celebrations”.", p: { cx: 520, cy: 140, s: 1.6, vlmA: 1 } },
+          { cap: "The matcher looks for the answer string in the OCR text. No line matches, so there is no box.", p: { cx: 560, cy: 160, s: 1.7, match: 1 } },
+          { cap: "Tool 2, SAM, never receives a prompt. One misread breaks the chain, and no later stage looks at the pixels again.", p: { cx: 800, cy: 150, s: 1.5, samA: 1 } },
+          { cap: "End to end: the VLM reads the pixels directly and writes the answer as a span between <e> and </e>.", p: { cx: 380, cy: 372, s: 1.7, vlmB: 1, tB: 1 }, d: 1800 },
+          { cap: "After the span it writes [GROUND]. The token's hidden state becomes SAM's prompt. No string is matched anywhere.", p: { cx: 660, cy: 392, s: 1.65, tokB: 1 } },
+          { cap: "SAM returns a mask that follows the curved banner.", p: { cx: 860, cy: 380, s: 1.6, maskB: 1 } },
+          { cap: "During training, the mask loss flows back through SAM's prompt into the language model. The chain has no such path: its tools are fixed.", p: { cx: 500, cy: 250, s: 1, grad: 1 }, hold: 4200 }
+        ], render, { dur: 1300, hold: 2600 });
+      })();
+
+      /* ================= FIGURE 4 · forward pass ================= */
+      (function () {
+        var fig = document.getElementById("fig-pipeline"); if (!fig) return;
+        var W = 1100, H = 600;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "M3Grounder forward pass from a blood report and question to six nested masks");
+        var arr = defsArrow(svg, "pp-a", "#7b8388"), arrO = defsArrow(svg, "pp-o", "#d66f00"), arrB = defsArrow(svg, "pp-b", "#0b5ea8");
+        var cam = el("g", null, svg);
+        var G = {};
+        function grp(k, parent) { G[k] = el("g", null, parent || cam); return G[k]; }
+        /* question + page */
+        var g = grp("q");
+        box(g, 30, 26, 240, 82, { fill: C.faint, stroke: C.rule });
+        tx(g, 42, 46, "QUESTION", { size: 10, weight: 600, cls: "t-muted" });
+        tx(g, 42, 66, "What can be inferred from the low", { size: 13 });
+        tx(g, 42, 84, "values in this blood report?", { size: 13 });
+        tx(g, 42, 100, "Provide the answer with grounding.", { size: 11, cls: "t-muted" });
+        var pg = grp("page");
+        box(pg, 30, 130, 240, 340, { rx: 3 });
+        tx(pg, 46, 156, "Complete Blood Count", { size: 15, weight: 700, font: "t-disp" });
+        tx(pg, 46, 172, "Patient: A. Rao · Age 34 · F", { size: 9.5, cls: "t-muted" });
+        var rows = [["Test", "Result", "Unit"], ["Hemoglobin", "10.2", "g/dL"], ["RBC count", "5.1", "10⁶/µL"], ["MCV", "72.0", "fL"], ["MCH", "23.1", "pg"], ["Platelets", "250", "10³/µL"]];
+        rows.forEach(function (r, i) {
+          var y = 196 + i * 18, hd = i === 0;
+          tx(pg, 50, y, r[0], { size: 10.5, weight: hd ? 700 : 400, cls: hd ? "t-soft" : "t-ink" });
+          tx(pg, 170, y, r[1], { size: 10.5, weight: hd ? 700 : (i === 3 ? 700 : 400), anchor: "end", cls: hd ? "t-soft" : "t-ink" });
+          tx(pg, 184, y, r[2], { size: 10.5, cls: hd ? "t-soft" : "t-muted" });
+          if (i < 5) el("line", { x1: 46, y1: y + 5, x2: 254, y2: y + 5, stroke: C.faint }, pg);
+        });
+        tx(pg, 46, 318, "Clinical notes", { size: 11.5, weight: 700 });
+        tx(pg, 46, 336, "Low MCV and MCH. Findings suggest", { size: 10, cls: "t-soft" });
+        tx(pg, 46, 352, "microcytic anemia; iron studies", { size: 10, cls: "t-soft" });
+        tx(pg, 46, 368, "advised before follow-up.", { size: 10, cls: "t-soft" });
+        greyLines(pg, 46, 400, 200, 3, 14);
+        /* masks on page: span1 (orange) span2 (blue) */
+        var M = {
+          b1: { x: 42, y: 182, w: 216, h: 110 }, l1: { x: 44, y: 239, w: 212, h: 16 }, p1: { x: 141, y: 240, w: 32, h: 14 },
+          b2: { x: 42, y: 304, w: 216, h: 72 }, l2: { x: 44, y: 341, w: 168, h: 16 }, p2: { x: 44, y: 342, w: 98, h: 14 }
+        };
+        var mk = grp("masks", pg);
+        var ME = {};
+        Object.keys(M).forEach(function (k) {
+          var r = M[k], sp1 = k.charAt(1) === "1", lvl = k.charAt(0);
+          ME[k] = el("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: 2, fill: sp1 ? (lvl === "p" ? "rgba(214,111,0,.42)" : lvl === "l" ? "rgba(214,111,0,.2)" : "rgba(214,111,0,.07)") : (lvl === "p" ? "rgba(11,94,168,.36)" : lvl === "l" ? "rgba(11,94,168,.17)" : "rgba(11,94,168,.06)"),
+            stroke: sp1 ? C.orange : C.blue, "stroke-width": lvl === "p" ? 1.6 : 1.2, "stroke-dasharray": lvl === "b" ? "5 4" : null }, mk);
+        });
+        var mlab = grp("mlab", pg);
+        tx(mlab, 262, 196, "block", { size: 9.5, cls: "t-orange" }); tx(mlab, 262, 251, "line", { size: 9.5, cls: "t-orange" });
+        tx(mlab, 262, 318, "block", { size: 9.5, cls: "t-blue" }); tx(mlab, 216, 353, "line", { size: 9.5, cls: "t-blue" });
+        /* VLM */
+        g = grp("vlm");
+        box(g, 310, 200, 210, 230, { stroke: C.ink, sw: 2, fill: C.bg });
+        tx(g, 415, 222, "VISION-LANGUAGE MODEL", { size: 10.5, weight: 600, anchor: "middle", cls: "t-muted" });
+        box(g, 326, 234, 178, 44); tx(g, 415, 261, "Vision encoder", { size: 13, anchor: "middle", weight: 600 });
+        box(g, 326, 298, 178, 116, { stroke: C.blue, sw: 1.8 }); tx(g, 415, 350, "Language decoder", { size: 14, anchor: "middle", weight: 700 });
+        tx(g, 415, 370, "autoregressive", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        el("path", { d: "M272 300 L322 256", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        el("path", { d: "M272 70 L296 70 L296 330 L322 330", fill: "none", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        el("path", { d: "M415 280 L415 294", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g);
+        g = grp("upArrow");
+        el("path", { d: "M506 330 L548 330 L548 172", fill: "none", stroke: "#0b5ea8", "stroke-width": 2, "marker-end": arrB }, g);
+        tx(g, 324, 128, "ANSWER, WRITTEN TOKEN BY TOKEN", { size: 10, weight: 600, cls: "t-muted" });
+        /* answer stream */
+        var x0 = 324, cw = 7.2;
+        var SEGS = [["t", "The report shows a low "], ["e", "<e>"], ["s1", "MCV of 72.0 fL"], ["e", "</e>"], ["g1", "[GROUND]"], ["t", " which indicates "], ["e", "<e>"], ["s2", "microcytic anemia"], ["e", "</e>"], ["g2", "[GROUND]"], ["t", "."]];
+        var stream = grp("stream"), pos = 0, SEG = [];
+        SEGS.forEach(function (s) {
+          var o = { k: s[0], str: s[1], a: pos, b: pos + s[1].length, x: x0 + pos * cw };
+          if (o.k === "g1" || o.k === "g2") {
+            o.chip = el("rect", { x: o.x - 1, y: 137, width: s[1].length * cw + 2, height: 19, rx: 2, fill: C.orange }, stream);
+          }
+          o.t = el("text", { x: o.x, y: 151, "font-size": 12, cls: "t-mono " + (o.k === "t" ? "t-ink" : o.k === "e" ? "t-muted" : o.k === "s1" ? "t-orange" : o.k === "s2" ? "t-blue" : ""), "font-weight": (o.k === "s1" || o.k === "s2" || o.k.charAt(0) === "g") ? 700 : 400 }, stream);
+          if (o.chip) o.t.style.fill = "#fff";
+          o.t.style.whiteSpace = "pre";
+          SEG.push(o); pos = o.b;
+        });
+        var NCH = pos;
+        var g1x = SEG[4].x + 28.8, g2x = SEG[9].x + 28.8;
+        /* hidden states */
+        g = grp("h1");
+        el("path", { d: "M" + g1x + " 158 L" + g1x + " 186", stroke: "#d66f00", "stroke-width": 2, "marker-end": arrO }, g);
+        el("circle", { cx: g1x, cy: 200, r: 13, fill: C.orangeT, stroke: C.orange, "stroke-width": 2 }, g);
+        tx(g, g1x, 205, "h̃₁", { size: 13, anchor: "middle", weight: 700, cls: "t-orange" });
+        g = grp("h2");
+        el("path", { d: "M" + g2x + " 158 L" + g2x + " 186", stroke: "#0b5ea8", "stroke-width": 2, "marker-end": arrB }, g);
+        el("circle", { cx: g2x, cy: 200, r: 13, fill: C.blueT, stroke: C.blue, "stroke-width": 2 }, g);
+        tx(g, g2x, 205, "h̃₂", { size: 13, anchor: "middle", weight: 700, cls: "t-blue" });
+        /* heads */
+        var heads = grp("heads");
+        var HY = [262, 322, 382], HN = ["Phrase MLP", "Line MLP", "Block MLP"];
+        el("path", { d: "M" + g1x + " 213 L" + g1x + " 236 L600 236 L600 " + (HY[2] + 18), fill: "none", stroke: "#d66f00", "stroke-width": 1.8 }, heads);
+        el("path", { d: "M" + g2x + " 213 L" + g2x + " 230 L590 230 L590 " + (HY[2] + 24), fill: "none", stroke: "#0b5ea8", "stroke-width": 1.8 }, heads);
+        HY.forEach(function (y, i) {
+          el("path", { d: "M600 " + (y + 18) + " L614 " + (y + 18), stroke: "#d66f00", "stroke-width": 1.8, "marker-end": arrO }, heads);
+          el("path", { d: "M590 " + (y + 24) + " L614 " + (y + 24), stroke: "#0b5ea8", "stroke-width": 1.8, "marker-end": arrB }, heads);
+          box(heads, 618, y, 118, 40, { stroke: C.ink });
+          tx(heads, 677, y + 25, HN[i], { size: 12.5, anchor: "middle", weight: 600 });
+        });
+        tx(heads, 677, 252, "three projection heads", { size: 10, anchor: "middle", cls: "t-muted" });
+        var prompts = grp("prompts");
+        HY.forEach(function (y, i) {
+          el("polygon", { points: hexPts(760, y + 12, 8), fill: C.orangeT, stroke: C.orange, "stroke-width": 1.6 }, prompts);
+          el("polygon", { points: hexPts(760, y + 30, 8), fill: C.blueT, stroke: C.blue, "stroke-width": 1.6 }, prompts);
+          el("path", { d: "M738 " + (y + 20) + " L748 " + (y + 20), stroke: "#7b8388", "stroke-width": 1.5 }, prompts);
+          el("path", { d: "M770 " + (y + 21) + " L812 " + (y + 21) + " L812 330 L826 330", fill: "none", stroke: "#7b8388", "stroke-width": 1.5 }, prompts);
+        });
+        el("path", { d: "M826 330 L834 330", stroke: "#7b8388", "stroke-width": 1.8, "marker-end": arr }, prompts);
+        tx(prompts, 760, 438, "6 prompts", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        /* SAM */
+        var sam = grp("sam");
+        box(sam, 820, 250, 250, 236, { stroke: C.ink, sw: 2, fill: C.bg });
+        tx(sam, 945, 272, "SAM", { size: 12, weight: 700, anchor: "middle", cls: "t-muted" });
+        var samEnc = grp("samEnc");
+        box(samEnc, 838, 404, 214, 62); tx(samEnc, 945, 430, "Image encoder", { size: 13, anchor: "middle", weight: 600 }); tx(samEnc, 945, 448, "runs once per page", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        el("path", { d: "M150 472 L150 540 L1010 540 L1010 470", fill: "none", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, samEnc);
+        tx(samEnc, 560, 532, "the same page, encoded once by SAM", { size: 11, anchor: "middle", cls: "t-muted" });
+        var dec = grp("dec");
+        el("path", { d: "M945 402 L945 380", stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, dec);
+        box(dec, 838, 290, 214, 86, { stroke: C.blue, sw: 1.8 }); tx(dec, 945, 326, "Mask decoder", { size: 14, anchor: "middle", weight: 700 }); tx(dec, 945, 346, "one mask per prompt", { size: 10.5, anchor: "middle", cls: "t-muted" });
+        var mini = el("g", null, dec);
+        [0, 1, 2].forEach(function (i) {
+          el("rect", { x: 870 + i * 18, y: 354, width: 14, height: 14, fill: "rgba(214,111,0," + (0.15 + i * 0.12) + ")", stroke: C.orange }, mini);
+          el("rect", { x: 970 + i * 18, y: 354, width: 14, height: 14, fill: "rgba(11,94,168," + (0.12 + i * 0.1) + ")", stroke: C.blue }, mini);
+        });
+        var back = grp("ret");
+        el("path", { d: "M1054 330 L1084 330 L1084 572 L118 572 L118 474", fill: "none", stroke: "#0b5ea8", "stroke-width": 2, "marker-end": arrB }, back);
+        tx(back, 600, 588, "six masks land on the page", { size: 11, anchor: "middle", cls: "t-blue", weight: 600 });
+        var grad = grp("grad");
+        el("path", { d: "M836 318 C 810 300, 790 300, 776 300", fill: "none", stroke: "#d66f00", "stroke-width": 2.4, "stroke-dasharray": "6 5", "marker-end": arrO }, grad);
+        el("path", { d: "M616 300 C 580 300, 560 330, 508 350", fill: "none", stroke: "#d66f00", "stroke-width": 2.4, "stroke-dasharray": "6 5", "marker-end": arrO }, grad);
+        tx(grad, 560, 470, "mask losses: Dice + BCE + bleed + enclosure", { size: 12, anchor: "middle", cls: "t-orange", weight: 700 });
+        tx(grad, 560, 488, "gradients flow back into the language model", { size: 12, anchor: "middle", cls: "t-orange" });
+        tx(grad, 415, 452, "decoder trained · vision encoder frozen", { size: 10, anchor: "middle", cls: "t-muted" });
+        tx(grad, 677, 440, "heads trained", { size: 10, anchor: "middle", cls: "t-muted" });
+        tx(grad, 900, 502, "decoder trained · encoders frozen", { size: 10, anchor: "middle", cls: "t-muted" });
+        function render(p) {
+          cam.setAttribute("transform", camT(p.cx, p.cy, p.s, W, H));
+          op(G.q, p.q); op(G.vlm, p.vlm); op(G.upArrow, p.up); op(G.h1, p.h1); op(G.h2, p.h2); op(G.heads, p.hd); op(G.prompts, p.pr);
+          op(G.sam, Math.max(p.se, p.dc)); op(G.samEnc, p.se); op(G.dec, p.dc); op(G.ret, p.rt); op(G.grad, p.gr);
+          var n = p.ty;
+          SEG.forEach(function (o) {
+            var v = clamp(Math.floor(n) - o.a, 0, o.str.length);
+            if (o.chip) { op(o.chip, n >= o.b ? 1 : 0); o.t.textContent = n >= o.b ? o.str : ""; }
+            else o.t.textContent = o.str.slice(0, v);
+          });
+          /* masks */
+          var a = p.m1, b = p.m2;
+          op(ME.b1, seg(a, 0, 0.4)); op(ME.l1, seg(a, 0.3, 0.7)); op(ME.p1, seg(a, 0.6, 1));
+          op(ME.b2, seg(b, 0, 0.4)); op(ME.l2, seg(b, 0.3, 0.7)); op(ME.p2, seg(b, 0.6, 1));
+          op(G.mlab, Math.max(seg(a, 0.6, 1), seg(b, 0.6, 1)) * 0.95);
+          op(G.mlab.children[0], seg(a, 0.2, 0.5)); op(G.mlab.children[1], seg(a, 0.5, 0.8));
+          op(G.mlab.children[2], seg(b, 0.2, 0.5)); op(G.mlab.children[3], seg(b, 0.5, 0.8));
+        }
+        var z = { q: 1, vlm: 0, up: 0, ty: 0, h1: 0, h2: 0, hd: 0, pr: 0, se: 0, dc: 0, rt: 0, m1: 0, m2: 0, gr: 0 };
+        var s1end = SEG[3].b, g1end = SEG[4].b;
+        stepper(fig, [
+          { cap: "A blood report and a question enter the model.", p: Object.assign({ cx: 260, cy: 250, s: 1.3 }, z) },
+          { cap: "The VLM reads the page through its vision encoder and the question as text tokens.", p: { cx: 300, cy: 280, s: 1.3, vlm: 1 } },
+          { cap: "The language decoder writes the answer token by token. When a phrase needs evidence, it opens a span with <e> and closes it with </e>.", p: { cx: 520, cy: 200, s: 1.25, up: 1, ty: s1end }, d: 2200 },
+          { cap: "Right after the span it writes [GROUND]. That token's final hidden state, h̃1, is kept. No coordinate is written.", p: { cx: 640, cy: 180, s: 1.7, ty: g1end, h1: 1 } },
+          { cap: "It keeps writing: a second span, a second [GROUND], a second hidden state h̃2.", p: { cx: 760, cy: 190, s: 1.2, ty: NCH, h2: 1 }, d: 2000 },
+          { cap: "Three projection heads map each hidden state to a phrase prompt, a line prompt and a block prompt. Two spans give six prompts.", p: { cx: 720, cy: 320, s: 1.45, hd: 1, pr: 1 } },
+          { cap: "SAM's image encoder encodes the page once. Every prompt, for every span and granularity, reuses that embedding.", p: { cx: 600, cy: 400, s: 0.92, se: 1 } },
+          { cap: "The mask decoder combines the image embedding with each prompt and returns one mask per prompt: six masks.", p: { cx: 900, cy: 340, s: 1.55, dc: 1 } },
+          { cap: "Span 1 lands on the blood count table: the block is the whole table, the line is the MCV row, the phrase is the reading itself.", p: { cx: 150, cy: 262, s: 1.75, rt: 1, m1: 1 }, d: 1800 },
+          { cap: "Span 2 resolves on its own, in the clinical notes: the block, the line, and the phrase “microcytic anemia”.", p: { cx: 150, cy: 290, s: 1.75, m2: 1 } },
+          { cap: "Training: the mask losses flow back through SAM's decoder and the projection heads into the language model. The whole path is differentiable.", p: { cx: 550, cy: 300, s: 1, gr: 1 }, hold: 4500 }
+        ], render, { dur: 1400, hold: 2700 });
+      })();
+
+      /* ================= FIGURE 5 · granularity switcher ================= */
+      (function () {
+        var fig = document.getElementById("fig-gran"); if (!fig) return;
+        var W = 640, H = 430;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "A bank statement with two grounded spans shown at phrase, line or block granularity");
+        el("rect", { x: 10, y: 10, width: 620, height: 410, rx: 3, fill: C.page, stroke: C.rule }, svg);
+        tx(svg, 30, 44, "Statement of account", { size: 18, weight: 700, font: "t-disp" });
+        tx(svg, 30, 64, "Savings account · No. 0042 1188 0931", { size: 11, cls: "t-muted" });
+        tx(svg, 610, 44, "1 May – 31 May 2024", { size: 12, anchor: "end", cls: "t-soft" });
+        var colX = [38, 112, 400, 490, 602];
+        el("rect", { x: 30, y: 88, width: 580, height: 22, fill: C.faint }, svg);
+        ["Date", "Description", "Debit", "Credit", "Balance"].forEach(function (h, i) { tx(svg, colX[i], 103, h, { size: 11, weight: 700, anchor: i >= 2 ? "end" : "start", cls: "t-soft" }); });
+        var rows = [["01 May", "Opening balance", "", "", "51,400.00"], ["05 May", "Salary credit", "", "12,000.00", "63,400.00"], ["09 May", "Electricity bill", "1,850.00", "", "61,550.00"], ["12 May", "ATM withdrawal", "2,000.00", "", "59,550.00"], ["18 May", "Card payment", "9,300.00", "", "50,250.00"], ["27 May", "Insurance premium", "2,000.00", "", "48,250.00"]];
+        rows.forEach(function (r, i) {
+          var y = 110 + i * 22;
+          r.forEach(function (c, j) { if (c) tx(svg, colX[j], y + 15, c, { size: 11.5, anchor: j >= 2 ? "end" : "start", cls: "t-ink" }); });
+          el("line", { x1: 30, y1: y + 22, x2: 610, y2: y + 22, stroke: C.faint }, svg);
+        });
+        tx(svg, 30, 280, "Notes", { size: 12, weight: 700 });
+        greyLines(svg, 30, 292, 260, 4, 14);
+        el("rect", { x: 330, y: 260, width: 280, height: 98, fill: "none", stroke: C.rule }, svg);
+        [["Opening balance", "51,400.00"], ["Total credits", "12,000.00"], ["Total debits", "15,150.00"], ["Closing balance", "48,250.00"]].forEach(function (r, i) {
+          var y = 280 + i * 22, last = i === 3;
+          tx(svg, 342, y, r[0], { size: 11.5, weight: last ? 700 : 400, cls: last ? "t-ink" : "t-soft" });
+          tx(svg, 602, y, r[1], { size: 11.5, weight: last ? 700 : 400, anchor: "end", cls: last ? "t-ink" : "t-soft" });
+        });
+        greyLines(svg, 30, 384, 560, 2, 14);
+        var R = {
+          s1: { p: { x: 344, y: 178, w: 60, h: 18 }, l: { x: 32, y: 177, w: 576, h: 20 }, b: { x: 30, y: 88, w: 580, h: 156 } },
+          s2: { p: { x: 538, y: 333, w: 68, h: 18 }, l: { x: 338, y: 333, w: 268, h: 18 }, b: { x: 330, y: 260, w: 280, h: 98 } }
+        };
+        var COL = { s1: ["rgba(214,111,0,", C.orange], s2: ["rgba(11,94,168,", C.blue] };
+        var ALPHA = { p: 0.4, l: 0.22, b: 0.09 };
+        var E = {}, cur = {}, g = el("g", null, svg);
+        ["s1", "s2"].forEach(function (s) {
+          E[s] = {};
+          ["b", "l", "p"].forEach(function (lv) {
+            var r = R[s][lv];
+            E[s][lv] = el("rect", { x: r.x, y: r.y, width: r.w, height: r.h, rx: 2, fill: COL[s][0] + ALPHA[lv] + ")", stroke: COL[s][1], "stroke-width": lv === "p" ? 1.8 : 1.3, "stroke-dasharray": lv === "b" ? "6 4" : null }, g);
+            op(E[s][lv], 0);
+          });
+          E[s].m = el("rect", { rx: 2, fill: COL[s][0] + "0.3)", stroke: COL[s][1], "stroke-width": 2 }, g);
+          cur[s] = Object.assign({}, R[s].p);
+        });
+        var USE = {
+          p: ["Phrase · cite the number", "The reader checks each value in one glance. Extractive questions want this level."],
+          l: ["Line · redact the transaction row", "The row carries the date and the description too. Note that 2,000.00 also appears on 27 May: only the line says which one."],
+          b: ["Block · chunk the whole table", "Retrieval and summarisation want the whole table or the whole summary box. Abstractive questions need this level."],
+          all: ["All three, nested", "phrase ⊂ line ⊂ block. The enclosure loss penalises a finer mask that leaves its coarser one."]
+        };
+        var ansEl = fig.querySelector(".gran-ans"), useH = fig.querySelector(".gran-use-h"), useEl = fig.querySelector(".gran-use");
+        ansEl.innerHTML = 'The ATM withdrawal on 12 May was <b style="color:var(--f-orange)">2,000.00</b> <span class="gtok" style="background:var(--f-orange)">[GROUND]</span> and the closing balance is <b style="color:var(--f-blue)">48,250.00</b> <span class="gtok" style="background:var(--f-blue)">[GROUND]</span>.';
+        var btns = [].slice.call(fig.querySelectorAll("[data-g]")), mode = "p", stop = null;
+        function setRect(e, r) { e.setAttribute("x", r.x); e.setAttribute("y", r.y); e.setAttribute("width", r.w); e.setAttribute("height", r.h); }
+        function apply(m) {
+          mode = m; useH.textContent = USE[m][0]; useEl.textContent = USE[m][1];
+          if (stop) stop();
+          var from = { s1: Object.assign({}, cur.s1), s2: Object.assign({}, cur.s2) };
+          var fromOp = {}; ["s1", "s2"].forEach(function (s) { ["b", "l", "p", "m"].forEach(function (lv) { fromOp[s + lv] = +(E[s][lv].style.opacity || 0); }); });
+          stop = tween(480, function (k) {
+            ["s1", "s2"].forEach(function (s) {
+              if (m !== "all") {
+                var t = R[s][m], r = { x: lerp(from[s].x, t.x, k), y: lerp(from[s].y, t.y, k), w: lerp(from[s].w, t.w, k), h: lerp(from[s].h, t.h, k) };
+                setRect(E[s].m, r); cur[s] = r;
+                op(E[s].m, lerp(fromOp[s + "m"], 1, k));
+                ["b", "l", "p"].forEach(function (lv) { op(E[s][lv], lerp(fromOp[s + lv], 0, k)); });
+              } else {
+                op(E[s].m, lerp(fromOp[s + "m"], 0, k));
+                ["b", "l", "p"].forEach(function (lv, j) { op(E[s][lv], lerp(fromOp[s + lv], 1, clamp(k * 1.6 - j * 0.3, 0, 1))); });
+              }
+            });
+          });
+        }
+        btns.forEach(function (b) { b.addEventListener("click", function () { pressGroup(btns, b); apply(b.dataset.g); }); });
+        ["s1", "s2"].forEach(function (s) { setRect(E[s].m, R[s].p); op(E[s].m, 1); });
+        useH.textContent = USE.p[0]; useEl.textContent = USE.p[1];
+      })();
+
+      /* ================= FIGURE 6 · losses ================= */
+      (function () {
+        var fig = document.getElementById("fig-loss"); if (!fig) return;
+        var stages = fig.querySelectorAll(".fx-stage");
+        var PAGE = 960 * 1280;
+        /* bleed */
+        var W = 330, H = 270;
+        var s1 = svgIn(stages[0], W, H, "A mask for a text label spilling onto a neighbouring bar, with the bleed loss");
+        el("rect", { x: 1, y: 1, width: W - 2, height: 200, fill: C.page, stroke: C.rule }, s1);
+        tx(s1, 54, 34, "f", { size: 24, weight: 800, anchor: "middle", cls: "t-blue", font: "t-disp" });
+        el("rect", { x: 36, y: 46, width: 36, height: 146, fill: "#5b7fb4" }, s1);
+        var spill = el("rect", { y: 60, height: 110, fill: "rgba(214,111,0,.34)", stroke: C.red, "stroke-width": 1.5, "stroke-dasharray": "4 3" }, s1);
+        var T1 = { x: 96, y: 98, w: 170, h: 30 }, T2 = { x: 96, y: 136, w: 132, h: 20 };
+        [T1, T2].forEach(function (r) { el("rect", { x: r.x, y: r.y, width: r.w, height: r.h, fill: "rgba(214,111,0,.34)" }, s1); });
+        tx(s1, 96, 124, "1 BILLION", { size: 30, weight: 800, len: 170, font: "t-disp" });
+        tx(s1, 96, 153, "ACTIVE USERS", { size: 17, weight: 700, len: 132, font: "t-disp" });
+        var o1 = tx(s1, 10, 226, "", { size: 14, weight: 700, cls: "t-orange" });
+        var o1b = el("rect", { x: 10, y: 234, height: 8, fill: C.orange }, s1);
+        el("rect", { x: 10, y: 234, width: 310, height: 8, fill: "none", stroke: C.rule }, s1);
+        var o1c = tx(s1, 10, 262, "", { size: 11.5, cls: "t-muted" });
+        /* hier */
+        var s2 = svgIn(stages[1], W, H, "A phrase mask overflowing its line into the next, with the enclosure loss");
+        el("rect", { x: 1, y: 1, width: W - 2, height: 200, fill: C.page, stroke: C.rule }, s2);
+        el("rect", { x: 18, y: 26, width: 294, height: 150, fill: "none", stroke: C.ink, "stroke-dasharray": "6 4" }, s2);
+        tx(s2, 24, 20, "block", { size: 10, cls: "t-muted" });
+        var lines = ["The insured shall notify the insurer", "within thirty days of any claim and", "submit the original documents with", "the completed claim form."];
+        lines.forEach(function (s, i) { tx(s2, 30, 54 + i * 32, s, { size: 13.5, cls: i === 1 ? "t-ink" : "t-soft", len: i === 3 ? 170 : 270 }); });
+        el("rect", { x: 26, y: 72, width: 278, height: 22, fill: "none", stroke: C.blue, "stroke-width": 1.4 }, s2);
+        tx(s2, 306, 69, "line", { size: 10, anchor: "end", cls: "t-blue" });
+        var PH = { x: 30, y: 74, w: 136, h: 18 };
+        el("rect", { x: PH.x, y: PH.y, width: PH.w, height: PH.h, fill: "rgba(214,111,0,.34)", stroke: C.orange }, s2);
+        var over = el("rect", { x: PH.x, y: PH.y + PH.h, width: PH.w, fill: "rgba(214,111,0,.34)", stroke: C.red, "stroke-width": 1.5, "stroke-dasharray": "4 3" }, s2);
+        var o2 = tx(s2, 10, 226, "", { size: 14, weight: 700, cls: "t-orange" });
+        var o2b = el("rect", { x: 10, y: 234, height: 8, fill: C.orange }, s2);
+        el("rect", { x: 10, y: 234, width: 310, height: 8, fill: "none", stroke: C.rule }, s2);
+        var o2c = tx(s2, 10, 262, "", { size: 11.5, cls: "t-muted" });
+        var inS = fig.querySelector('[data-k="spill"]'), inO = fig.querySelector('[data-k="over"]');
+        var outS = fig.querySelector('[data-o="spill"]'), outO = fig.querySelector('[data-o="over"]');
+        function draw() {
+          var s = inS.value / 100, sw = 70 * s;
+          spill.setAttribute("x", 96 - sw); spill.setAttribute("width", sw); op(spill, s > 0 ? 1 : 0);
+          var aT = T1.w * T1.h + T2.w * T2.h, aS = sw * 110, Lb = aS / (aT + aS);
+          o1.innerHTML = "ℒ<tspan baseline-shift=\"sub\" font-size=\"10\">bleed</tspan> = " + Lb.toFixed(2);
+          o1b.setAttribute("width", 310 * Lb);
+          o1c.textContent = Math.round(aS) + " of " + Math.round(aT + aS) + " mask px wrong \u00b7 " + (100 * aS / PAGE).toFixed(2) + "% of the page";
+          outS.textContent = Math.round(sw) + " px";
+          var o = inO.value / 100, oh = 30 * o;
+          over.setAttribute("height", oh); op(over, o > 0 ? 1 : 0);
+          var aP = PH.w * PH.h, aO = PH.w * oh, Lh = aO / (aP + aO);
+          o2.innerHTML = "ℒ<tspan baseline-shift=\"sub\" font-size=\"10\">hier</tspan> (phrase, line) = " + Lh.toFixed(2);
+          o2b.setAttribute("width", 310 * Lh);
+          o2c.textContent = Math.round(aO) + " of " + Math.round(aP + aO) + " mask px wrong \u00b7 " + (100 * aO / PAGE).toFixed(2) + "% of the page";
+          outO.textContent = Math.round(oh) + " px";
+        }
+        inS.addEventListener("input", draw); inO.addEventListener("input", draw);
+        draw();
+      })();
+
+      /* ================= FIGURE 7 · data engine ================= */
+      (function () {
+        var fig = document.getElementById("fig-engine"); if (!fig) return;
+        var W = 1100, H = 680;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "The GroundingDocQA data engine with three pipelines");
+        var arr = defsArrow(svg, "en-a", "#7b8388");
+        var cam = el("g", null, svg);
+        var NODES = [];
+        function node(lane, i, w, h, title) {
+          var x = 20 + i * 154, y = lane === 0 ? 72 : lane === 1 ? 300 : 512;
+          var g = el("g", null, cam);
+          var r = box(g, x, y, w, h, { rx: 6 });
+          tx(g, x + 10, y + 20, title, { size: 11.5, weight: 700 });
+          if (i > 0) { var a = el("path", { d: "M" + (x - 20) + " " + (y + h / 2) + " L" + (x - 4) + " " + (y + h / 2), stroke: "#7b8388", "stroke-width": 2, "marker-end": arr }, g); }
+          var o = { g: g, r: r, x: x, y: y, w: w, h: h, cx: x + w / 2, cy: y + h / 2 };
+          NODES.push(o);
+          return o;
+        }
+        var bg = el("g", null, cam);
+        cam.insertBefore(bg, cam.firstChild);
+        tx(bg, 20, 52, "1 · TEXT-RICH DOCUMENTS · 140K · THROUGH REPLICA", { size: 12.5, weight: 600, cls: "t-ink" });
+        tx(bg, 20, 280, "2 · CURVED AND SKEWED TEXT · 10K · NO REPLICA", { size: 12.5, weight: 600, cls: "t-ink" });
+        tx(bg, 20, 492, "3 · CHARTS · 50K · NO REPLICA", { size: 12.5, weight: 600, cls: "t-ink" });
+        el("line", { x1: 10, y1: 262, x2: 1090, y2: 262, stroke: C.rule, "stroke-dasharray": "4 4" }, bg);
+        el("line", { x1: 10, y1: 474, x2: 1090, y2: 474, stroke: C.rule, "stroke-dasharray": "4 4" }, bg);
+        var NW = 136, NH = 168, n, g;
+        /* lane 1 */
+        n = node(0, 0, NW, NH, "Page"); g = n.g;
+        tx(g, n.x + 14, n.y + 44, "Govt Circular", { size: 12, weight: 700, font: "t-disp" }); greyLines(g, n.x + 14, n.y + 54, 100, 3, 9);
+        [["Post", "Asst. Engineer"], ["Last date", "15 March 2024"], ["Fee", "500"]].forEach(function (r, i) { var y = n.y + 92 + i * 20; el("rect", { x: n.x + 12, y: y, width: 112, height: 20, fill: i === 1 ? C.page : C.faint, stroke: C.rule, "stroke-width": 0.8 }, g); tx(g, n.x + 16, y + 14, r[0], { size: 8.5, weight: 700 }); tx(g, n.x + 60, y + 14, r[1], { size: 8.5 }); });
+        n = node(0, 1, NW, NH, "REPLICA"); g = n.g;
+        ["Segment", "Localize", "Assemble", "Refine"].forEach(function (s, i) { box(g, n.x + 14, n.y + 34 + i * 30, 108, 24, { fill: C.faint, rx: 3 }); tx(g, n.x + 68, n.y + 50 + i * 30, s, { size: 11, anchor: "middle" }); });
+        n = node(0, 2, NW, NH, "FID-HTML"); g = n.g;
+        box(g, n.x + 8, n.y + 30, 120, 128, { fill: C.faint, rx: 3 });
+        ['<table id="e40">', ' <tr id="e46">', '  <td>Last date', '  <td id="e47">', '   15 March 2024', ' </tr>', '</table>'].forEach(function (s, i) { tx(g, n.x + 13, n.y + 47 + i * 16, s, { size: 9.2, cls: s.indexOf("id=") >= 0 ? "t-blue" : "t-soft", font: "t-mono" }).style.whiteSpace = "pre"; });
+        n = node(0, 3, NW, NH, "LLM writes QA"); g = n.g;
+        tx(g, n.x + 10, n.y + 40, "gpt-oss-120b reads HTML", { size: 9, cls: "t-muted" });
+        tx(g, n.x + 10, n.y + 62, "Q: What is the last", { size: 10.5 }); tx(g, n.x + 10, n.y + 76, "date to apply?", { size: 10.5 });
+        tx(g, n.x + 10, n.y + 98, "A: 15 March 2024", { size: 10.5, weight: 700, cls: "t-green" });
+        tx(g, n.x + 10, n.y + 122, "cites line e46", { size: 10.5, cls: "t-blue", weight: 600 });
+        tx(g, n.x + 10, n.y + 138, "key phrase:", { size: 10.5, cls: "t-blue" }); tx(g, n.x + 10, n.y + 152, "“15 March 2024”", { size: 10.5, cls: "t-blue" });
+        n = node(0, 4, NW, NH, "Boxes from structure"); g = n.g;
+        box(g, n.x + 10, n.y + 34, 116, 70, { fill: "none", dash: "5 3", stroke: C.ink, rx: 2 });
+        box(g, n.x + 14, n.y + 60, 108, 18, { fill: "rgba(214,111,0,.12)", stroke: C.orange, rx: 2 });
+        box(g, n.x + 60, n.y + 62, 58, 14, { fill: "rgba(214,111,0,.35)", stroke: C.orange, rx: 2 });
+        tx(g, n.x + 10, n.y + 120, "line ← box of e46", { size: 9.5 }); tx(g, n.x + 10, n.y + 136, "phrase ← key phrase", { size: 9.5 }); tx(g, n.x + 10, n.y + 152, "block ← parent e40", { size: 9.5 });
+        n = node(0, 5, NW, NH, "Hi-SAM → masks"); g = n.g;
+        [0, 1, 2].forEach(function (i) { el("rect", { x: n.x + 14 + i * 3, y: n.y + 40 + i * 30, width: 108 - i * 6, height: 22, rx: 3, fill: "rgba(214,111,0," + (0.12 + i * 0.12) + ")", stroke: C.orange }, g); });
+        tx(g, n.x + 10, n.y + 150, "masks follow the text", { size: 9.5, cls: "t-muted" });
+        n = node(0, 6, NW, NH, "Verify"); g = n.g;
+        tx(g, n.x + 10, n.y + 44, "✓ span text ≈ OCR of", { size: 10, cls: "t-green" }); tx(g, n.x + 22, n.y + 58, "the masked region", { size: 10, cls: "t-green" });
+        tx(g, n.x + 22, n.y + 72, "(E5 similarity)", { size: 9, cls: "t-muted" });
+        tx(g, n.x + 10, n.y + 96, "✓ LLM judge: answer", { size: 10, cls: "t-green" }); tx(g, n.x + 22, n.y + 110, "supported by HTML", { size: 10, cls: "t-green" });
+        tx(g, n.x + 10, n.y + 140, "fail either: discard", { size: 10, cls: "t-red" });
+        /* lane 2 */
+        var NH2 = 150;
+        n = node(1, 0, NW, NH2, "Image"); poster(n.g, n.x + 22, n.y + 28, 92, 113);
+        n = node(1, 1, NW, NH2, "Segment curved text"); g = n.g;
+        el("path", { d: "M" + (n.x + 24) + " " + (n.y + 98) + " A 70 70 0 0 1 " + (n.x + 112) + " " + (n.y + 98), fill: "none", stroke: C.orangeT, "stroke-width": 16 }, g);
+        tx(g, n.x + 68, n.y + 134, "pixel masks first", { size: 9.5, anchor: "middle", cls: "t-muted" });
+        n = node(1, 2, NW, NH2, "Highlight as prompt"); g = n.g;
+        poster(g, n.x + 22, n.y + 28, 92, 113);
+        el("path", { d: "M" + (n.x + 31) + " " + (n.y + 78) + " A 57 57 0 0 1 " + (n.x + 105) + " " + (n.y + 78), fill: "none", stroke: C.ink, "stroke-width": 12, "stroke-dasharray": "3 3", opacity: 0.35 }, g);
+        n = node(1, 3, NW, NH2, "VLM asks about it"); g = n.g;
+        tx(g, n.x + 10, n.y + 40, "Qwen2.5-VL sees only", { size: 9, cls: "t-muted" }); tx(g, n.x + 10, n.y + 52, "the highlighted text", { size: 9, cls: "t-muted" });
+        tx(g, n.x + 10, n.y + 78, "Q: What is being", { size: 10.5 }); tx(g, n.x + 10, n.y + 92, "celebrated?", { size: 10.5 });
+        tx(g, n.x + 10, n.y + 116, "A: 5th Year", { size: 10.5, weight: 700, cls: "t-green" }); tx(g, n.x + 10, n.y + 130, "Celebrations", { size: 10.5, weight: 700, cls: "t-green" });
+        n = node(1, 4, NW, NH2, "Already aligned"); g = n.g;
+        tx(g, n.x + 10, n.y + 48, "✓ the mask existed", { size: 10, cls: "t-green" }); tx(g, n.x + 22, n.y + 62, "before the question", { size: 10, cls: "t-green" });
+        tx(g, n.x + 10, n.y + 90, "no box-to-mask step", { size: 10, cls: "t-soft" });
+        /* lane 3 */
+        n = node(2, 0, NW, NH2, "Plot script"); g = n.g;
+        box(g, n.x + 8, n.y + 32, 120, 100, { fill: C.faint, rx: 3 });
+        ["import matplotlib", "plt.bar(cities,", "        prices)", "plt.title(...)", "plt.savefig(...)"].forEach(function (s, i) { tx(g, n.x + 13, n.y + 50 + i * 17, s, { size: 9.2, cls: "t-soft", font: "t-mono" }).style.whiteSpace = "pre"; });
+        n = node(2, 1, NW, NH2, "Intercept renderer"); g = n.g;
+        [44, 70, 30, 58].forEach(function (h, i) { var x = n.x + 22 + i * 26, y = n.y + 126 - h; el("rect", { x: x, y: y, width: 16, height: h, fill: "#9fb6cf" }, g); el("rect", { x: x - 2, y: y - 2, width: 20, height: h + 4, fill: "none", stroke: C.orange, "stroke-dasharray": "3 2" }, g); tx(g, x + 8, y - 6, "b" + (i + 1), { size: 8.5, anchor: "middle", cls: "t-orange" }); });
+        tx(g, n.x + 68, n.y + 142, "every element: box + ID", { size: 9, anchor: "middle", cls: "t-muted" });
+        n = node(2, 2, NW, NH2, "ID-tagged record"); g = n.g;
+        box(g, n.x + 8, n.y + 32, 120, 104, { fill: C.faint, rx: 3 });
+        ['{"id":"b3",', ' "type":"bar",', ' "text":"3.45",', ' "label":"New York",', ' "box":[...]}'].forEach(function (s, i) { tx(g, n.x + 13, n.y + 50 + i * 17, s, { size: 9.2, cls: i === 0 ? "t-blue" : "t-soft", font: "t-mono" }).style.whiteSpace = "pre"; });
+        n = node(2, 3, NW, NH2, "VLM writes QA"); g = n.g;
+        tx(g, n.x + 10, n.y + 44, "chart + record in", { size: 9, cls: "t-muted" });
+        tx(g, n.x + 10, n.y + 70, "Q: Average price", { size: 10.5 }); tx(g, n.x + 10, n.y + 84, "in New York?", { size: 10.5 });
+        tx(g, n.x + 10, n.y + 108, "A: $3.45", { size: 10.5, weight: 700, cls: "t-green" });
+        tx(g, n.x + 10, n.y + 128, "cites b3", { size: 10.5, weight: 600, cls: "t-blue" });
+        n = node(2, 4, NW, NH2, "IDs → masks"); g = n.g;
+        tx(g, n.x + 10, n.y + 48, "b3 → its box", { size: 10.5 }); tx(g, n.x + 10, n.y + 68, "Hi-SAM → mask", { size: 10.5 });
+        tx(g, n.x + 10, n.y + 96, "one level only:", { size: 10, cls: "t-soft" }); tx(g, n.x + 10, n.y + 110, "a bar has no line", { size: 10, cls: "t-soft" }); tx(g, n.x + 10, n.y + 124, "or block above it", { size: 10, cls: "t-soft" });
+        /* totals */
+        var tot = el("g", null, cam);
+        box(tot, 790, 300, 290, 150, { stroke: C.ink, sw: 2, rx: 6 });
+        tx(tot, 935, 340, "GroundingDocQA", { size: 18, weight: 700, anchor: "middle", font: "t-disp" });
+        tx(tot, 935, 370, "200K documents · 2M QA pairs", { size: 13, anchor: "middle" });
+        tx(tot, 935, 394, "phrase, line and block masks", { size: 12, anchor: "middle", cls: "t-soft" });
+        tx(tot, 935, 412, "(one level for charts)", { size: 11, anchor: "middle", cls: "t-muted" });
+        tx(tot, 935, 436, "no coordinate written by a model", { size: 12, anchor: "middle", cls: "t-blue", weight: 600 });
+        function render(p) {
+          cam.setAttribute("transform", camT(p.cx, p.cy, p.s, W, H));
+          NODES.forEach(function (o, i) {
+            op(o.g, 0.14 + 0.86 * clamp(p.r - i, 0, 1));
+            var hot = Math.abs(p.hl - i) < 0.5 || (p.hl2 != null && Math.abs(p.hl2 - i) < 0.5);
+            o.r.style.stroke = hot ? "#d66f00" : "";
+            o.r.setAttribute("stroke-width", hot ? 2.6 : 1.5);
+          });
+          op(tot, p.tot);
+        }
+        function cn(i, s) { var o = NODES[i]; return { cx: o.cx, cy: o.cy + 8, s: s || 1.9 }; }
+        var st = [{ cap: "Three pipelines, one rule: no model ever writes a coordinate. Start with text-rich pages.", p: { cx: 550, cy: 340, s: 1, r: 0, hl: -9, hl2: -9, tot: 0 } }];
+        var caps1 = ["A text-rich page, for example a government circular with a table.", "REPLICA rebuilds the page as FID-HTML in four stages.", "In FID-HTML every element has an ID, its exact text, its place in the tree, its position and its style.", "A language model reads the HTML, writes a question and answer, and cites the line-level element ID and the key phrase. It never sees a pixel.", "Boxes come from the structure: the line is the cited element, the phrase is the key phrase inside it, the block is its parent. In a table: cell, row, table.", "Hi-SAM turns each box into a pixel mask that follows the text.", "Two checks: the span text must match OCR of its masked region, and an LLM judge must find the answer supported by the HTML."];
+        caps1.forEach(function (c, i) { st.push({ cap: c, p: Object.assign(cn(i, i === 6 ? 1.7 : 1.9), { r: i + 1, hl: i, hl2: -9 }) }); });
+        st.push({ cap: "Curved text needs no REPLICA. A curved-text segmenter produces pixel masks first.", p: { cx: 174, cy: 383, s: 1.6, r: 9, hl: 7, hl2: 8 } });
+        st.push({ cap: "Each mask is overlaid as a highlight, and a VLM may only ask about the highlighted text.", p: { cx: 482, cy: 383, s: 1.6, r: 11, hl: 9, hl2: 10 } });
+        st.push({ cap: "The mask existed before the question, so the pair is aligned by construction.", p: Object.assign(cn(11, 1.8), { r: 12, hl: 11, hl2: -9 }) });
+        st.push({ cap: "Charts start from plotting scripts. Intercepting the renderer logs every bar, tick and label with its box and an ID.", p: { cx: 174, cy: 595, s: 1.6, r: 14, hl: 12, hl2: 13 } });
+        st.push({ cap: "A VLM sees the chart and its ID-tagged record, and writes QA pairs that cite element IDs.", p: { cx: 482, cy: 595, s: 1.6, r: 16, hl: 14, hl2: 15 } });
+        st.push({ cap: "Cited IDs map back to boxes, and Hi-SAM turns them into masks. Charts get one granularity.", p: Object.assign(cn(16, 1.8), { r: 17, hl: 16, hl2: -9 }) });
+        st.push({ cap: "Together: 200K documents and 2M QA pairs with pixel masks, none of them typed by a model.", p: { cx: 550, cy: 340, s: 1, r: 17, hl: -9, hl2: -9, tot: 1 }, hold: 4200 });
+        stepper(fig, st, render, { dur: 1300, hold: 2500 });
+      })();
+
+      /* ================= FIGURE 8 · results ================= */
+      (function () {
+        var fig = document.getElementById("fig-results"); if (!fig) return;
+        var D = [
+          ["GPT-4o", "", "com", 3.4, 5.2, 0.8, 4.4, 2.3, 2.9, 2.5, 80.1],
+          ["GPT-5", "", "com", 4.5, 5.3, 2.1, 4.8, 5.4, 3.6, 9.3, 83.5],
+          ["Gemini-2.5-Pro", "", "com", 43.4, 53.8, 14.0, 32.1, 70.0, 59.3, 49.4, 83.1],
+          ["Gemma-3", "12B", "open", 1.5, 1.3, 1.8, 2.1, 0.5, 1.77, 1.6, 65.6],
+          ["Kimi VL", "16B", "open", 0.5, 0.6, 0.0, 2.7, 8.1, 7.2, 3.5, 64.0],
+          ["mPLUG-DocOwl2", "9B", "open", 0.0, 0.0, 0.0, 0.0, 1.2, 0.0, 0.0, 37.5],
+          ["InternVL3.5", "8B", "open", 7.6, 9.3, 2.6, 6.3, 41.5, 12.5, 15.5, 80.0],
+          ["Qwen3-VL", "8B", "open", 12.8, 15.7, 3.8, 11.6, 44.5, 27.6, 28.7, 79.9],
+          ["Kosmos 2.5 Chat", "1.3B", "open", 0.0, 0.0, 0.0, 0.0, 0.7, 0.0, 0.0, 49.1],
+          ["DOGR", "8B", "dogr", null, null, null, null, null, 66.4, null, null],
+          ["InternVL3.5 ft.", "8B", "ft", 52.7, 58.7, 34.5, 33.7, 58.7, 27.6, 37.6, 80.9],
+          ["Qwen3-VL ft.", "8B", "ft", 60.6, 68.1, 37.7, 38.3, 62.3, 35.8, 43.4, 81.9],
+          ["M3Grounder-I", "8B", "ours", 71.3, 77.6, 52.7, 81.7, 77.2, 69.6, 65.5, 82.3],
+          ["M3Grounder-Q", "8B", "ours", 79.0, 84.2, 63.5, 85.3, 81.4, 73.3, 68.2, 80.1]
+        ];
+        var COLS = { f1g: 3, ss: 4, ms: 5, cs: 6, bd: 7, dogr: 8, mmd: 9, aq: 10 };
+        var NOTE = {
+          f1g: "Overall grounding F1 on GroundingDocQA-Bench. M3Grounder-Q 79.0. The best zero-shot model, Gemini-2.5-Pro, 43.4. The same Qwen3-VL-8B backbone fine-tuned on our data with boxes, 60.6.",
+          ss: "Single-span evidence is where data alone helps most: the fine-tuned Qwen3-VL reaches 68.1, and M3Grounder-Q 84.2.",
+          ms: "Several regions per answer, matched one to one: M3Grounder-Q 63.5, the fine-tuned Qwen3-VL 37.7, Gemini-2.5-Pro 14.0.",
+          cs: "Curved and skewed text shows the largest gap: M3Grounder-Q 85.3 and M3Grounder-I 81.7, against 38.3 for the best box model.",
+          bd: "BoundingDocs, box annotations. Masks are converted to their tightest boxes before scoring. Best prior: Gemini-2.5-Pro at 70.0; M3Grounder-Q 81.4.",
+          dogr: "DOGR-Bench. DOGR, a document grounding model at the same 8B scale, scores 66.4; M3Grounder-Q 73.3. DOGR is reported only here, because its code could not be adapted for the other benchmarks.",
+          mmd: "MMDocBench region IoU under the official protocol. Gemini-2.5-Pro 49.4; M3Grounder-Q 68.2.",
+          aq: "Answer quality (G-Eval) on GroundingDocQA-Bench. Here M3Grounder does not lead: GPT-5 83.5, Gemini-2.5-Pro 83.1, M3Grounder-I 82.3, M3Grounder-Q 80.1."
+        };
+        var wrap = fig.querySelector(".hb"), note = fig.querySelector(".hb-note"), btns = [].slice.call(fig.querySelectorAll("[data-m]"));
+        function show(m) {
+          var c = COLS[m];
+          var rows = D.filter(function (r) { return r[c] != null; }).sort(function (a, b) { return b[c] - a[c]; });
+          wrap.innerHTML = "";
+          var bars = [];
+          rows.forEach(function (r) {
+            var row = document.createElement("div"); row.className = "hb-row" + (r[2] === "ours" ? " ours" : "");
+            row.innerHTML = '<span class="nm">' + r[0] + (r[1] ? " <small>" + r[1] + "</small>" : "") + '</span><span class="hb-track"><span class="hb-bar c-' + r[2] + '"></span></span><span class="hb-val">' + (r[c] % 1 === 0 ? r[c].toFixed(1) : r[c]) + "</span>";
+            wrap.appendChild(row); bars.push([row.querySelector(".hb-bar"), r[c]]);
+          });
+          note.textContent = NOTE[m];
+          var go = function () { bars.forEach(function (b, i) { b[0].style.transitionDelay = (RM ? 0 : i * 35) + "ms"; b[0].style.width = b[1] + "%"; }); };
+          if (RM) go(); else requestAnimationFrame(function () { requestAnimationFrame(go); });
+        }
+        btns.forEach(function (b) { b.addEventListener("click", function () { pressGroup(btns, b); show(b.dataset.m); }); });
+        var shown = false;
+        function first() { if (!shown) { shown = true; show("f1g"); } }
+        if ("IntersectionObserver" in window && !RM) {
+          var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { first(); io.disconnect(); } }); }, { threshold: 0.25 });
+          io.observe(fig);
+        } else first();
+        window.__figs.results = { show: function (m) { shown = true; show(m); } };
+      })();
+
+      /* ================= FIGURE 9 · data versus architecture ================= */
+      (function () {
+        var fig = document.getElementById("fig-dva"); if (!fig) return;
+        var W = 900, H = 380;
+        var svg = svgIn(fig.querySelector(".fx-stage"), W, H, "Grouped bars for zero-shot, fine-tuned and M3Grounder on four GroundingDocQA-Bench scores");
+        var DATA = { q: [[12.8, 60.6, 79.0], [15.7, 68.1, 84.2], [3.8, 37.7, 63.5], [11.6, 38.3, 85.3]], i: [[7.6, 52.7, 71.3], [9.3, 58.7, 77.6], [2.6, 34.5, 52.7], [6.3, 33.7, 81.7]] };
+        var NAMES = ["Overall F1", "Single-span", "Multi-span", "Curved / skewed"];
+        var bb = "q";
+        var X0 = 70, BASE = 310, SC = 2.6, GW = 200;
+        for (var t = 0; t <= 100; t += 25) {
+          el("line", { x1: X0 - 6, y1: BASE - t * SC, x2: 880, y2: BASE - t * SC, stroke: t ? C.faint : C.rule }, svg);
+          tx(svg, X0 - 12, BASE - t * SC + 4, String(t), { size: 11, anchor: "end", cls: "t-muted" });
+        }
+        var COLS = ["#b9bec2", "#7fa9cf", "var(--f-blue)"];
+        var G = NAMES.map(function (nm, gi) {
+          var gx = X0 + 20 + gi * GW;
+          tx(svg, gx + 80, BASE + 22, nm, { size: 12.5, anchor: "middle", weight: 600 });
+          var bars = [0, 1, 2].map(function (k) { return el("rect", { x: gx + k * 54, y: BASE, width: 46, height: 0, fill: COLS[k] }, svg); });
+          var vals = [0, 1, 2].map(function (k) { return tx(svg, gx + k * 54 + 23, BASE - 4, "", { size: 11, anchor: "middle", weight: 600 }); });
+          var dl = tx(svg, gx + 150, BASE - 100, "", { size: 11.5, cls: "t-ink", weight: 600 }), dl2 = tx(svg, gx + 150, BASE - 84, "", { size: 11.5, cls: "t-blue", weight: 600 });
+          return { gx: gx, bars: bars, vals: vals, dl: dl, dl2: dl2 };
+        });
+        var lg = el("g", null, svg);
+        [["zero-shot", 0], ["+ our data, box output", 1], ["+ M3Grounder architecture", 2]].forEach(function (l, i) { el("rect", { x: 90 + i * 250, y: 352, width: 12, height: 12, fill: COLS[l[1]] }, lg); tx(lg, 108 + i * 250, 362, l[0], { size: 12, cls: "t-soft" }); });
+        function render(p) {
+          var D = DATA[bb];
+          G.forEach(function (g, gi) {
+            var v = D[gi], grow = [p.a0, p.a1, p.a2], sp = p.sp;
+            var hl = 1 - 0.55 * p.hc * (gi === 3 ? 0 : 1);
+            [0, 1, 2].forEach(function (k) {
+              var hFull = v[k] * SC * grow[k];
+              var prev = k ? v[k - 1] * SC : 0;
+              var hStack = (v[k] - (k ? v[k - 1] : 0)) * SC * grow[k];
+              var h = lerp(hFull, hStack, sp), yb = lerp(BASE, BASE - prev * (k ? 1 : 0), sp);
+              var x = lerp(g.gx + k * 54, g.gx + 54, sp), w = lerp(46, 52, sp);
+              var r = g.bars[k];
+              r.setAttribute("x", x); r.setAttribute("width", w); r.setAttribute("y", yb - h); r.setAttribute("height", Math.max(0, h));
+              op(r, hl);
+              var vt = g.vals[k];
+              vt.setAttribute("x", g.gx + k * 54 + 23); vt.setAttribute("y", BASE - hFull - 5);
+              vt.textContent = grow[k] > 0.98 ? v[k].toFixed(1) : ""; op(vt, (1 - sp) * hl);
+            });
+            g.dl.textContent = "data +" + (v[1] - v[0]).toFixed(1); g.dl2.textContent = "arch. +" + (v[2] - v[1]).toFixed(1);
+            g.dl.setAttribute("y", BASE - v[2] * SC - 26); g.dl2.setAttribute("y", BASE - v[2] * SC - 10);
+            g.dl.setAttribute("x", g.gx + 112); g.dl2.setAttribute("x", g.gx + 112);
+            op(g.dl, sp * hl); op(g.dl2, sp * hl);
+          });
+        }
+        var api = stepper(fig, [
+          { cap: "Four scores on GroundingDocQA-Bench for one backbone. Start with the backbone used zero-shot.", p: { a0: 0, a1: 0, a2: 0, sp: 0, hc: 0 } },
+          { cap: "Zero-shot, the backbone barely grounds: under 16 F1 on every split.", p: { a0: 1 } },
+          { cap: "Fine-tuned on GroundingDocQA with its usual box output, it gains most on single-span evidence.", p: { a1: 1 } },
+          { cap: "With the M3Grounder architecture on the same data, every score rises again, most on curved and skewed text.", p: { a2: 1 } },
+          { cap: "Stack the gains. Grey is zero-shot, light blue is what data added, dark blue is what the architecture added.", p: { sp: 1 }, d: 1600 },
+          { cap: "On curved and skewed text the architecture adds more than the data. A box cannot follow a curve, however much data it sees.", p: { hc: 1 }, hold: 4200 }
+        ], render, { dur: 1200, hold: 2600 });
+        var bbs = [].slice.call(fig.querySelectorAll("[data-bb]"));
+        bbs.forEach(function (b) { b.addEventListener("click", function () { bb = b.dataset.bb; pressGroup(bbs, b); api.rerender(); }); });
+      })();
+
+      /* ================= FIGURE 10 · ablations ================= */
+      (function () {
+        var fig = document.getElementById("fig-abl"); if (!fig) return;
+        var FULL = [81.4, 73.3, 68.2, 79.0, 81.4, 87.5];
+        var A = {
+          nohier: [[74.8, 58.2, 54.7, 71.3, null, null], "Trained with phrase masks only. Phrase-level scores fall on every benchmark, most on DOGR-Bench (73.3 to 58.2). Supervising coarser levels improves the finest."],
+          shared: [[64.2, 61.7, 53.5, 63.6, 69.3, 77.6], "SAM's default: one shared MLP, one prompt for all levels. Phrase level falls to 63.6, below training with phrase masks only."],
+          base: [[78.3, 70.1, 65.6, 74.0, 77.6, 84.4], "No document losses. Every score is below the full model; the gap is largest at phrase level (74.0 against 79.0)."],
+          hier: [[80.1, 72.8, 67.4, 78.2, 79.1, 84.7], "Enclosure added to the base objective. Phrase level rises to 78.2, block level only to 84.7: the block is never the finer mask in the enclosure loss."],
+          bleed: [[79.6, 72.4, 67.7, 77.3, 78.7, 86.5], "Bleed suppression added to the base objective. Block level rises to 86.5, more than enclosure gives there; large masks are the ones that spill onto graphics."],
+          lora: [[62.4, 54.8, 52.7, 61.5, 67.3, 75.7], "LoRA on attention projections instead of full fine-tuning. The largest drop of any ablation, worst at phrase level (79.0 to 61.5)."]
+        };
+        var grid = fig.querySelector(".ab-grid"), note = fig.querySelector(".hb-note"), btns = [].slice.call(fig.querySelectorAll("[data-a]"));
+        var LO = 40, HI = 92;
+        function h(v) { return clamp((v - LO) / (HI - LO), 0, 1) * 100; }
+        var cols = FULL.map(function (f) {
+          var c = document.createElement("div"); c.className = "ab-col";
+          c.innerHTML = '<span class="ab-full"></span><span class="ab-abl"></span><span class="ab-d"></span>';
+          grid.appendChild(c);
+          c.querySelector(".ab-full").style.height = h(f) + "%";
+          return { full: c.querySelector(".ab-full"), abl: c.querySelector(".ab-abl"), d: c.querySelector(".ab-d"), f: f };
+        });
+        var labs = fig.querySelectorAll(".ab-labels span");
+        FULL.forEach(function (f, i) { if (labs[i]) labs[i].innerHTML = labs[i].textContent + "<br>full " + f.toFixed(1); });
+        function show(k) {
+          var v = A[k][0];
+          cols.forEach(function (c, i) {
+            if (v[i] == null) { c.abl.style.height = "0%"; c.d.textContent = "—"; c.d.style.bottom = "4px"; c.d.style.color = "var(--f-muted)"; return; }
+            c.abl.style.height = h(v[i]) + "%";
+            var dd = v[i] - c.f;
+            c.d.textContent = v[i].toFixed(1) + " (" + (dd >= 0 ? "+" : "") + dd.toFixed(1) + ")";
+            c.d.style.color = dd < 0 ? "var(--f-red)" : "var(--f-green)";
+            c.d.style.bottom = "calc(" + h(Math.max(v[i], c.f)) + "% + 4px)";
+          });
+          note.textContent = A[k][1];
+        }
+        btns.forEach(function (b) { b.addEventListener("click", function () { pressGroup(btns, b); show(b.dataset.a); }); });
+        show("nohier");
+      })();
+
+      /* ================= FIGURE 11 · qualitative examples ================= */
+      (function () {
+        var fig = document.getElementById("fig-qual"); if (!fig) return;
+        var BASE = "../../research/docai-talk/grounding/interactive/";
+        var COLS = [["var(--f-orange)", "rgba(214,111,0,.28)"], ["var(--f-blue)", "rgba(11,94,168,.24)"], ["var(--f-green)", "rgba(47,143,91,.26)"]];
+        var EX = [
+          { img: "m3g_qual/finance_doc.png", w: 951, h: 1239,
+            q: "What was the Customer Support renewal rate for the quarter ended June 30, 2019, and the Customer Support revenue in the Americas?",
+            spans: [{ t: "approximately 91%", bb: { phrase: [[33.86, 32.52, 13.64, 1.61]], line: [[7.86, 32.52, 83.36, 1.88]], block: [[7.77, 20.45, 84.36, 15.14]] } },
+              { t: "$718,209", bb: { phrase: [[41.68, 49.06, 9.45, 1.81]], line: [[7.95, 48.92, 83.27, 2.09]], block: [[7.59, 40.96, 84.36, 20.66]] } }],
+            a: [["The document reports a Customer Support renewal rate of "], [0, "approximately 91%"], [" and an Americas Customer Support revenue of "], [1, "$718,209"], [" for 2019."]] },
+          { img: "m3g_qual/legal_doc.png", w: 604, h: 857,
+            q: "Which types of organizations may be considered as the Auditee according to this NDA?",
+            spans: [{ t: "Central Government Ministry / State Government Departments", bb: { phrase: [[24.95, 14.09, 67.82, 2.24], [9.23, 16.34, 32.91, 2.37]], line: [[8.86, 14.03, 84.82, 2.24], [8.68, 16.27, 34.55, 2.37]], block: [[8.68, 14.03, 84.09, 4.55]] } },
+              { t: "Autonomous Societies, Not-for-profit companies, Public & Private sector DLSP/DL Repository", bb: { phrase: [[25.5, 34.59, 67, 2.31], [9.05, 36.84, 47.91, 2.5]], line: [[9.14, 34.4, 83.45, 2.18], [9.05, 36.64, 47.91, 2.56]], block: [[9.14, 34.53, 84.45, 4.55]] } }],
+            a: [["The NDA specifies that the Auditee may belong to "], [0, "Central Government Ministry / State Government Departments"], [" as well as "], [1, "Autonomous Societies, Not-for-profit companies, Public & Private sector DLSP/DL Repository"], ["."]] },
+          { img: "m3g_qual/transcript_doc.png", w: 785, h: 1109,
+            q: "What is the student's ID number and what grade did Data Analytics receive?",
+            spans: [{ t: "3123456", bb: { phrase: [[22.95, 13.90, 7.73, 1.67]], line: [[7.23, 13.90, 23.73, 1.80]], block: [[7.32, 13.77, 23.27, 1.99]] } },
+              { t: "HD", bb: { phrase: [[85.50, 27.61, 3.45, 1.48]], line: [[15.23, 27.48, 73.73, 1.80]], block: [[6.95, 22.33, 84.36, 15.38]] } }],
+            a: [["The student ID is "], [0, "3123456"], [" and the grade for Data Analytics is "], [1, "HD"], ["."]] },
+          { img: "m3g_qual/coffee_chart.png", w: 811, h: 480,
+            q: "Which coffee brand is being compared, and what is the average coffee price for New York?",
+            spans: [{ t: "Starbucks Coffee", poly: [[[82.18, 47.77], [82.73, 45.01], [83.91, 42.55], [86.27, 39.78], [88.45, 39.02], [91.18, 39.17], [92.64, 41.17], [94.36, 43.01], [95, 45.78], [95.73, 49.16], [93.55, 49.31], [92.55, 47.16], [91.64, 44.85], [90.73, 43.47], [88.73, 43.01], [87.73, 42.86], [86.18, 44.7], [84.91, 47.77], [84.27, 50.38]], [[83.55, 55.76], [85.18, 53.61], [86.82, 55.91], [88.36, 56.99], [90.09, 56.68], [91.45, 55.15], [92.55, 53.3], [94.09, 56.37], [93.09, 58.37], [90.64, 60.37], [88.18, 60.98], [84.73, 58.99]]] },
+              { t: "New York", poly: [[[3, 41.01], [12.27, 41.01], [12.27, 44.55], [3, 44.55]]] },
+              { t: "$3.45", poly: [[[62.45, 41.32], [68, 41.32], [68, 44.39], [62.45, 44.39]]] }],
+            a: [["The coffee brand being compared is "], [0, "Starbucks Coffee"], [", and the average coffee price for "], [1, "New York"], [" is "], [2, "$3.45"], ["."]] }
+        ];
+        var img = fig.querySelector(".qx-img img"), holder = fig.querySelector(".qx-img"), ov = fig.querySelector(".qx-ov");
+        var qt = fig.querySelector(".qx-qt"), at = fig.querySelector(".qx-at");
+        var tabs = [].slice.call(fig.querySelectorAll(".qx-tabs [data-x]")), grans = [].slice.call(fig.querySelectorAll(".qx-grans [data-g]"));
+        var cur = 0, gran = "phrase", revealed = [], timers = [], near = false;
+        function clear() { timers.forEach(clearTimeout); timers = []; }
+        function build(ex) {
+          ov.innerHTML = "";
+          if (ex.spans[0].bb) {
+            ex.spans.forEach(function (s, k) {
+              Object.keys(s.bb).forEach(function (g) {
+                s.bb[g].forEach(function (r) {
+                  var d = document.createElement("span"); d.className = "m"; d.dataset.k = k; d.dataset.g = g;
+                  d.style.left = r[0] + "%"; d.style.top = r[1] + "%"; d.style.width = r[2] + "%"; d.style.height = r[3] + "%";
+                  d.style.borderColor = COLS[k][0]; d.style.background = COLS[k][1];
+                  ov.appendChild(d);
+                });
+              });
+            });
+          } else {
+            var s = el("svg", { viewBox: "0 0 100 100", preserveAspectRatio: "none" }, ov);
+            ex.spans.forEach(function (sp, k) { sp.poly.forEach(function (pts) { var p = el("polygon", { points: pts.map(function (q) { return q.join(","); }).join(" "), "stroke-width": 0.5, "vector-effect": "non-scaling-stroke" }, s); p.style.fill = COLS[k][1]; p.style.stroke = COLS[k][0]; p.dataset.k = k; }); });
+          }
+        }
+        function paint() {
+          ov.querySelectorAll(".m").forEach(function (d) { d.classList.toggle("on", revealed.indexOf(+d.dataset.k) > -1 && d.dataset.g === gran); });
+          ov.querySelectorAll("polygon").forEach(function (p) { p.classList.toggle("on", revealed.indexOf(+p.dataset.k) > -1); });
+        }
+        function chip(k) { return '<span class="gtok" style="background:' + COLS[k][0] + '">[GROUND]</span>'; }
+        function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+        function finish(ex) {
+          at.innerHTML = ex.a.map(function (p) { return p.length === 1 ? esc(p[0]) : '<span class="sp" style="color:' + COLS[p[0]][0] + '">' + esc(p[1]) + "</span>" + chip(p[0]); }).join("");
+          revealed = ex.spans.map(function (s, k) { return k; }); paint();
+        }
+        function stream(ex) {
+          clear(); revealed = []; paint();
+          if (RM) { finish(ex); return; }
+          var html = "", parts = ex.a, pi = 0, ci = 0;
+          function step() {
+            if (pi >= parts.length) { at.innerHTML = html; return; }
+            var p = parts[pi], s = p.length === 1 ? p[0] : p[1];
+            var n = Math.min(s.length, ci + 3);
+            var piece = s.slice(ci, n); ci = n;
+            var body = html + (p.length === 1 ? esc(s.slice(0, ci)) : '<span class="sp" style="color:' + COLS[p[0]][0] + '">' + esc(s.slice(0, ci)) + "</span>");
+            if (ci >= s.length) {
+              if (p.length === 2) { body += chip(p[0]); revealed.push(p[0]); paint(); }
+              html = body; pi++; ci = 0;
+            }
+            at.innerHTML = body;
+            timers.push(setTimeout(step, ci === 0 && p.length === 2 ? 260 : 28));
+          }
+          step();
+        }
+        function select(i, play) {
+          cur = i; pressGroup(tabs, tabs[i]);
+          var ex = EX[i];
+          holder.style.maxWidth = Math.round(540 * ex.w / ex.h) + "px";
+          img.width = ex.w; img.height = ex.h;
+          if (near) img.src = BASE + ex.img;
+          img.alt = "Example document: " + ex.q;
+          qt.textContent = ex.q;
+          var chart = !ex.spans[0].bb;
+          grans.forEach(function (b) { b.disabled = chart; });
+          build(ex);
+          if (play) stream(ex); else { at.textContent = ""; finish(ex); }
+        }
+        tabs.forEach(function (b, i) { b.addEventListener("click", function () { select(i, true); }); });
+        grans.forEach(function (b) { b.addEventListener("click", function () { gran = b.dataset.g; pressGroup(grans, b); paint(); }); });
+        fig.querySelector(".qx-replay").addEventListener("click", function () { stream(EX[cur]); });
+        select(0, false);
+        at.textContent = "";
+        if ("IntersectionObserver" in window) {
+          var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { near = true; img.src = BASE + EX[cur].img; stream(EX[cur]); io.disconnect(); } }); }, { rootMargin: "200px 0px" });
+          io.observe(fig);
+        } else { near = true; img.src = BASE + EX[cur].img; finish(EX[cur]); }
+        window.__figs.qual = { select: function (i, g) { near = true; if (g) { gran = g; pressGroup(grans, fig.querySelector('.qx-grans [data-g="' + g + '"]')); } select(i, false); img.src = BASE + EX[i].img; } };
+      })();
+    })();
+    </script>
+  </body>
+</html>

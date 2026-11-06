@@ -42,7 +42,8 @@
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#reasoning-models", "name": "Reasoning Models", "numberOfItems": 3 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#agents", "name": "Tools and Agentic Models", "numberOfItems": 7 },
           { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#vlms", "name": "Vision-Language Models", "numberOfItems": 18 },
-          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 }
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#ml-systems", "name": "ML Systems from First Principles", "numberOfItems": 8 },
+          { "@type": "CreativeWorkSeries", "@id": "https://srini-anirudh.github.io/blogs/#docai-research", "name": "Grounded Document Intelligence", "numberOfItems": 2 }
         ]
       }
     </script>
@@ -92,6 +93,7 @@
           <button type="button" class="blog-filter" data-blog-filter="vlms" data-blog-filter-label="VLMs" data-blog-members="vlms" data-blog-paths="Foundations::one-transformer-two-modalities inside-a-modern-vision-encoder the-vlm-architecture-gallery;Training and evaluation::teaching-language-models-to-see how-vision-language-models-scale one-model-many-visual-skills measuring-what-a-vlm-can-do aligning-vision-language-models;Capabilities::when-language-must-point how-vlms-read-documents seeing-in-time rewarding-what-the-model-sees thinking-with-images vlms-that-act;Systems and frontier::the-cost-of-a-picture searching-with-pixels what-happens-inside-a-vlm models-that-see-and-draw" data-path-description="From how images become tokens to how VLMs are trained, evaluated, aligned, grounded, made to reason and act, served efficiently, and built in practice." aria-pressed="false">VLMs</button>
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference;Scaling the workloads::the-parallelism-playbook the-serving-playbook;Profiling::how-to-find-what-is-slowing-your-model" data-path-description="Choose a path through hardware and communication, workload mechanics, distributed scaling, serving, and performance diagnosis." aria-pressed="false">ML Systems</button>
+          <button type="button" class="blog-filter" data-blog-filter="research" data-blog-filter-label="Research" data-blog-members="docai-research" data-blog-paths="Grounded document intelligence::building-grounded-document-intelligence m3grounder-mask-based-document-grounding" data-path-description="Research posts: the thesis and one post per publication, each built around what the work teaches." aria-pressed="false">Research</button>
         </nav>
         <div class="blog-discovery-tools" role="search" aria-label="Search and filter articles by tag">
           <label class="blog-search-field">
@@ -106,7 +108,7 @@
           </label>
         </div>
         <div class="blog-filter-status-row">
-          <p class="blog-filter-status" aria-live="polite">Showing all 57 articles</p>
+          <p class="blog-filter-status" aria-live="polite">Showing all 58 articles</p>
           <button type="button" class="blog-filter-reset" hidden>Clear filters</button>
         </div>
         <section class="learning-path-panel" aria-live="polite" hidden>
@@ -313,7 +315,7 @@
             </div>
           </a>
           <!-- vlm-series:end -->
-          <a class="blog-card" href="building-grounded-document-intelligence/" target="_self" data-blog-categories="vlms systems">
+          <a class="blog-card" href="building-grounded-document-intelligence/" target="_self" data-blog-categories="vlms systems research" data-blog-series="docai-research">
             <picture class="blog-card-media">
               <img src="building-grounded-document-intelligence/preview.png" data-still-src="building-grounded-document-intelligence/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="REPLICA at the top feeding three papers below it: M3Grounder, DoCoG and DocLayout-VL" />
             </picture>
@@ -325,6 +327,20 @@
               <div class="blog-tags"><span>Document AI</span><span>Grounding</span><span>VLMs</span></div>
             </div>
           </a>
+          <!-- docai-research:start -->
+          <a class="blog-card" href="m3grounder-mask-based-document-grounding/" target="_self" data-blog-categories="vlms research" data-blog-series="docai-research">
+            <picture class="blog-card-media">
+              <img src="m3grounder-mask-based-document-grounding/preview.png" data-still-src="m3grounder-mask-based-document-grounding/preview.png" data-animated-src="m3grounder-mask-based-document-grounding/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="M3Grounder&#x27;s forward pass: a VLM writes an answer with grounding tokens, three heads turn each token into phrase, line and block prompts, and SAM decodes masks onto a blood report." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Research &middot; M3Grounder &middot; CVPR 2026</span>
+              <h3>Grounding Document Answers With Masks</h3>
+              <p>M3Grounder grounds document answers as pixel masks: a VLM writes a token per cited span and SAM draws phrase, line and block masks, trained end to end.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>36 min read</span></div>
+              <div class="blog-tags"><span>Document AI</span><span>Visual Grounding</span><span>Segmentation</span></div>
+            </div>
+          </a>
+          <!-- docai-research:end -->
           <a class="blog-card" href="the-agent-evaluation-playbook/" target="_self" data-blog-categories="agents reasoning systems" data-blog-series="tool-agents">
             <picture class="blog-card-media">
               <img src="the-agent-evaluation-playbook/preview.png" data-still-src="the-agent-evaluation-playbook/preview.png" data-animated-src="the-agent-evaluation-playbook/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated comparison between grading an agent's words and verifying the world state it changed." />
