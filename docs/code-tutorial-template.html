@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    ======================================================================
+    CODING TUTORIAL TEMPLATE  (series: Coding Tutorials, 12 posts)
+    ======================================================================
+    Copy this file to blogs/[ARTICLE-SLUG]/index.html. Then:
+      * DELETE the <meta name="robots" content="noindex, nofollow"> line.
+        It exists only so this template stays out of search.
+      * Replace every [BRACKETED] placeholder (head, JSON-LD, mast, series
+        navigator, citation, footer).
+      * Replace ALL sample content (code, outputs, numbers). Sample numbers in
+        this file are placeholders, not measurements. Quote only real output
+        from your own runs, labelled with the hardware ("Apple M5 CPU", "MPS").
+    Shared files (do not copy them into the post, do not fork variants):
+      ../../assets/css/code-tutorial.css?v=1   (after blog-shell.css)
+      ../../assets/js/code-tutorial.js?v=1     (after blogs.js)
+
+    WRITING RULES (binding, from docs/blog-writing-guide.md and the brief):
+    Code first: build the thing step by step. Each step is: what we build and
+    why -> the real code excerpt -> run it -> the real output -> a check or test.
+    Start naive, verify, find the bottleneck, then optimise. Link theory with
+    a.theory-link instead of re-deriving. Simple language, short sentences and
+    paragraphs, sentence-case headings, no "respectively", "the former/latter",
+    "and all", "etc.", no hype, no exclamation marks, no emoji. Use
+    Insight/Nuance callouts about once per major section, add a "Key insights
+    and nuances" section, at least one comparison table, at least 5 light
+    figures (most animated with CT.stepper, at least 2 interactive), 3-5 real
+    exercises, the final repo tree, and how to run everything.
+
+    ---------------------------------------------------------------------
+    COMPONENTS (class names and data attributes)
+    ---------------------------------------------------------------------
+    1. Code listing (exact excerpt of a file in blog-coding-tutorials)
+       <figure class="code-listing" data-src="c03-attention/attnzoo/gqa.py"
+               data-lines="12-40" data-lang="python" data-highlight="5,9-11">
+         <pre><code>...HTML-escaped code...</code></pre>
+         <figcaption><span class="ct-fig-num">Listing 3</span>...</figcaption>
+       </figure>
+       - data-src: path relative to the repo root. Required for real excerpts.
+         The "View on GitHub" link becomes
+         https://github.com/srini-anirudh/blog-coding-tutorials/blob/main/<data-src>#L12-L40
+       - data-lines: "12-40" or "12". Line numbers in the gutter start there.
+         Omit it only when the listing is the whole file (then numbering
+         starts at 1).
+       - data-lang: python | bash | shell | json | yaml | toml | text.
+         Inferred from the file extension when omitted.
+       - data-highlight: lines to highlight, RELATIVE to the listing
+         (1 = first line shown): "5,9-11". Prefix with L for absolute file
+         lines: "L16,L20-L22".
+       - data-title: header label for a listing without data-src (snippets).
+       - Escape the code: & -> &amp;  < -> &lt;  > -> &gt;. Put the code
+         directly after <pre><code> with no blank first line. No spans
+         inside: the highlighter colours it.
+       - Optional figcaption. Listings with data-src are checked for drift.
+    2. Diff mode (how a file grows step by step; not drift-checked)
+       <figure class="code-listing" data-diff data-src="..." data-lines="12-24">
+       Every line starts with "+" (added), "-" (removed) or " " (unchanged).
+       "@@ ... @@" lines become hunk separators; "@@ +21 @@ note" also resets
+       the line number to 21 (git style). Numbers follow the new file.
+       Copy gives the new code without markers.
+    3. Multi-file tabs
+       <div class="code-tabs" data-label="Implementation and test">
+         <figure class="code-listing" data-src="..."> ... </figure>
+         <figure class="code-listing" data-src="..." data-active> ... </figure>
+       </div>
+       Tab labels are file names (override with data-tab="...").
+       data-active picks the tab shown first.
+    4. Terminal (commands and their output)
+       <figure class="terminal" data-cwd="blog-coding-tutorials">
+         <pre><code>$ python -m pytest c03-attention -q
+       8 passed in 1.41s</code></pre>
+       </figure>
+       Lines starting with "$ " are commands (a trailing "\" continues the
+       command). Copy copies only the commands. data-label renames the
+       header (default "Terminal"); data-prompt changes "$".
+    5. Output block (printed tensors, tables a script prints)
+       <figure class="code-output" data-from="python scripts/shapes.py">
+         <pre><code>torch.Size([2, 4, 6, 8])</code></pre>
+       </figure>
+       data-label renames "Output". torch.Size(...) and dtype= are tinted.
+    6. Shape table
+       <table class="shape-table"><thead><tr><th>Tensor</th><th>Shape</th>
+       <th>Meaning</th></tr></thead><tbody>...</tbody></table>
+       Wrapped in a scroll container automatically.
+    7. Build step
+       <section class="build-step" id="step-01" data-step-title="Short rail label">
+         <header class="build-step__head">
+           <div class="build-step__topline"><span class="build-step__badge">Step 01</span></div>
+           <h2>Plain sentence-case heading</h2>
+           <p class="build-step__goal"><span>Goal</span> One sentence.</p>
+         </header>
+         ...why, code, run, output, test...
+         <footer class="build-step__checkpoint">
+           <p class="checkpoint-label">Checkpoint</p>
+           <ul><li>What you should see.</li><li>The test that must pass.</li></ul>
+         </footer>
+       </section>
+       The progress dots, the right-hand build rail (>= 1280px) and the
+       bottom "step" pill (narrow screens) are generated from these
+       sections. The rail lists files from the step's listings.
+       Add every build-step id to the TOC.
+    8. Theory link pill
+       <a class="theory-link" href="../how-attention-moves-information/">
+         <span class="theory-link__kicker">Derivation in</span>
+         How attention moves information</a>
+       Group several in <div class="theory-links">. Inside a sentence it
+       shrinks automatically. Verify the slug exists under blogs/.
+    9. Callouts
+       <aside class="callout callout-break"><p class="callout-label">Break it</p>...</aside>
+       <aside class="callout callout-test"><p class="callout-label">Test</p>...</aside>
+       <aside class="callout callout-insight"><p class="callout-label">Insight</p>...</aside>
+       <aside class="callout callout-nuance"><p class="callout-label">Nuance</p>...</aside>
+       Callouts may contain a terminal or a code listing.
+   10. "What you will build" box: section.build-brief (see below). Fill the
+       deliverable, prerequisites (theory-links), time, hardware, the repo
+       folder link and the final tree in details.repo-tree > pre.
+       Tree lines: names ending in "/" are folders, "# note" is a comment.
+   11. Exercises: <ol class="exercises"><li><strong>Title</strong>
+       <span class="exercise-level">Medium</span> text
+       <details><summary>Hint</summary>...</details></li></ol>
+   12. Figures (light paper only, never dark panels):
+       <figure class="ct-figure" id="fig-x">
+         <div class="ct-figure__stage">SVG</div>
+         <p class="ct-figure__note"></p>        (live text per frame)
+         <figcaption><span class="ct-fig-num">Figure 2</span>...</figcaption>
+       </figure>
+       Add class ct-figure--wide for 1040px. Animate with
+         CT.stepper(figureEl, { frames: [{note: "..."}], render(i, t, from) {...},
+                                tween: 900, hold: 1800 });
+       It builds Previous / Play-Pause / Next / 0.5x / 1x / 2x / "Frame NN / TT"
+       controls (or wires an existing .ct-controls group), autoplays only while
+       visible, pauses on manual interaction, supports arrow keys on the stage,
+       and honours prefers-reduced-motion (no autoplay, no tweening).
+       Interactive knobs: .ct-knobs > label.ct-knob (range/checkbox + output),
+       .ct-readout for numbers. Helpers: CT.svg(tag, attrs, parent), CT.lerp,
+       CT.ease, CT.highlight(text, lang).
+   Also available from blog-shell.css: .comparison-table-wrap > table.comparison-table.
+
+    ---------------------------------------------------------------------
+    DRIFT CHECKER (run before you hand in, and after any code change)
+    ---------------------------------------------------------------------
+      python3 $SCRATCH/code-series/check_listings.py \
+          blogs/[ARTICLE-SLUG]/index.html /Users/anirudh-srini/Documents/Code/blog-coding-tutorials
+    It compares every .code-listing with data-src (and no data-diff) to the
+    exact data-lines range of the file and prints a diff for each mismatch.
+    Exit code 1 means drift or a missing file. Listings without data-src are
+    reported as warnings. Finalise the code before fixing line numbers.
+  -->
+  <!--
+    BLOG ANIMATION CONTRACT
+
+    Apply these requirements to every animated figure in the article:
+
+    1. Build detailed, cinematic sequences with many meaningful frames or finely
+       interpolated states. Motion should explain the idea rather than merely
+       decorate it; avoid abrupt two-state transitions.
+    2. Every animation must provide Previous and Next controls for manual,
+       frame-by-frame or stage-by-stage exploration.
+    3. Animations should play automatically when appropriate and provide one
+       clear Play/Pause control that supports pausing and resuming from the
+       current frame.
+    4. Provide 0.5x, 1x, and 2x playback-speed controls. The selected speed must
+       be visually and programmatically indicated with aria-pressed.
+    5. Use cinematic camera language where it improves explanation: smooth zoom
+       in/out, pans, focus transitions, tracked highlights, staged reveals, and
+       deliberate easing. Keep labels readable throughout every camera move.
+    6. Display the current frame/stage and total frame/stage count, and preserve
+       the current position when playback speed changes or playback resumes.
+    7. Pause automatic playback while the reader is manually interacting with a
+       figure. Resume only through an explicit action or a clearly documented,
+       gentle timeout.
+    8. Honor prefers-reduced-motion. In reduced-motion mode, disable autoplay,
+       zooms, pans, and non-essential transitions while retaining Previous/Next
+       access to every explanatory state.
+    9. Keep controls keyboard accessible, use semantic buttons, add visible focus
+       states, and provide useful aria-labels and live status text.
+    10. Export one representative animation as a seamless GIF for the blog index
+        card. Use the article's strongest explanatory moment, not a generic
+        decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
+        optimized file size around 3 MB or less. Save it as
+        blogs/[ARTICLE-SLUG]/preview.gif. Also export a matching static poster
+        as blogs/[ARTICLE-SLUG]/preview.png for prefers-reduced-motion and slow connections.
+        Add both assets and useful alt text to the article card in blogs/index.html.
+
+    Recommended control order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- This template is intentionally excluded from search. REMOVE this line in a published article. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="description" content="[ONE-SENTENCE ARTICLE DESCRIPTION]" />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="[DESCRIPTIVE SEARCH AND SOCIAL TITLE]" />
+    <meta property="og:description" content="[ONE-SENTENCE ARTICLE DESCRIPTION]" />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="[DESCRIPTIVE SEARCH AND SOCIAL TITLE]" />
+    <meta name="twitter:description" content="[ONE-SENTENCE ARTICLE DESCRIPTION]" />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/preview.png" />
+    <title>[DESCRIPTIVE SEARCH TITLE] | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <link rel="stylesheet" href="../../assets/css/code-tutorial.css?v=1" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/" },
+        "headline": "[ARTICLE HEADLINE]",
+        "description": "[ONE-SENTENCE ARTICLE DESCRIPTION]",
+        "image": "https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["[PRIMARY TOPIC]", "[SECONDARY TOPIC]", "[THIRD TOPIC]"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#code" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 14ch; margin: 28px 0 18px; font: 800 clamp(46px, 8.4vw, 104px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 46px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 25px/1.12 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 18px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content a { color: var(--ink); }
+      .lede { color: var(--ink-soft); font-size: 20.5px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+      .insight-list li { margin-bottom: 12px; }
+
+      /* ---------- article-specific figure styles (keep them light) ---------- */
+      #fig-shapes svg { min-width: 560px; }
+      .mask-out { margin: 12px 0 0; padding: 10px 12px; overflow-x: auto; color: var(--ink); background: #fbfaf8; border: 1px solid #dedad2; font: 12.5px/1.45 var(--mono); }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article code-tutorial-article [ARTICLE-SLUG]-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Coding tutorial &middot; Build it from scratch</p>
+        <h1 class="article-title">[ARTICLE TITLE]</h1>
+        <p class="article-subtitle">[ONE- OR TWO-SENTENCE INTRODUCTION: WHAT WE BUILD AND WHAT YOU CAN DO AT THE END]</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>[TAG ONE]</span><span>[TAG TWO]</span><span>[TAG THREE]</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>[NN min read]</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Series navigator: keep directly after </header>. PART groups:
+         C1–C3 "Raw mechanics", C4–C6 "Language models",
+         C7–C9 "Vision-language models", C10–C12 "Agents".
+         The first post has no Previous link; the last has no Next link
+         (use <span class="ml-series-nav__empty"></span> to keep the grid). -->
+    <nav class="ml-series-nav" aria-label="Coding Tutorials series">
+      <a class="ml-series-nav__identity" href="../index.html?series=code">Coding Tutorials</a>
+      <span class="ml-series-nav__position">[NN] of 12 &middot; [PART]</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../[PREVIOUS-SLUG]/"><span>Previous &middot; [NN]</span><strong>[PREVIOUS TITLE]</strong></a>
+        <a class="ml-series-nav__link" href="../[NEXT-SLUG]/"><span>Next &middot; [NN]</span><strong>[NEXT TITLE]</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <!-- What you will build: first thing in main, before the TOC. -->
+      <section class="build-brief" aria-labelledby="build-brief-title">
+        <div class="build-brief__head">
+          <h2 class="build-brief__kicker" id="build-brief-title">What you will build</h2>
+          <a class="build-brief__repo" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c03-attention" target="_blank" rel="noopener noreferrer"><i class="fab fa-github" aria-hidden="true"></i><span>blog-coding-tutorials/c03-attention</span></a>
+        </div>
+        <div class="build-brief__body">
+          <p class="build-brief__deliverable">A causal attention module written three ways, a naive reference, a masked version and a fused one, with tests that prove they agree with PyTorch.</p>
+          <dl class="build-brief__facts">
+            <div class="build-brief__wide">
+              <dt>Theory first</dt>
+              <dd>
+                <div class="theory-links">
+                  <a class="theory-link" href="../how-attention-moves-information/">How attention moves information</a>
+                  <a class="theory-link" href="../the-mechanics-of-llm-inference/">The mechanics of LLM inference</a>
+                </div>
+              </dd>
+            </div>
+            <div><dt>Time</dt><dd>About 90 minutes</dd></div>
+            <div><dt>Hardware</dt><dd>Any laptop CPU. MPS or CUDA optional.</dd></div>
+            <div><dt>You need</dt><dd>Python 3.10+, PyTorch 2.x, pytest</dd></div>
+            <div><dt>Package</dt><dd><code>attnzoo</code></dd></div>
+          </dl>
+          <details class="repo-tree">
+            <summary>Final repo tree <span class="repo-tree__hint">c03-attention/</span></summary>
+<pre>c03-attention/
+├── README.md               # how to run everything, results table
+├── attnzoo/
+│   ├── attention_naive.py  # step 1: the reference
+│   ├── masks.py            # step 2: causal and sliding-window masks
+│   └── attention_sdpa.py   # step 3: the fused path
+├── scripts/
+│   └── shapes.py           # prints every intermediate shape
+├── benchmarks/
+│   └── bench_attention.py
+└── tests/
+    └── test_attention.py   # equivalence, causality, gradients</pre>
+          </details>
+        </div>
+      </section>
+
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-plan">The plan</a></li>
+          <li><a href="#step-01">Step 1: the naive reference</a></li>
+          <li><a href="#step-02">Step 2: add the causal mask</a></li>
+          <li><a href="#step-03">Step 3: check against PyTorch</a></li>
+          <li><a href="#comparison">The three versions compared</a></li>
+          <li><a href="#run-everything">Run everything</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#exercises">Exercises</a></li>
+          <li><a href="#continue-reading">Continue reading</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-plan">
+        <h2>The plan</h2>
+        <p class="lede">[OPEN WITH ONE CONCRETE QUESTION.] What does attention compute, tensor by tensor, and how do we know our version is correct?</p>
+        <p>We build it in three steps. First a version that is slow but easy to read. Then a mask, so a token cannot look ahead. Then a check against PyTorch&rsquo;s own kernel. The derivation lives in the theory post, so we only point to it.</p>
+        <a class="theory-link" href="../how-attention-moves-information/"><span class="theory-link__kicker">Derivation in</span>How attention moves information</a>
+        <p>Clone the repo once. Every command below runs from its root.</p>
+        <figure class="terminal" data-cwd="code">
+          <pre><code>$ git clone https://github.com/srini-anirudh/blog-coding-tutorials.git
+$ cd blog-coding-tutorials
+$ python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"</code></pre>
+        </figure>
+      </section>
+
+      <section class="build-step" id="step-01" data-step-title="The naive reference">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 01</span></div>
+          <h2>Write the naive reference</h2>
+          <p class="build-step__goal"><span>Goal</span> A function that turns queries, keys and values into outputs, one visible operation per line.</p>
+        </header>
+        <p>The reference is the version every faster one must match. It should be short and obvious, so we write each operation on its own line and name the shapes.</p>
+        <figure class="code-listing" data-src="c03-attention/attnzoo/attention_naive.py" data-lines="12-24" data-lang="python" data-highlight="10-12">
+          <pre><code>def naive_attention(q: Tensor, k: Tensor, v: Tensor) -&gt; Tensor:
+    """Scaled dot-product attention, one explicit step at a time.
+
+    Args:
+        q, k, v: (B, H, T, D) queries, keys and values.
+
+    Returns:
+        (B, H, T, D) outputs.
+    """
+    d = q.size(-1)
+    scores = q @ k.transpose(-2, -1) / math.sqrt(d)  # (B, H, T, T)
+    weights = torch.softmax(scores, dim=-1)  # every row sums to 1
+    return weights @ v</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 1</span>The reference. The highlighted lines are the whole algorithm: scores, a softmax over keys, and a weighted sum of values.</figcaption>
+        </figure>
+        <p>Line 21 divides by <code>sqrt(d)</code>. Without it the scores grow with the head size and the softmax saturates. Line 22 normalises over the last axis, which is the key axis.</p>
+        <p>Run the shape script. It builds random inputs and prints every intermediate tensor.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c03-attention/scripts/shapes.py --batch 2 --heads 4 --seq 6 --dim 8</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/shapes.py">
+          <pre><code>q        torch.Size([2, 4, 6, 8])   dtype=torch.float32
+scores   torch.Size([2, 4, 6, 6])
+weights  torch.Size([2, 4, 6, 6])   row sums: tensor([1., 1., 1., 1., 1., 1.])
+out      torch.Size([2, 4, 6, 8])</code></pre>
+        </figure>
+        <table class="shape-table">
+          <caption>Shapes in step 1 (B = 2, H = 4, T = 6, D = 8)</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>q, k, v</td><td>(B, H, T, D)</td><td>One vector per head and position.</td></tr>
+            <tr><td>scores</td><td>(B, H, T, T)</td><td>Row i holds query i against every key.</td></tr>
+            <tr><td>weights</td><td>(B, H, T, T)</td><td>Each row is a probability distribution over keys.</td></tr>
+            <tr><td>out</td><td>(B, H, T, D)</td><td>A weighted average of value vectors.</td></tr>
+          </tbody>
+        </table>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>The first test checks the one property we can state without any other implementation: every row of <code>weights</code> sums to 1.</p>
+          <figure class="terminal" data-cwd="blog-coding-tutorials">
+            <pre><code>$ .venv/bin/python -m pytest c03-attention/tests/test_attention.py -k rows_sum -q
+.                                                                        [100%]
+1 passed in 0.62s</code></pre>
+          </figure>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>shapes.py</code> prints the four shapes above.</li>
+            <li><code>test_rows_sum_to_one</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-02" data-step-title="Add the causal mask">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 02</span></div>
+          <h2>Add the causal mask</h2>
+          <p class="build-step__goal"><span>Goal</span> Stop position i from reading any position after it, and prove it with a test.</p>
+        </header>
+        <p>A language model predicts the next token, so it must not see the future. We set the scores above the diagonal to minus infinity before the softmax. Their weights become exactly zero.</p>
+        <figure class="code-listing" data-diff data-src="c03-attention/attnzoo/attention_naive.py" data-lines="12-28" data-lang="python">
+          <pre><code>-def naive_attention(q: Tensor, k: Tensor, v: Tensor) -&gt; Tensor:
++def naive_attention(q: Tensor, k: Tensor, v: Tensor, causal: bool = False) -&gt; Tensor:
+     """Scaled dot-product attention, one explicit step at a time.
+@@ +21 @@ docstring unchanged
+     d = q.size(-1)
+     scores = q @ k.transpose(-2, -1) / math.sqrt(d)  # (B, H, T, T)
++    if causal:
++        t = scores.size(-1)
++        future = torch.ones(t, t, dtype=torch.bool, device=q.device).triu(1)
++        scores = scores.masked_fill(future, float("-inf"))
+     weights = torch.softmax(scores, dim=-1)  # every row sums to 1
+     return weights @ v</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 2</span>The change from step 1. <code>triu(1)</code> marks every key after the query.</figcaption>
+        </figure>
+        <p>Try the mask yourself. Change the sequence length and the window, and watch the boolean tensor that the code builds.</p>
+
+        <figure class="ct-figure" id="fig-mask">
+          <div class="ct-knobs">
+            <label class="ct-knob">Sequence length <input type="range" id="mask-t" min="3" max="12" value="8" aria-describedby="mask-t-out" /><output id="mask-t-out">8</output></label>
+            <label class="ct-knob">Window <input type="range" id="mask-w" min="0" max="12" value="0" aria-describedby="mask-w-out" /><output id="mask-w-out">off</output></label>
+            <label class="ct-knob"><input type="checkbox" id="mask-causal" checked /> Causal</label>
+          </div>
+          <div class="ct-figure__stage" id="mask-stage" aria-label="Attention mask grid: rows are queries, columns are keys"></div>
+          <div class="ct-readout" aria-live="polite">
+            <div><span>Allowed pairs</span><b id="mask-allowed">36</b></div>
+            <div><span>Of all T&times;T</span><b id="mask-frac">56%</b></div>
+            <div><span>Keys per query</span><b id="mask-range">1&ndash;8</b></div>
+          </div>
+          <pre class="mask-out" id="mask-code" aria-label="The mask tensor"></pre>
+          <figcaption><span class="ct-fig-num">Figure 1</span>The attention mask as a tensor. Rows are queries, columns are keys. Blue cells may attend. A window keeps only the most recent keys.</figcaption>
+        </figure>
+
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Change <code>triu(1)</code> to <code>triu(0)</code>. Now the diagonal is masked too, so the first query has no key left. Its row is all minus infinity, and the softmax returns <code>nan</code>.</p>
+          <figure class="code-output" data-label="What you see">
+            <pre><code>weights[0, 0, 0]  tensor([nan, nan, nan, nan, nan, nan])</code></pre>
+          </figure>
+          <p>A <code>nan</code> in the first row is the signature of a mask that removes every key. Check the mask before you check the maths.</p>
+        </aside>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>[ONE NON-TRIVIAL, EVIDENCE-BACKED INSIGHT PER MAJOR SECTION, ENDING WITH WHAT IT MEANS IN PRACTICE.]</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Changing a future token leaves every earlier output unchanged.</li>
+            <li><code>test_causal_no_future_leak</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-03" data-step-title="Check against PyTorch">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 03</span></div>
+          <h2>Check against PyTorch</h2>
+          <p class="build-step__goal"><span>Goal</span> Match <code>F.scaled_dot_product_attention</code> to within float32 tolerance, then measure the speed gap.</p>
+        </header>
+        <p>A reference is only useful if we trust it. We compare it with PyTorch&rsquo;s fused kernel on random inputs, with and without the mask.</p>
+        <div class="code-tabs" data-label="Fused path and its test">
+          <figure class="code-listing" data-src="c03-attention/attnzoo/attention_sdpa.py" data-lines="8-14" data-lang="python">
+            <pre><code>def sdpa_attention(q: Tensor, k: Tensor, v: Tensor, causal: bool = False) -&gt; Tensor:
+    """Same contract as naive_attention, using PyTorch's fused kernel.
+
+    q, k, v: (B, H, T, D). Returns (B, H, T, D).
+    """
+    # The fused kernel never materialises the (T, T) weights.
+    return F.scaled_dot_product_attention(q, k, v, is_causal=causal)</code></pre>
+          </figure>
+          <figure class="code-listing" data-src="c03-attention/tests/test_attention.py" data-lines="20-28" data-lang="python" data-highlight="L27-L28">
+            <pre><code>@pytest.mark.parametrize("causal", [False, True])
+def test_matches_sdpa(causal: bool) -&gt; None:
+    torch.manual_seed(0)
+    q, k, v = (torch.randn(2, 4, 16, 8) for _ in range(3))
+
+    ours = naive_attention(q, k, v, causal=causal)
+    ref = sdpa_attention(q, k, v, causal=causal)
+
+    torch.testing.assert_close(ours, ref, atol=1e-5, rtol=1e-5)</code></pre>
+          </figure>
+        </div>
+
+        <figure class="ct-figure" id="fig-shapes">
+          <div class="ct-figure__stage" id="shapes-stage" aria-label="Animated walk through the tensors of one attention call"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 2</span>One attention call, tensor by tensor, for B = 2, H = 4, T = 6, D = 8. The camera follows the data from the input to the merged output. One head is drawn in full.</figcaption>
+        </figure>
+
+        <p>Now time both paths. The benchmark prints a table.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c03-attention/benchmarks/bench_attention.py \
+    --seq 256 1024 --device cpu
+seq    naive (ms)   sdpa (ms)   speed-up
+256    [0.00]       [0.00]      [0.0x]
+1024   [0.00]       [0.00]      [0.0x]
+(Apple M5 CPU, float32, 2 threads)</code></pre>
+        </figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>[A QUALIFICATION THAT CHANGES HOW A RESULT SHOULD BE USED, FOR EXAMPLE WHY A CPU TIMING DOES NOT PREDICT A GPU ONE.]</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <p>All attention tests pass, on CPU and on MPS if you have it.</p>
+          <figure class="terminal" data-cwd="blog-coding-tutorials">
+            <pre><code>$ .venv/bin/python -m pytest c03-attention -m "not slow and not gpu" -q
+........                                                                 [100%]
+8 passed in 1.41s</code></pre>
+          </figure>
+        </footer>
+      </section>
+
+      <section id="comparison">
+        <h2>The three versions compared</h2>
+        <p>Rows are the versions we built. Columns are the aspects we measured. Read across a row to see what each version costs.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Attention implementations in this tutorial</caption>
+            <thead><tr><th>Version</th><th>Stores (T, T) weights</th><th>Memory for scores</th><th>Supports masks</th><th>Speed (Apple M5 CPU)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Naive</th><td>Yes</td><td>O(T&sup2;)</td><td>No</td><td>[REAL NUMBER]</td></tr>
+              <tr><th scope="row">Naive + mask</th><td>Yes</td><td>O(T&sup2;)</td><td>Causal, window</td><td>[REAL NUMBER]</td></tr>
+              <tr><th scope="row">SDPA</th><td>No</td><td>O(T) per block</td><td>Causal</td><td>[REAL NUMBER]</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="run-everything">
+        <h2>Run everything</h2>
+        <p>The final folder, and every command that produced a number in this post.</p>
+        <details class="repo-tree" open>
+          <summary>c03-attention/ <span class="repo-tree__hint">final tree</span></summary>
+<pre>c03-attention/
+├── README.md
+├── attnzoo/
+│   ├── attention_naive.py
+│   ├── masks.py
+│   └── attention_sdpa.py
+├── scripts/shapes.py
+├── benchmarks/bench_attention.py
+└── tests/test_attention.py</pre>
+        </details>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Run it all">
+          <pre><code>$ .venv/bin/python -m pytest c03-attention -m "not slow and not gpu" -q
+$ .venv/bin/python c03-attention/scripts/shapes.py
+$ .venv/bin/python c03-attention/benchmarks/bench_attention.py --device cpu</code></pre>
+        </figure>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="insight-list">
+          <li><strong>[INSIGHT IN ONE OR TWO SENTENCES.]</strong> <a href="#step-02">Step 2</a></li>
+          <li><strong>[NUANCE IN ONE OR TWO SENTENCES.]</strong> <a href="#step-03">Step 3</a></li>
+        </ul>
+      </section>
+
+      <section id="exercises">
+        <h2>Exercises</h2>
+        <ol class="exercises">
+          <li><strong>Add a padding mask</strong><span class="exercise-level">Easy</span> Extend <code>naive_attention</code> with a <code>(B, T)</code> padding mask, and write a test where padded keys get zero weight.
+            <details><summary>Hint</summary><p>Broadcast the mask to <code>(B, 1, 1, T)</code> before <code>masked_fill</code>.</p></details>
+          </li>
+          <li><strong>Find the crossover</strong><span class="exercise-level">Medium</span> Run the benchmark for sequence lengths from 64 to 4096 and find where the fused path starts to win on your machine.</li>
+          <li><strong>Break the scale</strong><span class="exercise-level">Medium</span> Remove the <code>sqrt(d)</code> and plot the entropy of each softmax row as <code>D</code> grows.</li>
+        </ol>
+      </section>
+
+      <section id="continue-reading">
+        <h2>Continue reading</h2>
+        <ul>
+          <li><a href="../how-attention-moves-information/">How attention moves information</a>: the theory behind every line in this post.</li>
+          <li><a href="../[NEXT-CODING-TUTORIAL-SLUG]/">[NEXT CODING TUTORIAL]</a>: what we build next with this module.</li>
+        </ul>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>[REFERENCE TOPIC]</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noopener noreferrer">Attention Is All You Need</a> &middot; Vaswani et al., 2017</li>
+            <li><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c03-attention" target="_blank" rel="noopener noreferrer">blog-coding-tutorials: c03-attention</a> &middot; the code for this tutorial</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>[ARTICLE TITLE]</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/">https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{[BIBTEX_KEY],
+  author       = {Srinivasan, Anirudh},
+  title        = {[ARTICLE TITLE]},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/[ARTICLE-SLUG]/},
+  note         = {Published 2026-11-06; updated 2026-11-06}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; [ARTICLE TITLE]</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script src="../../assets/js/code-tutorial.js?v=1"></script>
+
+    <!-- Article figures. Keep them in one script after code-tutorial.js. -->
+    <script>
+      (function () {
+        "use strict";
+        const { svg, lerp, stepper } = window.CT;
+        const C = { ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", paper: "#f7f6f3", hi: "#fbfaf8", blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f" };
+
+        /* ---------- Figure 1: interactive mask builder ---------- */
+        (function maskFigure() {
+          const stage = document.getElementById("mask-stage");
+          if (!stage) return;
+          const tIn = document.getElementById("mask-t");
+          const wIn = document.getElementById("mask-w");
+          const cIn = document.getElementById("mask-causal");
+          const S = 360, PAD = 34;
+          const root = svg("svg", { viewBox: `0 0 ${S + PAD + 8} ${S + PAD + 8}`, role: "img", "aria-label": "Mask grid" }, stage);
+          root.style.maxWidth = "420px";
+          root.style.margin = "0 auto";
+          function draw() {
+            const T = +tIn.value;
+            const W = +wIn.value;
+            const causal = cIn.checked;
+            document.getElementById("mask-t-out").textContent = T;
+            document.getElementById("mask-w-out").textContent = W ? W : "off";
+            root.innerHTML = "";
+            const cell = S / T;
+            svg("text", { x: PAD + S / 2, y: 13, "text-anchor": "middle", "font-size": 11, fill: C.muted, text: "key position j →" }, root);
+            svg("text", { x: 12, y: PAD + S / 2, "text-anchor": "middle", "font-size": 11, fill: C.muted, transform: `rotate(-90 12 ${PAD + S / 2})`, text: "query position i →" }, root);
+            let allowed = 0, minK = T, maxK = 0;
+            const rows = [];
+            for (let i = 0; i < T; i++) {
+              let rowCount = 0;
+              const row = [];
+              for (let j = 0; j < T; j++) {
+                let ok = true;
+                if (causal && j > i) ok = false;
+                if (W && Math.abs(i - j) >= W) ok = false;
+                if (W && !causal && j > i + W - 1) ok = false;
+                row.push(ok ? 1 : 0);
+                if (ok) { allowed++; rowCount++; }
+                svg("rect", { x: PAD + j * cell + 1, y: PAD + i * cell + 1, width: cell - 2, height: cell - 2, rx: 2, fill: ok ? (i === j ? C.blue : "rgba(11,94,168,0.62)") : C.hi, stroke: ok ? "none" : C.rule }, root);
+              }
+              minK = Math.min(minK, rowCount);
+              maxK = Math.max(maxK, rowCount);
+              rows.push(row);
+            }
+            for (let k = 0; k < T; k++) {
+              svg("text", { x: PAD + k * cell + cell / 2, y: PAD - 6, "text-anchor": "middle", "font-size": 10, fill: C.soft, text: k }, root);
+              svg("text", { x: PAD - 6, y: PAD + k * cell + cell / 2 + 3.5, "text-anchor": "end", "font-size": 10, fill: C.soft, text: k }, root);
+            }
+            document.getElementById("mask-allowed").textContent = allowed;
+            document.getElementById("mask-frac").textContent = Math.round((100 * allowed) / (T * T)) + "%";
+            document.getElementById("mask-range").textContent = minK === maxK ? String(minK) : minK + "–" + maxK;
+            const call = `mask = build_mask(T=${T}, causal=${causal ? "True" : "False"}, window=${W || "None"})`;
+            const body = rows.map((r, i) => (i === 0 ? "tensor([[" : "        [") + r.join(", ") + "]" + (i === T - 1 ? "])" : ",")).join("\n");
+            document.getElementById("mask-code").textContent = ">>> " + call + "\n>>> mask.int()\n" + body;
+          }
+          [tIn, wIn, cIn].forEach((n) => n.addEventListener("input", draw));
+          draw();
+        })();
+
+        /* ---------- Figure 2: animated stepper with a moving camera ---------- */
+        (function shapesFigure() {
+          const fig = document.getElementById("fig-shapes");
+          if (!fig) return;
+          const stage = fig.querySelector(".ct-figure__stage");
+          const VW = 960, VH = 420;
+          const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Attention tensors, step by step" }, stage);
+          const world = svg("g", null, root);
+
+          // Deterministic pseudo-random scores for one head.
+          let seed = 7;
+          const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+          const T = 6;
+          const raw = Array.from({ length: T }, () => Array.from({ length: T }, () => rand() * 2 - 1));
+          const soft = raw.map((row, i) => {
+            const ex = row.map((x, j) => (j <= i ? Math.exp(2.2 * x) : 0));
+            const s = ex.reduce((a, b) => a + b, 0);
+            return ex.map((x) => x / s);
+          });
+
+          function grid(parent, x, y, rows, cols, size, color, opacityFn) {
+            const g = svg("g", null, parent);
+            for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+              svg("rect", { x: x + c * size, y: y + r * size, width: size - 1.5, height: size - 1.5, rx: 1.5, fill: color, "fill-opacity": opacityFn ? opacityFn(r, c) : 0.25 + 0.5 * rand() }, g);
+            }
+            return g;
+          }
+          function label(parent, x, y, text, opts) {
+            return svg("text", Object.assign({ x, y, "text-anchor": "middle", "font-size": 15, fill: C.ink, text }, opts || {}), parent);
+          }
+
+          // Layer k appears at frame k. Everything lives in world coordinates.
+          const layers = [];
+          function layer(k) { const g = svg("g", { opacity: 0 }, world); layers[k] = g; return g; }
+
+          // 0: input x (B, T, C) drawn as T x 16 (C abbreviated)
+          let g = layer(0);
+          label(g, 160, 90, "x", { class: "disp", "font-size": 24 });
+          grid(g, 80, 110, T, 16, 10, C.ink);
+          label(g, 160, 200, "(B, T, C) = (2, 6, 32)", { "font-size": 14, fill: C.orange });
+          // 1: projections q, k, v
+          g = layer(1);
+          ["q", "k", "v"].forEach((n, i) => {
+            const x0 = 330 + i * 100;
+            label(g, x0 + 40, 90, n, { class: "disp", "font-size": 22, fill: i === 2 ? C.green : C.blue });
+            grid(g, x0, 110, T, 8, 10, i === 2 ? C.green : C.blue);
+          });
+          label(g, 470, 200, "x @ W_qkv → 3 × (2, 6, 32)", { "font-size": 13, fill: C.soft });
+          svg("path", { d: "M250 140 L 315 140", stroke: C.muted, "stroke-width": 1.5, fill: "none", "marker-end": "url(#arr)" }, g);
+          // 2: split heads (B, H, T, D)
+          g = layer(2);
+          for (let h = 3; h >= 0; h--) {
+            const gg = grid(g, 660 + h * 14, 104 + h * 12, T, 8, 10, C.blue, () => 0.3 + 0.12 * h);
+            gg.setAttribute("opacity", h === 0 ? 1 : 0.55);
+          }
+          label(g, 740, 90, "q split into 4 heads", { "font-size": 14, fill: C.soft });
+          label(g, 740, 232, "(B, H, T, D) = (2, 4, 6, 8)", { "font-size": 14, fill: C.orange });
+          // 3-5: scores for head 0, then mask, then softmax
+          g = layer(3);
+          const SX = 900, SY = 96, SZ = 30;
+          label(g, SX + 90, 82, "scores = q kᵀ / √D", { "font-size": 14, fill: C.soft });
+          const cells = [];
+          for (let i = 0; i < T; i++) for (let j = 0; j < T; j++) {
+            cells.push({ i, j, el: svg("rect", { x: SX + j * SZ, y: SY + i * SZ, width: SZ - 2, height: SZ - 2, rx: 2, fill: C.blue }, g) });
+          }
+          const cellText = cells.map((c) => svg("text", { x: SX + c.j * SZ + SZ / 2 - 1, y: SY + c.i * SZ + SZ / 2 + 3.5, "text-anchor": "middle", "font-size": 9, fill: C.ink }, g));
+          label(g, SX + 90, SY + T * SZ + 22, "(B, H, T, T) = (2, 4, 6, 6)", { "font-size": 14, fill: C.orange });
+          const scoreTitle = label(g, SX + 90, SY + T * SZ + 44, "raw scores", { "font-size": 13, fill: C.muted });
+          layers[4] = svg("g", { opacity: 0 }, world);
+          layers[5] = svg("g", { opacity: 0 }, world);
+          // 6: weights @ v -> (B, H, T, D)
+          g = layer(6);
+          for (let h = 3; h >= 0; h--) grid(g, 1170 + h * 14, 104 + h * 12, T, 8, 10, C.green, () => 0.35 + 0.1 * h).setAttribute("opacity", h === 0 ? 1 : 0.55);
+          label(g, 1250, 90, "weights @ v", { "font-size": 14, fill: C.soft });
+          label(g, 1250, 232, "(2, 4, 6, 8)", { "font-size": 14, fill: C.orange });
+          // 7: merge heads -> (B, T, C)
+          g = layer(7);
+          label(g, 1460, 90, "merge heads", { "font-size": 14, fill: C.soft });
+          grid(g, 1380, 110, T, 16, 10, C.ink);
+          label(g, 1460, 200, "(B, T, C) = (2, 6, 32)", { "font-size": 14, fill: C.orange });
+
+          const defs = svg("defs", null, root);
+          const m = svg("marker", { id: "arr", viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto" }, defs);
+          svg("path", { d: "M0 0 L10 5 L0 10 z", fill: C.muted }, m);
+
+          // Camera per frame: centre x, centre y, width of the view.
+          const cams = [
+            { x: 170, y: 150, w: 520 }, { x: 420, y: 150, w: 620 }, { x: 720, y: 160, w: 560 },
+            { x: 990, y: 190, w: 520 }, { x: 990, y: 190, w: 400 }, { x: 990, y: 190, w: 400 },
+            { x: 1150, y: 170, w: 640 }, { x: 800, y: 170, w: 1640 },
+          ];
+          const frames = [
+            { note: "The input <code>x</code> holds one 32-number vector per position: shape (2, 6, 32)." },
+            { note: "One matrix multiply makes queries, keys and values. Each keeps the shape of <code>x</code>." },
+            { note: "We reshape to (2, 4, 6, 8): four heads, each with an 8-number slice of every vector." },
+            { note: "For one head, every query meets every key. The scores form a 6 &times; 6 grid." },
+            { note: "The causal mask sets every key after the query to minus infinity." },
+            { note: "Softmax turns each row into weights that sum to 1. Masked cells become exactly 0." },
+            { note: "The weights average the value vectors. Back to 8 numbers per position and head." },
+            { note: "Merging the heads gives (2, 6, 32), the same shape as the input." },
+          ];
+
+          function cellState(f, c) {
+            const masked = f >= 4 && c.j > c.i;
+            const v = f >= 5 ? soft[c.i][c.j] : (raw[c.i][c.j] + 1) / 2;
+            return { op: masked ? 0.06 : 0.12 + 0.78 * v, masked: masked ? 1 : 0, v };
+          }
+
+          stepper(fig, {
+            frames,
+            tween: 1000,
+            hold: 2000,
+            render(i, t, from) {
+              const a = cams[from], b = cams[i];
+              const w = lerp(a.w, b.w, t);
+              const h = (w * VH) / VW;
+              world.parentNode.setAttribute("viewBox", `${lerp(a.x, b.x, t) - w / 2} ${lerp(a.y, b.y, t) - h / 2} ${w} ${h}`);
+              layers.forEach((L, k) => {
+                if (!L) return;
+                const va = k <= from ? 1 : 0, vb = k <= i ? 1 : 0;
+                L.setAttribute("opacity", lerp(va, vb, t));
+              });
+              cells.forEach((c, n) => {
+                const sa = cellState(from, c), sb = cellState(i, c);
+                c.el.setAttribute("fill-opacity", lerp(sa.op, sb.op, t).toFixed(3));
+                c.el.setAttribute("fill", (t < 0.5 ? sa : sb).masked ? C.red : C.blue);
+                const s = t < 0.5 ? from : i;
+                const st = t < 0.5 ? sa : sb;
+                cellText[n].textContent = s >= 4 && c.j > c.i ? "−∞" : s >= 5 ? st.v.toFixed(2) : raw[c.i][c.j].toFixed(1);
+                cellText[n].setAttribute("fill", st.op > 0.6 ? "#fff" : C.ink);
+              });
+              scoreTitle.textContent = (t < 0.5 ? from : i) >= 5 ? "weights: rows sum to 1" : (t < 0.5 ? from : i) >= 4 ? "masked scores" : "raw scores";
+            },
+          });
+        })();
+      })();
+    </script>
+  </body>
+</html>
