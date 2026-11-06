@@ -182,7 +182,7 @@
               </dd>
             </div>
             <div><dt>Time</dt><dd>About 2 hours of reading, plus about 35 minutes of CPU runs. Training takes about 12 minutes, and the head comparison about 21.</dd></div>
-            <div><dt>Hardware</dt><dd>Any laptop or CPU machine. No GPU needed. Numbers here come from an AMD EPYC 7R13 CPU with 8 threads, unless a block says otherwise. A few GPU numbers come from one run on an NVIDIA H100, and they are labelled.</dd></div>
+            <div><dt>Hardware</dt><dd>Any laptop or CPU machine. No GPU needed. Numbers here come from an AMD EPYC 7R13 CPU with 8 threads, unless a block says otherwise. The GPU numbers come from one NVIDIA H100 80GB HBM3 (PyTorch 2.15.0, CUDA 13.2), and they are labelled.</dd></div>
             <div><dt>You need</dt><dd>Python 3.10+, PyTorch 2.5 or newer (for <code>enable_gqa</code>), transformers 5 or newer, safetensors, pytest. The results here used PyTorch 2.15 and transformers 5.22.</dd></div>
             <div><dt>Package</dt><dd><code>tinyllm</code></dd></div>
           </dl>
@@ -237,7 +237,7 @@
     ├── test_sampling.py
     ├── test_checkpoint.py      # round trip and resume
     ├── test_precision.py       # bf16
-    ├── test_gpu.py             # GPU only, passed once on an H100
+    ├── test_gpu.py             # GPU only, 5 tests, pass on an H100
     └── test_moe.py</pre>
           </details>
         </div>
@@ -275,10 +275,10 @@
       <section id="the-plan">
         <h2>The plan</h2>
         <p class="lede">What is inside a modern language model, tensor by tensor? And how do you prove that your version is correct, and not only plausible?</p>
-        <p>We answer both by building one. The model follows the Llama design, which is also the design of SmolLM2, Qwen and many others. It differs from the 2017 transformer in four places. It uses RMSNorm instead of LayerNorm. It uses RoPE instead of added position vectors. It shares keys and values across query heads. It replaces the plain MLP with a gated one.</p>
+        <p>We answer both by building one. The model follows the Llama design, which is also the design of SmolLM2 and close to that of Qwen and many others. It differs from the 2017 transformer in four places. It uses RMSNorm instead of LayerNorm. It uses RoPE instead of added position vectors. It shares keys and values across query heads. It replaces the plain MLP with a gated one.</p>
         <a class="theory-link" href="../what-changed-inside-the-transformer/"><span class="theory-link__kicker">Why these changes</span>What changed inside the transformer</a>
         <p>This post does not repeat those arguments. It writes the code, runs it, and looks at the tensors. Each step adds one module and one check. At step 12 we hand our weights to Hugging Face and ask for the same logits. Then we run the other direction and load a real pretrained model into our own code.</p>
-        <p>The attention code comes from <a href="../build-attention-from-scratch/">Build Attention From Scratch</a>. We keep its GQA and RoPE design and its names, trimmed to what a decoder needs, and a test checks that the two agree. Every number below came from these scripts, run on an AMD EPYC 7R13 CPU with 8 threads. No GPU was used. Commands run from the repo root.</p>
+        <p>The attention code comes from <a href="../build-attention-from-scratch/">Build Attention From Scratch</a>. We keep its GQA and RoPE design and its names, trimmed to what a decoder needs, and a test checks that the two agree. Unless a block says otherwise, the numbers below came from an AMD EPYC 7R13 CPU with 8 threads. The GPU blocks came from one NVIDIA H100 80GB HBM3 and are labelled. Commands run from the repo root.</p>
         <figure class="terminal" data-cwd="code">
           <pre><code>$ git clone https://github.com/srini-anirudh/blog-coding-tutorials.git
 $ cd blog-coding-tutorials
@@ -421,7 +421,7 @@ params tied 4,295,936  untied 4,361,472  difference 65,536 = V*D = 256*256</code
         </table>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>Tying saves little in this model: 65,536 of 4.36M parameters, or 1.5%. In SmolLM2-135M it saves 28.3M of 162.8M, or 17%. The saving grows with vocabulary size, while the body of the model does not depend on V. That is why large models with big budgets, such as Llama 3 8B, can afford to leave it off.</p>
+          <p>Tying saves little in this model: 65,536 of 4.36M parameters, or 1.5%. In SmolLM2-135M it saves 28.3M of 162.8M, or 17%. The saving grows with vocabulary size, while the body of the model does not depend on V. That is one reason large models with big budgets, such as Llama 3 8B, can afford to leave it off.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -487,7 +487,7 @@ max |ours - torch.nn.RMSNorm| = 0.0e+00</code></pre>
             <div><span>Output RMS</span><b id="rms-out"></b></div>
             <div><span>Shortfall from 1</span><b id="rms-ratio"></b></div>
           </div>
-          <figcaption><span class="ct-fig-num">Figure 2</span>One 32-channel token vector before and after RMSNorm. The input panel rescales itself so you can see its shape at any size. The output axis is fixed. The animation steps through the four inputs measured above. The sliders take over at any time, and 0.02 is the real embedding scale from step 2. The readouts use the formula <code>r / sqrt(r&sup2; + eps)</code> on the rounded input, and the notes give the measured values.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 2</span>One 32-channel token vector before and after RMSNorm. The input panel rescales itself so you can see its shape at any size. The output axis is fixed. The animation steps through the four inputs measured above. The sliders take over at any time, and 0.02 is the real embedding scale from step 2. The readouts use the formula <code>r / sqrt(r&sup2; + eps)</code> on the rounded input, and the notes give the measured values. The 0.001 in the printed line is rounded: inverting the formula on the output 0.2921 gives an input RMS of about 0.00097.</figcaption>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
@@ -784,22 +784,28 @@ device=cpu batch=8  (tiny preset, forward + backward per step)
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>Timings on a shared CPU move between runs, so we ran this benchmark twice. The second run, saved in <code>results/timing_rerun.txt</code>, gave 0.91x at 128 tokens, 1.08x at 256, 1.92x at 512 and 4.53x at 1024. So at 128 and 256 the two kernels are too close to call, and SDPA was even slower once. From 512 tokens on the gain is clear in both runs: 3.09x and 1.92x at 512, and about 4x at 1024. That fits what the naive path does. It builds a full (T, T) score matrix and mask, and copies keys and values with <code>repeat_kv</code>. Each of these grows with T.</p>
+          <p>Timings on a shared CPU move between runs, so we ran this benchmark twice. The second run, saved in <code>results/timing_rerun.txt</code>, gave 0.91x at 128 tokens, 1.08x at 256, 1.92x at 512 and 4.53x at 1024. At 128 and 256 tokens the two kernels are too close to call, and SDPA was even slower once.</p>
+          <p>At 512 tokens SDPA was faster in both runs, but the size of the win moved a lot: 3.09x, then 1.92x. Only at 1024 tokens is the win both large and steady: 4.23x, then 4.53x. Read the table above as a trend, not as exact factors. That trend fits what the naive path does. It builds a full (T, T) score matrix and mask, and copies keys and values with <code>repeat_kv</code>. Each of these grows with T.</p>
         </aside>
-        <p>Which kernel did SDPA use here? On this PyTorch build, the CPU path dispatches to <code>aten::_scaled_dot_product_flash_attention_for_cpu</code>, a flash-style CPU kernel that runs in float32. So the CPU numbers above already use a fused kernel. The CUDA FlashAttention kernel is a different one. It needs a GPU and accepts only bf16 and half precision.</p>
-        <p>We ran the GPU commands once, on one NVIDIA H100 80GB. The five GPU tests pass, including one that forces the FlashAttention backend and compares it with the naive path.</p>
-        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="NVIDIA H100 80GB, one run">
+        <p>Which kernel did SDPA use here? On this PyTorch build, the CPU path dispatches to <code>aten::_scaled_dot_product_flash_attention_for_cpu</code>, a flash-style CPU kernel that runs in float32. So the CPU numbers above already use a fused kernel.</p>
+        <p>A probe of the PyTorch backends is saved in <code>results/sdpa_cpu_backend_probe.txt</code>. The CUDA FlashAttention kernel is a different one. It needs a GPU. As far as we could tell, it runs only in bf16 and half precision.</p>
+        <p>We ran the GPU commands on one NVIDIA H100 80GB HBM3, with PyTorch 2.15.0 and CUDA 13.2. The five GPU tests pass. Four of them force the FlashAttention backend, so PyTorch raises an error instead of falling back. Three compare it with the naive path for MHA, GQA and MQA, and one checks a single cached decode step against a full forward pass. The fifth is a float32 test of chunked prefill on a cache, with the shifted mask.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="NVIDIA H100 80GB HBM3">
           <pre><code>$ .venv/bin/python -m pytest c04-llm -m gpu
-5 passed, 76 deselected in 5.58s
+5 passed, 76 deselected in 1.81s
 $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cuda --dtype bf16
 device=cuda (NVIDIA H100 80GB HBM3) dtype=bf16 batch=8  (tiny preset, forward + backward per step)
    seq   naive ms    sdpa ms  speed-up  naive MiB   sdpa MiB
-   128       51.5       58.5     0.88x        163        117
-   256       80.1       53.0     1.51x        342        184
-   512       52.4       57.5     0.91x       1001        323
-  1024       58.8       45.3     1.30x       3460        594</code></pre>
+   128       25.1       20.3     1.23x        163        117
+   256       26.1       20.0     1.30x        342        184
+   512       27.3       20.1     1.36x       1001        323
+  1024       27.1       20.0     1.36x       3460        594</code></pre>
         </figure>
-        <p>On the GPU the clear result is memory, not time. At 1024 tokens the naive path peaks at 3,460 MiB and SDPA at 594 MiB, almost 6 times less, because the fused kernel never stores the full (T, T) score matrix. The times barely move with T, from about 45 to 80 ms. A model this small cannot keep an H100 busy, so these times mostly measure fixed overhead per kernel launch, and the speed-ups swing from 0.88x to 1.51x. A float32 run, saved in <code>results/bench_attention_gpu_float32.txt</code>, shows the same pattern. Treat all GPU timings here as a single run.</p>
+        <p>On the GPU the clear result is memory, not time. At 1024 tokens the naive path peaks at 3,460 MiB and SDPA at 594 MiB, almost 6 times less. The naive path stores a (T, T) score matrix per head. Its peak grows about 3.5 times from 512 to 1024 tokens, and the SDPA peak about 1.8 times. We did not record which SDPA backend this benchmark used, so we do not name a kernel.</p>
+        <p>The naive path also takes its softmax in float32, with <code>torch.softmax(scores.float(), dim=-1)</code>. So the bf16 naive run holds a float32 score matrix. That is why its 1024-token peak (3,460 MiB) is higher than the float32 naive run (3,242 MiB). It also means the bf16 time comparison includes that upcast.</p>
+        <p>The times say little. SDPA takes 20.0 to 20.3 ms at every length, and the naive path 25.1 to 27.3 ms. That is a speed-up of about 1.2x to 1.4x, in single runs. The flat shape is consistent with a step limited by kernel launches, because a model this small cannot keep an H100 busy. We did not prove that. The speed-up tells you little about large models.</p>
+        <p>In float32 the same run gives about 1.2x to 1.6x, again in single runs. The naive times there are 21.9, 23.9, 23.0 and 27.8 ms, which are not monotone, so read that range as noise and not as a trend. The 1024-token peak is 3,242 MiB for naive and 1,045 MiB for SDPA. The run is saved in <code>results/bench_attention_gpu_float32.txt</code>.</p>
+        <p>A first run on a heavily loaded host gave SDPA speed-ups from 0.88x to 1.51x. We discarded it and re-ran. Treat all GPU timings here as single runs on a shared machine. This benchmark leaves PyTorch&rsquo;s default backend choice in place (see the note in Step 14). A 20 ms forward and backward step over 6 layers cannot include a cost of about 10 ms per attention call, so that slow call does not seem to affect it.</p>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
           <p>Pass <code>is_causal=True</code> whenever more than one query arrives (<code>q_len &gt; 1</code>), and prefill the prompt in chunks of 8 on top of a cache.</p>
@@ -810,7 +816,8 @@ device=cuda (NVIDIA H100 80GB HBM3) dtype=bf16 batch=8  (tiny preset, forward + 
   is_causal=True:       max |diff| = 8.96e-01
   per-position max diff (first chunk is fine, later chunks are not): [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.88, 0.83, 0.57, 0.54, 0.43, 0.42, 0.39, 0.33, 0.9, 0.8, 0.73, 0.56, 0.62, 0.49, 0.55, 0.62]</code></pre>
           </figure>
-          <p>The first chunk is correct because it starts at the top-left. Every later chunk is wrong by up to 0.9 logits on random weights. Token-by-token decoding does not hit this bug, because with <code>q_len == 1</code> the buggy line passes no mask at all. That condition matters. With <code>is_causal=True</code>, PyTorch aligns the triangle to the top-left, so a single query may only see key 0. If you pass <code>is_causal=True</code> on every call, token-by-token decoding breaks too: on the same random model, it differs from the full forward by up to 1.167 logits. Only position 0 stays correct. So the flag is safe only when queries and keys have the same length.</p>
+          <p>The first chunk is correct because it starts at the top-left. Every later chunk is wrong by up to 0.9 logits on random weights. Token-by-token decoding does not hit this bug, because with <code>q_len == 1</code> the buggy line passes no mask at all.</p>
+          <p>That condition matters. With <code>is_causal=True</code>, PyTorch aligns the triangle to the top-left, so a single query may only see key 0. If you pass <code>is_causal=True</code> on every call, token-by-token decoding breaks too: on the same random model, it differs from the full forward by up to 1.167 logits. Only position 0 stays correct. These two checks are saved in <code>results/is_causal_single_query.txt</code>. So the flag is safe only when queries and keys have the same length.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1232,7 +1239,7 @@ KV cache per sequence of 4096 tokens, bf16 (2 bytes per value)
             <div><span>Head width d</span><b id="p-hd"></b></div>
             <div><span>KV cache, 4096 tokens, bf16</span><b id="p-kvmem"></b></div>
           </div>
-          <figcaption><span class="ct-fig-num">Figure 5</span>Parameter calculator, using the same formula as <code>count_parameters</code>. With the Llama 3 8B preset, move H_kv between 1 and 32 and watch the cache move by a factor of 32 while the total moves by about 13%.</figcaption>
+          <figcaption><span class="ct-fig-num">Figure 5</span>Parameter calculator, using the same formula as <code>count_parameters</code>. With the Llama 3 8B preset, move H_kv between 1 and 32 and watch the cache move by a factor of 32 while the total grows by about 13%, from 7.80B parameters at 1 head to 8.84B at 32.</figcaption>
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
@@ -1305,7 +1312,7 @@ HuggingFaceTB/SmolLM2-135M loaded into TinyLLM: 134,515,008 params
         <p>The logit difference is exactly zero, in both directions. A real pretrained model runs through code we wrote today, and greedy decoding matches <code>generate()</code> token for token. The model itself is a small one, which shows in its answer.</p>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>Exactly zero means both paths ran the same floating-point operations in the same order, here through the same SDPA kernel. Do not expect that as a general rule. Our naive backend computes the same function and differs by about <code>1e-6</code>, because its operations run in a different order. So the test uses a tolerance of <code>1e-5</code>, and a bitwise match is not a requirement.</p>
+          <p>Exactly zero suggests both paths ran the same floating-point operations in the same order, here through the same SDPA kernel. The script does not record which implementation Hugging Face used. Do not expect that as a general rule. Our naive backend computes the same function and differs by about <code>1e-6</code>, because its operations run in a different order. So the test uses a tolerance of <code>1e-5</code>, and a bitwise match is not a requirement.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1607,8 +1614,43 @@ preset=smollm2-135m params=134,515,008 device=cpu batch=1 prompt=16 new=128
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
           <p>The cache cuts tokens far more than it cuts time. In the tiny run, uncached decoding processes 130,696 tokens and cached decoding processes 511, which is about 256 times fewer. Total time falls only 4.9 times. SmolLM2-135M, over its shorter run, processes about 71 times fewer tokens and takes 2.2 times less time. A second run of both benchmarks gave 3.7x and 2.1x, so take the exact factors as rough.</p>
-          <p>The tables show why. On tiny, one cached token costs about 3 to 4 ms, while re-running all 511 tokens costs only 26 ms. So on this CPU each forward call has a large fixed cost, which we have not profiled. The saving grows with T. At T = 17 the first run gave 5.97 ms without the cache and 4.43 ms with it. The second run had the cache slightly slower, 4.72 ms against 4.18 ms. At T = 511 the cache was 7.6 times faster per step in the first run and 5.6 times in the second. So short outputs see little of the gain. These are single runs on a busy shared CPU.</p>
-          <p>The H100 run, saved in <code>results/bench_generation_gpu.txt</code>, shows almost no gain: 9.7 tok/s without the cache and 10.6 with it, 1.1x. SmolLM2 size gave 1.2x. At batch 1 these models are far too small for the GPU, so every step costs the same launch overhead whether it runs 1 token or 511. In the tiny run, per-step times also jumped from about 7 ms at T = 17 to between 80 and 107 ms afterwards, in both modes, and we have not profiled why. So this single GPU run says little about the cache, beyond this: a cache saves work, and work is not the bottleneck at this size.</p>
+          <p>The tables show why. On tiny, one cached token costs about 3 to 4 ms, while re-running all 511 tokens costs only 26 ms. So on this CPU each forward call has a large fixed cost, which we have not profiled. The saving grows with T.</p>
+          <p>At T = 17 the first run gave 5.97 ms without the cache and 4.43 ms with it. The second run had the cache slightly slower, 4.72 ms against 4.18 ms. At T = 511 the cache was 7.6 times faster per step in the first run and 5.6 times in the second. So short outputs see little of the gain. These are single runs on a busy shared CPU.</p>
+          <p>On the GPU the cache gives almost nothing at this size. We measured it on the H100 at batch 1, and the run is shown below. Do not read the CPU result as a general one.</p>
+        </aside>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="NVIDIA H100 80GB HBM3, batch 1">
+          <pre><code>$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cuda --dtype bf16
+preset=tiny params=4,295,936 device=cuda (NVIDIA H100 80GB HBM3) dtype=bf16 cudnn_sdp=off batch=1 prompt=16 new=496
+  cache=off  total    2.81s     176.3 tok/s
+  cache=on   total    2.51s     197.4 tok/s
+
+  per-step latency (ms) at sequence length T
+       T   no cache      cache
+      17       5.39       5.00
+      48       5.82       5.06
+      80       5.46       5.11
+     144       5.55       5.11
+     272       5.57       4.95
+     511       5.49       4.93
+
+  speed-up from the cache: 1.1x</code></pre>
+        </figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>On the H100 at batch 1, the tiny model runs at 176 tokens per second without the cache and 197 with it. That is about 10% more, from one run. At the SmolLM2-135M size it is 39.3 and 40.4 tokens per second, 1.0x. The files are <code>results/bench_generation_gpu.txt</code> and <code>results/bench_generation_smollm2_gpu.txt</code>. The GPU SmolLM2 run used 496 new tokens, while the CPU run used 128.</p>
+          <p>The step costs about 5 ms whether the forward pass covers 17 tokens or 511. That is consistent with a step limited by launching kernels from Python, not by arithmetic. We did not profile this case, so it is not proven. If it is right, skipping the recomputation saves nothing.</p>
+          <p>We checked the cache logic on logits, not on generated text. On the CPU, <code>test_token_by_token_with_cache_equals_full_forward</code> and <code>test_chunked_prefill_equals_full_forward</code> in <code>test_cache.py</code> compare logits. On the GPU, <code>test_gpu.py</code> has <code>test_flash_attention_decode_step_matches_full_forward</code> and a float32 chunked-prefill test. We did not compare bf16 generation output token for token. A larger batch, a longer context or a bigger model could change the picture, and we did not measure any of them.</p>
+        </aside>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>A slow default on the GPU. With PyTorch&rsquo;s default attention backend choice, generation was much slower than the numbers above.</p>
+          <ul>
+            <li><strong>Symptom.</strong> Both the cached and the uncached tiny runs were about 10 times slower from T = 48 on: about 48 to 62 ms per step instead of about 5 ms. At T = 17 they were normal, 5.40 ms and 5.93 ms. At the SmolLM2-135M size the slowdown was about 3 times, from about 24 ms to 71 to 81 ms.</li>
+            <li><strong>What we measured.</strong> A profiler run pointed at <code>aten::_cudnn_attention_forward</code>, at about 10 ms of CPU per call. That profile is not saved.</li>
+            <li><strong>What we did not find.</strong> We do not know why the call is slow, or why T = 17 is spared.</li>
+            <li><strong>What to do.</strong> Call <code>tinyllm.utils.disable_cudnn_sdp()</code> once before you generate. <code>bench_generation.py</code> calls it on CUDA unless you pass <code>--allow-cudnn-sdp</code>. The library does not call it for you, because it sets a global PyTorch flag.</li>
+          </ul>
+          <p>The generation numbers above have it off. The attention benchmark leaves PyTorch&rsquo;s default backend choice in place. The slow runs are saved in <code>results/bench_generation_gpu_cudnn_default.txt</code> and <code>results/bench_generation_smollm2_gpu_cudnn_default.txt</code>. They are not normal speed.</p>
         </aside>
         <aside class="callout callout-break">
           <p class="callout-label">Break it</p>
@@ -1620,8 +1662,9 @@ preset=smollm2-135m params=134,515,008 device=cpu batch=1 prompt=16 new=128
   correct: 'ROMEO:\nI will be so sorry to the sea that see\nThe sea the seas of the sea'
   buggy:   'ROMEO:\nI will myonononononoraigigisowisisisisisisisisisisisisine aine are'</code></pre>
           </figure>
-          <p>Prefill still uses the right positions, so the first new token is correct. New token 1 is the first wrong one. After that the text collapses into repeated syllables, because every new key sits at position 0 while the older keys keep their real positions. This case loads the trained model because random weights hide the bug in the text. In a separate check on a random tiny model with one seed, all 60 generated tokens still matched.</p>
+          <p>Prefill still uses the right positions, so the first new token is correct. New token 1 is the first wrong one. After that the text collapses into repeated syllables, because every new key sits at position 0 while the older keys keep their real positions. This case loads the trained model because random weights hide the bug in the text. In a separate check on a random tiny model, cached and uncached generation gave identical tokens for each of 5 seeds. That check is saved in <code>results/position_offset_random.txt</code>.</p>
           <p>That has a direct effect on testing. With this bug patched in, <code>test_cached_generation_matches_uncached_greedy</code> still passes, because it compares tokens on random weights. <code>test_token_by_token_with_cache_equals_full_forward</code> and <code>test_chunked_prefill_equals_full_forward</code> compare logits, and both fail. So test a cache on its logits, not on its tokens.</p>
+          <p>The same run also failed the three <code>test_matches_c3.py</code> tests, which compare against the C3 attention library. The full pytest output is saved in <code>results/pytest_position_offset_bug.txt</code>.</p>
         </aside>
         <footer class="build-step__checkpoint">
           <p class="checkpoint-label">Checkpoint</p>
@@ -1668,7 +1711,8 @@ saved checkpoint to runs/tiny-shakespeare/</code></pre>
         </figure>
         <aside class="callout callout-nuance">
           <p class="callout-label">Nuance</p>
-          <p>The run took 670 seconds here, and 737 seconds in a second run on the same shared CPU, with the same losses. Falling training loss alone would oversell this run. Between steps 800 and 1000 the training loss goes from 1.152 to 1.131, while validation goes from 1.496 to 1.500. Validation has stopped improving, and the gap between the two is now 0.37 nats. That gap is rough, because the training loss is from one batch while validation averages 20 batches. The samples agree: the layout of a play is there, and invented words such as &ldquo;BALTHBruptial&rdquo; are too. This shows that the architecture learns. It says nothing about how good a well-trained model can be, which is the job of <a href="../train-an-llm-from-scratch/">the next tutorial</a>.</p>
+          <p>The run took 670 seconds here, and 737 seconds in a second run on the same shared CPU, with the same losses. Falling training loss alone would oversell this run. Between steps 800 and 1000 the training loss goes from 1.152 to 1.131, while validation goes from 1.496 to 1.500. Validation has stopped improving, and the gap between the two is now 0.37 nats. That gap is rough, because the training loss is from one batch while validation averages 20 batches.</p>
+          <p>The samples agree: the layout of a play is there, and invented words such as &ldquo;BALTHBruptial&rdquo; are too. This shows that the architecture learns. It says nothing about how good a well-trained model can be, which is the job of <a href="../train-an-llm-from-scratch/">the next tutorial</a>.</p>
         </aside>
         <p>A native checkpoint is a folder with <code>config.json</code> and <code>model.safetensors</code>. Tied weights are stored once, because safetensors refuses shared tensors and the duplicate would waste space.</p>
         <figure class="code-listing" data-src="c04-llm/tinyllm/checkpoint.py" data-lines="14-38" data-lang="python" data-highlight="6-9,18-21">
@@ -1797,7 +1841,8 @@ router_aux_loss_coef = 0.01
         </figure>
         <aside class="callout callout-insight">
           <p class="callout-label">Insight</p>
-          <p>A very small coefficient changes the routing a lot. A balanced router gives each of the 8 experts 0.125 of the load. With the loss off, the busiest expert in either layer reaches 0.49 after 300 steps, and the auxiliary loss sits at 1.835 per layer. With a coefficient of only 0.01, the busiest expert stays at 0.18. Both numbers come from layer 1. The printed shares are for layer 0, where the peaks are 0.27 and 0.17. All shares come from the last training batch only. With balancing on, the auxiliary loss stays near 1. Balance cost nothing visible here: the training loss at step 300 is 1.912 with balancing and 2.010 without. That gap comes from one seed on a small model, so do not read it as balancing improving the loss.</p>
+          <p>A very small coefficient changes the routing a lot. A balanced router gives each of the 8 experts 0.125 of the load. With the loss off, the busiest expert in either layer reaches 0.49 after 300 steps, and the auxiliary loss sits at 1.835 per layer. With a coefficient of only 0.01, the busiest expert stays at 0.18. Both numbers come from layer 1.</p>
+          <p>The printed shares are for layer 0, where the peaks are 0.27 and 0.17. All shares come from the last training batch only. With balancing on, the auxiliary loss stays near 1. Balance cost nothing visible here: the training loss at step 300 is 1.912 with balancing and 2.010 without. That gap comes from one seed on a small model, so do not read it as balancing improving the loss.</p>
         </aside>
         <table class="shape-table">
           <caption>Shapes in step 16, with N = B &times; T</caption>
@@ -1916,7 +1961,7 @@ MQA                   1      884,736     4,197,632      1,536 B     1.622    274
     ├── test_sampling.py
     ├── test_checkpoint.py      # round trip and resume
     ├── test_precision.py       # bf16
-    ├── test_gpu.py             # GPU only, passed once on an H100
+    ├── test_gpu.py             # GPU only, 5 tests, pass on an H100
     └── test_moe.py</pre>
         </details>
         <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Run it all">
@@ -1933,9 +1978,17 @@ $ .venv/bin/python c04-llm/scripts/moe_demo.py --steps 300
 $ .venv/bin/python c04-llm/scripts/compare_heads.py --steps 400 --device cpu
 $ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu
 $ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cpu --preset smollm2-135m --new-tokens 128
-$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu</code></pre>
+$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu
+# On a machine with a GPU
+$ .venv/bin/python -m pytest c04-llm -m gpu
+$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cuda --dtype bf16
+$ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cuda --dtype float32
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cuda --dtype bf16
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cuda --dtype bf16 --preset smollm2-135m --new-tokens 496
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cuda --dtype bf16 --allow-cudnn-sdp
+$ .venv/bin/python c04-llm/benchmarks/bench_generation.py --device cuda --dtype bf16 --preset smollm2-135m --new-tokens 496 --allow-cudnn-sdp</code></pre>
         </figure>
-        <p>On an AMD EPYC 7R13 CPU, the first pytest command gives 75 passed and 6 deselected, in about 18 seconds. The network test, which downloads SmolLM2-135M, passes. The 5 GPU tests in <code>tests/test_gpu.py</code> skip on a machine without a GPU. They passed in one run on an NVIDIA H100. <code>c04-llm/README.md</code> lists every command with its saved result.</p>
+        <p>On an AMD EPYC 7R13 CPU, the first pytest command gives 75 passed and 6 deselected, in about 18 seconds. The network test, which downloads SmolLM2-135M, passes. The 5 GPU tests in <code>tests/test_gpu.py</code> skip on a machine without a GPU. They pass on an NVIDIA H100 80GB HBM3: 5 passed. The SmolLM2 GPU run uses 496 new tokens, while the CPU run above uses 128. <code>c04-llm/README.md</code> lists every command with its saved result.</p>
       </section>
 
       <section id="key-insights">
@@ -1949,7 +2002,7 @@ $ .venv/bin/python c04-llm/benchmarks/bench_attention.py --device cpu</code></pr
           <li><strong>Depth scaling keeps a new model near identity.</strong> Without it, a 48-layer stream ends about 12 times larger before any training. <a href="#step-10">Step 10</a></li>
           <li><strong><code>is_causal=True</code> is safe only when queries and keys have the same length.</strong> With a cache it aligns the mask to the wrong corner. A single decode query then sees only key 0, and later prefill chunks are wrong by up to 0.9 logits. <a href="#step-05">Step 5</a></li>
           <li><strong>Test a cache on logits, not tokens.</strong> A cached decode with wrong positions passes a token comparison on random weights, and it fails a logit comparison. On trained weights the same bug wrecks the text. <a href="#step-14">Step 14</a></li>
-          <li><strong>A KV cache saves fewer seconds than its token count suggests.</strong> On tiny it processes about 256 times fewer tokens and takes 3.7 to 4.9 times less time, over two runs on a CPU. Short outputs see even less of the gain. <a href="#step-14">Step 14</a></li>
+          <li><strong>A KV cache saves fewer seconds than its token count suggests.</strong> On tiny it processes about 256 times fewer tokens and takes 3.7 to 4.9 times less time, over two runs on a CPU. Short outputs see even less of the gain, and on an H100 at batch 1 the cache saved almost nothing (1.1x). <a href="#step-14">Step 14</a></li>
           <li><strong>A falling training loss is not the whole story.</strong> From step 800 to step 1000, training loss still falls while validation stays near 1.50. <a href="#step-15">Step 15</a></li>
           <li><strong>A small balancing loss has a large effect on routing.</strong> A coefficient of 0.01 holds the busiest of 8 experts at 0.18 of the load. Without it, the busiest expert reaches 0.49, over one batch. <a href="#step-16">Step 16</a></li>
         </ul>
