@@ -44,7 +44,7 @@
 
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
-    <link rel="stylesheet" type="text/css" href="assets/css/about.css?v=news1" />
+    <link rel="stylesheet" type="text/css" href="assets/css/about.css?v=journey2" />
     <link rel="stylesheet" href="assets/css/stars.css" />
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
@@ -163,7 +163,7 @@
           />
           <div class="hero-status">
             <span class="status-dot"></span>
-            building multimodal systems
+            building foundation models
           </div>
         </div>
 
@@ -204,11 +204,6 @@
             </a>
           </div>
 
-          <div class="hero-links">
-            <a href="research.html" target="_self">Research <i class="fas fa-arrow-right"></i></a>
-            <a href="projects.html" target="_self">Projects <i class="fas fa-arrow-right"></i></a>
-            <a href="assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume <i class="fas fa-arrow-up-right-from-square"></i></a>
-          </div>
         </div>
       </section>
 
@@ -344,7 +339,7 @@
         <div class="section-heading-row">
           <div>
             <div class="section-kicker">01 · What I work on</div>
-            <h2>From pixels to useful systems.</h2>
+            <h2>From lab to land.</h2>
           </div>
           <p>
             My work sits where multimodal modeling, document intelligence,
@@ -514,7 +509,7 @@
         <div class="section-heading-row">
           <div>
             <div class="section-kicker">03 · My journey</div>
-            <h2>A lot of exploring, then a lot of building.</h2>
+            <h2>Exploration &times; exploitation.</h2>
           </div>
           <p>
             I started by trying very different corners of ML. That breadth
@@ -522,58 +517,65 @@
           </p>
         </div>
 
-        <div class="journey-scroll" aria-label="Career timeline">
-          <div class="journey-line journey-line-five">
-          <article class="journey-stop">
-            <div class="journey-dot"></div>
-            <div class="journey-label">IIT Hyderabad</div>
-            <h3>B.Tech · Computer Science</h3>
-            <p>
-              Institute Gold Medal for Excellence in Academics and
-              Co-curricular Activities · Rank 1 / 1103.
-            </p>
-          </article>
-
-          <article class="journey-stop">
-            <div class="journey-dot"></div>
-            <div class="journey-label">Exploration</div>
-            <h3>Across the ML stack</h3>
-            <p>
-              Speech, quantum optimization, autonomous driving,
-              neuromorphic AI, vision, motion, and compiler representations.
-            </p>
-          </article>
-
-          <article class="journey-stop">
-            <div class="journey-dot"></div>
-            <div class="journey-label">Hackathons</div>
-            <h3>Inter-IIT + build sprints</h3>
-            <p>
-              Bosch, ISRO, DevRev, MPhasis, and Milan — rapid prototyping,
-              competition ML, and a lot of late-night debugging.
-            </p>
-          </article>
-
-          <article class="journey-stop">
-            <div class="journey-dot"></div>
-            <div class="journey-label">Research</div>
-            <h3>Documents + multimodality</h3>
-            <p>
-              Research spanning document understanding, visual grounding,
-              layout analysis, reconstruction, and multimodal evaluation.
-            </p>
-          </article>
-
-          <article class="journey-stop">
-            <div class="journey-dot"></div>
-            <div class="journey-label">Today</div>
-            <h3>BharatGen</h3>
-            <p>
-              Building sovereign VLMs from scratch across data, training,
-              post-training, evaluation, inference, and deployment systems.
-            </p>
-          </article>
+        <figure class="ee-figure">
+          <div class="ee-toolbar">
+            <div class="ee-legend" aria-hidden="true">
+              <span><i class="ee-dot ee-dot-explore"></i>Random pull (explore)</span>
+              <span><i class="ee-dot ee-dot-exploit"></i>Greedy pull (exploit)</span>
+            </div>
+            <button type="button" class="ee-replay"><i class="fas fa-rotate-right" aria-hidden="true"></i> Run again</button>
           </div>
+          <div class="ee-canvas-wrap">
+            <canvas
+              role="img"
+              aria-label="An epsilon-greedy bandit with nine arms: NLP, computer vision, speech, healthcare, climate, NeuroAI, quantum ML, hackathons and foundation models. Early pulls scatter across every arm. As epsilon decays, the pulls settle on foundation models."
+            ></canvas>
+          </div>
+          <p class="ee-readout" aria-hidden="true"></p>
+          <figcaption>
+            A real &epsilon;-greedy bandit, running in your browser. Each dot is one pull. Early on, &epsilon; is high and the
+            agent samples widely. As &epsilon; decays, it settles on the arm with the highest estimated value. The rewards are
+            illustrative, not measured.
+          </figcaption>
+        </figure>
+
+        <div class="ee-columns">
+          <article class="ee-col ee-col-explore">
+            <h3>Exploration</h3>
+            <a class="ee-place" href="https://www.iith.ac.in/">IIT Hyderabad</a>
+            <p class="ee-lead">Institute Gold Medal &middot; Rank 1 / 1103.</p>
+            <ul class="ee-list">
+              <li>Took many courses across core ML and applied ML.</li>
+              <li>Applied ML to healthcare and climate change.</li>
+              <li>Tried NLP, computer vision and speech.</li>
+              <li>Explored NeuroAI and quantum ML.</li>
+              <li>Took part in and won multiple hackathons.</li>
+            </ul>
+          </article>
+
+          <article class="ee-col ee-col-exploit">
+            <h3>Exploitation</h3>
+            <a class="ee-place" href="https://bharatgen.com/">BharatGen</a>
+            <p class="ee-lead">Building sovereign foundation models.</p>
+
+            <h4>Research &times; engineering at scale</h4>
+            <div class="ee-interests" aria-label="Research interests">
+              <a href="research.html#grounded-document-intelligence" target="_self"><span>01</span>Grounded document intelligence</a>
+              <a href="research.html#vlm-infrastructure" target="_self"><span>02</span>VLM infrastructure</a>
+              <a href="research.html#sovereign-foundation-models" target="_self"><span>03</span>Sovereign foundation models</a>
+            </div>
+            <a class="ee-all" href="research.html" target="_self">All research &rarr;</a>
+
+            <h4>Working across</h4>
+            <ul class="ee-stack">
+              <li>Data</li>
+              <li>Models
+                <small>Architecture &middot; pre-training &middot; post-training</small>
+              </li>
+              <li>Evals and benchmarks</li>
+              <li>Infra</li>
+            </ul>
+          </article>
         </div>
 
         <div class="achievement-strip" aria-label="Selected highlights">
@@ -590,22 +592,6 @@
             <span class="achievement-label">IIT Hyderabad · Rank 1 / 1103</span>
           </div>
         </div>
-      </section>
-
-      <!-- EXPLORATIONS -->
-      <section class="about-block exploration-block">
-        <div class="section-heading-row">
-          <div>
-            <div class="section-kicker">04 · Earlier explorations</div>
-            <h2>I like learning by building.</h2>
-          </div>
-          <p>
-            Before document VLMs became the center of my work, I explored
-            problems across speech, vision, quantum ML, neuromorphic AI,
-            compilers, motion, and rapid-build competitions.
-          </p>
-        </div>
-
         <div class="iith-archive-links" aria-label="IIT Hyderabad archives">
           <span>Full IIT Hyderabad archive</span>
           <a href="https://github.com/srini-anirudh/IITH-Courses">
@@ -797,7 +783,7 @@
       <section class="about-block community-block">
         <div class="section-heading-row">
           <div>
-            <div class="section-kicker">05 · Community</div>
+            <div class="section-kicker">04 · Community</div>
             <h2>Teaching, mentoring, reviewing.</h2>
           </div>
           <p>
@@ -840,7 +826,7 @@
       <section class="about-block beyond-block">
         <div class="section-heading-row">
           <div>
-            <div class="section-kicker">06 · Beyond the lab</div>
+            <div class="section-kicker">05 · Beyond the lab</div>
             <h2>The rest of the context window.</h2>
           </div>
           <p>
@@ -936,5 +922,6 @@
 
     <script src="assets/js/scripts.js"></script>
     <script src="assets/js/stars.js"></script>
+    <script src="assets/js/explore-exploit.js?v=2"></script>
   </body>
 </html>
