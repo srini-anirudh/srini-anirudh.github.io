@@ -129,8 +129,10 @@
             <strong>Thesis.</strong> Converting a document to text loses information, so we built a text
             representation that keeps everything on the page (text, hierarchy, position and style) for downstream
             workflows and large-scale data generation. And asking a model to type out coordinates is a brittle way to
-            ground an answer: people do not recite coordinates, they point and draw. So we give the VLM a pen. It
-            decides <em>what</em> to ground, and SAM draws <em>where</em> on the page as a mask, trained end to end.
+            ground an answer: people do not recite coordinates, they mark the page. And a single point is not enough
+            for documents, where evidence is a paragraph, a table row or a curved line, so we give the VLM a smart
+            highlighter. It decides <em>what</em> to ground and at what granularity, and SAM highlights <em>where</em>
+            on the page as a mask, trained end to end.
             The first idea generates the data for the second, and DocLayout-VL feeds back into REPLICA to close the loop.
           </p>
           <button onclick="window.open('research/docai-talk/', '_blank')" class="arxiv-button">
