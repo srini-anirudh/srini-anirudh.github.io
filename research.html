@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=5" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=6" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -110,23 +110,48 @@
         </p>
       </section>
 
-      <section class="research-summary" id="research-talk">
-        <div>
-          <span class="summary-kicker">Research in one hour</span>
-          <h2>Building Grounded Document Intelligence</h2>
-          <p>A story-driven talk that ties my work together: REPLICA rebuilds a document page, then M3Grounder, DoCoG and DocLayout-VL make it queryable and grounded.</p>
+      <section class="research-card" id="research-talk">
+        <div class="research-card-image">
+          <img
+            src="assets/images/thumbnails/talk-grounded-docai-thumb.jpg"
+            alt="Building Grounded Document Intelligence"
+            class="research-media"
+            data-image="assets/images/talk-grounded-docai.jpg"
+          />
         </div>
-        <span><a class="talk-button" href="research/docai-talk/" target="_blank" rel="noopener"><i class="fas fa-display"></i> View the talk</a> <a class="talk-button" href="blogs/building-grounded-document-intelligence/" target="_self"><i class="fas fa-pen-nib"></i> Read the post</a></span>
-      </section>
-      <section class="paper-connect" aria-label="How the four papers connect">
-        <div class="pc-root"><span>Step 1 &middot; ICDAR 2026 Oral</span><a href="#replica" target="_self"><strong>REPLICA</strong></a><em>rebuild the page as FID-HTML</em></div>
-        <div class="pc-arrow" aria-hidden="true">&darr;</div>
-        <div class="pc-row">
-          <a href="#m3grounder" target="_self"><span>CVPR 2026</span><strong>M3Grounder</strong><em>grounded answers</em></a>
-          <a href="#docog" target="_self"><span>ECCV 2026 Spotlight</span><strong>DoCoG</strong><em>grounded reasoning</em></a>
-          <a href="#doclayoutvl" target="_self"><span>ECCV 2026</span><strong>DocLayout-VL</strong><em>layout trees and masks</em></a>
+        <div class="research-card-content">
+          <a href="blogs/building-grounded-document-intelligence/" target="_self">
+            <span class="papertitle">Building Grounded Document Intelligence</span>
+          </a>
+          <br />
+          <em>Research talk and blog</em> &middot; REPLICA, M3Grounder, DoCoG and DocLayout-VL
+          <p class="research-thesis">
+            <strong>Core thesis.</strong> Converting a document to text loses information, so we built a text
+            representation that keeps everything on the page (text, hierarchy, position and style) for downstream
+            workflows and large-scale data generation. And grounding as coordinates typed out by a model is brittle,
+            so we join a VLM, which decides <em>what</em> to ground, with SAM, which draws <em>where</em>, trained end
+            to end. The first idea generates the data for the second, and DocLayout-VL feeds back into REPLICA to close
+            the loop.
+          </p>
+          <button onclick="window.open('research/docai-talk/', '_blank')" class="arxiv-button">
+            <i class="fas fa-file-powerpoint"></i>
+            slides
+          </button>
+          <button onclick="window.open('blogs/building-grounded-document-intelligence/', '_self')" class="arxiv-button">
+            <i class="fas fa-pen-nib"></i>
+            blog
+          </button>
+          <div class="paper-connect" aria-label="How the four papers connect">
+            <a class="pc-root" href="#replica" target="_self"><span>ICDAR 2026 &middot; Oral</span><strong>REPLICA</strong><em>page &rarr; FID-HTML, a lossless text form</em></a>
+            <div class="pc-arrow" aria-hidden="true">&darr; generates training data for &darr;</div>
+            <div class="pc-row">
+              <a href="#m3grounder" target="_self"><span>CVPR 2026</span><strong>M3Grounder</strong><em>mask-based, multi-span, multi-granular grounded VQA</em></a>
+              <a href="#docog" target="_self"><span>ECCV 2026 &middot; Spotlight</span><strong>DoCoG</strong><em>step-wise grounded chain-of-thought</em></a>
+              <a href="#doclayoutvl" target="_self"><span>ECCV 2026</span><strong>DocLayout-VL</strong><em>open-set, hierarchical, promptable layout</em></a>
+            </div>
+            <p class="pc-loop">&#8634; DocLayout-VL feeds back into REPLICA&rsquo;s first stage, closing the loop.</p>
+          </div>
         </div>
-        <p>Rebuild the page, then make it queryable, grounded, and segmented. <a href="blogs/building-grounded-document-intelligence/" target="_self">Read the written version &rarr;</a></p>
       </section>
 
 
