@@ -30,7 +30,7 @@
     <meta name="twitter:description" content="A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/"},"headline":"One Transformer, Two Modalities: Transformers vs Vision Transformers","description":"A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads.","image":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/preview.png","datePublished":"2025-06-15","dateModified":"2026-06-14","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["transformer","Vision Transformer","ViT","patch embeddings","attention","computer vision"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/"},"headline":"One Transformer, Two Modalities: Transformers vs Vision Transformers","description":"A block-by-block comparison of language Transformers and Vision Transformers, from tokenization and patchification to masks and heads.","image":"https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/preview.png","datePublished":"2025-06-15","dateModified":"2026-06-14","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["transformer","Vision Transformer","ViT","patch embeddings","attention","computer vision"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@id":"https://srini-anirudh.github.io/blogs/#vlms"}]}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -185,6 +185,12 @@
         </div>
       </div>
     </header>
+    <nav class="ml-series-nav" aria-label="Vision-Language Models series">
+      <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
+      <span class="ml-series-nav__position">01 of 20 &middot; Foundations</span>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../inside-a-modern-vision-encoder/"><span>Next &middot; 02</span><strong>Inside a Modern Vision Encoder</strong></a></div>
+    </nav>
+
 
     <main class="article-content">
       <p class="lede">Take a modern language model and a Vision Transformer, delete the first layer and the last layer of each, and diff what remains. You will find almost nothing. The same residual stream, the same multi-head attention, the same two-layer MLP with a wide hidden dimension, the same layer norms in the same places. ViT was not a new architecture. It was the claim that an image can be made to <em>look like</em> a sentence, and that once it does, the 2017 machine works unmodified.</p>
