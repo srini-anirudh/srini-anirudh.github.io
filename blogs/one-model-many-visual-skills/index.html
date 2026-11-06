@@ -239,7 +239,7 @@
     <nav class="ml-series-nav" aria-label="Vision-Language Models series">
       <a class="ml-series-nav__identity" href="../index.html?series=vlms">Vision-Language Models</a>
       <span class="ml-series-nav__position">06 of 20 &middot; Post-training</span>
-      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-vision-language-models-scale/"><span>Previous &middot; 05</span><strong>How Vision-Language Models Scale</strong></a><a class="ml-series-nav__link" href="../aligning-vision-language-models/"><span>Next &middot; 08</span><strong>Aligning Vision-Language Models</strong></a></div>
+      <div class="ml-series-nav__links"><a class="ml-series-nav__link" href="../how-vision-language-models-scale/"><span>Previous &middot; 05</span><strong>How Vision-Language Models Scale</strong></a><a class="ml-series-nav__link" href="../measuring-what-a-vlm-can-do/"><span>Next &middot; 07</span><strong>Measuring What a VLM Can Do</strong></a></div>
     </nav>
 
     <main class="article-content">
@@ -648,7 +648,7 @@
           <div class="anim-controls" role="group" aria-label="Figure 10 animation controls"></div>
           <figcaption><b>Figure 10.</b> Each dot is one random mixture scored by the same illustrative model as Figure 3. The orange line joins the mixtures that no other mixture beats on both axes. A weighted sum picks different points on that front as the weights change. A constraint (the shaded floor) picks the best point that keeps the second capability above a minimum.</figcaption>
         </figure>
-        <p>A few practical rules make the vector trustworthy. Benchmarks and metrics have their own post, <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>, so here I list only what matters during training.</p>
+        <p>A few practical rules make the vector trustworthy. Benchmarks and metrics have their own post, <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>, so here I list only what matters during training.</p>
         <ul>
           <li><strong>Use benchmarks that need the image.</strong> Cambrian-1 ran benchmarks with vision disabled. ScienceQA-IMG, MMMU, MathVista and AI2D showed less than a 5% gap between vision on and vision off. MMStar (Chen et al., 2024) was built to remove such questions. A mixture change cannot be judged on a benchmark that ignores the image.</li>
           <li><strong>Score the format you trained.</strong> Short-answer benchmarks need the format prompt. Without it, a well-trained conversational model is marked wrong for being verbose.</li>
@@ -669,7 +669,7 @@
           <li><strong>Whether staging matters at scale.</strong> The disagreement between single-stage and multi-stage results may depend on model size and data size. No public study maps it.</li>
           <li><strong>Where SFT ends and preference tuning begins.</strong> Hallucination is partly a data problem and partly a training-objective problem. The next posts on <a href="../aligning-vision-language-models/">aligning VLMs</a> and <a href="../rewarding-what-the-model-sees/">RL for VLMs</a> pick up the objective side.</li>
         </ul>
-        <p>You should now be able to reason about a multimodal SFT recipe from first principles. Look at the serialized example and its loss mask. Write down the capability vector. Ask what each source teaches, which formats conflict, what replay protects the language model, and which data was written by another model. The <a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">next post</a> takes up the evaluation side in depth.</p>
+        <p>You should now be able to reason about a multimodal SFT recipe from first principles. Look at the serialized example and its loss mask. Write down the capability vector. Ask what each source teaches, which formats conflict, what replay protects the language model, and which data was written by another model. The <a href="../measuring-what-a-vlm-can-do/">next post</a> takes up the evaluation side in depth.</p>
       </section>
 
       <section id="key-insights">
@@ -690,7 +690,7 @@
         </ul>
       </section>
 
-      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../teaching-a-language-model-to-follow-instructions/">Teaching a Language Model to Follow Instructions</a></li><li><a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a></li><li><a href="../teaching-language-models-to-see/">Teaching Language Models to See</a></li><li><a href="../index.html?series=vlms" data-series-pending="measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../how-lora-changes-a-model-without-rewriting-it/">How LoRA Changes a Model Without Rewriting It</a></li></ul></nav>
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../teaching-a-language-model-to-follow-instructions/">Teaching a Language Model to Follow Instructions</a></li><li><a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a></li><li><a href="../teaching-language-models-to-see/">Teaching Language Models to See</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../how-lora-changes-a-model-without-rewriting-it/">How LoRA Changes a Model Without Rewriting It</a></li></ul></nav>
 
       <section id="references">
         <h2>References</h2>

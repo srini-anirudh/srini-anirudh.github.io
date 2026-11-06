@@ -18,7 +18,7 @@ The series has four groups. These groups also form the VLM learning path on the 
 | 04 | Teaching Language Models to See | `teaching-language-models-to-see` | Pretraining | Published |
 | 05 | How Vision-Language Models Scale | `how-vision-language-models-scale` | Scaling laws for VLMs | Published |
 | 06 | One Model, Many Visual Skills | `one-model-many-visual-skills` | Post-training, visual instruction tuning | Published |
-| 07 | Measuring What a VLM Can Do | `measuring-what-a-vlm-can-do` | Benchmarks, metrics, languages | In progress |
+| 07 | Measuring What a VLM Can Do | `measuring-what-a-vlm-can-do` | Benchmarks, metrics, languages | Published |
 | 08 | Aligning Vision-Language Models | `aligning-vision-language-models` | Preferences, hallucination, safety | Published |
 | **Capabilities** |||||
 | 09 | When Language Must Point | `when-language-must-point` | Grounding and structured visual outputs | In progress |
