@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT
+
+    Apply these requirements to every animated figure in the article:
+
+    1. Build detailed, cinematic sequences with many meaningful frames or finely
+       interpolated states. Motion should explain the idea rather than merely
+       decorate it; avoid abrupt two-state transitions.
+    2. Every animation must provide Previous and Next controls for manual,
+       frame-by-frame or stage-by-stage exploration.
+    3. Animations should play automatically when appropriate and provide one
+       clear Play/Pause control that supports pausing and resuming from the
+       current frame.
+    4. Provide 0.5x, 1x, and 2x playback-speed controls. The selected speed must
+       be visually and programmatically indicated with aria-pressed.
+    5. Use cinematic camera language where it improves explanation: smooth zoom
+       in/out, pans, focus transitions, tracked highlights, staged reveals, and
+       deliberate easing. Keep labels readable throughout every camera move.
+    6. Display the current frame/stage and total frame/stage count, and preserve
+       the current position when playback speed changes or playback resumes.
+    7. Pause automatic playback while the reader is manually interacting with a
+       figure. Resume only through an explicit action or a clearly documented,
+       gentle timeout.
+    8. Honor prefers-reduced-motion. In reduced-motion mode, disable autoplay,
+       zooms, pans, and non-essential transitions while retaining Previous/Next
+       access to every explanatory state.
+    9. Keep controls keyboard accessible, use semantic buttons, add visible focus
+       states, and provide useful aria-labels and live status text.
+    10. Export one representative animation as a seamless GIF for the blog index
+        card. Use the article's strongest explanatory moment, not a generic
+        decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
+        optimized file size around 3 MB or less. Save it as
+        blogs/post-train-a-vlm/preview.gif. Also export a matching static poster
+        as blogs/post-train-a-vlm/preview.png for prefers-reduced-motion and slow connections.
+        Add both assets and useful alt text to the article card in blogs/index.html.
+
+    Recommended control order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/post-train-a-vlm/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Post-Train a VLM: Image-Conditioned DPO, Hallucination Negatives and Visual GRPO" />
+    <meta property="og:description" content="Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/post-train-a-vlm/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/post-train-a-vlm/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Post-Train a VLM: Image-Conditioned DPO, Hallucination Negatives and Visual GRPO" />
+    <meta name="twitter:description" content="Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/post-train-a-vlm/preview.png" />
+    <title>Post-Train a VLM: Image-Conditioned DPO, Hallucination Negatives and Visual GRPO | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <link rel="stylesheet" href="../../assets/css/code-tutorial.css?v=1" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/post-train-a-vlm/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/post-train-a-vlm/" },
+        "headline": "Post-Train a VLM: image-conditioned DPO, hallucination negatives and visual GRPO",
+        "description": "Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking.",
+        "image": "https://srini-anirudh.github.io/blogs/post-train-a-vlm/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["vision-language models", "image-conditioned DPO", "visual GRPO"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#code" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 14ch; margin: 28px 0 18px; font: 800 clamp(46px, 8.4vw, 104px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 46px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 25px/1.12 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 18px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content a { color: var(--ink); }
+      .lede { color: var(--ink-soft); font-size: 20.5px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+      .insight-list li { margin-bottom: 12px; }
+
+      /* ---------- article-specific figure styles (keep them light) ---------- */
+      .neg-grid { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; align-items: start; }
+      .neg-scene svg { width: 100%; height: auto; display: block; }
+      .neg-panel { font: 13px/1.5 var(--mono); min-width: 0; }
+      .neg-panel p { margin: 0 0 10px; }
+      .neg-panel .neg-label { display: block; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .neg-true { background: rgba(47,143,91,0.22); color: inherit; padding: 0 3px; }
+      .neg-false { background: rgba(184,67,47,0.22); color: inherit; padding: 0 3px; }
+      .neg-leak { color: var(--ink-soft); font-family: var(--body); font-size: 16px; }
+      .neg-json { color: var(--muted); font-size: 11.5px; overflow-wrap: anywhere; }
+      .iou-out { margin: 8px 0 0; color: var(--ink-soft); font: 12.5px/1.5 var(--mono); overflow-wrap: anywhere; }
+      .iou-verdict { margin: 6px 0 0; color: var(--ink); font-size: 16.5px; min-height: 2.8em; }
+      #fig-batch svg, #fig-dpo svg, #fig-blind svg, #fig-grpo svg, #fig-freeze svg, #fig-hack svg { min-width: 640px; }
+      @media (max-width: 640px) { .neg-grid { grid-template-columns: 1fr; } .neg-scene { max-width: 260px; } }
+
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article code-tutorial-article post-train-a-vlm-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Coding tutorial &middot; Build it from scratch</p>
+        <h1 class="article-title">Post-Train a VLM</h1>
+        <p class="article-subtitle">We take a real 256M vision-language model and align it by hand: preference pairs with exact truth, image-conditioned DPO, a check that it used the image, visual GRPO, and a reward we hack on purpose.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Multimodal RL</span><span>Hallucination</span><span>DPO and GRPO</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>45 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Series navigator: keep directly after </header>. PART groups:
+         C1–C3 "Raw mechanics", C4–C6 "Language models",
+         C7–C9 "Vision-language models", C10–C12 "Agents".
+         The first post has no Previous link; the last has no Next link
+         (use <span class="ml-series-nav__empty"></span> to keep the grid). -->
+    <nav class="ml-series-nav" aria-label="Coding Tutorials series">
+      <a class="ml-series-nav__identity" href="../index.html?series=code">Coding Tutorials</a>
+      <span class="ml-series-nav__position">09 of 12 &middot; Vision-language models</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../train-a-real-vlm/"><span>Previous &middot; 08</span><strong>Train a Real VLM</strong></a>
+        <a class="ml-series-nav__link" href="../build-an-agent-harness-from-scratch/"><span>Next &middot; 10</span><strong>Build an Agent Harness From Scratch</strong></a>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <section class="build-brief" aria-labelledby="build-brief-title">
+        <div class="build-brief__head">
+          <h2 class="build-brief__kicker" id="build-brief-title">What you will build</h2>
+          <a class="build-brief__repo" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c09-vlm-post-training" target="_blank" rel="noopener noreferrer"><i class="fab fa-github" aria-hidden="true"></i><span>blog-coding-tutorials/c09-vlm-post-training</span></a>
+        </div>
+        <div class="build-brief__body">
+          <p class="build-brief__deliverable">A post-training system for a real pretrained VLM: exact synthetic scenes, five kinds of hallucination negatives, image-conditioned DPO written by hand, a blind-preference check, tested visual rewards, visual GRPO, a freeze ablation, and a reward we hack on purpose.</p>
+          <dl class="build-brief__facts">
+            <div class="build-brief__wide">
+              <dt>Theory first</dt>
+              <dd>
+                <div class="theory-links">
+                  <a class="theory-link" href="../aligning-vision-language-models/">Aligning vision-language models</a>
+                  <a class="theory-link" href="../rewarding-what-the-model-sees/">Rewarding what the model sees</a>
+                  <a class="theory-link" href="../teaching-a-model-what-we-prefer/">Teaching a model what we prefer</a>
+                  <a class="theory-link" href="../how-reinforcement-learning-teaches-models-to-reason/">How reinforcement learning teaches models to reason</a>
+                </div>
+              </dd>
+            </div>
+            <div><dt>Time</dt><dd>About 3 hours, with the real runs</dd></div>
+            <div><dt>Hardware</dt><dd>Apple M5, 16 GB, MPS. CPU works but is slow. CUDA is picked up if present.</dd></div>
+            <div><dt>You need</dt><dd>Python 3.10+, PyTorch, transformers 5, Pillow, pytest</dd></div>
+            <div><dt>Package</dt><dd><code>vlmalign</code></dd></div>
+          </dl>
+          <details class="repo-tree">
+            <summary>Final repo tree <span class="repo-tree__hint">c09-vlm-post-training/</span></summary>
+<pre>c09-vlm-post-training/
+├── README.md                 # how to run everything, results table
+├── conftest.py
+├── vlmalign/
+│   ├── scenes.py             # synthetic images with exact facts
+│   ├── tasks.py              # questions and sentence templates
+│   ├── preference.py         # hallucination negatives, balanced and biased
+│   ├── model.py              # SmolVLM loading, prompts, answers
+│   ├── logprobs.py           # batches, encode-once path, sequence log-probs
+│   ├── dpo.py                # image-conditioned DPO loss and pair batches
+│   ├── blind.py              # text-only preference probe
+│   ├── rewards.py            # exact match, IoU, Dice, CER, ANLS, field accuracy
+│   ├── rl_tasks.py           # RL tasks and reward registry
+│   ├── grpo.py               # rollouts, relative advantages, clipped loss
+│   ├── lora.py               # a minimal LoRA
+│   ├── freeze.py             # the three freeze modes
+│   ├── evaluate.py           # VQA and preference accuracy, real or grey image
+│   ├── tiny.py               # tiny random Idefics3 for offline tests
+│   └── device.py
+├── scripts/
+│   ├── show_pairs.py         # pairs and one batch, tensor by tensor
+│   ├── blind_probe.py        # the text-only check
+│   ├── reward_audit.py       # hand-written answers against every reward
+│   ├── show_rollouts.py      # one GRPO group printed
+│   ├── train_dpo.py
+│   ├── train_grpo.py         # freeze ablation and reward hacking
+│   ├── perception_probe.py   # did image features change?
+│   └── run_all.sh
+├── benchmarks/
+│   └── bench_encode_once.py
+├── results/                  # real logs and JSON from this machine
+└── tests/
+    ├── test_rewards.py
+    ├── test_data.py
+    ├── test_logprobs_dpo.py
+    ├── test_lora_freeze.py
+    ├── test_grpo.py
+    └── test_smolvlm_network.py</pre>
+          </details>
+        </div>
+      </section>
+
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-plan">The plan</a></li>
+          <li><a href="#step-01">Step 1: scenes with exact truth</a></li>
+          <li><a href="#step-02">Step 2: hallucination negatives</a></li>
+          <li><a href="#step-03">Step 3: one pair as tensors</a></li>
+          <li><a href="#step-04">Step 4: sequence log-probabilities</a></li>
+          <li><a href="#step-05">Step 5: image-conditioned DPO</a></li>
+          <li><a href="#step-06">Step 6: the blind-preference check</a></li>
+          <li><a href="#step-07">Step 7: visual rewards</a></li>
+          <li><a href="#step-08">Step 8: visual GRPO</a></li>
+          <li><a href="#step-09">Step 9: the freeze ablation</a></li>
+          <li><a href="#step-10">Step 10: hack the reward</a></li>
+          <li><a href="#comparison">The training modes compared</a></li>
+          <li><a href="#run-everything">Run everything</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#exercises">Exercises</a></li>
+          <li><a href="#continue-reading">Continue reading</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-plan">
+        <h2>The plan</h2>
+        <p class="lede">When a vision-language model starts to prefer the true answer after post-training, did it look at the image, or did it learn which words tend to win?</p>
+        <p>Most of this tutorial exists to answer that question with numbers. A VLM can lower a preference loss without using a single pixel. It can also raise a visual reward by gaming the reward. Both failures look like progress on a training curve.</p>
+        <p>So we build the alignment stack on images where we know every fact exactly. We draw the image ourselves, so we know the true colour, count, position and text. That makes every preference label and every reward exact, and it lets us run controls that real datasets cannot.</p>
+        <p>We post-train a real pretrained model, <code>HuggingFaceTB/SmolVLM-256M-Instruct</code>. The tiny VLM from <a href="../build-a-vlm-from-scratch/">C7</a> and <a href="../train-a-real-vlm/">C8</a> is not capable enough for this. Preference learning and RL refine a model that can already do the task sometimes. A model that cannot read a colour gives DPO and GRPO nothing to refine.</p>
+        <div class="theory-links">
+          <a class="theory-link" href="../aligning-vision-language-models/"><span class="theory-link__kicker">Theory</span>Aligning vision-language models</a>
+          <a class="theory-link" href="../rewarding-what-the-model-sees/"><span class="theory-link__kicker">Theory</span>Rewarding what the model sees</a>
+        </div>
+        <p>Clone the repo once. Every command below runs from its root, using the shared virtual environment.</p>
+        <figure class="terminal" data-cwd="code">
+          <pre><code>$ git clone https://github.com/srini-anirudh/blog-coding-tutorials.git
+$ cd blog-coding-tutorials
+$ python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"</code></pre>
+        </figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Every run here is short: 60 to 150 update steps on a shared laptop. The numbers are real, and they are small. Treat them as a working demonstration of the method, not as a benchmark of SmolVLM. Where a gain is within the noise of a held-out set of this size, the text says so.</p>
+        </aside>
+      </section>
+
+      <section class="build-step" id="step-01" data-step-title="Scenes with exact truth">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 01</span></div>
+          <h2>Draw scenes where the truth is exact</h2>
+          <p class="build-step__goal"><span>Goal</span> A seeded image generator, and questions whose answers we compute instead of annotate.</p>
+        </header>
+        <p>A scene is a few coloured shapes and one printed word on a white canvas. Objects live in distinct cells of a 3 by 3 grid, so they never overlap. Each pair of colour and shape appears at most once, which keeps every question unambiguous.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/scenes.py" data-lines="67-87" data-lang="python" data-highlight="2,16-20">
+<pre><code>def sample_scene(seed: int, min_objects: int = 2, max_objects: int = 6, with_word: bool = True) -&gt; Scene:
+    """Place objects in distinct grid cells; each (colour, shape) pair is unique."""
+    rng = random.Random(seed)
+    cell = CANVAS // GRID
+    cells = [(r, c) for r in range(GRID) for c in range(GRID)]
+    rng.shuffle(cells)
+    word, word_box = None, None
+    if with_word:
+        r, c = cells.pop()
+        word = rng.choice(WORDS)
+        word_box = (c * cell + 12, r * cell + 45, (c + 1) * cell - 12, (r + 1) * cell - 45)
+    n = rng.randint(min_objects, min(max_objects, len(cells)))
+    identities = [(s, k) for s in SHAPES for k in PALETTE]
+    rng.shuffle(identities)
+    objects = []
+    for (r, c), (shape, color) in zip(cells[:n], identities[:n]):
+        side = rng.randint(80, 120)
+        x0 = c * cell + rng.randint(8, cell - side - 8)
+        y0 = r * cell + rng.randint(8, cell - side - 8)
+        objects.append(Obj(shape, color, (x0, y0, x0 + side, y0 + side)))
+    return Scene(objects=objects, word=word, word_box=word_box, seed=seed)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 1</span>One seed gives one scene. Drawing at 512 pixels matches the size SmolVLM uses, so we avoid a resample.</figcaption></figure>
+        <p>Questions come with a sentence template that has one slot. This is what makes hallucination negatives cheap later: a rejected answer is the same sentence with one slot changed.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/tasks.py" data-lines="39-64" data-lang="python" data-highlight="8,13">
+<pre><code>def ask(scene: Scene, kind: str, rng: random.Random) -&gt; Question | None:
+    """Return one question of `kind` about `scene`, or None if the scene cannot support it."""
+    if kind == "color":
+        unique = [o for o in scene.objects if scene.count(o.shape) == 1]
+        if not unique:
+            return None
+        o = rng.choice(unique)
+        return Question(kind, f"What color is the {o.shape}?", o.color, f"The {o.shape} is {{}}.", "color")
+    if kind == "count":
+        shape = rng.choice(sorted({o.shape for o in scene.objects}))
+        n = scene.count(shape)
+        return Question(kind, f"How many {shape}s are there?", str(n), f"The number of {shape}s is {{}}.", "count")
+    if kind == "object":
+        unique = [o for o in scene.objects if len(scene.with_color(o.color)) == 1]
+        if not unique:
+            return None
+        o = rng.choice(unique)
+        return Question(kind, f"What shape is the {o.color} object?", o.shape, f"The {o.color} object is a {{}}.", "shape")
+    if kind == "ocr":
+        if not scene.word:
+            return None
+        return Question(kind, "What word is written in the image?", scene.word, "The word is {}.", "word")
+    if kind == "spatial":
+        pairs = [(a, b) for a in scene.objects for b in scene.objects
+                 if a is not b and abs(a.center[0] - b.center[0]) &gt; 60]
+        if not pairs:</code></pre>
+<figcaption><span class="ct-fig-num">Listing 2</span>Two of the five question kinds. The answer is computed from the scene, and the template holds one slot.</figcaption></figure>
+        <p>Next, load the model. SmolVLM normally splits a large image into tiles. Our scenes do not need that, so we switch it off. One 512 by 512 tile gives 64 image tokens instead of 1,088, which makes every later step faster.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/model.py" data-lines="18-23" data-lang="python" data-highlight="2-4">
+<pre><code>def load_processor(model_id: str = MODEL_ID):
+    # One 512x512 tile instead of 16 tiles + a global view: 64 image tokens, not 1,088.
+    # Our synthetic scenes are 512x512 with large objects, so tiling buys nothing.
+    proc = AutoProcessor.from_pretrained(model_id)
+    proc.image_processor.do_image_splitting = False
+    return proc</code></pre>
+<figcaption><span class="ct-fig-num">Listing 3</span>Turning off tiling. The first run of this tutorial had 1,141 tokens per prompt. This line brings it to 81.</figcaption></figure>
+        <table class="shape-table">
+          <caption>What goes into SmolVLM-256M for one image</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>pixel_values</td><td>(1, 1, 3, 512, 512)</td><td>Batch, images per row, channels, height, width.</td></tr>
+            <tr><td>Vision output</td><td>(1, 1024, 768)</td><td>32 &times; 32 patches of 16 pixels, from a SigLIP encoder.</td></tr>
+            <tr><td>Connector output</td><td>(1, 64, 576)</td><td>Pixel shuffle by 4 merges 16 patches into one token, then a linear projection.</td></tr>
+            <tr><td>input_ids</td><td>(1, 81)</td><td>17 text tokens around 64 <code>&lt;image&gt;</code> placeholders, for a short question.</td></tr>
+            <tr><td>logits</td><td>(1, 81, 49280)</td><td>One distribution over the vocabulary per position.</td></tr>
+          </tbody>
+        </table>
+        <p>Before we train anything, measure what the pretrained model can do. Greedy short answers, 30 questions per kind, on the fixed evaluation set that <code>train_dpo.py</code> prints first.</p>
+        <div id="baseline-table">
+        <p><em>Result pending.</em></p>
+        </div>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p><p><em>Result pending.</em></p></p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>The same seed produces the same pixels.</li>
+            <li><code>test_render_draws_the_object_colour_at_its_centre</code> and <code>test_answers_match_the_scene</code> pass.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-02" data-step-title="Hallucination negatives">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 02</span></div>
+          <h2>Generate hallucination negatives</h2>
+          <p class="build-step__goal"><span>Goal</span> Turn every question into a preference pair, in two versions: one that needs the image, and one that does not.</p>
+        </header>
+        <p>A multimodal preference example has four fields: image, prompt, chosen, rejected. The chosen answer states the true fact. The rejected answer is a hallucination we manufacture, and it comes in five kinds: wrong colour, wrong count, wrong object, false OCR and wrong spatial relation.</p>
+        <p>How we draw the wrong value matters more than anything else in this step. So we write two samplers that share everything else.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/preference.py" data-lines="43-59" data-lang="python" data-highlight="5-6,8,10,12,14-15">
+<pre><code>def wrong_value(q: Question, rng: random.Random, mode: str = "balanced") -&gt; str:
+    """A value for the slot that is false for this image."""
+    if q.kind == "spatial":
+        return _OTHER_SIDE[q.answer]  # only two values: flipping is already symmetric
+    if mode == "balanced":
+        return rng.choice([v for v in VALUES[q.kind] if v != q.answer])
+    if mode == "biased":
+        if q.kind == "color":
+            return rng.choice(OFF_PALETTE)      # a colour no image ever contains
+        if q.kind == "count":
+            return str(int(q.answer) + 1)       # always one too many
+        if q.kind == "object":
+            return rng.choice(["star", "hexagon"])  # a shape no image ever contains
+        if q.kind == "ocr":
+            i = rng.randrange(len(q.answer))    # a misspelling, never a real word
+            return q.answer[:i] + rng.choice("QXZJ") + q.answer[i + 1:]
+    raise ValueError(f"unknown mode {mode!r}")</code></pre>
+<figcaption><span class="ct-fig-num">Listing 4</span>The balanced sampler draws from the same set as true values. The biased sampler uses tempting shortcuts.</figcaption></figure>
+        <p>Try both. Pick a kind, switch the sampler, and read the note under the pair.</p>
+        <figure class="ct-figure ct-figure--wide" id="fig-neg">
+          <div class="ct-knobs" role="group" aria-label="Hallucination kind">
+            <button type="button" data-kind="color" aria-pressed="true">Wrong colour</button>
+            <button type="button" data-kind="count" aria-pressed="false">Wrong count</button>
+            <button type="button" data-kind="object" aria-pressed="false">Wrong object</button>
+            <button type="button" data-kind="ocr" aria-pressed="false">False OCR</button>
+            <button type="button" data-kind="spatial" aria-pressed="false">Wrong relation</button>
+          </div>
+          <div class="ct-knobs" role="group" aria-label="Negative sampler">
+            <button type="button" data-mode="balanced" aria-pressed="true">Balanced sampler</button>
+            <button type="button" data-mode="biased" aria-pressed="false">Biased sampler</button>
+            <button type="button" data-new>New scene</button>
+          </div>
+          <div class="ct-figure__stage">
+            <div class="neg-grid">
+              <div class="neg-scene"></div>
+              <div class="neg-panel">
+                <p><span class="neg-label">Prompt</span><span class="neg-prompt"></span></p>
+                <p><span class="neg-label">Chosen</span><span class="neg-chosen"></span></p>
+                <p><span class="neg-label">Rejected</span><span class="neg-rejected"></span></p>
+                <p class="neg-leak" aria-live="polite"></p>
+                <p class="neg-json"></p>
+              </div>
+            </div>
+          </div>
+          <figcaption><span class="ct-fig-num">Figure 1</span>The hallucination-negative generator, ported to JavaScript from <code>preference.py</code>. Dashed outlines mark the objects the question is about. The scene layouts here use a browser random generator, so they differ from the Python seeds, but the sampling rules are the same.</figcaption>
+        </figure>
+        <p>A note on true values. If we let true counts follow the scene generator, they skew towards 1 and 2. Then a rejected answer of 3 would mostly appear on the rejected side, and text alone would predict the label. So <code>build_pairs</code> picks the target true value first, uniformly, then searches for a scene that has it.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/preference.py" data-lines="82-103" data-lang="python" data-highlight="14-19">
+<pre><code>def build_pairs(n: int, mode: str = "balanced", seed: int = 0, kinds: tuple[str, ...] = KINDS) -&gt; list[PreferencePair]:
+    """n pairs, kinds in round-robin, true answers uniform over VALUES[kind].
+
+    We pick the target true value first and then search scenes until one has
+    that answer. Without this stratification, true counts skew towards 1 and 2,
+    and "3" would mostly appear on the rejected side: a text-only shortcut.
+    """
+    rng = random.Random(seed)
+    pairs: list[PreferencePair] = []
+    scene_seed = seed * 1_000_003
+    for i in range(n):
+        kind = kinds[i % len(kinds)]
+        target = rng.choice(VALUES[kind])
+        while True:
+            scene_seed += 1
+            scene = sample_scene(scene_seed)
+            q = ask(scene, kind, rng)
+            if q is not None and q.answer == target:
+                break
+        wrong = wrong_value(q, rng, mode)
+        pairs.append(PreferencePair(scene, q, q.sentence(), q.sentence(wrong), mode))
+    return pairs</code></pre>
+<figcaption><span class="ct-fig-num">Listing 5</span>Stratify on the true value first. Then true and wrong values have the same uniform distribution, which makes each pair exchangeable.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/show_pairs.py</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/show_pairs.py">
+<pre><code>--- balanced ---
+color    What color is the circle?
+           chosen   The circle is yellow.
+           rejected The circle is blue.
+count    How many triangles are there?
+           chosen   The number of triangles is 3.
+           rejected The number of triangles is 2.
+object   What shape is the yellow object?
+           chosen   The yellow object is a triangle.
+           rejected The yellow object is a circle.
+ocr      What word is written in the image?
+           chosen   The word is KEY.
+           rejected The word is BOX.
+spatial  Is the red triangle to the left or to the right of the blue circle?
+           chosen   The red triangle is to the left of the blue circle.
+           rejected The red triangle is to the right of the blue circle.
+--- biased ---
+color    What color is the circle?
+           chosen   The circle is yellow.
+           rejected The circle is pink.
+count    How many triangles are there?
+           chosen   The number of triangles is 3.
+           rejected The number of triangles is 4.
+object   What shape is the yellow object?
+           chosen   The yellow object is a square.
+           rejected The yellow object is a hexagon.
+ocr      What word is written in the image?
+           chosen   The word is BOX.
+           rejected The word is QOX.
+spatial  Is the blue triangle to the left or to the right of the blue circle?
+           chosen   The blue triangle is to the left of the blue circle.
+           rejected The blue triangle is to the right of the blue circle.</code></pre>
+</figure>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>A negative must be false for this image, and balanced values must appear about equally on both sides. <code>test_negatives_are_always_false</code> and <code>test_balanced_pairs_are_exchangeable</code> check both.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>You can read a pair and predict the answer only by looking at the image, on the balanced side.</li>
+            <li>On the biased side, you can often answer without the image. Keep that in mind for step 6.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-03" data-step-title="One pair as tensors">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 03</span></div>
+          <h2>Turn one pair into tensors</h2>
+          <p class="build-step__goal"><span>Goal</span> A batch where chosen and rejected share an image, and only answer tokens carry a label.</p>
+        </header>
+        <p>Each pair makes two rows. Both rows hold the same prompt ids, and then their own answer. We tokenize the answer separately and append it. That keeps the prompt ids identical to what <code>generate()</code> conditions on, so we train on the same probabilities the model samples from.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/model.py" data-lines="51-60" data-lang="python" data-highlight="9-10">
+<pre><code>def encode_answer(processor, answer: str) -&gt; torch.Tensor:
+    """Answer token ids, ending with &lt;end_of_utterance&gt;. Shape (T_answer,).
+
+    We tokenize the answer on its own and append it to the prompt ids. That keeps
+    the prompt ids byte-identical to what generate() conditions on, so the
+    log-probabilities we train on are the ones the model would sample from.
+    """
+    tok = processor.tokenizer
+    ids = tok(" " + answer, add_special_tokens=False)["input_ids"]
+    return torch.tensor(ids + [end_of_utterance_id(processor)], dtype=torch.long)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 6</span>The answer ends with end_of_utterance, because stopping is part of what the model must learn.</figcaption></figure>
+        <p>Now build the batch. Rows are padded on the right, labels are <code>-100</code> outside the answer, and each row keeps an index into a smaller tensor of distinct images.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/logprobs.py" data-lines="37-50" data-lang="python" data-highlight="10-12">
+<pre><code>def build_batch(prompts: list[torch.Tensor], answers: list[torch.Tensor], image_index: list[int],
+                pixel_values: torch.Tensor, pad_id: int) -&gt; SeqBatch:
+    """Right-pad prompt+answer rows. prompts[i]: (T_p,), answers[i]: (T_a,)."""
+    rows = [torch.cat([p, a]) for p, a in zip(prompts, answers)]
+    T = max(len(r) for r in rows)
+    B = len(rows)
+    input_ids = torch.full((B, T), pad_id, dtype=torch.long)
+    labels = torch.full((B, T), IGNORE, dtype=torch.long)
+    attention_mask = torch.zeros((B, T), dtype=torch.long)
+    for i, (p, r) in enumerate(zip(prompts, rows)):
+        input_ids[i, : len(r)] = r
+        attention_mask[i, : len(r)] = 1
+        labels[i, len(p): len(r)] = r[len(p):]  # loss only on the answer
+    return SeqBatch(input_ids, attention_mask, labels, torch.tensor(image_index), pixel_values)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 7</span>Prompt and padding positions stay at IGNORE, which is -100.</figcaption></figure>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/dpo.py" data-lines="36-52" data-lang="python" data-highlight="13-14">
+<pre><code>def pair_batch(processor, pairs: list[PreferencePair], images=None) -&gt; SeqBatch:
+    """2P rows: row 2i is pair i's chosen answer, row 2i+1 its rejected answer.
+
+    Both rows of a pair point at the same image (image_index i), so the vision
+    encoder runs P times, not 2P. Pass `images` to swap in other images
+    (the blind check passes grey images here).
+    """
+    prompts, answers, image_index, pixels = [], [], [], []
+    for i, pair in enumerate(pairs):
+        img = pair.image() if images is None else images[i]
+        p = encode_prompt(processor, img, pair.prompt)
+        pixels.append(p.pixel_values)
+        for answer in (pair.chosen, pair.rejected):
+            prompts.append(p.input_ids[0])
+            answers.append(encode_answer(processor, answer))
+            image_index.append(i)
+    return build_batch(prompts, answers, image_index, torch.cat(pixels), processor.tokenizer.pad_token_id)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 8</span>Row 2i is the chosen answer, row 2i+1 the rejected one. Both point at image i.</figcaption></figure>
+        <p>Look at what actually comes out. Two pairs give four rows and two images.</p>
+        <figure class="code-output" data-from="scripts/show_pairs.py">
+<pre><code>--- one batch: 2 pairs, so 4 rows and 2 images ---
+input_ids       torch.Size([4, 90])  dtype=torch.int64
+attention_mask  torch.Size([4, 90])  dtype=torch.int64
+labels          torch.Size([4, 90])  dtype=torch.int64
+image_index     torch.Size([4])  dtype=torch.int64
+pixel_values    torch.Size([2, 1, 3, 512, 512])  dtype=torch.float32
+image tokens in row 0: 64
+
+--- row 0, with the 64 &lt;image&gt; ids collapsed ---
+'&lt;|im_start|&gt;'           id=1      mask=1 label=-100
+'User'                   id=11126  mask=1 label=-100
+':'                      id=42     mask=1 label=-100
+'&lt;fake_token_around_image&gt;' id=49189  mask=1 label=-100
+'&lt;global-img&gt;'           id=49152  mask=1 label=-100
+&lt;image&gt; x 64             mask=1 label=-100
+'&lt;fake_token_around_image&gt;' id=49189  mask=1 label=-100
+'What'                   id=1780   mask=1 label=-100
+' color'                 id=2380   mask=1 label=-100
+' is'                    id=314    mask=1 label=-100
+' the'                   id=260    mask=1 label=-100
+' circle'                id=7842   mask=1 label=-100
+'?'                      id=47     mask=1 label=-100
+'&lt;end_of_utterance&gt;'     id=49279  mask=1 label=-100
+'\n'                     id=198    mask=1 label=-100
+'Ass'                    id=9519   mask=1 label=-100
+'istant'                 id=9531   mask=1 label=-100
+':'                      id=42     mask=1 label=-100
+' The'                   id=378    mask=1 label=378
+' circle'                id=7842   mask=1 label=7842
+' is'                    id=314    mask=1 label=314
+' yellow'                id=5724   mask=1 label=5724
+'.'                      id=30     mask=1 label=30
+'&lt;end_of_utterance&gt;'     id=49279  mask=1 label=49279
+'&lt;|im_end|&gt;'             id=2      mask=0 label=-100</code></pre>
+</figure>
+        <table class="shape-table">
+          <caption>A batch of P = 2 preference pairs</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>input_ids</td><td>(2P, T) = (4, 90)</td><td>Prompt ids, then answer ids, then right padding.</td></tr>
+            <tr><td>attention_mask</td><td>(2P, T)</td><td>0 on padding.</td></tr>
+            <tr><td>labels</td><td>(2P, T)</td><td>Answer ids. -100 on prompt and padding.</td></tr>
+            <tr><td>image_index</td><td>(2P,)</td><td>Which row of <code>pixel_values</code> this sequence looks at.</td></tr>
+            <tr><td>pixel_values</td><td>(P, 1, 3, 512, 512)</td><td>One entry per distinct image, not per row.</td></tr>
+          </tbody>
+        </table>
+        <figure class="ct-figure ct-figure--wide" id="fig-batch">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 2</span>One real pair as tensors. The camera moves from the token rows, to the labels, to the image placeholders, and then into the answer, where the real per-token log-probabilities of the pretrained model are drawn.</figcaption>
+        </figure>
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Label the whole row instead of the answer: in <code>build_batch</code>, change <code>labels[i, len(p): len(r)]</code> to <code>labels[i, : len(r)]</code>. The sum now includes the 64 <code>&lt;image&gt;</code> positions and the prompt. The difference between chosen and rejected barely changes, because those positions match across rows, but the value of each sum becomes large. <code>test_batch_shapes_and_label_mask</code> fails on the first assert about <code>IGNORE</code>.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Row 0 has 64 image tokens, and only its 6 answer tokens have labels.</li>
+            <li><code>test_chosen_and_rejected_share_the_prompt_and_differ_in_the_answer</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-04" data-step-title="Sequence log-probabilities">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 04</span></div>
+          <h2>Compute sequence log-probabilities, naively and then fast</h2>
+          <p class="build-step__goal"><span>Goal</span> One number per row: the log-probability of its answer, verified against the Hugging Face loss, with the vision encoder run only once per image.</p>
+        </header>
+        <p>Everything in DPO and GRPO reduces to one quantity, the sum of log-probabilities over answer tokens. The tensor work is three lines: shift, log-softmax, gather.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/logprobs.py" data-lines="87-96" data-lang="python" data-highlight="6-9">
+<pre><code>def token_logprobs(logits: torch.Tensor, labels: torch.Tensor) -&gt; tuple[torch.Tensor, torch.Tensor]:
+    """Per-token log p(label) and its mask, shifted so position t predicts token t+1.
+
+    logits (B, T, V), labels (B, T) -&gt; logp (B, T-1), mask (B, T-1) bool.
+    """
+    logits = logits[:, :-1].float()          # log-softmax in fp32: bf16 here loses ~0.1 nats
+    targets = labels[:, 1:]
+    mask = targets != IGNORE
+    logp = torch.gather(F.log_softmax(logits, dim=-1), 2, targets.clamp_min(0).unsqueeze(-1)).squeeze(-1)
+    return logp * mask, mask</code></pre>
+<figcaption><span class="ct-fig-num">Listing 9</span>Position t predicts token t+1, so logits drop their last position and labels drop their first.</figcaption></figure>
+        <p>The naive way to get logits is to hand <code>pixel_values</code> to the model. It runs the vision encoder once per row. But chosen and rejected share an image, and G rollouts share an image. So we run it once per distinct image and write the features into the placeholder slots ourselves.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/logprobs.py" data-lines="59-67" data-lang="python" data-highlight="7-9">
+<pre><code>def merge_image_tokens(model, input_ids: torch.Tensor, feats: torch.Tensor) -&gt; torch.Tensor:
+    """Write image features into the &lt;image&gt; placeholder slots.
+
+    input_ids: (B, T), feats: (B, N, D) -&gt; inputs_embeds: (B, T, D).
+    The b-th row's N placeholders receive feats[b] in order.
+    """
+    embeds = model.get_input_embeddings()(input_ids)                      # (B, T, D)
+    slots = (input_ids == model.config.image_token_id).unsqueeze(-1)      # (B, T, 1)
+    return embeds.masked_scatter(slots, feats.to(embeds.dtype).reshape(-1, feats.shape[-1]))</code></pre>
+<figcaption><span class="ct-fig-num">Listing 10</span>masked_scatter fills the image slots with features in order. Gradients flow through it into the connector and the vision encoder.</figcaption></figure>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/logprobs.py" data-lines="70-84" data-lang="python" data-highlight="9-14">
+<pre><code>def forward_logits(model, batch: SeqBatch, encode_once: bool = True) -&gt; torch.Tensor:
+    """Logits (B, T, V).
+
+    encode_once=False is the naive path: hand pixel_values to the model, which
+    runs the vision encoder once per ROW. Chosen and rejected share an image, and
+    G rollouts share an image, so that repeats the same encoder work 2x or Gx.
+    encode_once=True runs the encoder once per DISTINCT image and indexes into it.
+    Gradients still flow into the vision tower and the connector either way.
+    """
+    if not encode_once:
+        pv = batch.pixel_values[batch.image_index]                        # (B, 1, 3, H, W)
+        return model(input_ids=batch.input_ids, attention_mask=batch.attention_mask, pixel_values=pv).logits
+    feats = image_features(model, batch.pixel_values)                     # (I, N, D)
+    embeds = merge_image_tokens(model, batch.input_ids, feats[batch.image_index])
+    return model(inputs_embeds=embeds, attention_mask=batch.attention_mask).logits</code></pre>
+<figcaption><span class="ct-fig-num">Listing 11</span>The naive path and the fast path. A test proves they return identical logits.</figcaption></figure>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>Compare against a trusted implementation. Our sum must equal minus the Hugging Face mean cross-entropy times the number of answer tokens. The tests use a tiny random Idefics3 with SmolVLM&rsquo;s module layout, so they run offline in seconds.</p>
+          <figure class="code-listing" data-src="c09-vlm-post-training/tests/test_logprobs_dpo.py" data-lines="30-37" data-lang="python">
+<pre><code>def test_sequence_logprob_matches_hf_loss():
+    """Our summed log-prob equals -(HF mean cross-entropy) * (number of answer tokens)."""
+    model, b = tiny_vlm(), _batch()
+    ours, n = sequence_logprobs(model, b)
+    for i in range(4):
+        out = model(input_ids=b.input_ids[i: i + 1], attention_mask=b.attention_mask[i: i + 1],
+                    pixel_values=b.pixel_values[b.image_index[i: i + 1]], labels=b.labels[i: i + 1])
+        torch.testing.assert_close(ours[i], -out.loss * n[i], rtol=1e-5, atol=1e-5)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 12</span>Our log-probability against the Hugging Face loss. Passing means our shift and mask match the library's.</figcaption></figure>
+        </aside>
+        <p>Now measure what the fast path saves. One forward and backward pass on one image and G rollouts, with all three model parts trainable.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/benchmarks/bench_encode_once.py --groups 4 8 16</code></pre>
+        </figure>
+        <figure class="code-output" data-from="benchmarks/bench_encode_once.py"><pre><code>Run pending.</code></pre></figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p><p><em>Result pending.</em></p></p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_encode_once_equals_naive_path</code>, <code>test_sequence_logprob_matches_hf_loss</code> and <code>test_padding_does_not_change_a_row</code> pass.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-05" data-step-title="Image-conditioned DPO">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 05</span></div>
+          <h2>Write image-conditioned DPO by hand</h2>
+          <p class="build-step__goal"><span>Goal</span> The DPO loss with the image inside every term, trained on balanced negatives, with no second model in memory.</p>
+        </header>
+        <p>The derivation is in the theory post. Here is what the loss looks like in code. The image does not appear in this function, because it is already inside each log-probability.</p>
+        <a class="theory-link" href="../teaching-a-model-what-we-prefer/"><span class="theory-link__kicker">Derivation in</span>Teaching a model what we prefer</a>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/dpo.py" data-lines="21-33" data-lang="python" data-highlight="4-6">
+<pre><code>def dpo_loss(pi_chosen: torch.Tensor, pi_rejected: torch.Tensor, ref_chosen: torch.Tensor,
+             ref_rejected: torch.Tensor, beta: float = 0.1) -&gt; dict[str, torch.Tensor]:
+    """All inputs (P,) sequence log-probs for P pairs. Returns the loss and diagnostics."""
+    chosen_reward = beta * (pi_chosen - ref_chosen)        # implicit reward of y_w
+    rejected_reward = beta * (pi_rejected - ref_rejected)  # implicit reward of y_l
+    margin = chosen_reward - rejected_reward
+    return {
+        "loss": -F.logsigmoid(margin).mean(),
+        "margin": margin.detach(),
+        "chosen_reward": chosen_reward.detach(),
+        "rejected_reward": rejected_reward.detach(),
+        "accuracy": (margin &gt; 0).float().mean().detach(),
+    }</code></pre>
+<figcaption><span class="ct-fig-num">Listing 13</span>The implicit rewards are log-ratios against the reference. The margin is their difference.</figcaption></figure>
+        <p>The standard loss needs a reference model. A full second copy of SmolVLM costs about 1 GB. We avoid it in two ways. First, the reference never changes, so we score every training pair once and keep the numbers. Second, we train a LoRA adapter, whose zero initial state means a fresh adapter leaves the model exactly at the reference.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/dpo.py" data-lines="62-75" data-lang="python">
+<pre><code>def reference_logprobs(model, processor, pairs: list[PreferencePair], batch_pairs: int = 8,
+                       device="cpu") -&gt; tuple[torch.Tensor, torch.Tensor]:
+    """Score every pair once with the frozen starting model.
+
+    The reference never changes, so precomputing it removes the second model
+    from memory and halves the forward passes during training.
+    """
+    model.eval()
+    chosen, rejected = [], []
+    for s in range(0, len(pairs), batch_pairs):
+        c, r = pair_logprobs(model, pair_batch(processor, pairs[s: s + batch_pairs]).to(device))
+        chosen.append(c.cpu())
+        rejected.append(r.cpu())
+    return torch.cat(chosen), torch.cat(rejected)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 14</span>Score the frozen starting model once, then keep two numbers per pair.</figcaption></figure>
+        <p>TRL makes the same two choices. Its <code>DPOTrainer</code> has <code>precompute_ref_logps</code>, it can use a disabled adapter as the reference, and its default loss line is <code>-F.logsigmoid(self.beta * delta_score)</code>, which is the same as ours. We write ours by hand so nothing is hidden, not because the library is wrong.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/lora.py" data-lines="19-33" data-lang="python" data-highlight="7-8,13">
+<pre><code>class LoRALinear(nn.Module):
+    def __init__(self, base: nn.Linear, r: int = 16, alpha: int = 32):
+        super().__init__()
+        self.base = base
+        self.r, self.scale = r, alpha / r
+        self.lora_A = nn.Parameter(torch.empty(r, base.in_features, device=base.weight.device))
+        self.lora_B = nn.Parameter(torch.zeros(base.out_features, r, device=base.weight.device))
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))  # same init as PEFT
+        self.enabled = True
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        out = self.base(x)
+        if self.enabled:
+            out = out + (x @ self.lora_A.T @ self.lora_B.T) * self.scale
+        return out</code></pre>
+<figcaption><span class="ct-fig-num">Listing 15</span>B starts at zero, so a fresh adapter is an exact no-op. A test checks this, and another compares against PEFT.</figcaption></figure>
+        <p>Here is one training step, from the script.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/scripts/train_dpo.py" data-lines="101-108" data-lang="python" data-highlight="2-6">
+<pre><code>    for step in range(args.steps):
+        idx = order[(torch.arange(args.pairs) + step * args.pairs) % len(train)]
+        batch = pair_batch(proc, [train[int(i)] for i in idx]).to(device)
+        pi_c, pi_r = pair_logprobs(model, batch)
+        out = dpo_loss(pi_c, pi_r, ref_c[idx].to(device), ref_r[idx].to(device), args.beta)
+        opt.zero_grad(set_to_none=True)
+        out["loss"].backward()
+        gnorm = torch.nn.utils.clip_grad_norm_(params, 1.0)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 16</span>One DPO step. Pair indices select both the batch and its stored reference values.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/train_dpo.py --negatives balanced --steps 150</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/train_dpo.py, Apple M5, MPS">
+<pre><code></code></pre>
+</figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-dpo">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 3</span>DPO on one real held-out pair. Hollow dots are the reference, which is the pretrained model. Filled dots are the policy after 150 steps. The lower panel is the real loss curve of this run.</figcaption>
+        </figure>
+        <p><em>Result pending.</em></p>
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Remove the reference: set <code>ref_chosen</code> and <code>ref_rejected</code> to zero. At step 0 the margin is no longer zero, because long answers have large negative log-probabilities that do not cancel when chosen and rejected tokenize to different lengths. <code>test_dpo_loss_is_log2_when_policy_equals_reference</code> is the check that catches this: the loss at step 0 must be exactly ln 2.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>The first batch has loss 0.693 and margin 0.</li>
+            <li><code>test_one_dpo_step_increases_the_margin</code> and <code>test_fresh_lora_is_an_exact_no_op</code> pass.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-06" data-step-title="The blind check">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 06</span></div>
+          <h2>Check whether the preference needs the image</h2>
+          <p class="build-step__goal"><span>Goal</span> Two judges that cannot see: a text-only probe on the dataset, and the VLM on grey images.</p>
+        </header>
+        <p>Nothing in the DPO loss forces the model to use the image. If the words predict the label, the cheapest way to lower the loss is to learn the words. Agrawal and colleagues showed the same effect for VQA, where models learned answer priors from biased splits. So we test for it directly, in two ways.</p>
+        <h3>Judge 1: a text-only probe on the dataset</h3>
+        <p>This judge never loads the model. It is a logistic regression over word counts, predicting which of two answers was chosen. Its features flip sign when the two answers swap, so it cannot learn to prefer whichever comes first.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/blind.py" data-lines="46-54" data-lang="python" data-highlight="7-8">
+<pre><code>def pair_features(vocab: Vocab, prompt: str, a: str, b: str) -&gt; torch.Tensor:
+    """phi(a) - phi(b), plus prompt-word x answer-word crosses so 'how many' can interact with '3'.
+
+    Antisymmetric by construction: swapping a and b negates the features, so the
+    probe cannot prefer whichever answer happens to be listed first.
+    """
+    da = vocab.bow(a) - vocab.bow(b)                       # (W,)
+    cross = torch.outer(vocab.bow(prompt).clamp(max=1), da)  # (W, W)
+    return torch.cat([da, cross.flatten()])</code></pre>
+<figcaption><span class="ct-fig-num">Listing 17</span>Antisymmetric features, plus prompt-by-answer crosses. The probe has no bias term.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/blind_probe.py --train 1000 --test 500</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/blind_probe.py">
+<pre><code>negatives    train    test   per kind (test)
+balanced     0.570   0.490   color=0.43  count=0.49  object=0.46  ocr=0.49  spatial=0.58
+biased       0.912   0.914   color=1.00  count=1.00  object=1.00  ocr=0.99  spatial=0.58</code></pre>
+</figure>
+        <p>On balanced pairs the probe scores about chance on held-out data. On biased pairs it reaches 100% for colour, count and object, and 99% for OCR. Spatial stays near chance in both, because a flip of left and right has no text-only hint. The biased total sits near 91% only because spatial pulls it down.</p>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Exchangeability gives this check a clean zero. If (a, b) and (b, a) are equally likely as (chosen, rejected), then any scorer that ignores the image is right on one and wrong on the other. So it scores 50% in expectation, whatever its priors are. Any held-out score above 50% on such a set must come from the image. You do not get this guarantee on natural data, which is why the stratification in step 2 is worth its few lines.</p>
+        </aside>
+        <h3>Judge 2: the VLM on a grey image</h3>
+        <p>The second judge is the model itself. We replace every image with a grey square of the same size and score the same pairs. The code path is the same: we only swap the images passed to <code>pair_batch</code>.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/evaluate.py" data-lines="74-93" data-lang="python" data-highlight="10">
+<pre><code>def preference_accuracy(model, processor, pairs: list[PreferencePair], blind: bool = False,
+                        batch_pairs: int = 8) -&gt; dict[str, float]:
+    """Fraction of pairs where log pi(chosen) &gt; log pi(rejected).
+
+    blind=True replaces every image with a grey square of the same size. A model
+    that truly grounds its preference should fall to about 50% here.
+    """
+    model.eval()
+    margins: dict[str, list[float]] = defaultdict(list)
+    for s in range(0, len(pairs), batch_pairs):
+        chunk = pairs[s: s + batch_pairs]
+        images: list[Image.Image] | None = [blank_like(p.scene) for p in chunk] if blind else None
+        c, r = pair_logprobs(model, pair_batch(processor, chunk, images).to(model.device))
+        for p, m in zip(chunk, (c - r).tolist()):
+            margins[p.kind].append(m)
+    out = {k: sum(m &gt; 0 for m in v) / len(v) for k, v in margins.items()}
+    every = [m for v in margins.values() for m in v]
+    out["mean"] = sum(m &gt; 0 for m in every) / len(every)
+    out["mean_margin"] = sum(every) / len(every)
+    return out</code></pre>
+<figcaption><span class="ct-fig-num">Listing 18</span>The blind path differs by one line: the image.</figcaption></figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-blind">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 4</span>Preference accuracy with and without visual evidence. The orange dashed line is 50%, which is where any blind scorer lands on a balanced set. All stages are real results on held-out pairs (150 pairs per evaluation, 30 per kind).</figcaption>
+        </figure>
+        <p><em>Result pending.</em></p>
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>The biased run is itself the failure. Train it next to the balanced run and compare them on balanced pairs, as the figure does in its last stage.</p>
+          <figure class="terminal" data-cwd="blog-coding-tutorials">
+            <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/train_dpo.py --negatives biased --steps 150</code></pre>
+          </figure>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_text_probe_sees_bias_but_not_balance</code> passes.</li>
+            <li>You would now run this probe before any preference training, because it costs seconds and needs no GPU.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-07" data-step-title="Visual rewards">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 07</span></div>
+          <h2>Write and test visual reward functions</h2>
+          <p class="build-step__goal"><span>Goal</span> Small tested functions from prediction and ground truth to a number in [0, 1], one per visual task.</p>
+        </header>
+        <p>A reward is a specification. It should be short enough to read at once and tested like any other function. We write one for each skill in the plan.</p>
+        <div class="code-tabs" data-label="Rewards">
+          <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="28-30" data-lang="python">
+<pre><code>def exact_match(pred: str, gold: str) -&gt; float:
+    """R = 1[normalize(y) == normalize(y*)]."""
+    return float(normalize(pred) == normalize(gold))</code></pre>
+<figcaption><span class="ct-fig-num">Listing 19</span>VQA: exact match after normalising case, punctuation, articles and number words.</figcaption></figure>
+          <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="47-53" data-lang="python">
+<pre><code>def box_iou(a: Box, b: Box) -&gt; float:
+    """Intersection over union of two axis-aligned boxes."""
+    ix0, iy0 = max(a[0], b[0]), max(a[1], b[1])
+    ix1, iy1 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0.0, ix1 - ix0) * max(0.0, iy1 - iy0)
+    union = box_area(a) + box_area(b) - inter
+    return inter / union if union &gt; 0 else 0.0</code></pre>
+<figcaption><span class="ct-fig-num">Listing 20</span>Boxes: intersection over union.</figcaption></figure>
+          <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="88-92" data-lang="python">
+<pre><code>def mask_dice(pred: np.ndarray, gold: np.ndarray) -&gt; float:
+    """2|P ∩ G| / (|P| + |G|). Dice = 2 IoU / (1 + IoU), so it is always &gt;= IoU."""
+    pred, gold = pred.astype(bool), gold.astype(bool)
+    total = pred.sum() + gold.sum()
+    return 1.0 if total == 0 else float(2 * np.logical_and(pred, gold).sum() / total)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 21</span>Masks: Dice, which is always at least IoU.</figcaption></figure>
+          <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="113-122" data-lang="python">
+<pre><code>def anls(pred: str, golds: str | list[str], tau: float = 0.5) -&gt; float:
+    """Average Normalized Levenshtein Similarity (DocVQA). Similarity below 1 - tau scores 0."""
+    golds = [golds] if isinstance(golds, str) else golds
+    best = 0.0
+    p = " ".join(pred.lower().split())
+    for g in golds:
+        g = " ".join(g.lower().split())
+        nl = levenshtein(p, g) / max(1, len(p), len(g))
+        best = max(best, 1 - nl if nl &lt; tau else 0.0)
+    return best</code></pre>
+<figcaption><span class="ct-fig-num">Listing 22</span>OCR: ANLS. Similarity below 0.5 is cut to zero.</figcaption></figure>
+          <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="127-140" data-lang="python">
+<pre><code>def field_accuracy(pred_json: str, gold: dict[str, str]) -&gt; float:
+    """Fraction of gold fields whose value matches exactly after normalisation.
+
+    Invalid JSON scores 0, and extra keys earn nothing: the model cannot pad its
+    way to reward.
+    """
+    try:
+        pred = json.loads(pred_json)
+    except (json.JSONDecodeError, TypeError):
+        return 0.0
+    if not isinstance(pred, dict) or not gold:
+        return 0.0
+    hits = sum(normalize(str(pred.get(k, ""))) == normalize(str(v)) for k, v in gold.items())
+    return hits / len(gold)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 23</span>Structured extraction: fraction of gold fields that match. Extra keys earn nothing.</figcaption></figure>
+        </div>
+        <table class="shape-table">
+          <caption>Visual reward functions</caption>
+          <thead><tr><th>Task</th><th>Function</th><th>Prediction type</th><th>Key property</th></tr></thead>
+          <tbody>
+            <tr><td>VQA</td><td><code>exact_match</code></td><td>str</td><td>All or nothing. No gradient of quality.</td></tr>
+            <tr><td>Box</td><td><code>box_reward</code></td><td>str, parsed to 4 numbers</td><td>IoU, and 0 if unparseable, so format is part of the task.</td></tr>
+            <tr><td>Mask</td><td><code>mask_iou</code>, <code>mask_dice</code></td><td>(H, W) bool</td><td>Dice = 2 IoU / (1 + IoU).</td></tr>
+            <tr><td>OCR</td><td><code>anls</code>, <code>cer</code></td><td>str</td><td>Rewards near-misses. ANLS caps garbage at 0.</td></tr>
+            <tr><td>Structured</td><td><code>field_accuracy</code></td><td>JSON str</td><td>Invalid JSON scores 0. Extra keys add nothing.</td></tr>
+          </tbody>
+        </table>
+        <p>We also write two deliberately weak rewards for step 10. <code>center_in_box</code> pays if the gold centre lies inside the predicted box. <code>caption_recall</code> pays for each true item mentioned. Before training on any reward, audit it with hand-written bad answers. This costs nothing.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/reward_audit.py</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/reward_audit.py">
+<pre><code>task: box (gold = 120 200 220 300 on a 512 canvas)
+  answer                      center_in_box     iou
+  120 200 220 300                      1.00   1.000
+  130 210 230 310                      1.00   0.681
+  0 0 512 512                          1.00   0.038
+  the box is here                      0.00   0.000
+
+task: list colours (truth = red, blue)
+  answer                              recall      f1
+  red and blue                          1.00    1.00
+  red                                   0.50    0.67
+  red, blue, green, yellow, purple      1.00    0.57
+  blue, green                           0.50    0.50
+
+task: count (truth = 3)
+  answer                      contains   exact
+  3                               1.00    1.00
+  three.                          1.00    1.00
+  1 2 3 4 5                       1.00    0.00
+  4                               0.00    0.00</code></pre>
+</figure>
+        <p>Drag the blue box below. Then press the whole-image preset, which is the third row of the first table.</p>
+        <figure class="ct-figure" id="fig-iou">
+          <div class="ct-knobs" role="group" aria-label="Box presets">
+            <button type="button" data-preset="tight">Tight box</button>
+            <button type="button" data-preset="whole">Whole image</button>
+            <button type="button" data-preset="tiny">Tiny box at centre</button>
+            <button type="button" data-preset="off">Wrong place</button>
+          </div>
+          <div class="ct-figure__stage"></div>
+          <div class="ct-readout" aria-live="polite">
+            <div><span>IoU</span><b id="iou-iou">0</b></div>
+            <div><span>Dice of boxes</span><b id="iou-dice">0</b></div>
+            <div><span>Weak: centre in box</span><b id="iou-center">0</b></div>
+          </div>
+          <p class="iou-out" id="iou-text"></p>
+          <p class="iou-verdict" id="iou-verdict"></p>
+          <figcaption><span class="ct-fig-num">Figure 5</span>IoU against a weak reward. The green box and dot are the gold box and its centre. Drag the blue box to move it, and drag its square corner to resize it, or focus the corner and use the arrow keys. A tiny box at the centre also scores full marks on the weak reward. Only IoU penalises both kinds of cheating.</figcaption>
+        </figure>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p><code>test_box_iou_known_values</code> uses boxes whose answer we can compute by hand (1/3 at half overlap). <code>test_center_in_box_is_gameable_iou_is_not</code> and <code>test_caption_recall_rewards_hallucination_f1_does_not</code> record the known exploits as tests, so the weak rewards cannot be mistaken for strong ones later.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>All nine tests in <code>tests/test_rewards.py</code> pass.</li>
+            <li>The audit table shows a whole-image box scoring 1.00 on the weak reward and 0.038 on IoU.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-08" data-step-title="Visual GRPO">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 08</span></div>
+          <h2>Build visual GRPO</h2>
+          <p class="build-step__goal"><span>Goal</span> G sampled answers per image, rewards from the scene, relative advantages, one policy update.</p>
+        </header>
+        <p>GRPO needs no value model. For each image and prompt it samples G answers and compares them with each other. The method comes from DeepSeekMath, and the theory post covers why it works. We only add the image.</p>
+        <a class="theory-link" href="../how-reinforcement-learning-teaches-models-to-reason/"><span class="theory-link__kicker">Derivation in</span>How reinforcement learning teaches models to reason</a>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/grpo.py" data-lines="23-33" data-lang="python" data-highlight="7,9">
+<pre><code>def group_advantages(rewards: torch.Tensor, eps: float = 1e-4, scale_by_std: bool = True) -&gt; torch.Tensor:
+    """rewards (P, G) -&gt; advantages (P, G).
+
+    Each answer is compared only with the other answers to the SAME image. A
+    group where all G answers score the same has zero advantage everywhere: it
+    teaches nothing, however good or bad the answers are.
+    """
+    centered = rewards - rewards.mean(dim=1, keepdim=True)
+    if not scale_by_std:  # Dr. GRPO drops the std to avoid up-weighting near-uniform groups
+        return centered
+    return centered / (rewards.std(dim=1, keepdim=True) + eps)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 24</span>Each answer is compared only with others for the same image. We keep the optional std scale, and Dr. GRPO's variant without it.</figcaption></figure>
+        <p>Rollouts are sampled at temperature 1 with no top-k or top-p, so that we sample the policy we then differentiate. Every row in a group shares one image, so the fast path from step 4 pays off here most.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/grpo.py" data-lines="46-61" data-lang="python" data-highlight="5-8,13">
+<pre><code>def sample_group(model, processor, prompt: PromptInputs, group_size: int, max_new_tokens: int = 16,
+                 temperature: float = 1.0, top_p: float = 1.0) -&gt; Rollouts:
+    """G sampled answers for one image. temperature=1.0, top_p=1.0 samples the policy itself."""
+    eou, pad = end_of_utterance_id(processor), processor.tokenizer.pad_token_id
+    p = prompt.to(model.device)
+    out = model.generate(input_ids=p.input_ids, attention_mask=torch.ones_like(p.input_ids),
+                         pixel_values=p.pixel_values, do_sample=True, temperature=temperature, top_p=top_p,
+                         top_k=0, num_return_sequences=group_size, max_new_tokens=max_new_tokens,
+                         eos_token_id=eou, pad_token_id=pad)
+    comp = out[:, p.input_ids.shape[1]:].cpu()                       # (G, L)
+    is_eou = comp == eou
+    # length = first end_of_utterance (inclusive), or L if the model never stopped
+    first = torch.where(is_eou.any(1), is_eou.float().argmax(1) + 1, torch.full((len(comp),), comp.shape[1]))
+    comp = comp.masked_fill(torch.arange(comp.shape[1]) &gt;= first[:, None], pad)
+    texts = processor.batch_decode(comp, skip_special_tokens=True)
+    return Rollouts(p.input_ids[0].cpu(), p.pixel_values.cpu(), comp, first, texts)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 25</span>num_return_sequences gives G samples for one image. Everything after the first end_of_utterance becomes padding.</figcaption></figure>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/grpo.py" data-lines="75-90" data-lang="python" data-highlight="8,10">
+<pre><code>def grpo_loss(logp: torch.Tensor, old_logp: torch.Tensor, adv: torch.Tensor, mask: torch.Tensor,
+              clip_eps: float = 0.2, ref_logp: torch.Tensor | None = None, beta: float = 0.0) -&gt; torch.Tensor:
+    """Clipped policy-gradient loss averaged over all completion tokens.
+
+    logp, old_logp, ref_logp, mask: (B, T-1) per token. adv: (B,), one value per rollout,
+    broadcast to every token of that rollout. With one update per batch,
+    old_logp == logp.detach(), the ratio is 1, and the gradient is A * grad log pi.
+    """
+    ratio = torch.exp(logp - old_logp)
+    a = adv[:, None]
+    per_token = -torch.min(ratio * a, ratio.clamp(1 - clip_eps, 1 + clip_eps) * a)
+    if ref_logp is not None and beta &gt; 0:
+        # k3 estimator of KL(pi || ref): unbiased, always &gt;= 0
+        d = ref_logp - logp
+        per_token = per_token + beta * (torch.exp(d) - d - 1)
+    return (per_token * mask).sum() / mask.sum().clamp_min(1)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 26</span>The clipped objective. With one update per batch the ratio is 1, so the gradient is the advantage times the score. KL to a reference is optional.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/show_rollouts.py --group 8</code></pre>
+        </figure>
+        <figure class="code-output" data-from="scripts/show_rollouts.py">
+<pre><code>prompt: How many circles are there? Answer with a number.   truth: 1
+rollout tokens reward    adv  text
+      0      3    0.0  -0.35  ' 2'
+      1      3    1.0  +2.47  ' 1'
+      2      3    0.0  -0.35  ' 2'
+      3      3    0.0  -0.35  ' 2'
+      4      3    0.0  -0.35  ' 3'
+      5      3    0.0  -0.35  ' 2'
+      6      3    0.0  -0.35  ' 3'
+      7      3    0.0  -0.35  ' 3'
+
+prompt: How many circles are there? Answer with a number.   truth: 1
+rollout tokens reward    adv  text
+      0      3    0.0  -0.54  ' 2'
+      1      3    1.0  +1.62  ' 1'
+      2      3    0.0  -0.54  ' 2'
+      3      3    0.0  -0.54  ' 2'
+      4      3    0.0  -0.54  ' 2'
+      5      3    1.0  +1.62  ' 1'
+      6      3    0.0  -0.54  ' 2'
+      7      3    0.0  -0.54  ' 2'
+
+prompt: How many circles are there? Answer with a number.   truth: 3
+rollout tokens reward    adv  text
+      0      3    0.0  +0.00  ' 5'
+      1      3    0.0  +0.00  ' 5'
+      2      3    0.0  +0.00  ' 5'
+      3      3    0.0  +0.00  ' 5'
+      4      3    0.0  +0.00  ' 5'
+      5      3    0.0  +0.00  ' 5'
+      6      3    0.0  +0.00  ' 5'
+      7      3    0.0  +0.00  ' 5'
+
+one group as a batch
+input_ids       torch.Size([8, 89])
+attention_mask  torch.Size([8, 89])
+labels          torch.Size([8, 89])
+image_index     torch.Size([8])
+pixel_values    torch.Size([1, 1, 3, 512, 512])
+answer tokens per row: [3, 3, 3, 3, 3, 3, 3, 3]</code></pre>
+</figure>
+        <p>Read the third group. All eight samples are wrong and identical, so every advantage is zero. Nothing is learned from that image, however bad the answers are.</p>
+        <figure class="ct-figure ct-figure--wide" id="fig-grpo">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 6</span>One real GRPO group for one synthetic image, from <code>show_rollouts.py</code>. Rollouts appear, the scene scores them, the group mean and standard deviation become advantages, and the advantages decide which tokens move up or down.</figcaption>
+        </figure>
+        <table class="shape-table">
+          <caption>Shapes in one GRPO step (P = 4 images, G = 8 rollouts)</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>completions</td><td>(G, L)</td><td>Sampled ids per image, padded after the stop token.</td></tr>
+            <tr><td>rewards</td><td>(P, G) = (4, 8)</td><td>One number per rollout.</td></tr>
+            <tr><td>advantages</td><td>(P, G) &rarr; (32,)</td><td>Zero mean within each image.</td></tr>
+            <tr><td>input_ids</td><td>(32, T)</td><td>Prompts plus completions, right padded.</td></tr>
+            <tr><td>pixel_values</td><td>(4, 1, 3, 512, 512)</td><td>Four images, not 32.</td></tr>
+            <tr><td>logp, mask</td><td>(32, T &minus; 1)</td><td>Per token. Each advantage is broadcast along its row.</td></tr>
+          </tbody>
+        </table>
+        <p>One training step, from the script. It is short because the pieces already exist.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/scripts/train_grpo.py" data-lines="85-100" data-lang="python" data-highlight="2-5,11,13">
+<pre><code>        # 1) rollouts: G samples per image from the current policy
+        model.eval()
+        groups = [sample_group(model, proc, encode_prompt(proc, render(ex.scene), ex.prompt), args.group,
+                               max_new_tokens=args.max_new_tokens, temperature=args.temperature)
+                  for ex in batch_ex]
+        # 2) verifiable rewards, read off the scene
+        rewards = torch.tensor([[REWARDS[args.reward](t, ex) for t in g.texts] for g, ex in zip(groups, batch_ex)])
+        strict_r = torch.tensor([[REWARDS[strict](t, ex) for t in g.texts] for g, ex in zip(groups, batch_ex)])
+        # 3) group-relative advantages: (P, G) -&gt; (P*G,)
+        adv = group_advantages(rewards).flatten().to(device)
+        # 4) one on-policy update
+        model.train()
+        batch = rollout_batch(groups, pad).to(device)
+        logp, mask = policy_token_logprobs(model, batch)
+        loss = grpo_loss(logp, logp.detach(), adv, mask.float())
+        opt.zero_grad(set_to_none=True)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 27</span>One visual GRPO step. We also log a strict reward, even when training on a weak one.</figcaption></figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>We set the KL weight to zero by default, as Liu and colleagues recommend in Dr. GRPO, and take one update per batch. The code supports both a KL term and several updates, with clipping, but a short laptop run does not need them. Setting them differently is a real choice to evaluate, not a free default.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_group_advantages_are_relative_within_each_image</code> and <code>test_on_policy_grpo_gradient_is_advantage_times_score</code> pass.</li>
+            <li>A flat group gives zero advantage in your own printout.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-09" data-step-title="Freeze ablation">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 09</span></div>
+          <h2>Ask whether RL improved perception or reasoning</h2>
+          <p class="build-step__goal"><span>Goal</span> The same GRPO run three times, with different parts allowed to learn, and tests that separate seeing from counting.</p>
+        </header>
+        <p>Counting is SmolVLM&rsquo;s weakest skill here, so it is the task with the most room to move. We run GRPO on it with exact-match reward, three times. The seed and the data are the same. Only the trainable set changes.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/freeze.py" data-lines="22-37" data-lang="python" data-highlight="7-13">
+<pre><code>def configure_trainable(model: nn.Module, mode: str, r: int = 16, alpha: int = 32) -&gt; dict[str, int]:
+    """Freeze everything, then open up the parts `mode` names. Returns trainable counts per part."""
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}")
+    for p in model.parameters():
+        p.requires_grad_(False)
+    add_lora(model, TEXT_LINEARS, r, alpha)
+    if mode == "all":
+        add_lora(model, VISION_LINEARS, r, alpha)
+    if mode in ("projector+llm", "all"):
+        for p in model.model.connector.parameters():
+            p.requires_grad_(True)
+    for n, p in model.named_parameters():
+        if "lora_" in n:
+            p.requires_grad_(True)
+    return trainable_counts(model)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 28</span>Freeze everything, then open up one part at a time. A test checks that image features cannot change when the vision encoder and connector are frozen.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/train_grpo.py --freeze llm --steps 60 --eval both
+$ .venv/bin/python c09-vlm-post-training/scripts/train_grpo.py --freeze projector+llm --steps 60
+$ .venv/bin/python c09-vlm-post-training/scripts/train_grpo.py --freeze all --steps 60</code></pre>
+        </figure>
+        <p>An accuracy gain alone does not separate perception from reasoning. So we measure three things after each run.</p>
+        <ul>
+          <li><strong>Counting from pixels.</strong> The training task itself, on 100 held-out images.</li>
+          <li><strong>Counting from text.</strong> We write the objects in the prompt and show a grey image. Here perception is not needed.</li>
+          <li><strong>The perception probe.</strong> A fresh linear probe from pooled image features to per-shape counts, on 800 other scenes. If it improves, the features changed in a useful way.</li>
+        </ul>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/evaluate.py" data-lines="59-70" data-lang="python" data-highlight="4-6">
+<pre><code>def text_count_accuracy(model, processor, items: list[tuple[Scene, Question]]) -&gt; float:
+    """Counting from a written list of objects, with a grey image.
+
+    No perception is needed here: the objects are spelled out in the prompt.
+    If RL lifts this score, it improved counting in language, not seeing.
+    """
+    model.eval()
+    hits = []
+    for scene, q in items:
+        out = generate(model, processor, blank_like(scene), describe(scene) + " " + q.short_prompt(), max_new_tokens=6)[0]
+        hits.append(exact_match(first_word(out), q.answer))
+    return sum(hits) / len(hits)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 29</span>The control for reasoning: the same counting question with the objects written in the prompt and a grey image.</figcaption></figure>
+        <figure class="code-listing" data-src="c09-vlm-post-training/scripts/perception_probe.py" data-lines="39-44" data-lang="python" data-highlight="4">
+<pre><code>def probe_accuracy(xtr, ytr, xte, yte) -&gt; float:
+    """Ridge regression to the count of each shape; correct if all three round to the truth."""
+    mu, sd = xtr.mean(0), xtr.std(0) + 1e-6
+    xtr, xte = (xtr - mu) / sd, (xte - mu) / sd
+    w = torch.linalg.solve(xtr.T @ xtr + 10.0 * torch.eye(xtr.shape[1]), xtr.T @ ytr)
+    return float(((xte @ w).round() == yte).float().mean())</code></pre>
+<figcaption><span class="ct-fig-num">Listing 30</span>The control for perception: ridge regression from image features to per-shape counts.</figcaption></figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-freeze">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 7</span>The freeze ablation. Left: which parts train, with real trainable counts. Right: real held-out accuracy before and after 60 GRPO steps on counting, using 100 images for the first group and 60 for the second, and 120 questions for the last.</figcaption>
+        </figure>
+        <p><em>Result pending.</em></p>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_freeze_modes_control_what_moves</code> passes for all three modes.</li>
+            <li><code>results/grpo_count_exact_*.json</code> and <code>results/perception_probe.json</code> hold your own numbers.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-10" data-step-title="Hack the reward">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 10</span></div>
+          <h2>Hack the reward on purpose</h2>
+          <p class="build-step__goal"><span>Goal</span> Train on a weak reward, watch how the policy responds, and build the monitors that catch it.</p>
+        </header>
+        <p>The prompt is <code>List the colors of the shapes in the image.</code> The weak reward is recall: the fraction of true colours mentioned. A caption that names every colour earns full marks. Hallucinated colours cost nothing, which links this step back to the start of the tutorial.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="150-154" data-lang="python">
+<pre><code>def caption_recall(text: str, true_items: set[str], vocabulary: list[str]) -&gt; float:
+    """A WEAK reward: fraction of true items mentioned. Mentioning everything maximises it."""
+    if not true_items:
+        return 0.0
+    return len(mentioned(text, vocabulary) &amp; true_items) / len(true_items)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 31</span>The weak reward. Nothing penalises naming a colour that is not there.</figcaption></figure>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rewards.py" data-lines="157-164" data-lang="python" data-highlight="3-6">
+<pre><code>def caption_f1(text: str, true_items: set[str], vocabulary: list[str]) -&gt; float:
+    """The fixed reward: F1 of mentioned vs true items. Hallucinated mentions cost precision."""
+    said = mentioned(text, vocabulary)
+    hit = len(said &amp; true_items)
+    if hit == 0:
+        return 0.0
+    precision, recall = hit / len(said), hit / len(true_items)
+    return 2 * precision * recall / (precision + recall)</code></pre>
+<figcaption><span class="ct-fig-num">Listing 32</span>The fix. A hallucinated mention costs precision.</figcaption></figure>
+        <p>The monitors are small. We count the colours named, the colours named that are not in the image, the answer length, and a strict reward we do not train on. We log them on every step, whatever the training reward is.</p>
+        <figure class="code-listing" data-src="c09-vlm-post-training/vlmalign/rl_tasks.py" data-lines="56-60" data-lang="python">
+<pre><code>def caption_stats(text: str, ex: RLExample) -&gt; dict[str, float]:
+    """Monitors for the caption task: how many colours named, how many were not in the image."""
+    said = mentioned(text, COLOR_VOCAB)
+    return {"n_colors": len(said), "hallucinated": len(said - ex.truth),
+            "f1": caption_f1(text, ex.truth, COLOR_VOCAB), "recall": caption_recall(text, ex.truth, COLOR_VOCAB)}</code></pre>
+<figcaption><span class="ct-fig-num">Listing 33</span>Monitors. The training reward cannot see them, so they cannot be gamed by accident.</figcaption></figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c09-vlm-post-training/scripts/train_grpo.py --task caption --reward color_recall --steps 60 --max-new-tokens 24 --eval both
+$ .venv/bin/python c09-vlm-post-training/scripts/train_grpo.py --task caption --reward color_f1 --steps 60 --max-new-tokens 24</code></pre>
+        </figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-hack">
+          <div class="ct-figure__stage"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 8</span>A run trained on the weak recall reward. Left: weak reward against honest F1. Right: colours named against colours that were not in the image. Curves are moving averages of 8 steps, with 32 rollouts per step. Real run, Apple M5, MPS.</figcaption>
+        </figure>
+        <p><em>Result pending.</em></p>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Your log shows <code>colors=</code> and <code>halluc=</code> next to the reward.</li>
+            <li>You can name, for each reward in this post, one output that games it.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section id="comparison">
+        <h2>The training modes compared</h2>
+        <p>Rows are the post-training runs we did. Columns are the aspects this post introduced. Read across a row to see what a run could change and what it actually changed. Then read down the &ldquo;can it use a shortcut&rdquo; column: that is what you need to check first.</p>
+        <div class="comparison-table-wrap">
+          <p><em>Result pending.</em></p>
+        </div>
+      </section>
+
+      <section id="run-everything">
+        <h2>Run everything</h2>
+        <p>The final folder, and every command that produced a number in this post. <code>scripts/run_all.sh</code> runs them in order and writes logs and JSON to <code>results/</code>.</p>
+        <details class="repo-tree" open>
+          <summary>c09-vlm-post-training/ <span class="repo-tree__hint">final tree</span></summary>
+<pre>c09-vlm-post-training/
+├── README.md                 # how to run everything, results table
+├── conftest.py
+├── vlmalign/
+│   ├── scenes.py             # synthetic images with exact facts
+│   ├── tasks.py              # questions and sentence templates
+│   ├── preference.py         # hallucination negatives, balanced and biased
+│   ├── model.py              # SmolVLM loading, prompts, answers
+│   ├── logprobs.py           # batches, encode-once path, sequence log-probs
+│   ├── dpo.py                # image-conditioned DPO loss and pair batches
+│   ├── blind.py              # text-only preference probe
+│   ├── rewards.py            # exact match, IoU, Dice, CER, ANLS, field accuracy
+│   ├── rl_tasks.py           # RL tasks and reward registry
+│   ├── grpo.py               # rollouts, relative advantages, clipped loss
+│   ├── lora.py               # a minimal LoRA
+│   ├── freeze.py             # the three freeze modes
+│   ├── evaluate.py           # VQA and preference accuracy, real or grey image
+│   ├── tiny.py               # tiny random Idefics3 for offline tests
+│   └── device.py
+├── scripts/
+│   ├── show_pairs.py         # pairs and one batch, tensor by tensor
+│   ├── blind_probe.py        # the text-only check
+│   ├── reward_audit.py       # hand-written answers against every reward
+│   ├── show_rollouts.py      # one GRPO group printed
+│   ├── train_dpo.py
+│   ├── train_grpo.py         # freeze ablation and reward hacking
+│   ├── perception_probe.py   # did image features change?
+│   └── run_all.sh
+├── benchmarks/
+│   └── bench_encode_once.py
+├── results/                  # real logs and JSON from this machine
+└── tests/
+    ├── test_rewards.py
+    ├── test_data.py
+    ├── test_logprobs_dpo.py
+    ├── test_lora_freeze.py
+    ├── test_grpo.py
+    └── test_smolvlm_network.py</pre>
+        </details>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Run it all">
+          <pre><code>$ .venv/bin/python -m pytest c09-vlm-post-training -m "not slow and not gpu" -q
+$ c09-vlm-post-training/scripts/run_all.sh</code></pre>
+        </figure>
+        <figure class="code-output" data-from="pytest, Apple M5">
+          <pre><code><p><em>Result pending.</em></p></code></pre>
+        </figure>
+        <p>Nothing in this tutorial needs a GPU. On CUDA, <code>pick_device</code> selects it automatically. No GPU numbers are quoted here, because none were measured.</p>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="insight-list">
+          <p><em>Result pending.</em></p>
+        </ul>
+      </section>
+
+      <section id="exercises">
+        <h2>Exercises</h2>
+        <ol class="exercises">
+          <li><strong>Grounding with GRPO</strong><span class="exercise-level">Hard</span> Add a task that asks for the box of a named object, using <code>box_reward</code>. Train it on the weak <code>center_in_box</code> reward and then on IoU. Log mean box area as the monitor.
+            <details><summary>Hint</summary><p>SmolVLM rarely writes four numbers unprompted. Give the format in the prompt, and count how many rollouts parse at all. If none parse, every group is flat, and nothing is learned.</p></details>
+          </li>
+          <li><strong>Measure the shortcut per kind</strong><span class="exercise-level">Medium</span> Make only OCR biased in <code>wrong_value</code> and leave the rest balanced. Train DPO and report grey-image accuracy per kind. Does the shortcut stay in OCR, or does it reach the other kinds?</li>
+          <li><strong>Add a shape of the wrong kind of hard</strong><span class="exercise-level">Medium</span> Make object sizes smaller in <code>sample_scene</code> and rerun the perception probe on the pretrained features. Find the size at which counting stops being linearly readable.
+            <details><summary>Hint</summary><p>A 16-pixel patch merges into one token per 64 pixels. Objects smaller than that share a token.</p></details>
+          </li>
+          <li><strong>Switch off the std scale</strong><span class="exercise-level">Easy</span> Pass <code>scale_by_std=False</code> to <code>group_advantages</code> and compare counting after 60 steps. Then compare the fraction of groups with one correct answer at each setting, to see how Dr. GRPO changes the weight of those groups.</li>
+          <li><strong>A better shortcut meter</strong><span class="exercise-level">Hard</span> Replace the bag-of-words probe with a small sequence model trained on the same pairs. Can a stronger blind judge beat 50% on the balanced set? If it does, you have found a leak in the generator, and you should fix it.</li>
+        </ol>
+      </section>
+
+      <section id="continue-reading">
+        <h2>Continue reading</h2>
+        <ul>
+          <li><a href="../aligning-vision-language-models/">Aligning vision-language models</a>: the theory of hallucination, multimodal preferences and safety.</li>
+          <li><a href="../rewarding-what-the-model-sees/">Rewarding what the model sees</a>: the theory of visual rewards and multimodal RL.</li>
+          <li><a href="../when-language-must-point/">When language must point</a>: grounding and the box and mask outputs these rewards score.</li>
+          <li><a href="../measuring-what-a-vlm-can-do/">Measuring what a VLM can do</a>: the benchmarks and metrics behind ANLS, CER and IoU.</li>
+          <li><a href="../post-train-an-llm/">Post-Train an LLM</a>: the text-only version of this stack, with SFT.</li>
+          <li><a href="../build-an-agent-harness-from-scratch/">Build an Agent Harness From Scratch</a>: where the series goes next.</li>
+        </ul>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Preference learning and hallucination</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2305.18290" target="_blank" rel="noopener noreferrer">Direct Preference Optimization: Your Language Model is Secretly a Reward Model</a> &middot; Rafailov et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2311.16839" target="_blank" rel="noopener noreferrer">Beyond Hallucinations: Enhancing LVLMs through Hallucination-Aware Direct Preference Optimization</a> &middot; Zhao et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/1809.02156" target="_blank" rel="noopener noreferrer">Object Hallucination in Image Captioning</a> &middot; Rohrbach et al., 2018</li>
+            <li><a href="https://arxiv.org/abs/1712.00377" target="_blank" rel="noopener noreferrer">Don&rsquo;t Just Assume; Look and Answer: Overcoming Priors for Visual Question Answering</a> &middot; Agrawal et al., 2018</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Reinforcement learning</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noopener noreferrer">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a> &middot; Shao et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener noreferrer">DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning</a> &middot; DeepSeek-AI, 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.20783" target="_blank" rel="noopener noreferrer">Understanding R1-Zero-Like Training: A Critical Perspective</a> &middot; Liu et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noopener noreferrer">Proximal Policy Optimization Algorithms</a> &middot; Schulman et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1606.06565" target="_blank" rel="noopener noreferrer">Concrete Problems in AI Safety</a> &middot; Amodei et al., 2016</li>
+            <li><a href="https://arxiv.org/abs/2209.13085" target="_blank" rel="noopener noreferrer">Defining and Characterizing Reward Hacking</a> &middot; Skalse et al., 2022</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Metrics</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1905.13648" target="_blank" rel="noopener noreferrer">Scene Text Visual Question Answering</a> &middot; Biten et al., 2019 (ANLS)</li>
+            <li><a href="https://arxiv.org/abs/2007.00398" target="_blank" rel="noopener noreferrer">DocVQA: A Dataset for VQA on Document Images</a> &middot; Mathew et al., 2021</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Model and tools</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2504.05299" target="_blank" rel="noopener noreferrer">SmolVLM: Redefining Small and Efficient Multimodal Models</a> &middot; Marafioti et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener noreferrer">LoRA: Low-Rank Adaptation of Large Language Models</a> &middot; Hu et al., 2021</li>
+            <li><a href="https://github.com/huggingface/trl" target="_blank" rel="noopener noreferrer">TRL: Transformer Reinforcement Learning</a> &middot; Hugging Face</li>
+            <li><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c09-vlm-post-training" target="_blank" rel="noopener noreferrer">blog-coding-tutorials: c09-vlm-post-training</a> &middot; the code for this tutorial</li>
+          </ul>
+        </div>
+      </section>
+
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Post-Train a VLM</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/post-train-a-vlm/">https://srini-anirudh.github.io/blogs/post-train-a-vlm/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026posttrainvlm,
+  author       = {Srinivasan, Anirudh},
+  title        = {Post-Train a VLM},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/post-train-a-vlm/},
+  note         = {Published 2026-11-06; updated 2026-11-06}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Post-Train a VLM</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script src="../../assets/js/code-tutorial.js?v=1"></script>
+
+    <script>
+window.C9_DATA = {"probe":{"balanced":{"train":0.5699999928474426,"test":0.49000000953674316,"per_kind":{"color":0.4300000071525574,"count":0.49000000953674316,"object":0.46000000834465027,"ocr":0.49000000953674316,"spatial":0.5799999833106995}},"biased":{"train":0.9120000004768372,"test":0.9139999747276306,"per_kind":{"color":1.0,"count":1.0,"object":1.0,"ocr":0.9900000095367432,"spatial":0.5799999833106995}}},"rollouts":[{"prompt":"How many circles are there? Answer with a number.","truth":"1","texts":[" 2"," 1"," 2"," 2"," 3"," 2"," 3"," 3"],"rewards":[0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0],"advantages":[-0.3534534275531769,2.4741740226745605,-0.3534534275531769,-0.3534534275531769,-0.3534534275531769,-0.3534534275531769,-0.3534534275531769,-0.3534534275531769],"objects":[["square","green",[55,180,140,265]],["triangle","blue",[10,37,114,141]],["circle","red",[349,376,430,457]]]},{"prompt":"How many circles are there? Answer with a number.","truth":"1","texts":[" 2"," 1"," 2"," 2"," 2"," 1"," 2"," 2"],"rewards":[0.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0],"advantages":[-0.5399450659751892,1.6198352575302124,-0.5399450659751892,-0.5399450659751892,-0.5399450659751892,1.6198352575302124,-0.5399450659751892,-0.5399450659751892],"objects":[["triangle","blue",[32,39,138,145]],["circle","yellow",[200,364,319,483]]]},{"prompt":"How many circles are there? Answer with a number.","truth":"3","texts":[" 5"," 5"," 5"," 5"," 5"," 5"," 5"," 5"],"rewards":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"advantages":[0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0],"objects":[["circle","red",[384,179,495,290]],["circle","yellow",[211,35,324,148]],["circle","green",[16,206,125,315]],["square","blue",[232,377,332,477]],["square","green",[384,25,499,140]]]}],"perception":null,"grpo":{},"hack":{}};
+(function () {
+  "use strict";
+  const { svg, lerp, stepper } = window.CT;
+  const D = window.C9_DATA;
+  const C = { ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", paper: "#f7f6f3", hi: "#fbfaf8", blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f", grey: "#dedad2" };
+  const SHAPE_FILL = { red: "#d63031", green: "#279a48", blue: "#2860c8", yellow: "#eebe14" };
+  const pct = (x) => Math.round(x * 100) + "%";
+  const txt = (g, x, y, t, o) => svg("text", Object.assign({ x, y, "text-anchor": "middle", "font-size": 13, fill: C.ink, text: t }, o || {}), g);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* ---------- Figure 1: hallucination-negative generator ---------- */
+  (function negatives() {
+    const fig = document.getElementById("fig-neg");
+    if (!fig) return;
+    const sceneHost = fig.querySelector(".neg-scene");
+    const COLORS = ["red", "green", "blue", "yellow"], SHAPES = ["circle", "square", "triangle"];
+    const WORDS = ["CAT", "DOG", "SUN", "MAP", "BOX", "CUP", "PEN", "KEY", "BUS", "HAT"];
+    const OFF = ["purple", "orange", "pink"];
+    let seed = 11, kind = "color", mode = "balanced";
+    let s = 1;
+    const rnd = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+    const pick = (a) => a[Math.floor(rnd() * a.length) % a.length];
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+    function sampleScene() {
+      const cells = [];
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) cells.push([r, c]);
+      shuffle(cells);
+      const wc = cells.pop();
+      const word = pick(WORDS);
+      const n = 2 + Math.floor(rnd() * 5);
+      const ids = [];
+      SHAPES.forEach((sh) => COLORS.forEach((co) => ids.push([sh, co])));
+      shuffle(ids);
+      const objs = [];
+      for (let i = 0; i < n; i++) {
+        const [r, c] = cells[i];
+        const side = 80 + Math.floor(rnd() * 40);
+        const x = c * 170 + 8 + Math.floor(rnd() * (170 - side - 16));
+        const y = r * 170 + 8 + Math.floor(rnd() * (170 - side - 16));
+        objs.push({ shape: ids[i][0], color: ids[i][1], x, y, side });
+      }
+      return { objs, word, wc };
+    }
+    function question(sc) {
+      const objs = sc.objs;
+      const countShape = (sh) => objs.filter((o) => o.shape === sh).length;
+      if (kind === "color") {
+        const u = objs.filter((o) => countShape(o.shape) === 1);
+        if (!u.length) return null;
+        const o = pick(u);
+        return { prompt: `What color is the ${o.shape}?`, ans: o.color, t: (v) => `The ${o.shape} is ${v}.`, focus: [o] };
+      }
+      if (kind === "count") {
+        const sh = pick([...new Set(objs.map((o) => o.shape))]);
+        return { prompt: `How many ${sh}s are there?`, ans: String(countShape(sh)), t: (v) => `The number of ${sh}s is ${v}.`, focus: objs.filter((o) => o.shape === sh) };
+      }
+      if (kind === "object") {
+        const u = objs.filter((o) => objs.filter((p) => p.color === o.color).length === 1);
+        if (!u.length) return null;
+        const o = pick(u);
+        return { prompt: `What shape is the ${o.color} object?`, ans: o.shape, t: (v) => `The ${o.color} object is a ${v}.`, focus: [o] };
+      }
+      if (kind === "ocr") return { prompt: "What word is written in the image?", ans: sc.word, t: (v) => `The word is ${v}.`, focus: [] };
+      const ps = [];
+      objs.forEach((a) => objs.forEach((b) => { if (a !== b && Math.abs(a.x + a.side / 2 - b.x - b.side / 2) > 60) ps.push([a, b]); }));
+      if (!ps.length) return null;
+      const [a, b] = pick(ps);
+      const side = a.x + a.side / 2 < b.x + b.side / 2 ? "left" : "right";
+      return { prompt: `Is the ${a.color} ${a.shape} to the left or to the right of the ${b.color} ${b.shape}?`, ans: side, t: (v) => `The ${a.color} ${a.shape} is to the ${v} of the ${b.color} ${b.shape}.`, focus: [a, b] };
+    }
+    function wrong(ans) {
+      if (kind === "spatial") return ans === "left" ? "right" : "left";
+      const sets = { color: COLORS, count: ["1", "2", "3"], object: SHAPES, ocr: WORDS };
+      if (mode === "balanced") return pick(sets[kind].filter((v) => v !== ans));
+      if (kind === "color") return pick(OFF);
+      if (kind === "count") return String(+ans + 1);
+      if (kind === "object") return pick(["star", "hexagon"]);
+      const i = Math.floor(rnd() * ans.length);
+      return ans.slice(0, i) + pick(["Q", "X", "Z", "J"]) + ans.slice(i + 1);
+    }
+    const LEAK = {
+      color: { balanced: "Both colours come from the four the scenes use. Text alone cannot tell them apart.", biased: "The rejected colour is never drawn. Any model can reject it without looking." },
+      count: { balanced: "True and wrong counts come from the same set {1, 2, 3}, so neither number is more likely to be chosen.", biased: "The rejected count is always one too many. The smaller number always wins." },
+      object: { balanced: "Both shapes appear in scenes equally often.", biased: "No image contains a star or a hexagon. Those words alone reveal the label." },
+      ocr: { balanced: "Both are real words from the same list, so the pair must be read from the image.", biased: "The rejected word is a misspelling. A language model already dislikes it." },
+      spatial: { balanced: "There are only two values, so flipping is symmetric.", biased: "Spatial flips cannot be biased this way. This is why the text probe stays near chance on this kind." },
+    };
+    function draw() {
+      s = (seed * 48271) % 2147483647 || 1;
+      let sc, q;
+      for (let k = 0; k < 40 && !q; k++) { sc = sampleScene(); q = question(sc); }
+      sceneHost.innerHTML = "";
+      const root = svg("svg", { viewBox: "0 0 512 512", role: "img", "aria-label": "A synthetic scene with coloured shapes and a printed word" }, sceneHost);
+      svg("rect", { x: 0, y: 0, width: 512, height: 512, fill: "#fff", stroke: C.rule }, root);
+      sc.objs.forEach((o) => {
+        const fill = SHAPE_FILL[o.color], f = q.focus.includes(o);
+        if (o.shape === "circle") svg("circle", { cx: o.x + o.side / 2, cy: o.y + o.side / 2, r: o.side / 2, fill }, root);
+        else if (o.shape === "square") svg("rect", { x: o.x, y: o.y, width: o.side, height: o.side, fill }, root);
+        else svg("polygon", { points: `${o.x + o.side / 2},${o.y} ${o.x + o.side},${o.y + o.side} ${o.x},${o.y + o.side}`, fill }, root);
+        if (f) svg("rect", { x: o.x - 6, y: o.y - 6, width: o.side + 12, height: o.side + 12, fill: "none", stroke: C.ink, "stroke-width": 2, "stroke-dasharray": "6 4" }, root);
+      });
+      const wx = sc.wc[1] * 170 + 85, wy = sc.wc[0] * 170 + 85;
+      svg("text", { x: wx, y: wy + 20, "text-anchor": "middle", "font-size": 58, "font-weight": 700, fill: "#000", text: sc.word, style: "font-family:Arial,Helvetica,sans-serif" }, root);
+      const bad = wrong(q.ans);
+      const mark = (t, v, cls) => t.replace(v, `<mark class="${cls}">${v}</mark>`);
+      fig.querySelector(".neg-prompt").textContent = q.prompt;
+      fig.querySelector(".neg-chosen").innerHTML = mark(q.t(q.ans), q.ans, "neg-true");
+      fig.querySelector(".neg-rejected").innerHTML = mark(q.t(bad), bad, "neg-false");
+      fig.querySelector(".neg-leak").textContent = LEAK[kind][mode];
+      fig.querySelector(".neg-json").textContent = JSON.stringify({ kind, chosen: q.ans, rejected: bad, mode });
+    }
+    fig.querySelectorAll("[data-kind]").forEach((b) => b.addEventListener("click", () => {
+      kind = b.dataset.kind;
+      fig.querySelectorAll("[data-kind]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      draw();
+    }));
+    fig.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
+      mode = b.dataset.mode;
+      fig.querySelectorAll("[data-mode]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      draw();
+    }));
+    fig.querySelector("[data-new]").addEventListener("click", () => { seed = (seed * 31 + 7) % 99991; draw(); });
+    draw();
+  })();
+
+  /* ---------- Figure 2: one preference pair as tensors ---------- */
+  (function batchFig() {
+    const fig = document.getElementById("fig-batch");
+    if (!fig) return;
+    const W = 960, H = 400;
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "One preference pair: input ids, mask and labels, then per-token log-probabilities" }, fig.querySelector(".ct-figure__stage"));
+    const world = svg("g", null, root);
+    const tb = D.dpoBal && D.dpoBal.tb ? D.dpoBal.tb[0] : null;
+    const chosenT = tb ? tb.chosen.tokens : [" The", " circle", " is", " yellow", ".", "<eou>"];
+    const rejT = tb ? tb.rejected.tokens : [" The", " circle", " is", " blue", ".", "<eou>"];
+    const chosenL = tb ? tb.chosen.logp : chosenT.map(() => 0);
+    const rejL = tb ? tb.rejected.logp : rejT.map(() => 0);
+    const short = (t) => t.replace("<end_of_utterance>", "<eou>").trim() || "␣";
+    const prefix = ["<|im_start|>", "User", ":", "<fake>", "<global>"];
+    const middle = ["<fake>"].concat((tb ? tb.prompt : "What color is the circle?").match(/\w+|\?/g).slice(0, 6), ["<eou>", "\\n", "Ass", "istant", ":"]);
+    const cw = 34, ch = 30, x0 = 74;
+    let cursor = x0;
+    const cells = [];
+    function cell(g, x, y, w, label, kind) {
+      const r = svg("rect", { x, y, width: w - 2, height: ch - 2, rx: 3, fill: C.hi, stroke: C.rule }, g);
+      const t = svg("text", { x: x + (w - 2) / 2, y: y + 19, "text-anchor": "middle", "font-size": 9, fill: C.soft, text: label }, g);
+      return { r, t, kind, x, y, w };
+    }
+    const layerIds = svg("g", null, world);
+    const rows = [{ y: 110, a: chosenT, name: "chosen", lp: chosenL }, { y: 146, a: rejT, name: "rejected", lp: rejL }];
+    const ansX = [];
+    rows.forEach((row, ri) => {
+      cursor = x0;
+      txt(layerIds, 36, row.y + 19, row.name, { "font-size": 10.5, fill: ri === 0 ? C.green : C.red });
+      prefix.forEach((t) => { cells.push(cell(layerIds, cursor, row.y, cw, t.length > 6 ? t.slice(0, 5) + "…" : t, "prefix")); cursor += cw; });
+      cells.push(cell(layerIds, cursor, row.y, 64, "<image>×64", "image")); cursor += 64;
+      middle.forEach((t) => { cells.push(cell(layerIds, cursor, row.y, cw, t.length > 6 ? t.slice(0, 5) + "…" : t, "prefix")); cursor += cw; });
+      ansX[0] = cursor;
+      row.cells = [];
+      row.a.forEach((t) => { const c = cell(layerIds, cursor, row.y, cw + 12, short(t), "answer"); row.cells.push(c); cells.push(c); cursor += cw + 12; });
+    });
+    txt(layerIds, x0 + 300, 92, "input_ids (2, T): prompt ids + answer ids + right padding", { fill: C.soft, "font-size": 12 });
+    const shift = svg("g", { opacity: 0 }, world);
+    const ax = rows[0].cells[0].x;
+    txt(shift, ax + 130, 72, "labels: −100 everywhere except the answer", { fill: C.orange, "font-size": 12 });
+    const imgLayer = svg("g", { opacity: 0 }, world);
+    const ic = cells.find((c) => c.kind === "image");
+    txt(imgLayer, ic.x + 32, 212, "feats[image_index]", { fill: C.blue, "font-size": 12 });
+    txt(imgLayer, ic.x + 32, 232, "(B, 64, 576)", { fill: C.blue, "font-size": 12 });
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) svg("rect", { x: ic.x + 4 + c * 7, y: 240 + r * 7, width: 6, height: 6, fill: C.blue, "fill-opacity": 0.2 + 0.7 * ((r * 7 + c * 13) % 10) / 10 }, imgLayer);
+    txt(imgLayer, ic.x + 32, 316, "one encoder pass", { fill: C.soft, "font-size": 11 });
+    txt(imgLayer, ic.x + 32, 332, "for both rows", { fill: C.soft, "font-size": 11 });
+    const lpLayer = svg("g", { opacity: 0 }, world);
+    rows.forEach((row, ri) => {
+      row.cells.forEach((c, i) => {
+        const y = 200 + ri * 58;
+        const v = row.lp[i];
+        const h = Math.min(30, Math.abs(v) * 4 + 1);
+        svg("rect", { x: c.x + 6, y, width: c.w - 14, height: h, fill: ri === 0 ? C.green : C.red, "fill-opacity": 0.55 }, lpLayer);
+        svg("text", { x: c.x + c.w / 2 - 1, y: y - 3, "text-anchor": "middle", "font-size": 9.5, fill: C.ink, text: v.toFixed(2) }, lpLayer);
+      });
+    });
+    const sumC = chosenL.reduce((a, b) => a + b, 0), sumR = rejL.reduce((a, b) => a + b, 0);
+    const sumX = rows[0].cells[0].x + rows[0].cells.length * (cw + 12) + 8;
+    txt(lpLayer, ax - 44, 214, "log p", { fill: C.green, "font-size": 11 });
+    txt(lpLayer, ax - 44, 272, "log p", { fill: C.red, "font-size": 11 });
+    const sumLayer = svg("g", { opacity: 0 }, world);
+    txt(sumLayer, sumX + 44, 214, "Σ = " + sumC.toFixed(2), { fill: C.green, "font-size": 15, "font-weight": 600 });
+    txt(sumLayer, sumX + 44, 272, "Σ = " + sumR.toFixed(2), { fill: C.red, "font-size": 15, "font-weight": 600 });
+    txt(sumLayer, sumX + 44, 318, "margin " + (sumC - sumR >= 0 ? "+" : "") + (sumC - sumR).toFixed(2), { fill: C.ink, "font-size": 13 });
+
+    const frames = [
+      { note: "One pair becomes two rows that share a prompt. They differ only after <code>Assistant:</code>." },
+      { note: "Everything before the answer gets label <code>-100</code>, shown here in grey. Only the answer tokens carry a label, shown in orange." },
+      { note: "Both rows look at one image. The encoder runs once and writes 64 feature vectors of size 576 into the placeholders of each row." },
+      { note: "Zoom in. Each answer token has one log-probability, read from the logits at the position before it." },
+      { note: "The shared tokens score about the same. The slot token decides the pair. These are real numbers from the pretrained model." },
+      { note: "Summing gives the sequence log-probability, the only quantity DPO needs. A positive margin means the model already prefers the true answer." },
+    ];
+    const cams = [{ x: 480, y: 180, w: 960 }, { x: 480, y: 180, w: 960 }, { x: 300, y: 220, w: 760 }, { x: ax + 170, y: 220, w: 560 }, { x: ax + 170, y: 220, w: 560 }, { x: ax + 220, y: 220, w: 640 }];
+    function paint(f) {
+      cells.forEach((c) => {
+        let fill = C.hi, stroke = C.rule, tc = C.soft;
+        if (f >= 1) {
+          if (c.kind === "answer") { fill = "rgba(214,111,0,0.16)"; stroke = C.orange; tc = C.ink; }
+          else { fill = "#eceae4"; tc = C.muted; }
+        }
+        if (f >= 2 && c.kind === "image") { fill = "rgba(11,94,168,0.16)"; stroke = C.blue; tc = C.blue; }
+        c.r.setAttribute("fill", fill); c.r.setAttribute("stroke", stroke); c.t.setAttribute("fill", tc);
+      });
+    }
+    stepper(fig, {
+      frames, tween: 1000, hold: 2300,
+      render(i, t, from) {
+        const a = cams[from], b = cams[i], w = lerp(a.w, b.w, t), h = (w * H) / W;
+        root.setAttribute("viewBox", `${lerp(a.x, b.x, t) - w / 2} ${lerp(a.y, b.y, t) - h / 2} ${w} ${h}`);
+        paint(t < 0.5 ? from : i);
+        const op = (k) => lerp(from >= k ? 1 : 0, i >= k ? 1 : 0, t);
+        shift.setAttribute("opacity", op(1));
+        imgLayer.setAttribute("opacity", lerp(from === 2 ? 1 : 0, i === 2 ? 1 : 0, t));
+        lpLayer.setAttribute("opacity", op(3));
+        sumLayer.setAttribute("opacity", op(5));
+      },
+    });
+  })();
+
+  /* ---------- Figure 3: DPO on one real pair, then the training curve ---------- */
+  (function dpoFig() {
+    const fig = document.getElementById("fig-dpo");
+    if (!fig || !D.dpoBal || !D.dpoBal.tb) return;
+    const W = 960, H = 390, root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "DPO on one pair and the training curve" }, fig.querySelector(".ct-figure__stage"));
+    const sum = (a) => a.reduce((x, y) => x + y, 0);
+    // Pick the worked pair with the largest change in margin: the clearest example to read.
+    let best = 0, bestD = -1e9;
+    D.dpoBal.tb.forEach((p, i) => {
+      const q = D.dpoBal.ta[i];
+      const d = (sum(q.chosen.logp) - sum(q.rejected.logp)) - (sum(p.chosen.logp) - sum(p.rejected.logp));
+      if (d > bestD) { bestD = d; best = i; }
+    });
+    const tb = D.dpoBal.tb[best], ta = D.dpoBal.ta[best];
+    const rc = sum(tb.chosen.logp), rr = sum(tb.rejected.logp), pc = sum(ta.chosen.logp), pr = sum(ta.rejected.logp);
+    const beta = 0.1, m = beta * ((pc - rc) - (pr - rr)), loss = Math.log1p(Math.exp(-m));
+    const clean = (a) => a.join("").replace("<end_of_utterance>", "").trim();
+    txt(root, W / 2, 22, tb.prompt, { "font-size": 14, fill: C.soft });
+    const rowsY = [70, 124];
+    const lo = Math.min(rc, rr, pc, pr) - 1, hi = Math.max(rc, rr, pc, pr, 0) + 0.2;
+    const X = (v) => 240 + ((v - lo) / (hi - lo)) * 400;
+    const labels = [["chosen: " + clean(ta.chosen.tokens), C.green], ["rejected: " + clean(ta.rejected.tokens), C.red]];
+    labels.forEach(([t, c], k) => {
+      const s = t.length > 34 ? t.slice(0, 33) + "…" : t;
+      txt(root, 228, rowsY[k] + 5, s, { "text-anchor": "end", "font-size": 10.5, fill: c });
+      svg("line", { x1: 240, x2: 640, y1: rowsY[k], y2: rowsY[k], stroke: C.rule }, root);
+    });
+    const mk = (y, col, filled) => svg("circle", { cx: 0, cy: y, r: 8, fill: filled ? col : C.paper, stroke: col, "stroke-width": 2 }, root);
+    const dot = { rc: mk(rowsY[0], C.green, false), rr: mk(rowsY[1], C.red, false), pc: mk(rowsY[0], C.green, true), pr: mk(rowsY[1], C.red, true) };
+    const lab = (y) => svg("text", { x: 0, y, "text-anchor": "middle", "font-size": 11, fill: C.ink }, root);
+    const lrc = lab(rowsY[0] - 14), lrr = lab(rowsY[1] - 14), lpc = lab(rowsY[0] + 24), lpr = lab(rowsY[1] + 24);
+    const side = svg("g", null, root);
+    const rt = (y, t, o) => svg("text", Object.assign({ x: 670, y, "font-size": 13, fill: C.ink, text: t }, o || {}), side);
+    const s1 = rt(62, "reference: hollow"), s2 = rt(82, "policy: filled");
+    const r1 = rt(112, "chosen ratio  " + (pc - rc).toFixed(2)), r2 = rt(132, "rejected ratio  " + (pr - rr).toFixed(2));
+    const r3 = rt(158, "β × difference  " + m.toFixed(3), { "font-weight": 600 }), r4 = rt(180, "loss  " + loss.toFixed(3) + "  (from 0.693)", { "font-weight": 600, fill: C.blue });
+    // training curves
+    const log = D.dpoBal.log;
+    const cx0 = 90, cx1 = 900, cy0 = 370, cy1 = 220;
+    const maxLoss = 0.72, minLoss = Math.min(...log.map((e) => e.loss), 0.3);
+    const cX = (s) => cx0 + (s / (log.length - 1)) * (cx1 - cx0), cY = (v) => cy0 - ((v - minLoss) / (maxLoss - minLoss)) * (cy0 - cy1);
+    svg("line", { x1: cx0, x2: cx1, y1: cY(Math.LN2), y2: cY(Math.LN2), stroke: C.rule, "stroke-dasharray": "4 4" }, root);
+    txt(root, cx0 - 8, cY(Math.LN2) + 4, "ln 2", { "text-anchor": "end", "font-size": 11, fill: C.muted });
+    txt(root, cx0 - 8, cy0, minLoss.toFixed(2), { "text-anchor": "end", "font-size": 11, fill: C.muted });
+    svg("line", { x1: cx0, x2: cx1, y1: cy0, y2: cy0, stroke: C.rule }, root);
+    txt(root, (cx0 + cx1) / 2, 388, "training step (Apple M5, MPS). Thin line: batch loss. Thick line: moving average.", { "font-size": 11, fill: C.muted });
+    const smooth = log.map((e, i) => { const w = log.slice(Math.max(0, i - 9), i + 1); return w.reduce((a, x) => a + x.loss, 0) / w.length; });
+    const pRaw = svg("path", { fill: "none", stroke: C.blue, "stroke-opacity": 0.25, "stroke-width": 1 }, root);
+    const pSm = svg("path", { fill: "none", stroke: C.blue, "stroke-width": 2.2 }, root);
+    const dRaw = log.map((e, i) => (i ? "L" : "M") + cX(i).toFixed(1) + " " + cY(clamp(e.loss, minLoss, maxLoss + 0.02)).toFixed(1)).join(" ");
+    const dSm = smooth.map((v, i) => (i ? "L" : "M") + cX(i).toFixed(1) + " " + cY(v).toFixed(1)).join(" ");
+    pRaw.setAttribute("d", dRaw); pSm.setAttribute("d", dSm);
+    [pRaw, pSm].forEach((p) => { const L = p.getTotalLength(); p.dataset.len = L; p.setAttribute("stroke-dasharray", L + " " + L); });
+
+    const frames = [
+      { note: "Before training the policy equals the reference, so each hollow dot and its filled dot coincide. The margin is zero and the loss is ln 2." },
+      { note: "After training, the filled chosen dot has moved. A positive log-ratio means the policy raised this answer above the reference." },
+      { note: "The filled rejected dot moves as well. DPO only cares about the difference between the two moves." },
+      { note: "Multiply the difference by β and pass it through <code>-logsigmoid</code>. This is the whole loss for the pair." },
+      { note: "Averaged over batches, the loss falls below ln 2 over the 150 steps. These are real numbers from this run." },
+    ];
+    stepper(fig, {
+      frames, tween: 1100, hold: 2400,
+      render(i, t, from) {
+        const prog = (fr) => { const f = fr >= 2 ? 1 : fr >= 1 ? 0.5 : 0; return f; };
+        const pa = prog(from), pb = prog(i);
+        const cgo = clamp(lerp(pa, pb, t) * 2, 0, 1), rgo = clamp(lerp(pa, pb, t) * 2 - 1, 0, 1);
+        const ccx = lerp(X(rc), X(pc), cgo), rcx = lerp(X(rr), X(pr), rgo);
+        dot.rc.setAttribute("cx", X(rc)); dot.rr.setAttribute("cx", X(rr)); dot.pc.setAttribute("cx", ccx); dot.pr.setAttribute("cx", rcx);
+        lrc.setAttribute("x", X(rc)); lrc.textContent = rc.toFixed(2);
+        lrr.setAttribute("x", X(rr)); lrr.textContent = rr.toFixed(2);
+        lpc.setAttribute("x", ccx); lpc.textContent = lerp(rc, pc, cgo).toFixed(2);
+        lpr.setAttribute("x", rcx); lpr.textContent = lerp(rr, pr, rgo).toFixed(2);
+        const v = (k) => lerp(from >= k ? 1 : 0, i >= k ? 1 : 0, t);
+        r1.setAttribute("opacity", v(1)); r2.setAttribute("opacity", v(2)); r3.setAttribute("opacity", v(3)); r4.setAttribute("opacity", v(3));
+        const cv = v(4);
+        [pRaw, pSm].forEach((p) => { const L = +p.dataset.len; p.setAttribute("stroke-dashoffset", L * (1 - cv)); });
+      },
+    });
+  })();
+
+  /* ---------- Figure 4: the blind check ---------- */
+  (function blindFig() {
+    const fig = document.getElementById("fig-blind");
+    if (!fig || !D.probe) return;
+    const W = 960, H = 380, root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Preference accuracy with and without the image" }, fig.querySelector(".ct-figure__stage"));
+    const KINDS = ["color", "count", "object", "ocr", "spatial"];
+    const groups = KINDS.concat(["mean"]);
+    const x0 = 80, x1 = 930, y0 = 320, y1 = 50;
+    const Y = (v) => y0 - v * (y0 - y1);
+    [0, 0.25, 0.5, 0.75, 1].forEach((v) => {
+      svg("line", { x1: x0, x2: x1, y1: Y(v), y2: Y(v), stroke: v === 0.5 ? C.orange : C.grey, "stroke-dasharray": v === 0.5 ? "5 4" : "" }, root);
+      txt(root, x0 - 8, Y(v) + 4, pct(v), { "text-anchor": "end", "font-size": 11, fill: v === 0.5 ? C.orange : C.muted });
+    });
+    const gw = (x1 - x0) / groups.length, bw = gw * 0.34;
+    const bars = groups.map((g, k) => {
+      const cx = x0 + gw * (k + 0.5);
+      txt(root, cx, y0 + 18, g, { "font-size": 12, fill: C.soft });
+      const a = svg("rect", { x: cx - bw - 2, y: y0, width: bw, height: 0, fill: C.blue, "fill-opacity": 0.75 }, root);
+      const b = svg("rect", { x: cx + 2, y: y0, width: bw, height: 0, fill: C.orange, "fill-opacity": 0.75 }, root);
+      const ta = txt(root, cx - bw / 2 - 2, y0, "", { "font-size": 10.5 });
+      const tb = txt(root, cx + bw / 2 + 2, y0, "", { "font-size": 10.5 });
+      return { a, b, ta, tb };
+    });
+    const leg = [svg("rect", { x: x0, y: 16, width: 12, height: 12, fill: C.blue, "fill-opacity": 0.75 }, root), svg("rect", { x: 440, y: 16, width: 12, height: 12, fill: C.orange, "fill-opacity": 0.75 }, root)];
+    const la = svg("text", { x: x0 + 18, y: 27, "font-size": 12, fill: C.ink }, root), lb = svg("text", { x: 458, y: 27, "font-size": 12, fill: C.ink }, root);
+    const gv = (o) => groups.map((g) => (g === "mean" ? (o.mean != null ? o.mean : o.test) : o[g]));
+    const P = D.probe;
+    const probeV = (m) => groups.map((g) => (g === "mean" ? P[m].test : P[m].per_kind[g]));
+    const stages = [];
+    stages.push({ A: probeV("balanced"), B: probeV("biased"), la: "Text-only probe on balanced pairs", lb: "Text-only probe on biased pairs", note: "A logistic regression over words, with no pixels. On balanced pairs it stays near 50%. On biased pairs it reads the label from the words. Spatial stays near chance in both, because a flip cannot be biased." });
+    if (D.dpoBal) {
+      stages.push({ A: gv(D.dpoBal.before.balanced.image), B: gv(D.dpoBal.before.balanced.blind), la: "Pretrained VLM, real image", lb: "Pretrained VLM, grey image", note: "The pretrained VLM on held-out balanced pairs. With a grey image any scorer averages 50% on an exchangeable set, so the gap above the orange line is evidence that it read the pixels." });
+      stages.push({ A: gv(D.dpoBal.after.balanced.image), B: gv(D.dpoBal.after.balanced.blind), la: "After DPO on balanced pairs, real image", lb: "After DPO on balanced pairs, grey image", note: "After DPO on balanced negatives, on the same held-out pairs." });
+    }
+    if (D.dpoBias) {
+      stages.push({ A: gv(D.dpoBias.before.biased.blind), B: gv(D.dpoBias.after.biased.blind), la: "Grey image, biased pairs, before DPO on biased pairs", lb: "Grey image, biased pairs, after DPO on biased pairs", note: "The shortcut, shown directly. Biased pairs with a grey image. The model has no visual evidence at all, so everything above 50% is a language prior." });
+      stages.push({ A: gv(D.dpoBal.after.balanced.image), B: gv(D.dpoBias.after.balanced.image), la: "Trained on balanced, tested on balanced, real image", lb: "Trained on biased, tested on balanced, real image", note: "Now test both models on the balanced pairs, where a shortcut cannot help." });
+    }
+    stepper(fig, {
+      frames: stages.map((s) => ({ note: s.note })), tween: 1000, hold: 2900,
+      render(i, t, from) {
+        const a = stages[from], b = stages[i];
+        la.textContent = (t < 0.5 ? a : b).la; lb.textContent = (t < 0.5 ? a : b).lb;
+        bars.forEach((bar, k) => {
+          const va = lerp(a.A[k] || 0, b.A[k] || 0, t), vb = lerp(a.B[k] || 0, b.B[k] || 0, t);
+          bar.a.setAttribute("y", Y(va)); bar.a.setAttribute("height", y0 - Y(va));
+          bar.b.setAttribute("y", Y(vb)); bar.b.setAttribute("height", y0 - Y(vb));
+          bar.ta.setAttribute("y", Y(va) - 4); bar.ta.textContent = pct(va);
+          bar.tb.setAttribute("y", Y(vb) - 4); bar.tb.textContent = pct(vb);
+        });
+      },
+    });
+  })();
+
+  /* ---------- Figure 5: IoU vs reward explorer ---------- */
+  (function iouFig() {
+    const fig = document.getElementById("fig-iou");
+    if (!fig) return;
+    const host = fig.querySelector(".ct-figure__stage");
+    const S = 512, root = svg("svg", { viewBox: `-2 -2 ${S + 4} ${S + 4}`, role: "application", "aria-label": "Drag the predicted box. Drag its corner handle to resize." }, host);
+    root.style.touchAction = "none";
+    root.style.maxWidth = "420px";
+    root.style.margin = "0 auto";
+    root.style.display = "block";
+    svg("rect", { x: 0, y: 0, width: S, height: S, fill: "#fff", stroke: C.rule }, root);
+    const gold = { x0: 170, y0: 190, x1: 300, y1: 320 };
+    svg("polygon", { points: `${(gold.x0 + gold.x1) / 2},${gold.y0} ${gold.x1},${gold.y1} ${gold.x0},${gold.y1}`, fill: SHAPE_FILL.blue, "fill-opacity": 0.85 }, root);
+    svg("rect", { x: gold.x0, y: gold.y0, width: gold.x1 - gold.x0, height: gold.y1 - gold.y0, fill: "none", stroke: C.green, "stroke-width": 3 }, root);
+    svg("circle", { cx: (gold.x0 + gold.x1) / 2, cy: (gold.y0 + gold.y1) / 2, r: 4, fill: C.green }, root);
+    const inter = svg("rect", { fill: C.orange, "fill-opacity": 0.28 }, root);
+    const pred = svg("rect", { fill: "rgba(11,94,168,0.06)", stroke: C.blue, "stroke-width": 3, style: "cursor:move" }, root);
+    const handle = svg("rect", { width: 22, height: 22, fill: C.blue, style: "cursor:nwse-resize", tabindex: 0, role: "slider", "aria-label": "Resize predicted box" }, root);
+    let box = { x0: 210, y0: 150, x1: 380, y1: 330 };
+    const out = (id) => fig.querySelector("#" + id);
+    function reward(b) {
+      const ix = Math.max(0, Math.min(b.x1, gold.x1) - Math.max(b.x0, gold.x0)), iy = Math.max(0, Math.min(b.y1, gold.y1) - Math.max(b.y0, gold.y0));
+      const I = ix * iy, A = (b.x1 - b.x0) * (b.y1 - b.y0), G = (gold.x1 - gold.x0) * (gold.y1 - gold.y0);
+      const cx = (gold.x0 + gold.x1) / 2, cy = (gold.y0 + gold.y1) / 2;
+      return { iou: I / (A + G - I), dice: (2 * I) / (A + G), center: b.x0 <= cx && cx <= b.x1 && b.y0 <= cy && cy <= b.y1 ? 1 : 0, I };
+    }
+    function draw() {
+      const b = box, r = reward(b);
+      pred.setAttribute("x", b.x0); pred.setAttribute("y", b.y0); pred.setAttribute("width", b.x1 - b.x0); pred.setAttribute("height", b.y1 - b.y0);
+      handle.setAttribute("x", b.x1 - 11); handle.setAttribute("y", b.y1 - 11);
+      const ix0 = Math.max(b.x0, gold.x0), iy0 = Math.max(b.y0, gold.y0), ix1 = Math.min(b.x1, gold.x1), iy1 = Math.min(b.y1, gold.y1);
+      if (ix1 > ix0 && iy1 > iy0) { inter.setAttribute("x", ix0); inter.setAttribute("y", iy0); inter.setAttribute("width", ix1 - ix0); inter.setAttribute("height", iy1 - iy0); }
+      else { inter.setAttribute("width", 0); inter.setAttribute("height", 0); }
+      out("iou-iou").textContent = r.iou.toFixed(3);
+      out("iou-dice").textContent = r.dice.toFixed(3);
+      out("iou-center").textContent = r.center.toFixed(0);
+      out("iou-text").textContent = `answer: ${Math.round(b.x0)} ${Math.round(b.y0)} ${Math.round(b.x1)} ${Math.round(b.y1)}   gold: ${gold.x0} ${gold.y0} ${gold.x1} ${gold.y1}`;
+      out("iou-verdict").textContent = r.center === 1 && r.iou < 0.25 ? "The weak reward pays in full for a box that does not localise anything. This is the hack." : r.iou > 0.8 ? "Both rewards agree: this box is good." : r.center === 0 && r.iou > 0.2 ? "IoU gives partial credit. The weak reward gives none, because the gold centre is outside." : "Move the box and watch the two rewards disagree.";
+    }
+    function pt(e) { const m = root.getScreenCTM().inverse(); const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m); return p; }
+    let mode = null, last = null;
+    function down(kind) { return (e) => { e.preventDefault(); mode = kind; last = pt(e); root.setPointerCapture(e.pointerId); }; }
+    pred.addEventListener("pointerdown", down("move"));
+    handle.addEventListener("pointerdown", down("size"));
+    root.addEventListener("pointermove", (e) => {
+      if (!mode) return;
+      const p = pt(e), dx = p.x - last.x, dy = p.y - last.y;
+      last = p;
+      if (mode === "move") {
+        const w = box.x1 - box.x0, h = box.y1 - box.y0;
+        box.x0 = clamp(box.x0 + dx, 0, S - w); box.y0 = clamp(box.y0 + dy, 0, S - h); box.x1 = box.x0 + w; box.y1 = box.y0 + h;
+      } else {
+        box.x1 = clamp(box.x1 + dx, box.x0 + 12, S); box.y1 = clamp(box.y1 + dy, box.y0 + 12, S);
+      }
+      draw();
+    });
+    ["pointerup", "pointercancel"].forEach((n) => root.addEventListener(n, () => { mode = null; }));
+    handle.addEventListener("keydown", (e) => {
+      const d = { ArrowRight: [8, 0], ArrowLeft: [-8, 0], ArrowDown: [0, 8], ArrowUp: [0, -8] }[e.key];
+      if (!d) return;
+      e.preventDefault();
+      box.x1 = clamp(box.x1 + d[0], box.x0 + 12, S); box.y1 = clamp(box.y1 + d[1], box.y0 + 12, S);
+      draw();
+    });
+    fig.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+      box = { tight: { x0: 170, y0: 190, x1: 300, y1: 320 }, whole: { x0: 0, y0: 0, x1: 512, y1: 512 }, tiny: { x0: 226, y0: 246, x1: 244, y1: 264 }, off: { x0: 20, y0: 20, x1: 150, y1: 150 } }[b.dataset.preset];
+      box = Object.assign({}, box);
+      draw();
+    }));
+    draw();
+  })();
+
+  /* ---------- Figure 6: one GRPO group ---------- */
+  (function grpoFig() {
+    const fig = document.getElementById("fig-grpo");
+    if (!fig || !D.rollouts) return;
+    const G0 = D.rollouts.find((g) => { const m = g.rewards.reduce((a, b) => a + b, 0) / g.rewards.length; return m > 0 && m < 1; }) || D.rollouts[0];
+    const G = G0.rewards.length, W = 960, H = 420;
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "One image, eight rollouts, rewards and relative advantages" }, fig.querySelector(".ct-figure__stage"));
+    const img = svg("g", null, root);
+    svg("rect", { x: 30, y: 90, width: 190, height: 190, fill: "#fff", stroke: C.rule }, img);
+    const sc = 190 / 512;
+    G0.objects.forEach(([shape, color, b]) => {
+      const x = 30 + b[0] * sc, y = 90 + b[1] * sc, w = (b[2] - b[0]) * sc, f = SHAPE_FILL[color];
+      if (shape === "circle") svg("circle", { cx: x + w / 2, cy: y + w / 2, r: w / 2, fill: f }, img);
+      else if (shape === "square") svg("rect", { x, y, width: w, height: w, fill: f }, img);
+      else svg("polygon", { points: `${x + w / 2},${y} ${x + w},${y + w} ${x},${y + w}`, fill: f }, img);
+    });
+    txt(root, 125, 72, "image + prompt", { "font-size": 13, fill: C.soft });
+    const prompt = G0.prompt.length > 34 ? G0.prompt.slice(0, 34) : G0.prompt;
+    txt(root, 125, 304, prompt, { "font-size": 10.5, fill: C.soft });
+    txt(root, 125, 322, "Answer with a number.", { "font-size": 10.5, fill: C.soft });
+    txt(root, 125, 344, "truth = " + G0.truth, { "font-size": 13, fill: C.green, "font-weight": 600 });
+    const rowH = 38, ry = (i) => 60 + i * rowH;
+    const X = { text: 330, r: 470, a: 650 };
+    const hd = [txt(root, X.text, 40, "G sampled answers", { fill: C.soft }), txt(root, X.r, 40, "reward", { fill: C.soft }), txt(root, X.a, 40, "advantage", { fill: C.soft }), txt(root, 860, 40, "update", { fill: C.soft })];
+    const mean = G0.rewards.reduce((a, b) => a + b, 0) / G;
+    const std = Math.sqrt(G0.rewards.reduce((a, b) => a + (b - mean) ** 2, 0) / (G - 1));
+    const rows = G0.texts.map((t, i) => {
+      const y = ry(i), g = svg("g", { opacity: 0 }, root);
+      svg("rect", { x: X.text - 60, y: y - 15, width: 120, height: 28, rx: 3, fill: C.hi, stroke: C.rule }, g);
+      txt(g, X.text, y + 4, JSON.stringify(t.trim()), { "font-size": 13 });
+      const rg = svg("g", { opacity: 0 }, root);
+      const ok = G0.rewards[i] > 0.5;
+      svg("circle", { cx: X.r, cy: y, r: 11, fill: ok ? C.green : C.hi, stroke: ok ? C.green : C.rule }, rg);
+      txt(rg, X.r, y + 4, G0.rewards[i].toFixed(0), { "font-size": 12, fill: ok ? "#fff" : C.soft });
+      const a = G0.advantages[i], ag = svg("g", { opacity: 0 }, root);
+      const w = Math.abs(a) * 40;
+      svg("rect", { x: a >= 0 ? X.a : X.a - w, y: y - 9, width: w, height: 18, fill: a >= 0 ? C.green : C.red, "fill-opacity": 0.6 }, ag);
+      txt(ag, a >= 0 ? X.a + w + 26 : X.a + 26, y + 4, (a >= 0 ? "+" : "") + a.toFixed(2), { "font-size": 11.5, fill: C.ink });
+      const ug = svg("g", { opacity: 0 }, root);
+      txt(ug, 860, y + 5, a > 0 ? "log π ↑" : a < 0 ? "log π ↓" : "no change", { "font-size": 12.5, fill: a > 0 ? C.green : a < 0 ? C.red : C.muted, "font-weight": 600 });
+      return { g, rg, ag, ug };
+    });
+    svg("line", { x1: X.a, x2: X.a, y1: 44, y2: ry(G - 1) + 18, stroke: C.rule }, root);
+    const stat = svg("g", { opacity: 0 }, root);
+    txt(stat, X.r, ry(G - 1) + 46, `mean r = ${mean.toFixed(3)}   std r = ${std.toFixed(3)}`, { "font-size": 12.5, fill: C.orange });
+    const flat = svg("g", { opacity: 0 }, root);
+    const F = D.rollouts.find((g) => g.rewards.every((v) => v === g.rewards[0]));
+    if (F) txt(flat, 620, ry(G - 1) + 66, `Another image in the same run: all ${G} answers were ${JSON.stringify(F.texts[0].trim())}, truth ${F.truth}. Every advantage is 0.`, { "font-size": 12, fill: C.ink });
+    const frames = [
+      { note: "One image and one prompt. Eight samples from the policy at temperature 1. No top-k and no top-p, because we want the policy's own distribution." },
+      { note: "The reward is read off the scene. Exact match against a count we know, so no human and no learned judge." },
+      { note: "Advantage is the reward minus the group mean, divided by the group standard deviation. Only the spread within this image matters." },
+      { note: "Tokens of a right answer get pushed up. Tokens of a wrong answer get pushed down, by less, because right answers are rare here." },
+      { note: "A group where every answer is wrong in the same way teaches nothing. This is a real failure mode of hard tasks: no spread, no gradient." },
+    ];
+    stepper(fig, {
+      frames, tween: 1000, hold: 2500,
+      render(i, t, from) {
+        const v = (k) => lerp(from >= k ? 1 : 0, i >= k ? 1 : 0, t);
+        rows.forEach((r, n) => {
+          const stagger = (x) => clamp(x * (G + 2) - n * 0.9, 0, 1);
+          r.g.setAttribute("opacity", from === 0 && i === 0 ? stagger(t) : 1);
+          r.rg.setAttribute("opacity", from < 1 && i === 1 ? stagger(t) : v(1));
+          r.ag.setAttribute("opacity", from < 2 && i === 2 ? stagger(t) : v(2));
+          r.ug.setAttribute("opacity", from < 3 && i === 3 ? stagger(t) : v(3));
+        });
+        stat.setAttribute("opacity", v(2));
+        flat.setAttribute("opacity", v(4));
+      },
+    });
+  })();
+
+  /* ---------- Figure 7: freeze ablation ---------- */
+  (function freezeFig() {
+    const fig = document.getElementById("fig-freeze");
+    if (!fig || !D.grpo || !D.grpo.llm) return;
+    const W = 960, H = 400, root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Which parts of the VLM train in each configuration, and the result" }, fig.querySelector(".ct-figure__stage"));
+    const parts = [{ k: "vision", n: "Vision encoder", p: "86.4M" }, { k: "connector", n: "Connector", p: "7.1M" }, { k: "llm", n: "Decoder", p: "134.6M" }];
+    const blocks = parts.map((p, i) => {
+      const x = 30, y = 70 + i * 90;
+      const r = svg("rect", { x, y, width: 280, height: 66, rx: 5, fill: C.hi, stroke: C.rule, "stroke-width": 1.5 }, root);
+      txt(root, x + 14, y + 25, p.n, { "text-anchor": "start", "font-size": 15, "font-weight": 600 });
+      txt(root, x + 14, y + 48, p.p + " weights", { "text-anchor": "start", "font-size": 11, fill: C.muted });
+      const st = svg("text", { x: x + 268, y: y + 38, "text-anchor": "end", "font-size": 12, fill: C.muted }, root);
+      return { r, st, k: p.k };
+    });
+    svg("path", { d: "M170 136 V 160 M170 226 V 250", stroke: C.muted, "stroke-width": 1.5, fill: "none" }, root);
+    const title = svg("text", { x: 30, y: 40, "font-size": 18, "font-weight": 700, class: "disp", fill: C.ink }, root);
+    const modes = [["llm", "LLM only"], ["projector", "Projector + LLM"], ["all", "All three"]];
+    const M = modes.map(([k]) => D.grpo[k]).filter(Boolean);
+    const base = D.grpo.llm.before;
+    const met = [["Counting from pixels", (r) => r.count], ["Counting from text", (r) => r.text_count], ["Other visual skills", (r) => r.other.mean]];
+    const x0 = 360, x1 = 930, Y0 = 340, Y1 = 90;
+    const Y = (v) => Y0 - v * (Y0 - Y1);
+    [0, 0.5, 1].forEach((v) => { svg("line", { x1: x0, x2: x1, y1: Y(v), y2: Y(v), stroke: C.grey }, root); txt(root, x0 - 6, Y(v) + 4, pct(v), { "text-anchor": "end", "font-size": 11, fill: C.muted }); });
+    const gw = (x1 - x0) / 3, bw = 40;
+    const bars = met.map(([n], k) => {
+      const cx = x0 + gw * (k + 0.5);
+      txt(root, cx, Y0 + 20, n, { "font-size": 12, fill: C.soft });
+      const b0 = svg("rect", { x: cx - bw - 3, width: bw, fill: C.muted, "fill-opacity": 0.45 }, root);
+      const b1 = svg("rect", { x: cx + 3, width: bw, fill: C.blue, "fill-opacity": 0.8 }, root);
+      const t0 = txt(root, cx - bw / 2 - 3, 0, "", { "font-size": 11 });
+      const t1 = txt(root, cx + bw / 2 + 3, 0, "", { "font-size": 11 });
+      return { b0, b1, t0, t1, f: met[k][1] };
+    });
+    txt(root, x0, 60, "grey: pretrained", { "text-anchor": "start", "font-size": 11.5, fill: C.muted });
+    txt(root, x0 + 130, 60, "blue: after 60 GRPO steps", { "text-anchor": "start", "font-size": 11.5, fill: C.blue });
+    const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(0) + "K" : "frozen");
+    const frames = M.map((r, i) => {
+      const [k, n] = modes[i];
+      return { note: `<b>${n}</b>: ${fmt(r.trainable.total)} trainable values. Counting from pixels ${pct(base.count)} → ${pct(r.after.count)}. Counting from text ${pct(base.text_count)} → ${pct(r.after.text_count)}. Run time ${Math.round(r.seconds)} s on MPS.`, title: n, r };
+    });
+    stepper(fig, {
+      frames, tween: 1000, hold: 3200,
+      render(i, t, from) {
+        const a = frames[from].r, b = frames[i].r;
+        title.textContent = frames[t < 0.5 ? from : i].title;
+        blocks.forEach((bl) => {
+          const on = (t < 0.5 ? a : b).trainable[bl.k] > 0;
+          bl.r.setAttribute("fill", on ? "rgba(47,143,91,0.14)" : C.hi);
+          bl.r.setAttribute("stroke", on ? C.green : C.rule);
+          bl.st.textContent = on ? "trains: " + fmt((t < 0.5 ? a : b).trainable[bl.k]) : "frozen";
+          bl.st.setAttribute("fill", on ? C.green : C.muted);
+        });
+        bars.forEach((B) => {
+          const v0 = B.f(base), v = lerp(B.f(a.after), B.f(b.after), t);
+          B.b0.setAttribute("y", Y(v0)); B.b0.setAttribute("height", Y0 - Y(v0));
+          B.b1.setAttribute("y", Y(v)); B.b1.setAttribute("height", Y0 - Y(v));
+          B.t0.setAttribute("y", Y(v0) - 4); B.t0.textContent = pct(v0);
+          B.t1.setAttribute("y", Y(v) - 4); B.t1.textContent = pct(v);
+        });
+      },
+    });
+  })();
+
+  /* ---------- Figure 8: reward hacking curves ---------- */
+  (function hackFig() {
+    const fig = document.getElementById("fig-hack");
+    if (!fig || !D.hack || !D.hack.recall) return;
+    const W = 960, H = 410, root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Weak reward and honest reward during a hackable run" }, fig.querySelector(".ct-figure__stage"));
+    const smoothLog = (log, k) => log.map((e, i) => { const w = log.slice(Math.max(0, i - 7), i + 1); return w.reduce((a, x) => a + x[k], 0) / w.length; });
+    const R = D.hack.recall.log, F = D.hack.f1 ? D.hack.f1.log : null;
+    const N = R.length;
+    const panels = [{ x: 60, title: "Reward signals (recall vs F1)", keys: [["reward", "weak: recall", C.orange], ["strict", "honest: F1", C.blue]], lo: 0, hi: 1 },
+      { x: 520, title: "What the model says", keys: [["n_colors", "colours named", C.ink], ["hallucinated", "colours not in the image", C.red]], lo: 0, hi: null }];
+    const pw = 390, py0 = 300, py1 = 60;
+    panels.forEach((p) => {
+      p.hi = p.hi == null ? Math.max(2.5, ...p.keys.map(([k]) => Math.max(...smoothLog(R, k).concat(F ? smoothLog(F, k) : [])))) * 1.1 : p.hi;
+      txt(root, p.x, 34, p.title, { "text-anchor": "start", "font-size": 13.5, "font-weight": 600 });
+      svg("line", { x1: p.x, x2: p.x + pw, y1: py0, y2: py0, stroke: C.rule }, root);
+      svg("line", { x1: p.x, x2: p.x, y1: py1, y2: py0, stroke: C.rule }, root);
+      [p.lo, (p.lo + p.hi) / 2, p.hi].forEach((v) => txt(root, p.x - 6, py0 - ((v - p.lo) / (p.hi - p.lo)) * (py0 - py1) + 4, v.toFixed(p.hi > 1 ? 1 : 1), { "text-anchor": "end", "font-size": 10.5, fill: C.muted }));
+      p.X = (s) => p.x + (s / (N - 1)) * pw;
+      p.Y = (v) => py0 - ((v - p.lo) / (p.hi - p.lo)) * (py0 - py1);
+      p.paths = p.keys.map(([k, name, col], j) => {
+        const sm = smoothLog(R, k);
+        const d = sm.map((v, i) => (i ? "L" : "M") + p.X(i).toFixed(1) + " " + p.Y(v).toFixed(1)).join(" ");
+        const path = svg("path", { d, fill: "none", stroke: col, "stroke-width": 2.2 }, root);
+        const L = path.getTotalLength();
+        path.setAttribute("stroke-dasharray", L + " " + L);
+        const ly = 48 + j * 0;
+        txt(root, p.x + 8 + j * 190, ly, name, { "text-anchor": "start", "font-size": 11, fill: col });
+        let fx = null;
+        if (F) {
+          const smf = smoothLog(F, k);
+          fx = svg("path", { d: smf.map((v, i) => (i ? "L" : "M") + p.X(i).toFixed(1) + " " + p.Y(v).toFixed(1)).join(" "), fill: "none", stroke: col, "stroke-width": 1.5, "stroke-dasharray": "5 4", opacity: 0 }, root);
+        }
+        return { path, L, fx };
+      });
+      p.cursor = svg("line", { y1: py1, y2: py0, stroke: C.muted, "stroke-dasharray": "2 3" }, root);
+      txt(root, p.x + pw / 2, py0 + 20, "GRPO step", { "font-size": 11, fill: C.muted });
+    });
+    const sample = svg("text", { x: W / 2, y: 356, "text-anchor": "middle", "font-size": 13, fill: C.ink }, root);
+    const sampleL = svg("text", { x: W / 2, y: 336, "text-anchor": "middle", "font-size": 11, fill: C.muted }, root);
+    const fixedLeg = svg("text", { x: W / 2, y: 386, "text-anchor": "middle", "font-size": 12, fill: C.soft, opacity: 0, text: "Dashed lines: the same run with the reward changed to F1." }, root);
+    const stops = [0, 0.2, 0.4, 0.6, 0.8, 1].map((f) => Math.round(f * (N - 1)));
+    const frames = stops.map((s) => ({ note: `Step ${s}. Weak reward ${smoothLog(R, "reward")[s].toFixed(2)}, honest F1 ${smoothLog(R, "strict")[s].toFixed(2)}, colours named ${smoothLog(R, "n_colors")[s].toFixed(2)}, colours not in the image ${smoothLog(R, "hallucinated")[s].toFixed(2)}.`, s }));
+    if (F) frames.push({ note: "Dashed lines add the same run with F1 as the reward. Compare the two runs in the table below rather than a single curve: each line is a short, noisy run.", s: N - 1, fixed: true });
+    stepper(fig, {
+      frames, tween: 1200, hold: 2200,
+      render(i, t, from) {
+        const s = lerp(frames[from].s, frames[i].s, t);
+        panels.forEach((p) => {
+          p.paths.forEach((q) => {
+            q.path.setAttribute("stroke-dashoffset", q.L * (1 - s / (N - 1)));
+            if (q.fx) q.fx.setAttribute("opacity", lerp(frames[from].fixed ? 1 : 0, frames[i].fixed ? 1 : 0, t));
+          });
+          p.cursor.setAttribute("x1", p.X(s)); p.cursor.setAttribute("x2", p.X(s));
+        });
+        fixedLeg.setAttribute("opacity", lerp(frames[from].fixed ? 1 : 0, frames[i].fixed ? 1 : 0, t));
+        const shown = R[Math.round(s)];
+        sampleL.textContent = `One rollout sampled at step ${Math.round(s)}:`;
+        const text = JSON.stringify((shown.s || "").trim());
+        sample.textContent = text.length > 110 ? text.slice(0, 110) + "…" : text;
+      },
+    });
+  })();
+})();
+
+    </script>
+  </body>
+</html>

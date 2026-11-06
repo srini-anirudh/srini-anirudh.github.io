@@ -1,0 +1,1893 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    BLOG ANIMATION CONTRACT
+
+    Apply these requirements to every animated figure in the article:
+
+    1. Build detailed, cinematic sequences with many meaningful frames or finely
+       interpolated states. Motion should explain the idea rather than merely
+       decorate it; avoid abrupt two-state transitions.
+    2. Every animation must provide Previous and Next controls for manual,
+       frame-by-frame or stage-by-stage exploration.
+    3. Animations should play automatically when appropriate and provide one
+       clear Play/Pause control that supports pausing and resuming from the
+       current frame.
+    4. Provide 0.5x, 1x, and 2x playback-speed controls. The selected speed must
+       be visually and programmatically indicated with aria-pressed.
+    5. Use cinematic camera language where it improves explanation: smooth zoom
+       in/out, pans, focus transitions, tracked highlights, staged reveals, and
+       deliberate easing. Keep labels readable throughout every camera move.
+    6. Display the current frame/stage and total frame/stage count, and preserve
+       the current position when playback speed changes or playback resumes.
+    7. Pause automatic playback while the reader is manually interacting with a
+       figure. Resume only through an explicit action or a clearly documented,
+       gentle timeout.
+    8. Honor prefers-reduced-motion. In reduced-motion mode, disable autoplay,
+       zooms, pans, and non-essential transitions while retaining Previous/Next
+       access to every explanatory state.
+    9. Keep controls keyboard accessible, use semantic buttons, add visible focus
+       states, and provide useful aria-labels and live status text.
+    10. Export one representative animation as a seamless GIF for the blog index
+        card. Use the article's strongest explanatory moment, not a generic
+        decoration. Aim for 6–10 seconds, 960×540 (16:9), a smooth loop, and an
+        optimized file size around 3 MB or less. Save it as
+        blogs/[ARTICLE-SLUG]/preview.gif. Also export a matching static poster
+        as blogs/[ARTICLE-SLUG]/preview.png for prefers-reduced-motion and slow connections.
+        Add both assets and useful alt text to the article card in blogs/index.html.
+
+    Recommended control order:
+    [Previous] [Play/Pause] [Next] [0.5x] [1x] [2x] [Frame NN / Total]
+  -->
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Patram-Bench measures vision-language models on 52,607 Indian documents in 23 languages, 13 domains and 52 tasks. What it shows: low-resource scripts, code-mixing, layout and reading the page are where models fail." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Patram-Bench: A Multilingual Benchmark for Indian Document Understanding" />
+    <meta property="og:description" content="Patram-Bench measures vision-language models on 52,607 Indian documents in 23 languages, 13 domains and 52 tasks. What it shows: low-resource scripts, code-mixing, layout and reading the page are where models fail." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Patram-Bench: A Multilingual Benchmark for Indian Document Understanding" />
+    <meta name="twitter:description" content="Patram-Bench measures vision-language models on 52,607 Indian documents in 23 languages, 13 domains and 52 tasks. What it shows: low-resource scripts, code-mixing, layout and reading the page are where models fail." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/preview.png" />
+    <title>Patram-Bench: A Multilingual Benchmark for Indian Document Understanding | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/" },
+        "headline": "Patram-Bench: Measuring How Models Read Indian Documents",
+        "description": "Patram-Bench measures vision-language models on 52,607 Indian documents in 23 languages, 13 domains and 52 tasks. What it shows: low-resource scripts, code-mixing, layout and reading the page are where models fail.",
+        "image": "https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["Document AI", "Benchmarks", "Indic languages", "Vision-language models", "Multilingual evaluation"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#sovereign-fm" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --panel: #0f1317;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        --indic: "Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Mangal", "Noto Sans Bengali", "Kohinoor Bangla", "Bangla Sangam MN", "Noto Sans Tamil", "Tamil Sangam MN", "Noto Nastaliq Urdu", "Geeza Pro", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 12ch; margin: 28px 0 18px; font: 800 clamp(48px, 9vw, 112px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 50px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 26px/1.1 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      /* Style only the inline TOC here. The shared blog shell creates and safely
+         positions the Distill-inspired desktop rail from these same links. */
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+
+      /* ---------- article-specific additions ---------- */
+      .article-content a { color: var(--ink); text-underline-offset: 3px; }
+      .lede { font-size: 20.5px; color: var(--ink-soft); }
+      .m { font: 0.86em/1 var(--mono); }
+      .ind { font-family: var(--indic); }
+      .article-content ul, .article-content ol { margin: 0 0 20px; padding-left: 1.3em; }
+      .article-content li { margin-bottom: 8px; }
+      .eq { margin: 22px 0; padding: 14px 16px; overflow-x: auto; background: var(--paper-bright); border: 1px solid var(--rule); font: 15.5px/1.9 var(--mono); }
+      .eq .where { display: block; margin-top: 8px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+      .eq sub, .eq sup { font-size: 0.72em; }
+      .eq .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 4px; }
+      .eq .frac > span:first-child { border-bottom: 1px solid var(--ink); padding: 0 4px; }
+      .eq .frac > span { padding: 0 4px; line-height: 1.5; }
+
+      .callout { margin: 26px 0; padding: 15px 18px; background: var(--paper-bright); border: 1px solid var(--rule); border-left: 3px solid #0b5ea8; }
+      .callout-nuance { border-left-color: #d66f00; }
+      .callout-label { margin: 0 0 6px !important; color: #0b5ea8; font: 600 11px/1.3 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .callout-nuance .callout-label { color: #b35c00; }
+      .callout p { font-size: 17px; }
+      .callout p:last-child { margin-bottom: 0; }
+      html.dark-mode .callout-label { color: #6fb7ff; }
+      html.dark-mode .callout-nuance .callout-label { color: #ffb45c; }
+
+      .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 22px 0 26px; }
+      .stat { padding: 10px 12px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .stat b { display: block; font: 700 24px/1.1 var(--display); color: var(--ink); }
+      .stat span { color: var(--muted); font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .key-list { padding-left: 1.2em; }
+      .key-list li { margin-bottom: 12px; }
+      .tbl-note { color: var(--ink-soft); font-size: 16.5px; }
+      .comparison-table td strong { font-weight: 600; }
+      .comparison-table tr.ours td { background: #fdf3e6; }
+
+      /* Light figure system. Colours are literal so figures stay on paper in either theme. */
+      .fig { --f-bg: #f7f6f3; --f-rule: #cac6bd; --f-ink: #14171a; --f-soft: #474e53; --f-muted: #7b8388; --f-blue: #0b5ea8; --f-orange: #d66f00;
+        margin: 36px 0 40px; padding: 18px 18px 14px; color: var(--f-ink); background: var(--f-bg); border: 1px solid var(--f-rule); }
+      .fig.wide { width: min(1080px, calc(100vw - 40px)); margin-left: calc(50% - min(540px, 50vw - 20px)); }
+      .fig-label { margin: 0 0 12px !important; color: var(--f-muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .fig-stage { overflow-x: auto; overflow-y: hidden; background: #fbfaf8; border: 1px solid #e3e0d9; }
+      .fig-stage svg { display: block; width: 100%; min-width: 700px; height: auto; font-family: var(--mono); }
+      .fig-stage svg .disp { font-family: var(--display); }
+      .fig-stage svg .ind { font-family: var(--indic); }
+      .fig-stage svg text { user-select: none; }
+      .fig-step { min-height: 3.1em; margin: 12px 0 0 !important; color: var(--f-soft); font: 16px/1.5 var(--body); }
+      .fig figcaption { margin-top: 10px; padding-top: 10px; color: var(--f-soft); border-top: 1px solid var(--f-rule); font: italic 15.5px/1.5 var(--body); }
+      .fig figcaption b { font-style: normal; font-weight: 600; color: var(--f-ink); }
+      .anim-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 12px; }
+      .anim-controls button, .seg button { min-height: 38px; padding: 7px 11px; color: var(--f-ink); background: #fff; border: 1px solid var(--f-ink); border-radius: 3px; cursor: pointer; font: 600 11px/1 var(--mono); }
+      .anim-controls button:hover, .seg button:hover { background: #efede9; }
+      .anim-controls button[aria-pressed="true"], .seg button[aria-pressed="true"] { color: #fff; background: var(--f-orange); border-color: var(--f-orange); }
+      .anim-controls button:focus-visible, .seg button:focus-visible, .fig input:focus-visible, .fig select:focus-visible, .chip:focus-visible { outline: 2px solid var(--f-blue); outline-offset: 2px; }
+      .anim-status { margin-left: auto; color: var(--f-muted); font: 11.5px/1.4 var(--mono); }
+      .seg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 12px; }
+      .seg-label { margin-right: 4px; color: var(--f-muted); font: 600 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .fig-hint { margin: 8px 0 0 !important; color: var(--f-muted); font: 12px/1.5 var(--mono); }
+      .scroll-hint { display: none; }
+      @media (max-width: 760px) { .scroll-hint { display: block; } }
+      .fig.rm *, .fig.rm svg * { transition: none !important; }
+      .fade { transition: opacity .6s ease; }
+      .move { transition: transform .9s cubic-bezier(.65,0,.35,1), opacity .6s ease; transform-box: view-box; }
+      .draw { transition: stroke-dashoffset 1.2s cubic-bezier(.65,0,.35,1), opacity .5s ease; }
+
+      /* Figure 3: benchmark map */
+      .map-grid { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 14px; }
+      .map-col h4 { margin: 0 0 8px; color: var(--f-muted); font: 600 11px/1.3 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+      .chip { min-height: 34px; padding: 6px 9px; color: var(--f-ink); background: #fff; border: 1px solid var(--f-rule); border-radius: 3px; cursor: pointer; font: 500 12px/1.2 var(--mono); text-align: left; }
+      .chip:hover { border-color: var(--f-ink); }
+      .chip[aria-pressed="true"] { color: #fff; background: var(--f-blue); border-color: var(--f-blue); }
+      .chip.hr { border-left: 4px solid #0b5ea8; }
+      .chip.lr { border-left: 4px solid #d66f00; }
+      .chip.perc { border-left: 4px solid #2f8f5b; }
+      .chip.reas { border-left: 4px solid #6a4c93; }
+      .chip[aria-pressed="true"].hr, .chip[aria-pressed="true"].lr, .chip[aria-pressed="true"].perc, .chip[aria-pressed="true"].reas { border-left-color: #fff; }
+      .map-detail { margin-top: 14px; padding: 14px 16px; min-height: 190px; background: #fff; border: 1px solid var(--f-rule); transition: opacity .35s ease; }
+      .map-detail h5 { margin: 0 0 4px; font: 700 21px/1.2 var(--display); }
+      .map-detail .kicker { margin: 0 0 8px; color: var(--f-orange); font: 600 11px/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+      .map-detail p { margin: 0 0 8px; font-size: 16px; line-height: 1.5; }
+      .map-detail ul.tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 10px; padding: 0; list-style: none; }
+      .map-detail ul.tags li { margin: 0; padding: 3px 7px; background: #f1efe9; border: 1px solid #e3e0d9; font: 12px/1.3 var(--mono); }
+      .map-detail .ex { margin-top: 8px; padding: 10px 12px; background: #fbfaf8; border-left: 3px solid var(--f-blue); }
+      .map-detail .ex .q { font: 15px/1.5 var(--indic); }
+      .map-detail .ex .meta { color: var(--f-muted); font: 11.5px/1.4 var(--mono); }
+      .legend-line { margin: 10px 0 0 !important; color: var(--f-muted); font: 11.5px/1.5 var(--mono); }
+      .legend-line i { display: inline-block; width: 10px; height: 10px; margin: 0 4px 0 10px; vertical-align: -1px; }
+
+      /* Figure 4: drawn form */
+      .form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+      .form-grid .fig-stage svg { min-width: 0; }
+      .task-panel { padding: 14px 16px; background: #fff; border: 1px solid var(--f-rule); min-height: 420px; }
+      .task-panel .tk { margin: 0 0 2px; color: var(--f-orange); font: 600 11.5px/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+      .task-panel .fam { margin: 0 0 10px; color: var(--f-muted); font: 11.5px/1.3 var(--mono); }
+      .task-panel h5 { margin: 0 0 10px; font: 700 22px/1.15 var(--display); }
+      .task-panel .lbl { margin: 10px 0 4px; color: var(--f-muted); font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
+      .task-panel .prompt { padding: 8px 10px; background: #f3f7fb; border-left: 3px solid var(--f-blue); font: 16px/1.45 var(--indic); }
+      .task-panel pre { margin: 0; padding: 8px 10px; overflow-x: auto; background: #fbf4ea; border-left: 3px solid var(--f-orange); font: 12.5px/1.55 var(--mono); white-space: pre-wrap; word-break: break-word; }
+      .task-panel .why { margin: 10px 0 0; color: var(--f-soft); font: 15px/1.5 var(--body); }
+      .task-panel > * { transition: opacity .35s ease; }
+
+      /* Figure 6 and 7: calculators */
+      .calc { display: grid; gap: 12px; }
+      .calc-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .calc input[type="text"] { flex: 1 1 260px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--f-ink); border-radius: 3px; background: #fff; font: 17px/1.3 var(--indic); }
+      .calc select { min-height: 38px; padding: 6px 8px; border: 1px solid var(--f-ink); border-radius: 3px; background: #fff; font: 13px var(--mono); max-width: 100%; min-width: 0; flex: 1 1 220px; }
+      .calc, .calc-cols > div, .calc > div { min-width: 0; }
+      .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+      .readout div { padding: 8px 10px; background: #fff; border: 1px solid var(--f-rule); }
+      .readout b { display: block; font: 700 22px/1.15 var(--display); }
+      .readout span { color: var(--f-muted); font: 600 10.5px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+      .nld-track { position: relative; height: 26px; background: linear-gradient(90deg, #e8f1fa 0 50%, #fbe9e6 50% 100%); border: 1px solid var(--f-rule); }
+      .nld-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #0b5ea8; opacity: .85; transition: width .45s cubic-bezier(.65,0,.35,1), background .3s; }
+      .nld-tau { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: #b8432f; }
+      .nld-axis { display: flex; justify-content: space-between; color: var(--f-muted); font: 11px var(--mono); }
+      .calc-note { margin: 0 !important; color: var(--f-soft); font: 15.5px/1.5 var(--body); }
+      .bars { display: grid; gap: 6px; }
+      .bar-row { display: grid; grid-template-columns: 170px 1fr 52px; align-items: center; gap: 10px; font: 12.5px var(--mono); color: var(--f-soft); }
+      .bar-track { position: relative; height: 18px; background: #efede9; }
+      .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; transition: width .5s cubic-bezier(.65,0,.35,1); }
+      .bar-fill.ee { background: #7b8388; }
+      .bar-fill.in { background: #0b5ea8; }
+      .bar-fill.pert { background: #d66f00; }
+      .bar-val { text-align: right; color: var(--f-ink); font-weight: 600; }
+      .formula { padding: 10px 12px; overflow-x: auto; background: #fff; border: 1px solid var(--f-rule); font: 14px/1.8 var(--mono); white-space: nowrap; }
+      .formula b { color: var(--f-orange); }
+      .calc-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+      .calc-cols h4 { margin: 0 0 6px; font: 700 18px/1.2 var(--display); }
+      .calc input[type="range"] { width: 100%; accent-color: var(--f-orange); }
+
+      /* Figure 8: heatmap */
+      .hm-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--f-rule); }
+      table.hm { border-collapse: separate; border-spacing: 2px; margin: 6px; font: 12px/1 var(--mono); }
+      table.hm th { padding: 6px 6px; color: var(--f-soft); font-weight: 600; text-align: center; white-space: nowrap; }
+      table.hm th.model { text-align: right; font-weight: 500; }
+      table.hm th.model.closed { color: var(--f-orange); font-weight: 600; }
+      table.hm td { min-width: 44px; height: 26px; padding: 0 4px; text-align: center; cursor: default; transition: outline-color .2s; outline: 2px solid transparent; outline-offset: -2px; }
+      table.hm td:hover, table.hm td.hot { outline-color: #14171a; }
+      table.hm th.grp { color: #fff; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+      .hm-read { min-height: 1.6em; margin: 10px 0 0 !important; color: var(--f-ink); font: 13px/1.5 var(--mono); }
+      .hm-scale { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--f-muted); font: 11px var(--mono); }
+      .hm-scale i { display: block; width: 160px; height: 10px; background: linear-gradient(90deg, #eef4fa, #0b5ea8); border: 1px solid var(--f-rule); }
+
+      /* Figure 10 */
+      .rank-cards text { font-family: var(--mono); }
+
+      @media (max-width: 760px) {
+        .map-grid { grid-template-columns: 1fr; }
+        .form-grid { grid-template-columns: 1fr; }
+        .calc-cols { grid-template-columns: 1fr; }
+        .task-panel { min-height: 0; }
+        .bar-row { grid-template-columns: 120px 1fr 46px; }
+      }
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .fig { padding: 12px 10px 10px; }
+        .anim-status { margin-left: 0; width: 100%; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article patram-bench-indian-document-understanding-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Research · Sovereign foundation models</p>
+        <h1 class="article-title" style="max-width:15ch">Patram-Bench: Measuring How Models Read Indian Documents</h1>
+        <p class="article-subtitle">A benchmark of 52,607 Indian documents in 23 languages, 13 domains and 52 tasks, and what it shows about where vision-language models fail: low-resource scripts, code-mixed questions, layout, and reading the page at all.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Document AI</span><span>Benchmarks</span><span>Indic languages</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>34 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Sovereign Foundation Models series">
+      <a class="ml-series-nav__identity" href="../../research.html#sovereign-foundation-models">Sovereign Foundation Models</a>
+      <span class="ml-series-nav__position">02 of 02 &middot; Evaluation</span>
+      <div class="ml-series-nav__links"></div>
+    </nav>
+
+    <main class="article-content">
+      <!-- Required TOC source for both layouts: this inline version remains
+           visible at every width, while assets/js/blogs.js derives the shared
+           side rail only after this main TOC has scrolled past. On large desktop
+           screens it owns a fixed left column, and the shared shell keeps wide
+           figures, tables, and interactives in the content canvas to its right.
+           Keep every href paired with a stable section id. Do not add a separate
+           fixed rail or a viewport-centred exception. -->
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#why-hard">Why Indian documents are hard to read</a></li>
+          <li><a href="#coverage">What existing benchmarks cover</a></li>
+          <li><a href="#design">Three axes: languages, tasks and domains</a></li>
+          <li><a href="#one-form">One form, many tasks</a></li>
+          <li><a href="#building">How the data was built and checked</a></li>
+          <li><a href="#anls">Scoring answers: ANLS and an LLM judge</a></li>
+          <li><a href="#new-metrics">Two new metrics: DUCLI and SRS</a></li>
+          <li><a href="#protocol">The evaluation protocol</a></li>
+          <li><a href="#results">Results across tasks</a></li>
+          <li><a href="#languages">Results across languages</a></li>
+          <li><a href="#cross-lingual">Cross-lingual and code-mixed questions</a></li>
+          <li><a href="#reading">Do models read the page?</a></li>
+          <li><a href="#limits">Limits of the benchmark</a></li>
+          <li><a href="#related-work">How it relates to our other work</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="overview">
+        <h2>Overview</h2>
+        <p class="lede">Most of what we know about how well vision-language models read documents comes from English pages. This post asks a narrower question: how well do they read the documents people in India actually handle?</p>
+        <p>Think of a ration card form printed in Hindi and English. A Telugu newspaper with six stories on one page. A Bengali bank statement. A government gazette scanned decades ago, with a seal printed over the text. A question about any of these might arrive in Hindi, in English, in Hindi typed with Latin letters, or in a sentence that switches between two languages halfway through.</p>
+        <p>The benchmarks the field reports on rarely contain such pages. DocVQA, the dataset that made document question answering a standard task, is built on English industry documents. Multilingual benchmarks exist, but the ones that include Indian languages cover one or a few tasks. So a model can top every leaderboard and still fail on a Marathi application form, and nobody would know.</p>
+        <p>Patram-Bench is our attempt to measure this. It is a benchmark for Indian document understanding, published as a poster at ICDAR 2026. Its scale:</p>
+        <div class="stat-row" role="list" aria-label="Patram-Bench at a glance">
+          <div class="stat" role="listitem"><b>52,607</b><span>documents</span></div>
+          <div class="stat" role="listitem"><b>23</b><span>languages</span></div>
+          <div class="stat" role="listitem"><b>13</b><span>domains</span></div>
+          <div class="stat" role="listitem"><b>71</b><span>document classes</span></div>
+          <div class="stat" role="listitem"><b>52</b><span>tasks</span></div>
+          <div class="stat" role="listitem"><b>2.4M+</b><span>QA annotations</span></div>
+          <div class="stat" role="listitem"><b>29</b><span>VLMs evaluated</span></div>
+        </div>
+        <p>The tasks run from perception (reading text, finding regions, converting a page to Markdown or HTML) to reasoning (multi-hop questions, arithmetic, questions asked across languages). Two new metrics measure how much a model keeps when the language changes between document and question, and how much it keeps when a question is code-mixed or transliterated.</p>
+        <p>The post follows the paper's logic. It starts with why Indian documents are hard for a model, and what existing benchmarks cover. It then builds the benchmark one decision at a time: the three axes, the tasks, how the data was collected and checked, and how answers are scored. The second half reads the results by task, by language, and by whether the model looked at the page at all.</p>
+        <p>Five findings stand out. Each is developed later in the post.</p>
+        <ul class="key-list">
+          <li><strong>No single model is best.</strong> Gemini 3 Pro, GPT-5 and Claude 4 Sonnet each lead different task families, and on layout, specialist detectors beat every general model (<a href="#results">results across tasks</a>).</li>
+          <li><strong>The low-resource cliff is steep and uneven.</strong> Every plotted model loses about 40% of its English score on Sindhi, while Kashmiri, also low-resource, costs far less (<a href="#languages">results across languages</a>).</li>
+          <li><strong>The document's language matters more than the question's.</strong> Asking about an English page in an Indic language barely changes accuracy. Moving the page itself into an Indic language costs 31% to 61% (<a href="#cross-lingual">cross-lingual questions</a>).</li>
+          <li><strong>Code-mixed questions break almost every model.</strong> Twelve of thirteen open models score 0.10 to 0.21 on code-mixed input, against 0.52 to 0.57 on the same content in one language (<a href="#cross-lingual">code-mixed questions</a>).</li>
+          <li><strong>The largest open models read the page least.</strong> With the image removed, Qwen3-VL-235B and InternVL3.5-241B still give plausible answers. The most image-dependent open models are mid-sized (<a href="#reading">do models read the page?</a>).</li>
+        </ul>
+      </section>
+
+      <section id="why-hard">
+        <h2>Why Indian documents are hard to read</h2>
+        <p>Start with a single word. In English, the letters of a printed word sit side by side with small gaps between them. A model that has seen enough English learns where one letter ends and the next begins. Most Indian scripts break this assumption in at least one way. Figure 1 walks through six of them, from the shape of one word to the condition of a whole page.</p>
+        <p><strong>Connected headlines.</strong> Devanagari, the script of Hindi, Marathi, Nepali and several other languages, joins the letters of a word along a horizontal bar called the <em>shirorekha</em>. Inside a word there are no gaps. A system that finds characters by looking for white space between them sees one long shape.</p>
+        <p><strong>Stacked conjuncts.</strong> Brahmic scripts, such as Bengali, combine consonants into a single shape. The Bengali <span class="ind">ক্ষ</span> is one visual unit but three Unicode code points: two consonants and a joiner. A model must learn that one picture maps to three characters.</p>
+        <p><strong>Visual order differs from stored order.</strong> In Hindi <span class="ind">कि</span> (ki), the vowel sign is drawn to the <em>left</em> of the consonant, but it is stored <em>after</em> it. Some Bengali vowel signs are split into two parts on both sides of the consonant. Reading left to right and writing what you see produces the wrong string.</p>
+        <p><strong>Several scripts on one page.</strong> A government circular can carry Devanagari, Latin, Tamil and Perso-Arabic text side by side. The model has to switch scripts mid-page, without being told.</p>
+        <p><strong>Mixed and romanised language.</strong> People often write Hindi in Latin letters (transliteration) and mix English words into Hindi sentences (code-mixing). The question "Applicant ki monthly income kitni hai?" is perfectly normal. A benchmark that only asks questions in native script never tests it.</p>
+        <p><strong>Real-world pages.</strong> Many documents are degraded scans with skew, noise and fading. Seals and stamps overlap text. Newspapers pack many columns onto one page.</p>
+
+        <figure class="fig wide" id="fig-scripts">
+          <p class="fig-label">Figure 1 &middot; Six reasons Indian documents are hard for a model</p>
+          <div class="fig-stage">
+            <svg id="scripts-svg" viewBox="0 0 1980 980" role="img" aria-labelledby="scripts-title">
+              <title id="scripts-title">Six tiles: connected headlines in Devanagari, stacked conjuncts in Bengali, visual versus stored character order, several scripts on one page, transliterated and code-mixed questions, and a degraded scan with a seal.</title>
+            </svg>
+          </div>
+          <p class="fig-hint scroll-hint">Scroll the figure sideways to see all of it.</p>
+          <p class="fig-step" id="scripts-step" aria-live="polite"></p>
+          <div class="anim-controls" role="group" aria-label="Figure 1 animation controls"></div>
+          <figcaption><b>Figure 1.</b> The camera visits each difficulty in turn, then returns to the overview with the step of reading that each one breaks. The first three are properties of a script. The fourth and fifth are properties of how people use language. The last is a property of the page. A benchmark has to stress all of them, or a model can score well while failing on one.</figcaption>
+        </figure>
+
+        <p>Why do these hurt a vision-language model more than a person? A model learns to read a script from images paired with text in that script. The web has a lot of such pairs for Hindi and Bengali, and far fewer for Santali or Kashmiri. The language side has a similar gap. Many tokenizers split words in Indian languages into more pieces than English words, so the same answer takes more tokens to write and gives more chances to slip.</p>
+        <p>Finally, the documents themselves differ from the English pages benchmarks are built from. A large share of Indian paperwork is government forms, notices and certificates; healthcare bills and prescriptions; and school and exam material. Their layouts and vocabulary are specific to the country. A model trained mostly on English receipts and scientific papers has seen few of them.</p>
+      </section>
+
+      <section id="coverage">
+        <h2>What existing benchmarks cover</h2>
+        <p>If Indian documents are hard, why not measure them with an existing benchmark? Because each existing benchmark trades one kind of coverage for another. Table 1 lays them out along the aspects that matter here: whether the documents are Indian, how many languages, how many tasks, how many documents, how many domains and classes, and how many annotations.</p>
+
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 1 &middot; Document benchmarks compared with Patram-Bench</caption>
+            <thead>
+              <tr><th>Benchmark</th><th>Indic</th><th>Languages</th><th>Tasks</th><th>Documents</th><th>Domains</th><th>Classes</th><th>Annotations</th><th>Main focus</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>DocVQA</strong></td><td>No</td><td>1 (English)</td><td>1</td><td>12,000+</td><td>not reported</td><td>not reported</td><td>50,000 questions</td><td>Extractive question answering on industry documents</td></tr>
+              <tr><td><strong>MTVQA</strong></td><td>No</td><td>9</td><td>1</td><td>8.8k</td><td>not reported</td><td>not reported</td><td>21.8k</td><td>Text-centric VQA, written natively per language</td></tr>
+              <tr><td><strong>XFUND (test)</strong></td><td>No</td><td>7</td><td>1</td><td>455</td><td>1</td><td>not reported</td><td>97k+</td><td>Key–value form understanding</td></tr>
+              <tr><td><strong>OmniDocBench</strong></td><td>No</td><td>3</td><td>5</td><td>981</td><td>9</td><td>19</td><td>100k+</td><td>Page parsing with layout and attribute labels</td></tr>
+              <tr><td><strong>OCRBench v2</strong></td><td>No</td><td>2</td><td>23</td><td>9.5k</td><td>not reported</td><td>not reported</td><td>10k</td><td>OCR, text localisation and text reasoning</td></tr>
+              <tr><td><strong>CC-OCR</strong></td><td>No</td><td>10</td><td>4</td><td>7.1k</td><td>7</td><td>18</td><td>7.1k</td><td>Reading, parsing and key information extraction</td></tr>
+              <tr><td><strong>KITAB-Bench</strong></td><td>No (Arabic)</td><td>1</td><td>8</td><td>8.8k</td><td>9</td><td>36</td><td>8.8k</td><td>Arabic OCR and document understanding</td></tr>
+              <tr><td><strong>IndicDLP (test)</strong></td><td>Yes</td><td>12</td><td>1</td><td>15k+</td><td>12</td><td>42</td><td>185.6k</td><td>Document layout parsing</td></tr>
+              <tr><td><strong>IndicVisionBench</strong></td><td>Yes</td><td>10</td><td>3</td><td>5k</td><td>not reported</td><td>not reported</td><td>37k+</td><td>OCR, translation and VQA on culturally grounded images</td></tr>
+              <tr class="ours"><td><strong>Patram-Bench</strong></td><td>Yes</td><td>23</td><td>52</td><td>52,607</td><td>13</td><td>71</td><td>2.4M+</td><td>Perception and reasoning on Indian documents, with cross-lingual and script-robustness settings</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tbl-note">How to read this table: each row is a benchmark, and the columns are its coverage. Figures for the other benchmarks follow the comparison in the Patram-Bench paper, except the DocVQA row, which comes from the DocVQA paper. The pattern to notice is the trade-off. Breadth in tasks (OCRBench v2) comes with two languages. Breadth in languages (CC-OCR, MTVQA) comes with few tasks. The two Indic benchmarks cover one and three tasks. Patram-Bench is the only row with Indian documents, many languages and many tasks together.</p>
+
+        <p>Two benchmarks in the table are close relatives. IndicDLP, from IIIT Hyderabad, is a layout dataset in 11 Indian languages and English across 12 domains. It measures where regions are, not what they say. IndicVisionBench covers English and 10 Indian languages with OCR, translation and VQA, but on culturally grounded images rather than documents. Neither tests parsing, structured extraction, multi-hop reasoning or code-mixed questions on documents.</p>
+        <p>There is a cheaper route to a multilingual benchmark: take an English one and translate its questions. MTVQA's authors pointed out the flaw. Translating the question and answer leaves the text inside the image in the original language, a "visual-textual misalignment". A translated DocVQA asks a Hindi question about an English page. It measures whether the model understands Hindi questions. It does not measure whether the model can read Hindi.</p>
+
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Translated benchmarks test the easy half of the problem. In Patram-Bench's cross-lingual results, changing the question's language on an English page moved ANLS by at most 0.05 for every model reported. Changing the page itself to an Indic language cost between 31% and 61% of the score (<a href="#cross-lingual">details below</a>). A benchmark built by translating questions would have missed the larger loss. In practice: multilingual document evaluation needs documents written in the target language, not translated prompts.</p></aside>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The "Annotations" column does not count the same thing in every row. For Patram-Bench it counts question–answer pairs. For IndicDLP it counts layout regions. For XFUND it counts labelled form entities. A layout box and a multi-hop question differ a lot in effort and in what they test. In practice: compare benchmarks on documents, languages and tasks first, and read annotation counts only within one benchmark.</p></aside>
+      </section>
+
+      <section id="design">
+        <h2>Three axes: languages, tasks and domains</h2>
+        <p>A benchmark is a sample of the situations a model will face. For Indian documents, three things vary at once, and each can make a model fail on its own.</p>
+        <p><strong>Language and script.</strong> Patram-Bench covers 23 languages, from high-resource ones such as Hindi and Bengali to low-resource ones such as Santali and Kashmiri. For the language-robustness study, the paper groups five Indian languages as high-resource (Hindi, Bengali, Telugu, Tamil, Marathi) and five as low-resource (Meitei, Santali, Sindhi, Kashmiri, Konkani), with English as the anchor.</p>
+        <p><strong>Task.</strong> The 52 tasks fall into eight families in two groups. Perception tasks ask the model to see: recognise text, find regions, convert a page to a structured format, extract a chart or table. Reasoning tasks ask it to think with what it sees: answer extractive and abstractive questions, do arithmetic and multi-hop reasoning, reason over charts and tables, and cope with cross-lingual, transliterated and code-mixed questions.</p>
+        <p><strong>Domain.</strong> The documents come from 13 domains and 71 fine-grained classes: government circulars and tenders, exam papers and marksheets, bank statements and payslips, prescriptions and hospital bills, comics and religious texts, street signs and shop boards. A model that reads a printed circular well may fail on a handwritten prescription in the same language.</p>
+        <p>Explore the three axes in Figure 2. Each chip opens what the public sources say about it, with real examples from the project page where they exist.</p>
+
+        <figure class="fig wide" id="fig-map">
+          <p class="fig-label">Figure 2 &middot; The benchmark map: languages, task families and domains</p>
+          <div class="map-grid">
+            <div class="map-col"><h4>Languages (named in the public sources)</h4><div class="chips" id="map-lang" role="group" aria-label="Languages"></div></div>
+            <div class="map-col"><h4>Task families (8 families, 52 tasks)</h4><div class="chips" id="map-task" role="group" aria-label="Task families"></div></div>
+            <div class="map-col"><h4>Domains (13 domains, 71 classes)</h4><div class="chips" id="map-dom" role="group" aria-label="Domains"></div></div>
+          </div>
+          <p class="legend-line"><i style="background:#0b5ea8"></i>high-resource in the robustness study <i style="background:#d66f00"></i>low-resource <i style="background:#2f8f5b"></i>perception family <i style="background:#6a4c93"></i>reasoning family</p>
+          <div class="map-detail" id="map-detail" aria-live="polite"></div>
+          <figcaption><b>Figure 2.</b> Click any chip. Language chips give the usual script and, for the eleven languages in the robustness study, the G-Eval scores of GPT-5 and LLaVA-1.6-13B as published. Task chips list the tasks the project page shows in each family, with a real benchmark example. Domain chips list the document classes shown in the paper's taxonomy figure. The public sources name 19 of the 23 languages; the full list is in the paper.</figcaption>
+        </figure>
+
+        <p>The three axes are not a full grid. Not every task makes sense for every domain (there is no table-to-LaTeX task on a street sign), and not every language has every document type. The axes are best read as three independent ways of slicing one large pool of documents, each of which can expose a different failure.</p>
+      </section>
+
+      <section id="one-form">
+        <h2>One form, many tasks</h2>
+        <p>The task list is easier to understand on a single page. Figure 3 is a drawn ration card application, in Hindi and English, of the kind Patram-Bench's forms domain contains. It is an illustration, not a benchmark item. Step through it to see what each task family asks of the same page, and what output it expects.</p>
+
+        <figure class="fig wide" id="fig-form">
+          <p class="fig-label">Figure 3 &middot; One bilingual form, ten tasks</p>
+          <div class="form-grid">
+            <div class="fig-stage">
+              <svg id="form-svg" viewBox="0 0 470 600" role="img" aria-labelledby="form-title">
+                <title id="form-title">A drawn bilingual Hindi and English ration card application form with applicant fields, a family-members table in Hindi, a seal, a signature and a received stamp.</title>
+              </svg>
+            </div>
+            <div class="task-panel" id="form-panel" aria-live="polite"></div>
+          </div>
+          <div class="anim-controls" role="group" aria-label="Figure 3 animation controls"></div>
+          <figcaption><b>Figure 3.</b> A drawn example, not a benchmark item. Prompts in steps 2 to 4 reuse the wording of Patram-Bench's own task prompts. The questions in the later steps are ours, written to show what each task family tests. The table headers are in Hindi only, so the English question in step 7 can only be answered by reading Hindi.</figcaption>
+        </figure>
+
+        <p>Two things stand out on this one page. First, the output formats differ a lot. Line recognition expects a string. Layout detection expects labelled boxes. Parsing expects HTML. Extraction expects JSON. Question answering expects a short answer. A benchmark that spans these needs a different scoring rule for each, which we come to below.</p>
+        <p>Second, the last four questions all have the same answer source but different surface forms. The Hindi question, the transliterated one and the code-mixed one ask the same thing. A model that understands the form should answer all three. Patram-Bench uses exactly this property to measure script robustness: same content, different form of the question.</p>
+      </section>
+
+      <section id="building">
+        <h2>How the data was built and checked</h2>
+        <p>A benchmark is only as good as its data. Patram-Bench combines two sources: real Indian documents, and synthetic charts, tables and diagrams made by a pipeline called Patram-Syn.</p>
+        <h3>Native documents</h3>
+        <p>The real documents come from four kinds of sources. Governance and administrative documents (notifications, circulars and forms) come from national portals across several states and languages. Educational documents include competitive exam papers, school textbooks and university theses in Indian-language mediums. Financial documents include annual reports, tax filings and regulatory filings published on BSE and NSE in regional languages. Archival and cultural documents include scan-heavy regional newspapers, historic novels, advertisements and recipe books spanning decades.</p>
+        <p>The corpus covers handwritten, printed and mixed documents, with degraded scans and multi-column layouts. This is deliberate. Clean, single-column pages are where models already do well.</p>
+        <h3>Patram-Syn: synthetic charts, tables and diagrams</h3>
+        <p>Real charts and diagrams in Indian languages are rare, and they come with no record of the numbers behind them. So their ground truth must be typed by hand, and errors creep in. Patram-Syn generates them instead, in five stages:</p>
+        <ol>
+          <li><strong>Persona and topic.</strong> Pick one of 200,000 synthesised Indian personas, such as an educator, a public health officer or an accountant, and a topic that persona would care about.</li>
+          <li><strong>Source-aware retrieval.</strong> Retrieve background facts from public Indian sources (government portals, regional news, public reports) so that the content is grounded, not invented.</li>
+          <li><strong>Render from code.</strong> Generate data and code, and render it with Matplotlib (charts), LaTeX (tables), HTML (documents) or Mermaid (diagrams), with Indic font support.</li>
+          <li><strong>Translate and pose questions.</strong> Translate the text and re-render it in 22 languages, generate instruction pairs, and translate both question and answer.</li>
+          <li><strong>Human verification.</strong> 14 native-speaker experts review the layout, the script rendering and the correctness of each QA pair.</li>
+        </ol>
+        <p>Rendering from code is the key decision. When a chart is drawn from a data table, the table <em>is</em> the ground truth for chart-to-JSON and chart questions. Nothing has to be read back off the image by a person.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Synthetic Indic documents can be wrong in a way synthetic English documents rarely are: the text can be rendered incorrectly. A renderer that does not shape a script properly draws broken conjuncts or puts vowel signs in the wrong place. The data table is still right, but the picture no longer says what the table says, and the benchmark would mark correct reading as wrong. That is why Patram-Syn's human check covers script rendering, not just the QA pairs. In practice: when you synthesise documents in complex scripts, check the rendered image, not the source text.</p></aside>
+
+        <h3>Questions, answers and the gold set</h3>
+        <p>With 52,607 documents and 52 tasks, writing every question by hand was not feasible. The QA annotation pipeline uses a model to write and a mix of models and people to check:</p>
+        <ol>
+          <li>Gemini 3 Pro seeds question–answer pairs from each document.</li>
+          <li>An LLM quality-control pass flags hallucinations and grounding errors (answers not supported by the page).</li>
+          <li>14 annotators review a stratified subset, so every task, language and domain is represented in the review.</li>
+          <li>The result is a human-validated gold set of 51.3k QA pairs, inside the full set of more than 2.4 million annotations.</li>
+        </ol>
+        <p>Figure 4 animates both pipelines and shows where each kind of check sits.</p>
+
+        <figure class="fig wide" id="fig-pipe">
+          <p class="fig-label">Figure 4 &middot; From sources to the gold set</p>
+          <div class="fig-stage">
+            <svg id="pipe-svg" viewBox="0 0 1000 560" role="img" aria-labelledby="pipe-title">
+              <title id="pipe-title">Native documents and Patram-Syn synthetic documents flow into a pool of 52,607 documents. Gemini 3 Pro seeds QA pairs, an LLM QA/QC pass flags hallucinations, the remaining annotations form the full set of more than 2.4 million, and 14 annotators review a stratified subset to form the 51.3k gold set.</title>
+            </svg>
+          </div>
+          <p class="fig-hint scroll-hint">Scroll the figure sideways to see all of it.</p>
+          <p class="fig-step" id="pipe-step" aria-live="polite"></p>
+          <div class="anim-controls" role="group" aria-label="Figure 4 animation controls"></div>
+          <figcaption><b>Figure 4.</b> Dots are QA items; colours in the last stages mark strata (for example a language or task group). Red dots are items the LLM check flags. The proportions of dots are illustrative. The counts in the boxes (52,607 documents, 2.4M+ annotations, 14 annotators, 51.3k gold pairs) are from the paper.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The gold set is about 2% of the annotations (51.3k of 2.4M+). The rest were written by Gemini 3 Pro and checked by an LLM, not by a person. Two consequences follow. Results on the full set inherit any systematic error the generating and checking models share. And a model from the same family as the generator may find the questions' phrasing familiar. Gemini 3 Pro leads several task families, which is consistent with its strength but also with this effect; the public sources do not separate the two. In practice: for headline comparisons, prefer numbers on the human-validated gold set, and report which split a number comes from.</p></aside>
+      </section>
+
+      <section id="anls">
+        <h2>Scoring answers: ANLS and an LLM judge</h2>
+        <p>Once a model has answered, the answer must be scored. The simplest rule, exact match, fails on documents. If the page says "₹ 9,500" and the model writes "₹9,500", exact match gives zero for a correct reading.</p>
+        <p>Document VQA therefore uses ANLS, the Average Normalized Levenshtein Similarity, introduced with the ST-VQA benchmark. Build it up in three steps. The Levenshtein distance counts the fewest single-character insertions, deletions and substitutions that turn one string into the other. Dividing by the longer string's length gives the normalised distance NLD, between 0 and 1. Then ANLS turns distance into similarity, with a cut-off:</p>
+        <div class="eq">ANLS(<i>a</i>, <i>o</i>) = 1 − NLD(<i>a</i>, <i>o</i>) &nbsp; if NLD(<i>a</i>, <i>o</i>) &lt; τ, &nbsp; otherwise 0
+          <span class="where">NLD(<i>a</i>, <i>o</i>) = Levenshtein(<i>a</i>, <i>o</i>) / max(|<i>a</i>|, |<i>o</i>|), where <i>a</i> is the model's answer and <i>o</i> the ground truth. With τ = 0.5, any answer that needs edits to half or more of its characters scores 0. The score for a question is the best over its reference answers, averaged over questions.</span></div>
+        <p>The threshold is what makes ANLS work. Below it, a small slip costs a small amount. Above it, the answer is treated as a different answer, not a noisy copy of the right one. Try it in Figure 5, including the cases that expose what ANLS cannot see.</p>
+
+        <figure class="fig wide" id="fig-anls">
+          <p class="fig-label">Figure 5 &middot; ANLS on Indic answers</p>
+          <div class="calc">
+            <div class="seg" role="group" aria-label="Ground truth"><span class="seg-label">Ground truth</span></div>
+            <div class="calc-row"><label class="seg-label" for="anls-in">Model answer</label><input type="text" id="anls-in" autocomplete="off" spellcheck="false" /></div>
+            <div class="seg" role="group" aria-label="Example answers" id="anls-presets"><span class="seg-label">Try</span></div>
+            <div>
+              <div class="nld-track" aria-hidden="true"><div class="nld-fill" id="anls-fill"></div><div class="nld-tau"></div></div>
+              <div class="nld-axis"><span>NLD 0</span><span>τ = 0.5</span><span>1</span></div>
+            </div>
+            <div class="readout" aria-live="polite">
+              <div><b id="anls-d">0</b><span>edit distance</span></div>
+              <div><b id="anls-len">0</b><span>longer length</span></div>
+              <div><b id="anls-nld">0</b><span>NLD</span></div>
+              <div><b id="anls-score">1.000</b><span>ANLS</span></div>
+            </div>
+            <p class="calc-note" id="anls-note"></p>
+          </div>
+          <figcaption><b>Figure 5.</b> Type any answer or pick an example. The bar is the normalised edit distance; past the red line at τ = 0.5 the score drops to 0. As in the standard implementation, both strings are lower-cased and trimmed first. Lengths are counted in Unicode code points, so a Devanagari conjunct counts as several characters. Two of the examples are scored wrongly by ANLS in opposite directions: the Devanagari-digit answer is right but scores 0, and the wrong amount scores 0.857.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>ANLS has blind spots that matter more in Indian documents than in English ones. Indian scripts have their own digits, so "₹ ९,५००" and "₹ 9,500" are the same amount but differ in four of seven characters: ANLS gives 0. A wrong amount that differs by one digit, "₹ 9,800", gets 0.857. And a generative model that answers in a full sentence scores 0 even when the sentence contains the right value. Low absolute ANLS numbers for chatty models partly measure verbosity. In practice: normalise digits and strip answer templates before computing ANLS, and use an exact or numeric check for amounts and dates.</p></aside>
+
+        <p>ANLS suits short extractive answers. It cannot score an abstractive answer, a summary or an explanation, where many wordings are correct. For these, and for the language-robustness study, Patram-Bench uses G-Eval: a strong language model reads the question, the reference and the answer, and scores the answer on a rubric. The language-robustness scores below are G-Eval scores on a 0 to 100 scale. The per-task results are reported on a 0 to 1 scale with metrics suited to each family; the public sources do not list the metric for every task, so this post reads those numbers as relative comparisons.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>An LLM judge is itself a model that reads Indian languages unevenly. When it scores a Santali answer, it may be less reliable than when it scores a Hindi one. Then some of the measured drop from high-resource to low-resource languages could come from the judge, not the model being judged. The public sources do not report judge–human agreement per language. In practice: when an evaluation uses an LLM judge across languages, check its agreement with native speakers in the weakest language before trusting the slope.</p></aside>
+      </section>
+
+      <section id="new-metrics">
+        <h2>Two new metrics: DUCLI and SRS</h2>
+        <p>Averages hide the two failures this benchmark cares about most. A model can have a good average and still collapse whenever the question and the document are in different languages, or whenever the question is code-mixed. Patram-Bench adds two metrics to isolate these failures. Both are built from G-Eval scores.</p>
+        <h3>DUCLI: how much survives a change of language</h3>
+        <p>Start from a baseline: the model's score when both the document and the question are in English. Call it S(E, E). Then measure four transfer settings: Indic → Indic, English → Indic, Indic → English, and high-resource Indic → low-resource Indic. If a model understood documents independently of language, all four would equal the baseline. The Document Understanding Cross-Lingual Index is the average of the four, divided by the baseline:</p>
+        <div class="eq">DUCLI = ¼ &middot; [ S(I, I) + S(E, I) + S(I, E) + S(I<sub>H</sub>, I<sub>L</sub>) ] / S(E, E)
+          <span class="where">S(X, Y) is the G-Eval score in a setting where the two sides of the task are in languages X and Y. E is English, I an Indic language, I<sub>H</sub> a high-resource and I<sub>L</sub> a low-resource Indic language. DUCLI = 1 means nothing is lost when the language changes.</span></div>
+        <h3>SRS: how much survives a change of script</h3>
+        <p>The second metric holds the language fixed and perturbs the script. The same question is asked in pure Indic form, in code-mixed form, and in transliterated form (the Indic language written in Latin letters). The Script Robustness Score averages the two perturbed scores, each relative to the pure score:</p>
+        <div class="eq">SRS = ½ &middot; [ S<sub>cm</sub> / S<sub>pure</sub> + S<sub>tl</sub> / S<sub>pure</sub> ]
+          <span class="where">S<sub>cm</sub> is the score on code-mixed input, S<sub>tl</sub> on transliterated input, S<sub>pure</sub> on pure Indic input. SRS = 1 means the model is indifferent to the script of the question. Above 1 means it did better on the perturbed input than on the native one.</span></div>
+        <p>Both metrics are ratios, and ratios have a property worth seeing before reading any results. Figure 6 lets you pick any of the thirteen open models the paper reports and see its components. The slider changes the English baseline and shows how DUCLI responds.</p>
+
+        <figure class="fig wide" id="fig-ducli">
+          <p class="fig-label">Figure 6 &middot; DUCLI and SRS, computed from their components</p>
+          <div class="calc">
+            <div class="calc-row"><label class="seg-label" for="ducli-model">Model</label><select id="ducli-model"></select></div>
+            <div class="calc-cols">
+              <div>
+                <h4>DUCLI</h4>
+                <div class="bars" id="ducli-bars"></div>
+                <div class="calc-row" style="margin-top:10px"><label class="seg-label" for="ducli-ee">What if S(E, E) were</label><output id="ducli-ee-out" class="m">0.82</output></div>
+                <input type="range" id="ducli-ee" min="0.50" max="0.95" step="0.01" value="0.82" aria-describedby="ducli-ee-out" />
+                <div class="formula" id="ducli-formula"></div>
+              </div>
+              <div>
+                <h4>SRS</h4>
+                <div class="bars" id="srs-bars"></div>
+                <div class="formula" id="srs-formula" style="margin-top:10px"></div>
+              </div>
+            </div>
+            <p class="calc-note" id="ducli-note"></p>
+          </div>
+          <figcaption><b>Figure 6.</b> Component scores are the published G-Eval values for each model; DUCLI and SRS recomputed from them agree with the published scores to within rounding. Moving the slider is a what-if: a model that is <em>worse</em> in English gets a <em>higher</em> DUCLI for the same Indic scores, because DUCLI measures retention, not ability.</figcaption>
+        </figure>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>DUCLI and SRS measure how much is kept, not how much is there. LLaVA-v1.6 has an English baseline of 0.70; if its baseline were 0.82, like Gemma-3-12B's, its DUCLI would fall from 0.441 to about 0.38 with the same Indic scores. A model that is uniformly weak can look robust. In practice: always report DUCLI and SRS next to the absolute scores they are built from. Read a high DUCLI with a low S(I, I) as "consistently weak", not "robust".</p></aside>
+      </section>
+
+      <section id="protocol">
+        <h2>The evaluation protocol</h2>
+        <p>The paper evaluates 29 vision-language models, and compares them with OCR services and specialist document models. The poster groups the systems by how they are built and what they are for:</p>
+        <ul>
+          <li><strong>Closed models:</strong> Gemini 3 Pro, GPT-5 and Claude 4 Sonnet.</li>
+          <li><strong>OCR services:</strong> Sarvam Vision and Chitrapathak.</li>
+          <li><strong>Large open models:</strong> Qwen3-VL-235B, InternVL3.5-241B, GLM-4.5V and LLaMA 4 Scout.</li>
+          <li><strong>Medium open models:</strong> Qwen3-VL 30B and 32B, InternVL3.5 30B and 38B, Gemma 3 27B, DeepSeek-VL2 and LLaVA 1.6.</li>
+          <li><strong>Small open models:</strong> Qwen3-VL 8B, Qwen2.5 7B, InternVL 8B, Molmo2 8B, Gemma 3 12B, Pixtral 12B and MiniCPM-V 4.5.</li>
+          <li><strong>Specialist document models:</strong> Surya, Marker, Chandra, DeepSeek-OCR, dots.ocr, DocLayout-YOLO, IndicDLP, Hi-SAM and DocTr.</li>
+        </ul>
+        <p>Specialists matter here. A general vision-language model might be beaten on layout by a small detector trained for that one job. Leaving specialists out would make general models look better than they are relative to what a practitioner could deploy. The language-robustness study also includes multilingual and Indic-focused models such as PALO, Maya, PANGEA and Chitrarth.</p>
+        <p>Each evaluation setting changes one thing and holds the rest fixed, so that a drop can be attributed. Table 2 lists the settings and the question each one answers.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Table 2 &middot; Evaluation settings and what each one isolates</caption>
+            <thead><tr><th>Setting</th><th>What changes</th><th>What is held fixed</th><th>Score</th><th>Failure it reveals</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Task families</strong></td><td>The task (8 families)</td><td>The document pool</td><td>Task metrics, 0 to 1</td><td>Which abilities are weak: perception, parsing, extraction or reasoning</td></tr>
+              <tr><td><strong>Language robustness</strong></td><td>The language (English, 5 high-resource, 5 low-resource)</td><td>The kind of task</td><td>G-Eval, 0 to 100</td><td>How fast quality falls with language resources</td></tr>
+              <tr><td><strong>Cross-lingual VQA</strong></td><td>Question language versus document language</td><td>The documents</td><td>ANLS</td><td>Whether the bottleneck is reading the page or understanding the question</td></tr>
+              <tr><td><strong>DUCLI</strong></td><td>Four language-transfer settings</td><td>The English–English baseline</td><td>Ratio of G-Eval scores</td><td>Loss when languages differ, in one number</td></tr>
+              <tr><td><strong>SRS</strong></td><td>Pure, code-mixed or transliterated question</td><td>Language and content</td><td>Ratio of G-Eval scores</td><td>Sensitivity to how a question is written</td></tr>
+              <tr><td><strong>Image removal</strong></td><td>The image is withheld</td><td>The question</td><td>Accuracy drop</td><td>Answers that come from language priors, not the page</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tbl-note">How to read this table: each row is one experiment, and the middle columns say what it varies and what it keeps. The pattern to notice is that every setting changes exactly one thing. That is what lets a drop be read as a cause rather than a correlation.</p>
+      </section>
+
+      <section id="results">
+        <h2>Results across tasks</h2>
+        <p>Begin with the broadest view: which models do well on which task families. Figure 7 shows every number the project page publishes in three views. The first is per task family. The second is per language. The third is the cross-lingual ANLS study.</p>
+
+        <figure class="fig wide" id="fig-heat">
+          <p class="fig-label">Figure 7 &middot; Results heatmap</p>
+          <div class="seg" role="group" aria-label="Heatmap view" id="heat-tabs"><span class="seg-label">View</span></div>
+          <div class="seg" role="group" aria-label="Row order" id="heat-sort"><span class="seg-label">Order</span></div>
+          <div class="hm-wrap"><table class="hm" id="heat-table"></table></div>
+          <p class="hm-read" id="heat-read" aria-live="polite">Hover a cell to read it.</p>
+          <div class="hm-scale"><span id="heat-min"></span><i></i><span id="heat-max"></span><span id="heat-unit"></span></div>
+          <figcaption><b>Figure 7.</b> All values as published on the project page. Model names in orange are closed models. Task families: TR text recognition, DS document segmentation, DP document parsing, EP element parsing, TDV text-centric DocVQA, SER structured element reasoning, AKR analytical and knowledge reasoning, LR linguistic robustness. Language scores are G-Eval (0 to 100). Cross-lingual scores are ANLS on English or Indic documents with questions in English (EN), a high-resource (HR) or low-resource (LR) Indic language, the same language as the page, or a different one. Colour is scaled within each view, so shades are not comparable across views.</figcaption>
+        </figure>
+
+        <h3>The leader depends on the task</h3>
+        <p>On the task families, Gemini 3 Pro is best on text recognition (0.88), element parsing (0.85) and linguistic robustness (0.88). Claude 4 Sonnet is best on document parsing (0.90) and text-centric DocVQA (0.88). GPT-5 is best on structured element reasoning (0.89) and analytical and knowledge reasoning (0.91). The paper summarises this as Gemini 3 Pro leading overall, with Claude 4 Sonnet winning text-heavy parsing.</p>
+        <p>On the language-robustness study the order changes again. GPT-5 has the highest G-Eval score in every one of the eleven languages, from 82 in English to 48 in Sindhi. Gemini 3 Pro's language scores (74 in English, 41 in Sindhi) are below Qwen3-VL-235B's (75 and 46).</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>"Best model" is a property of an axis, not of a model. Gemini 3 Pro leads three task families but trails GPT-5 and Qwen3-VL-235B on the language-robustness G-Eval. Three different closed models win task families, and a specialist wins a fourth. A single aggregate score would hide all of this. In practice: choose a model for an Indian document workload by its score on that workload's task family and language, not by its overall rank.</p></aside>
+
+        <h3>Specialists still win on layout</h3>
+        <p>On document segmentation, the best system is not a vision-language model at all. Dedicated layout and text-region models, IndicDLP, Surya and Hi-SAM, beat every general model outright. The best open system for segmentation is also IndicDLP. The same family has the worst system: PP-DocLayout, a specialist tuned on non-Indian layouts, generalises poorly here.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The training distribution decides layout quality more than the model category. The best and the worst segmentation systems are both specialists. The difference is that IndicDLP was trained on Indian documents and PP-DocLayout was not. General VLMs sit in between. In practice: for layout on Indian documents, a small detector trained on in-domain data is still the strong baseline to beat, and an out-of-domain specialist can be worse than a general model.</p></aside>
+
+        <h3>The open–closed gap, and a mid-sized surprise</h3>
+        <p>On the reasoning families, the best open model trails the best closed one by three to five points: element parsing 0.82 against 0.85, text-centric DocVQA 0.85 against 0.88, structured reasoning 0.85 against 0.89, analytical reasoning 0.86 against 0.91, and linguistic robustness 0.84 against 0.88.</p>
+        <p>The best open model is often not the largest. Qwen3-VL-32B beats its 235B sibling on element parsing (0.82 against 0.80) and text-centric DocVQA (0.85 against 0.84). GLM-4.5V leads the open models on analytical reasoning (0.86), and Qwen3-VL-30B on linguistic robustness (0.84). The gaps are small, but the pattern recurs, and it lines up with the image-removal result <a href="#reading">later in the post</a>.</p>
+
+        <h3>Isolated collapses are probably harness failures</h3>
+        <p>Three cells in the task view look strange. Pixtral-12B scores 0.15 on element parsing but 0.64 to 0.66 on every other family. Molmo-2-8B scores 0.12 on linguistic robustness and 0.55 to 0.60 elsewhere. InternVL3.5-8B scores 0.14 on structured reasoning and 0.50 to 0.55 elsewhere. The authors flag the Pixtral cell as more likely a parsing or harness artifact than a real capability gap.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>When one model drops to near zero on exactly one family, the likely cause is the output format, not the skill. If the evaluation parser expects JSON and the model wraps it in prose, every answer fails. Such a cell measures instruction following on the harness's format. In practice: inspect raw outputs for any single-cell collapse before reporting it, and report format-failure rates separately from accuracy.</p></aside>
+        <p>At the bottom, LLaVA-1.6 is worst on four task families (text recognition 0.21, document parsing 0.18, text-centric DocVQA 0.17, analytical reasoning 0.15). LLaVA-1.6 and Pixtral-12B also sit near the bottom of the DUCLI and SRS rankings. Weak models fail consistently, which is reassuring about the benchmark's internal agreement.</p>
+      </section>
+
+      <section id="languages">
+        <h2>Results across languages</h2>
+        <p>Now hold the task fixed and vary the language. Figure 8 plots the G-Eval scores of five models across English, five high-resource and five low-resource Indian languages. The left-to-right slope is the robustness story.</p>
+
+        <figure class="fig wide" id="fig-cliff">
+          <p class="fig-label">Figure 8 &middot; The low-resource cliff</p>
+          <div class="fig-stage">
+            <svg id="cliff-svg" viewBox="0 0 1000 540" role="img" aria-labelledby="cliff-title">
+              <title id="cliff-title">Line chart of G-Eval scores for GPT-5, Qwen3-VL-235B, Qwen3-VL-32B, Gemma-3-27B and LLaVA-1.6-13B across English, Hindi, Bengali, Telugu, Tamil, Marathi, Meitei, Santali, Sindhi, Kashmiri and Konkani. Scores drift down slowly across high-resource languages, fall sharply at Meitei, bottom out at Santali and Sindhi, and recover at Kashmiri and Konkani.</title>
+            </svg>
+          </div>
+          <p class="fig-hint scroll-hint">Scroll the figure sideways to see all of it.</p>
+          <p class="fig-step" id="cliff-step" aria-live="polite"></p>
+          <div class="anim-controls" role="group" aria-label="Figure 8 animation controls"></div>
+          <figcaption><b>Figure 8.</b> G-Eval scores (0 to 100) as published. Each line is one model; markers differ by model as well as colour. The shaded band is the low-resource group. Hover a point for its value.</figcaption>
+        </figure>
+
+        <p>Three things are visible. First, the high-resource languages cost little. GPT-5 goes from 82 in English to between 75 and 79 in Hindi, Bengali, Telugu, Tamil and Marathi. Second, the low-resource group is a cliff. GPT-5 scores 50 in Santali and 48 in Sindhi. LLaVA-1.6-13B scores 37 and 35.</p>
+        <p>Third, the cliff has the same relative depth for every plotted model. On Sindhi, the five models keep between 57% and 61% of their English score: GPT-5 48 of 82, Qwen3-VL-235B 46 of 75, Qwen3-VL-32B 42 of 69, Gemma-3-27B 38 of 66, and LLaVA-1.6-13B 35 of 61.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>On these published numbers, the drop on a low-resource language is close to proportional and close to model-independent. A frontier closed model and a two-year-old open model lose almost the same fraction on Sindhi. Scale and recency raise the whole curve but do not flatten it. In practice: improving low-resource languages is a data problem, not something the next larger model will fix by itself.</p></aside>
+
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"Low-resource" is not one level of difficulty. Kashmiri and Konkani are in the low-resource group, yet GPT-5 scores 72 and 67 on them, close to the high-resource languages and far above Santali (50) and Sindhi (48). The public sources do not break down why. Script is one candidate (Konkani is usually written in Devanagari, like Hindi and Marathi), but Kashmiri and Sindhi are both commonly written in Perso-Arabic and still differ. In practice: report low-resource languages individually. An average over the group hides a 24-point spread.</p></aside>
+
+        <p>One more pattern appears in the full language table in Figure 7. The models built specifically for multilingual or Indian use, PALO, Maya, PANGEA and Chitrarth, score 48 to 51 overall, below general open models such as Qwen3-VL-8B (58). Their shape across languages is the same as everyone else's. Coverage of a language in training does not substitute for overall model strength, at least for the models evaluated here.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Most open models in the published language table have nearly parallel profiles. For example, Qwen3-VL-235B, Gemma-3-27B and Qwen3-VL-8B all score 4 points below English in Hindi and 6 below in Bengali. So the language view mostly separates models by overall level, and its language-to-language differences are shared across models. In practice: use the language table to rank languages by difficulty, and use DUCLI, SRS and the cross-lingual study to compare models' robustness.</p></aside>
+      </section>
+
+      <section id="cross-lingual">
+        <h2>Cross-lingual and code-mixed questions</h2>
+        <h3>Reading the page, not the question, is the bottleneck</h3>
+        <p>The cross-lingual study asks questions in a different language from the document. For English documents, the question is in English, a high-resource Indic language or a low-resource one. For Indic documents, the question is in English, in the same Indic language, or in a different Indic language.</p>
+        <p>The ANLS numbers split cleanly. On English documents, the question's language barely matters. Gemma-3-27B scores 0.323 with English questions, 0.327 with high-resource Indic questions and 0.337 with low-resource ones. For every model reported, switching the question's language on an English page moves ANLS by at most 0.047.</p>
+        <p>On Indic documents, everything falls, even with an English question. Gemma-3-27B drops from 0.323 to 0.193, keeping 60% of its score. Qwen3-VL-32B keeps 68% (0.197 against 0.289). InternVL-38B keeps 39% (0.075 against 0.194), and Pixtral-12B keeps 44% (0.081 against 0.183). Across the seven models, the loss from moving the page into an Indic language is 31% to 61%.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The models understand Indian-language questions much better than they read Indian-language pages. Changing the question costs almost nothing; changing the page costs a third to well over half of the score. The weaker the model, the larger the share it loses. In practice: to improve Indian document understanding, invest in visual text data in Indian scripts (OCR-rich pretraining, rendered documents), not in translated instruction data.</p></aside>
+        <p>The project page summarises the ordering as English → cross-lingual → cross-Indic, with a different-language Indic question on an Indic page as the floor. On the published ANLS numbers this holds for most models in the low-resource case: Qwen3-VL-32B scores 0.138 and Qwen3-VL-30B 0.128 with a different low-resource language. It is not strict for every model; Gemma-3-27B scores 0.190 in that setting, above its 0.161 with a same-language low-resource question.</p>
+
+        <h3>Code-mixing and transliteration</h3>
+        <p>The script-robustness study is the starkest result in the paper. Figure 6 above holds the numbers; here is what they say. On pure Indic questions, all thirteen open models score between 0.52 and 0.57. The spread is tiny. On code-mixed and transliterated versions of the same questions, twelve of the thirteen fall to between 0.10 and 0.21. That is a loss of roughly 60% to 80% from a change in how the question is written, not in what it asks.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Performance on clean Indic input does not predict performance on the way people actually type. The models are almost indistinguishable on pure Indic questions (0.52 to 0.57) and almost all fail on code-mixed ones. Since S<sub>pure</sub> is nearly constant, the SRS ranking is essentially a ranking of code-mixed scores. In practice: an evaluation of an Indian-language assistant that uses only native-script questions will overestimate it badly. Include code-mixed and transliterated queries from real users.</p></aside>
+        <p>The exception is Gemma-3-12B. It scores 0.63 on code-mixed and 0.65 on transliterated input, against 0.55 on pure Indic, giving an SRS of 1.160. It also has the highest DUCLI of the open models, 0.767, ahead of LLaMA 4 Scout at 0.664 and its larger sibling Gemma-3-27B at 0.644. The paper reads this as evidence that cross-script robustness tracks script diversity and cross-lingual supervision in training, not parameter count.</p>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Gemma-3-12B's result is a single outlier, and its cause is not isolated. The project page suggests a tokenizer or training-mix effect. A tokenizer alone is unlikely to explain the gap to Gemma-3-27B, because the Gemma 3 technical report states that all Gemma 3 models share the same tokenizer. An SRS above 1, where perturbed input beats native input, is also not what any notion of robustness predicts. In practice: treat this as a lead to replicate (other seeds, the gold split, a second judge), not as evidence that a 12B model is the right choice.</p></aside>
+      </section>
+
+      <section id="reading">
+        <h2>Do models read the page?</h2>
+        <p>A model can answer a document question in two ways. It can read the answer off the page. Or it can produce something plausible from what the question and its training suggest. On a benchmark both give credit, but only the first is reading. Patram-Bench separates them with a simple test: withhold the image and ask again. If accuracy barely drops, the model was not using the image much.</p>
+
+        <figure class="fig wide" id="fig-read">
+          <p class="fig-label">Figure 9 &middot; The image-removal test</p>
+          <div class="fig-stage">
+            <svg id="read-svg" viewBox="0 0 1000 470" role="img" aria-labelledby="read-title">
+              <title id="read-title">A document and a question go to a model, which answers. The document is then removed, and the model still answers plausibly. The difference between accuracy with and without the image measures reliance on the page. The paper's rankings follow: the most image-grounded and the most prior-driven models.</title>
+            </svg>
+          </div>
+          <p class="fig-hint scroll-hint">Scroll the figure sideways to see all of it.</p>
+          <p class="fig-step" id="read-step" aria-live="polite"></p>
+          <div class="anim-controls" role="group" aria-label="Figure 9 animation controls"></div>
+          <figcaption><b>Figure 9.</b> Steps 1 to 3 explain the test with an illustrative example; the bars in step 3 are schematic, not measured. Step 4 shows the paper's qualitative ranking; the public sources give the ranking, not the drops. Step 5 shows why a grounded answer is harder to fake.</figcaption>
+        </figure>
+
+        <p>The result: among closed models, Gemini 3 Pro relies most on the page, then Claude 4 Sonnet. Among open models, the most image-dependent are Qwen3-VL-32B, then Qwen3-VL-30B and Gemma-3-27B. The heaviest reliance on language priors comes from the two largest open models, Qwen3-VL-235B and then InternVL3.5-241B. They still produce plausible answers with the image removed.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>More parameters bring stronger language priors, and on Indian documents those priors can substitute for reading. The largest open models guess most confidently without the page, and the mid-sized Qwen3-VL models stay more grounded than their 235B sibling. This matches the task results, where Qwen3-VL-32B beat the 235B model on extraction and text-centric DocVQA. In practice: on document tasks, run an image-removal control before choosing the larger model, and treat a small drop as a warning, not a strength.</p></aside>
+        <p>This failure is not specific to India. MMStar found that Gemini Pro scored 42.9% on MMMU with no image at all, and that some models answer questions that do need the image, apparently from memorised training data. What Patram-Bench adds is that the effect grows with scale within a model family, on documents in Indian languages, where a confident guess is hard for a user to check.</p>
+      </section>
+
+      <section id="limits">
+        <h2>Limits of the benchmark</h2>
+        <p>Every benchmark is a set of choices, and each choice limits what its numbers mean. These are the ones to keep in mind when citing Patram-Bench.</p>
+        <ul>
+          <li><strong>Model-written questions.</strong> Gemini 3 Pro seeded the QA pairs and an LLM checked them. Only the 51.3k gold set is human-validated. Errors the generator and checker share can survive, and the generator's own family may find the phrasing familiar.</li>
+          <li><strong>An LLM judge across uneven languages.</strong> G-Eval scores depend on a judge that also reads low-resource languages less reliably. Some of the low-resource drop may be the judge's.</li>
+          <li><strong>Metric blind spots.</strong> ANLS gives 0 to correct answers in Indic digits and to correct answers in full sentences, and gives high scores to wrong amounts that differ by one digit.</li>
+          <li><strong>Contamination.</strong> Many native documents come from public government portals, exchange filings and newspapers. Such pages are exactly what web-scale pretraining crawls. A model may have seen a page, or a near copy, during training. The public sources do not report a contamination check.</li>
+          <li><strong>Harness sensitivity.</strong> Isolated near-zero cells (Pixtral on element parsing, Molmo-2-8B on linguistic robustness, InternVL3.5-8B on structured reasoning) are more likely output-format failures than skill gaps.</li>
+          <li><strong>Unexplained outliers.</strong> Gemma-3-12B's SRS above 1 and its DUCLI lead are not explained, and a single result should not drive model choice.</li>
+          <li><strong>What the public sources omit.</strong> Per-task metrics, the full list of 23 languages, and per-split results are in the paper, not on the project page. This post uses only what the page, poster and research card publish.</li>
+        </ul>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Several of these limits push in the same direction. Model-written questions, a judge that favours fluent text, and contamination from public documents all tend to flatter large, well-trained models. The image-removal finding is the one result built to resist this, because it measures the model against itself. In practice: when a benchmark's numbers and its control experiments disagree, trust the controls.</p></aside>
+      </section>
+
+      <section id="related-work">
+        <h2>How it relates to our other work</h2>
+        <p>Patram-Bench sits next to <a href="../../projects.html#patram">Patram</a>, the vision-language model for Indian document understanding built at BharatGen over BharatDocs, a corpus of more than 20 million documents and 250 million pages in English and 22 Indian languages. The models evaluated in the paper do not include Patram; it is a benchmark of the field, not of our model.</p>
+        <p>Some of its findings connect to the grounded document intelligence work in <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a>:</p>
+        <ul>
+          <li><strong>Layout.</strong> Specialists trained on Indian layouts beat general models on segmentation. DocLayout-VL, a promptable layout model from that work, reports 77.5 mAP zero-shot on IndicDLP.</li>
+          <li><strong>Reading the page.</strong> The image-removal test catches models that answer without looking, but only in aggregate. A model that must mark its evidence on the page, as M3Grounder does with masks, exposes the same failure on each answer: with no page there is nothing to point at.</li>
+          <li><strong>Rendering from code.</strong> Patram-Syn renders charts and tables from code so that the ground truth is known. REPLICA's data engine and M3Grounder's chart data rely on the same idea: label by construction, not by reading back.</li>
+          <li><strong>Parsing targets.</strong> Patram-Bench's parsing tasks score Markdown, HTML and LaTeX output, because that is what models produce today. A parsing benchmark can only reward what its target format can hold; position and style are outside these targets.</li>
+        </ul>
+        <p>For the general picture of how vision-language models are evaluated, see <a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a>. For how document and OCR models are built, see <a href="../how-vlms-read-documents/">How VLMs Read Documents</a>.</p>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="key-list">
+          <li><strong>The document's language matters more than the question's.</strong> On English pages, changing the question's language moved ANLS by at most 0.047; moving the page into an Indic language cost 31% to 61%. Translated benchmarks miss the larger loss. (<a href="#cross-lingual">Cross-lingual questions</a>)</li>
+          <li><strong>Code-mixing is the sharpest failure.</strong> Twelve of thirteen open models fall from 0.52–0.57 on pure Indic questions to 0.10–0.21 on code-mixed ones. Native-script evaluation alone overestimates real use. (<a href="#cross-lingual">Code-mixing</a>)</li>
+          <li><strong>The low-resource drop is proportional and shared.</strong> All five plotted models keep 57% to 61% of their English score on Sindhi. Larger and newer models raise the curve but do not flatten it. (<a href="#languages">Languages</a>)</li>
+          <li><strong>"Low-resource" is not one level.</strong> Kashmiri and Konkani score far above Santali and Sindhi for every plotted model. Report languages individually. (<a href="#languages">Languages</a>)</li>
+          <li><strong>The best model depends on the axis.</strong> Three closed models win different task families, a specialist wins layout, and the language ranking differs from the task ranking. (<a href="#results">Tasks</a>)</li>
+          <li><strong>In-domain training decides layout.</strong> The best and worst segmentation systems are both specialists; only the training data differs. (<a href="#results">Tasks</a>)</li>
+          <li><strong>The largest open models lean on priors.</strong> Qwen3-VL-235B and InternVL3.5-241B answer most plausibly without the image; mid-sized Qwen3-VL models are more grounded and beat the 235B model on extraction. (<a href="#reading">Reading the page</a>)</li>
+          <li><strong>Ratios measure retention, not ability.</strong> DUCLI and SRS reward a weak English baseline; always read them with absolute scores. (<a href="#new-metrics">DUCLI and SRS</a>)</li>
+          <li><strong>ANLS fails on Indic digits and wrong amounts.</strong> Correct answers in Devanagari digits score 0, and a one-digit wrong amount scores 0.857. (<a href="#anls">ANLS</a>)</li>
+          <li><strong>Know which split a number comes from.</strong> Only about 2% of annotations are human-validated gold, and the generator's family leads several tasks. (<a href="#building">Data</a>)</li>
+          <li><strong>Single-cell collapses are format failures.</strong> Check raw outputs before reporting a model as unable to do a task. (<a href="#results">Tasks</a>)</li>
+        </ul>
+        <p>After this post you should be able to read a multilingual document benchmark critically: ask whether its documents or only its questions are in the target language, whether its metric understands the target script's digits, whether its ratios hide a weak baseline, and whether it checks that models read the page at all.</p>
+      </section>
+
+      <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../how-vlms-read-documents/">How VLMs Read Documents</a></li><li><a href="../doclayout-vl-promptable-layout-segmentation/">DocLayout-VL</a></li><li><a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a></li><li><a href="../the-agent-evaluation-playbook/">The Agent Evaluation Playbook</a></li></ul></nav>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>The paper</h3>
+          <ul>
+            <li><a href="https://doi.org/10.1007/978-3-032-36033-5_37" target="_blank" rel="noopener noreferrer">Patram-Bench: Comprehensive Multi-task, Multi-domain and Multilingual Benchmark for Indian Document Understanding</a> · Srinivasan, Jena, Topale, Venna, Sarvadevabhatla, ICDAR 2026, poster, pp. 626–642. <a href="https://patrambench.github.io/" target="_blank" rel="noopener noreferrer">Project page</a> · <a href="../../assets/pdfs/PatramBench-Poster.pdf">Poster</a> · <a href="../../research.html#patrambench">Research page entry</a></li>
+            <li><a href="https://bharatgen.com/products/patram/" target="_blank" rel="noopener noreferrer">Patram: a vision-language model for Indian document understanding</a> · BharatGen, 2025. <a href="https://huggingface.co/bharatgenai/patram-7b-instruct" target="_blank" rel="noopener noreferrer">Model weights</a></li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Document and OCR benchmarks</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2007.00398" target="_blank" rel="noopener noreferrer">DocVQA: A Dataset for VQA on Document Images</a> · Mathew, Karatzas, Jawahar, 2020</li>
+            <li><a href="https://arxiv.org/abs/2104.12756" target="_blank" rel="noopener noreferrer">InfographicVQA</a> · Mathew et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2203.10244" target="_blank" rel="noopener noreferrer">ChartQA: A Benchmark for Question Answering about Charts with Visual and Logical Reasoning</a> · Masry et al., 2022</li>
+            <li><a href="https://arxiv.org/abs/2305.07895" target="_blank" rel="noopener noreferrer">OCRBench: On the Hidden Mystery of OCR in Large Multimodal Models</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2501.00321" target="_blank" rel="noopener noreferrer">OCRBench v2: An Improved Benchmark for Evaluating Large Multimodal Models on Visual Text Localization and Reasoning</a> · Fu et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.02210" target="_blank" rel="noopener noreferrer">CC-OCR: A Comprehensive and Challenging OCR Benchmark for Evaluating Large Multimodal Models in Literacy</a> · Yang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.07626" target="_blank" rel="noopener noreferrer">OmniDocBench: Benchmarking Diverse PDF Document Parsing with Comprehensive Annotations</a> · Ouyang et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Multilingual and Indic benchmarks</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2405.11985" target="_blank" rel="noopener noreferrer">MTVQA: Benchmarking Multilingual Text-Centric Visual Question Answering</a> · Tang et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2104.08836" target="_blank" rel="noopener noreferrer">LayoutXLM: Multimodal Pre-training for Multilingual Visually-rich Document Understanding</a> (introduces XFUND) · Xu et al., 2021</li>
+            <li><a href="https://arxiv.org/abs/2502.14949" target="_blank" rel="noopener noreferrer">KITAB-Bench: A Comprehensive Multi-Domain Benchmark for Arabic OCR and Document Understanding</a> · Heakl et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2512.20236" target="_blank" rel="noopener noreferrer">IndicDLP: A Foundational Dataset for Multi-Lingual and Multi-Domain Document Layout Parsing</a> · Nath et al., ICDAR 2025</li>
+            <li><a href="https://arxiv.org/abs/2511.04727" target="_blank" rel="noopener noreferrer">IndicVisionBench: Benchmarking Cultural and Multilingual Understanding in VLMs</a> · Faraz et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Metrics and evaluation practice</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1905.13648" target="_blank" rel="noopener noreferrer">Scene Text Visual Question Answering</a> (introduces ANLS) · Biten et al., 2019</li>
+            <li><a href="https://arxiv.org/abs/2303.16634" target="_blank" rel="noopener noreferrer">G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment</a> · Liu et al., 2023</li>
+            <li><a href="https://arxiv.org/abs/2403.20330" target="_blank" rel="noopener noreferrer">Are We on the Right Way for Evaluating Large Vision-Language Models?</a> (MMStar) · Chen et al., 2024</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Models discussed</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2503.19786" target="_blank" rel="noopener noreferrer">Gemma 3 Technical Report</a> · Gemma Team, 2025</li>
+            <li><a href="https://arxiv.org/abs/2402.14818" target="_blank" rel="noopener noreferrer">PALO: A Polyglot Large Multimodal Model for 5B People</a> · Maaz et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2412.07112" target="_blank" rel="noopener noreferrer">Maya: An Instruction Finetuned Multilingual Multimodal Model</a> · Alam et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2410.16153" target="_blank" rel="noopener noreferrer">Pangea: A Fully Open Multilingual Multimodal LLM for 39 Languages</a> · Yue et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2502.15392" target="_blank" rel="noopener noreferrer">Chitrarth: Bridging Vision and Language for a Billion People</a> · Khan et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2410.12628" target="_blank" rel="noopener noreferrer">DocLayout-YOLO: Enhancing Document Layout Analysis through Diverse Synthetic Data and Global-to-Local Adaptive Perception</a> · Zhao et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2401.17904" target="_blank" rel="noopener noreferrer">Hi-SAM: Marrying Segment Anything Model for Hierarchical Text Segmentation</a> · Ye et al., 2024</li>
+            <li><a href="https://arxiv.org/abs/2510.18234" target="_blank" rel="noopener noreferrer">DeepSeek-OCR: Contexts Optical Compression</a> · Wei et al., 2025</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Patram-Bench: Measuring How Models Read Indian Documents</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/">https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026patrambenchblog,
+  author       = {Srinivasan, Anirudh},
+  title        = {Patram-Bench: Measuring How Models Read Indian Documents},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/patram-bench-indian-document-understanding/},
+  note         = {Published November 6, 2026; updated November 6, 2026}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Patram-Bench: Measuring How Models Read Indian Documents</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script>
+(function () {
+  'use strict';
+  var RM = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var NS = 'http://www.w3.org/2000/svg';
+  var INDIC = '"Noto Sans Devanagari", "Kohinoor Devanagari", "Devanagari Sangam MN", "Nirmala UI", "Mangal", "Noto Sans Bengali", "Kohinoor Bangla", "Bangla Sangam MN", "Noto Sans Tamil", "Tamil Sangam MN", "Noto Nastaliq Urdu", "Geeza Pro", sans-serif';
+  window.__figs = window.__figs || {};
+
+  function S(tag, attrs, parent, text) {
+    var e = document.createElementNS(NS, tag);
+    if (attrs) for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    if (text != null) e.textContent = text;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function H(tag, attrs, parent, html) {
+    var e = document.createElement(tag);
+    if (attrs) for (var k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]);
+    if (html != null) e.innerHTML = html;
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function lerp(a, b, t) { return a + (b - a) * t; }
+  function tween(ms, fn, done) {
+    if (RM || ms <= 0) { fn(1); if (done) done(); return { cancel: function () {} }; }
+    var stop = false, t0 = performance.now();
+    function f(now) {
+      if (stop) return;
+      var t = Math.min(1, (now - t0) / ms);
+      fn(ease(t));
+      if (t < 1) requestAnimationFrame(f); else if (done) done();
+    }
+    requestAnimationFrame(f);
+    return { cancel: function () { stop = true; } };
+  }
+  function camera(svg) {
+    var cur = svg.getAttribute('viewBox').split(/[\s,]+/).map(Number), tw = null;
+    return {
+      to: function (vb, ms) {
+        if (tw) tw.cancel();
+        var from = cur.slice();
+        tw = tween(ms, function (t) {
+          cur = from.map(function (v, i) { return lerp(v, vb[i], t); });
+          svg.setAttribute('viewBox', cur.map(function (v) { return v.toFixed(2); }).join(' '));
+        });
+      }
+    };
+  }
+  // reveal: set opacity on next frame so CSS transitions run
+  function show(el, on) { if (el) el.style.opacity = on ? '1' : '0'; }
+  function nextFrame(fn) { requestAnimationFrame(function () { requestAnimationFrame(fn); }); }
+
+  /* ---------- shared stepper ---------- */
+  function stepper(figId, n, render, opts) {
+    opts = opts || {};
+    var fig = document.getElementById(figId);
+    if (RM) fig.classList.add('rm');
+    var bar = fig.querySelector('.anim-controls');
+    bar.innerHTML = '<button type="button" data-a="prev" aria-label="Previous step">Previous</button>' +
+      '<button type="button" data-a="play" aria-label="Play animation" aria-pressed="false">Play</button>' +
+      '<button type="button" data-a="next" aria-label="Next step">Next</button>' +
+      '<button type="button" data-s="0.5" aria-pressed="false" aria-label="Play at half speed">0.5x</button>' +
+      '<button type="button" data-s="1" aria-pressed="true" aria-label="Play at normal speed">1x</button>' +
+      '<button type="button" data-s="2" aria-pressed="false" aria-label="Play at double speed">2x</button>' +
+      '<span class="anim-status" aria-live="polite"></span>';
+    var i = 0, playing = false, speed = 1, timer = null, userPaused = false, timers = [];
+    var status = bar.querySelector('.anim-status'), playBtn = bar.querySelector('[data-a="play"]');
+    function pad(v) { return (v < 10 ? '0' : '') + v; }
+    function later(ms, fn) { if (RM) { fn(); return; } timers.push(setTimeout(fn, ms / speed)); }
+    function go(k, instant) {
+      timers.forEach(clearTimeout); timers = [];
+      i = ((k % n) + n) % n;
+      render(i, !!(instant || RM), later);
+      status.textContent = 'Step ' + pad(i + 1) + ' / ' + pad(n);
+    }
+    function dwell() { return (opts.dwell ? (typeof opts.dwell === 'function' ? opts.dwell(i) : opts.dwell) : 3200) / speed; }
+    function sched() { clearTimeout(timer); if (playing) timer = setTimeout(function () { go(i + 1); sched(); }, dwell()); }
+    function setPlay(p) {
+      playing = p;
+      playBtn.textContent = p ? 'Pause' : 'Play';
+      playBtn.setAttribute('aria-pressed', p ? 'true' : 'false');
+      playBtn.setAttribute('aria-label', p ? 'Pause animation' : 'Play animation');
+      sched();
+    }
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.a === 'prev') { userPaused = true; setPlay(false); go(i - 1); }
+      else if (b.dataset.a === 'next') { userPaused = true; setPlay(false); go(i + 1); }
+      else if (b.dataset.a === 'play') { userPaused = playing; setPlay(!playing); }
+      else if (b.dataset.s) {
+        speed = +b.dataset.s;
+        bar.querySelectorAll('[data-s]').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        sched();
+      }
+    });
+    if (opts.stage) opts.stage.addEventListener('pointerdown', function () { if (playing) { userPaused = true; setPlay(false); } });
+    if (!RM && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (en) {
+          if (en.isIntersecting && !userPaused && !playing) setPlay(true);
+          else if (!en.isIntersecting && playing) setPlay(false);
+        });
+      }, { threshold: 0.5 }).observe(fig);
+    }
+    go(0, true);
+    var api = { n: n, go: function (k) { go(k, true); }, goAnim: function (k) { go(k, false); },
+      pause: function () { userPaused = true; setPlay(false); }, play: function () { userPaused = false; setPlay(true); },
+      get i() { return i; }, get speed() { return speed; } };
+    window.__figs[figId] = api;
+    return api;
+  }
+
+  /* ================= Figure 1: script difficulties ================= */
+  (function () {
+    var svg = document.getElementById('scripts-svg'); if (!svg) return;
+    svg.setAttribute('viewBox', '0 0 1980 1020');
+    var cam = camera(svg);
+    var stepEl = document.getElementById('scripts-step');
+    var TW = 620, TH = 430;
+    var tiles = [
+      { x: 20, y: 20, title: 'Connected headline', sub: 'Devanagari · shirorekha', br: 'Breaks: splitting text into characters' },
+      { x: 680, y: 20, title: 'Stacked conjuncts', sub: 'Bengali · one shape, many code points', br: 'Breaks: mapping shapes to characters' },
+      { x: 1340, y: 20, title: 'Drawn order ≠ stored order', sub: 'Devanagari · pre-base vowel sign', br: 'Breaks: character order' },
+      { x: 20, y: 520, title: 'Many scripts, one page', sub: 'Devanagari · Latin · Tamil · Perso-Arabic', br: 'Breaks: knowing which script to read' },
+      { x: 680, y: 520, title: 'Mixed and romanised text', sub: 'Hindi · transliteration · code-mixing', br: 'Breaks: understanding the question' },
+      { x: 1340, y: 520, title: 'Degraded scans and stamps', sub: 'skew · noise · seal over text', br: 'Breaks: finding the text at all' }
+    ];
+    var G = [], parts = [];
+    tiles.forEach(function (t, k) {
+      var g = S('g', { transform: 'translate(' + t.x + ',' + t.y + ')', class: 'fade' }, svg);
+      S('rect', { x: 0, y: 0, width: TW, height: TH, rx: 6, fill: '#ffffff', stroke: '#cac6bd', 'stroke-width': 2 }, g);
+      S('text', { x: 30, y: 62, class: 'disp', 'font-size': 40, 'font-weight': 700, fill: '#14171a' }, g, t.title);
+      S('text', { x: 30, y: 98, 'font-size': 19, fill: '#7b8388' }, g, t.sub);
+      var br = S('g', { class: 'fade', opacity: 0 }, g);
+      S('rect', { x: 0, y: TH + 10, width: TW, height: 50, rx: 4, fill: '#d66f00' }, br);
+      S('text', { x: TW / 2, y: TH + 44, 'text-anchor': 'middle', 'font-size': 25, 'font-weight': 600, fill: '#ffffff' }, br, t.br);
+      G.push({ g: g, br: br });
+      parts.push(S('g', {}, g));
+    });
+    var ind = { 'font-family': INDIC };
+    function T(p, x, y, size, txt, extra) {
+      var a = { x: x, y: y, 'font-size': size, fill: '#14171a', 'font-family': INDIC };
+      if (extra) for (var k in extra) a[k] = extra[k];
+      return S('text', a, p, txt);
+    }
+    // Tile 1: shirorekha
+    var p = parts[0];
+    T(p, 310, 225, 92, 'दैनिक जागरण', { 'text-anchor': 'middle' });
+    var t1pieces = S('g', { class: 'move', opacity: 0 }, p);
+    t1pieces.style.transform = 'translateY(-70px)';
+    ['दै', 'नि', 'क', '', 'जा', 'ग', 'र', 'ण'].forEach(function (c, j) {
+      if (!c) return;
+      var cx = 62 + j * 70;
+      S('rect', { x: cx - 30, y: 268, width: 60, height: 80, rx: 4, fill: '#fdf1e4', stroke: '#d66f00', 'stroke-width': 2 }, t1pieces);
+      T(t1pieces, cx, 326, 46, c, { 'text-anchor': 'middle' });
+    });
+    var t1note = S('text', { x: 30, y: 400, 'font-size': 21, fill: '#474e53', class: 'fade', opacity: 0 }, p, 'Seven units, and no gaps between them.');
+    // Tile 2: conjuncts
+    p = parts[1];
+    var t2r1 = S('g', { class: 'fade', opacity: 0 }, p), t2r2 = S('g', { class: 'fade', opacity: 0 }, p);
+    S('rect', { x: 40, y: 128, width: 150, height: 130, rx: 4, fill: 'none', stroke: '#d66f00', 'stroke-width': 2.5 }, t2r1);
+    T(t2r1, 115, 228, 100, 'ক্ষ', { 'text-anchor': 'middle' });
+    T(t2r1, 220, 196, 40, '= ক + ্ + ষ');
+    S('text', { x: 220, y: 232, 'font-size': 17, fill: '#0b5ea8' }, t2r1, 'U+0995 · U+09CD · U+09B7');
+    S('text', { x: 220, y: 256, 'font-size': 18, fill: '#474e53' }, t2r1, 'one shape, three code points');
+    S('rect', { x: 40, y: 280, width: 150, height: 130, rx: 4, fill: 'none', stroke: '#d66f00', 'stroke-width': 2.5 }, t2r2);
+    T(t2r2, 115, 380, 100, 'কৌ', { 'text-anchor': 'middle' });
+    T(t2r2, 220, 348, 40, '= ক + ৌ');
+    S('text', { x: 220, y: 384, 'font-size': 17, fill: '#0b5ea8' }, t2r2, 'U+0995 · U+09CC');
+    S('text', { x: 220, y: 408, 'font-size': 18, fill: '#474e53' }, t2r2, 'vowel sign drawn on both sides');
+    // Tile 3: order
+    p = parts[2];
+    T(p, 140, 300, 170, 'कि', { 'text-anchor': 'middle' });
+    var t3a = S('g', { class: 'fade', opacity: 0 }, p), t3b = S('g', { class: 'fade', opacity: 0 }, p);
+    S('text', { x: 300, y: 170, 'font-size': 18, fill: '#7b8388', 'letter-spacing': 2 }, t3a, 'STORED ORDER');
+    T(t3a, 300, 222, 44, '① क  ② ि');
+    S('text', { x: 300, y: 290, 'font-size': 18, fill: '#d66f00', 'letter-spacing': 2 }, t3b, 'DRAWN ORDER');
+    T(t3b, 300, 342, 44, 'ि  then  क');
+    S('text', { x: 30, y: 404, 'font-size': 20, fill: '#474e53' }, t3b, 'Copied left to right, the string is wrong.');
+    // Tile 4: scripts
+    p = parts[3];
+    var words = [
+      { x: 160, y: 205, w: 'भारत', s: 52, l: 'Devanagari', c: '#0b5ea8' },
+      { x: 455, y: 205, w: 'Government', s: 40, l: 'Latin', c: '#14171a', f: 'Georgia, serif' },
+      { x: 160, y: 335, w: 'தமிழ்நாடு', s: 38, l: 'Tamil', c: '#2f8f5b' },
+      { x: 455, y: 335, w: 'حکومت', s: 50, l: 'Perso-Arabic', c: '#6a4c93' }
+    ];
+    var t4 = words.map(function (w) {
+      var g = S('g', { class: 'fade', opacity: 0 }, p);
+      T(g, w.x, w.y, w.s, w.w, { 'text-anchor': 'middle', 'font-family': w.f || INDIC });
+      S('rect', { x: w.x - 70, y: w.y + 18, width: 140, height: 4, fill: w.c }, g);
+      S('text', { x: w.x, y: w.y + 46, 'text-anchor': 'middle', 'font-size': 18, fill: w.c, 'font-weight': 600 }, g, w.l);
+      return g;
+    });
+    S('text', { x: 30, y: 418, 'font-size': 19, fill: '#474e53' }, p, 'Nothing on the page says where one script ends.');
+    // Tile 5: code-mixing
+    p = parts[4];
+    var t5 = [];
+    var g5 = S('g', { class: 'fade', opacity: 0 }, p); t5.push(g5);
+    S('text', { x: 30, y: 158, 'font-size': 17, fill: '#7b8388', 'letter-spacing': 2 }, g5, 'NATIVE SCRIPT');
+    T(g5, 30, 198, 31, 'आवेदक की मासिक आय कितनी है?');
+    g5 = S('g', { class: 'fade', opacity: 0 }, p); t5.push(g5);
+    S('text', { x: 30, y: 250, 'font-size': 17, fill: '#7b8388', 'letter-spacing': 2 }, g5, 'TRANSLITERATED');
+    S('text', { x: 30, y: 288, 'font-size': 30, fill: '#14171a', 'font-family': 'Georgia, serif' }, g5, 'Aavedak ki maasik aay kitni hai?');
+    g5 = S('g', { class: 'fade', opacity: 0 }, p); t5.push(g5);
+    S('text', { x: 30, y: 340, 'font-size': 17, fill: '#7b8388', 'letter-spacing': 2 }, g5, 'CODE-MIXED');
+    var cm = S('text', { x: 30, y: 378, 'font-size': 30, fill: '#14171a', 'font-family': 'Georgia, serif' }, g5);
+    S('tspan', { fill: '#0b5ea8', 'font-weight': 700 }, cm, 'Applicant');
+    S('tspan', {}, cm, ' ki ');
+    S('tspan', { fill: '#0b5ea8', 'font-weight': 700 }, cm, 'monthly income');
+    S('tspan', {}, cm, ' kitni hai?');
+    var t5n = S('text', { x: 30, y: 418, 'font-size': 18, fill: '#474e53', class: 'fade', opacity: 0 }, p, 'One question, three forms. English words in blue.');
+    // Tile 6: noisy scan
+    p = parts[5];
+    var page = S('g', { transform: 'rotate(-3 310 265)' }, p);
+    S('rect', { x: 60, y: 125, width: 500, height: 270, fill: '#efe8d6', stroke: '#b9b09a' }, page);
+    S('rect', { x: 90, y: 145, width: 440, height: 10, fill: '#8c8370' }, page);
+    var seed = 7; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    for (var col = 0; col < 2; col++) for (var r = 0; r < 9; r++) {
+      var w = 160 + rnd() * 50;
+      S('rect', { x: 95 + col * 230, y: 180 + r * 22, width: w, height: 7, fill: '#9d9583' }, page);
+    }
+    S('line', { x1: 310, y1: 170, x2: 310, y2: 380, stroke: '#b9b09a', 'stroke-width': 1.5 }, page);
+    var seal = S('g', { class: 'fade', opacity: 0 }, page);
+    S('circle', { cx: 150, cy: 245, r: 44, fill: 'rgba(11,94,168,0.08)', stroke: '#0b5ea8', 'stroke-width': 3 }, seal);
+    S('circle', { cx: 150, cy: 245, r: 34, fill: 'none', stroke: '#0b5ea8', 'stroke-width': 1.5 }, seal);
+    var noise = S('g', { class: 'fade', opacity: 0 }, page);
+    for (var q = 0; q < 70; q++) S('circle', { cx: 70 + rnd() * 480, cy: 130 + rnd() * 260, r: 0.8 + rnd() * 2.2, fill: '#5a5345', opacity: 0.55 }, noise);
+    S('path', { d: 'M60 300 L560 250', stroke: '#d8cfba', 'stroke-width': 6, opacity: 0.8 }, noise);
+    var stamp = S('g', { class: 'move', opacity: 0 }, page);
+    stamp.style.transformOrigin = '450px 330px';
+    stamp.style.transform = 'scale(1.6)';
+    S('rect', { x: 375, y: 305, width: 150, height: 48, rx: 4, fill: 'rgba(184,67,47,0.06)', stroke: '#b8432f', 'stroke-width': 3, transform: 'rotate(-10 450 330)' }, stamp);
+    S('text', { x: 450, y: 338, 'text-anchor': 'middle', 'font-size': 24, 'font-weight': 700, fill: '#b8432f', transform: 'rotate(-10 450 330)', 'font-family': INDIC }, stamp, 'प्राप्त');
+
+    var texts = [
+      'The overview: six things that make Indian documents hard. Three come from scripts, two from how people use language, one from the page.',
+      'Devanagari joins the letters of a word along a headline, the shirorekha. The word splits into seven units, but there is no white space between them to split on.',
+      'Bengali stacks consonants. ক্ষ is one shape and three code points. The vowel sign in কৌ is drawn in two parts, on both sides of the consonant.',
+      'In कि the vowel sign is stored after the consonant but drawn before it. Writing the shapes in the order you see them produces the wrong string.',
+      'A single government page can carry four scripts. The model must switch between them with no signal that a switch is coming.',
+      'People type Hindi in Latin letters and mix in English words. All three questions ask the same thing, and a model should answer all three. Patram-Bench tests each form.',
+      'Real pages are skewed, noisy and faded, with seals and stamps printed over text and many columns packed together.',
+      'Back to the overview. Each difficulty breaks a different step of reading, so a benchmark has to test all of them.'
+    ];
+    var full = [0, 0, 1980, 1020];
+    function zoom(k) {
+      var t = tiles[k], h = 500, w = h * (1980 / 1020);
+      var cx = t.x + TW / 2, cy = t.y + TH / 2 + 25;
+      return [cx - w / 2, cy - h / 2, w, h];
+    }
+    function resetInner() {
+      t1pieces.style.opacity = 0; t1pieces.style.transform = 'translateY(-70px)'; t1note.style.opacity = 0;
+      [t2r1, t2r2, t3a, t3b, t5n].forEach(function (e) { e.style.opacity = 0; });
+      t4.forEach(function (e) { e.style.opacity = 0; });
+      t5.forEach(function (e) { e.style.opacity = 0; });
+      seal.style.opacity = 0; noise.style.opacity = 0; stamp.style.opacity = 0; stamp.style.transform = 'scale(1.6)';
+    }
+    function allInner() {
+      t1pieces.style.opacity = 1; t1pieces.style.transform = 'translateY(0)'; t1note.style.opacity = 1;
+      [t2r1, t2r2, t3a, t3b, t5n].forEach(function (e) { e.style.opacity = 1; });
+      t4.forEach(function (e) { e.style.opacity = 1; });
+      t5.forEach(function (e) { e.style.opacity = 1; });
+      seal.style.opacity = 1; noise.style.opacity = 1; stamp.style.opacity = 1; stamp.style.transform = 'scale(1)';
+    }
+    var stageEl = svg.parentNode;
+    function render(i, instant, later) {
+      stepEl.textContent = texts[i];
+      if (stageEl.scrollWidth > stageEl.clientWidth) stageEl.scrollLeft = (stageEl.scrollWidth - stageEl.clientWidth) / 2;
+      var ms = instant ? 0 : 1300;
+      if (i === 0 || i === 7) {
+        cam.to(full, ms);
+        G.forEach(function (o) { o.g.style.opacity = 1; o.br.style.opacity = i === 7 ? 1 : 0; });
+        if (i === 7) allInner(); else resetInner();
+        if (i === 7 && !instant) G.forEach(function (o, k) { o.br.style.opacity = 0; later(300 + k * 260, function () { o.br.style.opacity = 1; }); });
+        return;
+      }
+      var k = i - 1;
+      cam.to(zoom(k), ms);
+      G.forEach(function (o, j) { o.g.style.opacity = j === k ? 1 : 0.18; o.br.style.opacity = 0; });
+      resetInner();
+      var d = instant ? 0 : 1000;
+      function at(ms2, fn) { if (instant) fn(); else later(ms2, fn); }
+      if (k === 0) { at(d, function () { t1pieces.style.opacity = 1; t1pieces.style.transform = 'translateY(0)'; }); at(d + 900, function () { t1note.style.opacity = 1; }); }
+      if (k === 1) { at(d, function () { t2r1.style.opacity = 1; }); at(d + 900, function () { t2r2.style.opacity = 1; }); }
+      if (k === 2) { at(d, function () { t3a.style.opacity = 1; }); at(d + 900, function () { t3b.style.opacity = 1; }); }
+      if (k === 3) t4.forEach(function (e, j) { at(d + j * 380, function () { e.style.opacity = 1; }); });
+      if (k === 4) { t5.forEach(function (e, j) { at(d + j * 600, function () { e.style.opacity = 1; }); }); at(d + 1900, function () { t5n.style.opacity = 1; }); }
+      if (k === 5) { at(d, function () { noise.style.opacity = 1; }); at(d + 500, function () { seal.style.opacity = 1; }); at(d + 1000, function () { stamp.style.opacity = 1; stamp.style.transform = 'scale(1)'; }); }
+    }
+    stepper('fig-scripts', 8, render, { dwell: function (i) { return i === 0 || i === 7 ? 4200 : 4400; }, stage: svg });
+  })();
+
+  /* ================= Figure 2: benchmark map ================= */
+  (function () {
+    var langEl = document.getElementById('map-lang'); if (!langEl) return;
+    var taskEl = document.getElementById('map-task'), domEl = document.getElementById('map-dom'), det = document.getElementById('map-detail');
+    var LANGS = [
+      ['English', 'Latin', 'anchor', 82, 61], ['Hindi', 'Devanagari', 'hr', 79, 57], ['Bengali', 'Bengali', 'hr', 77, 55],
+      ['Telugu', 'Telugu', 'hr', 76, 56], ['Tamil', 'Tamil', 'hr', 75, 55], ['Marathi', 'Devanagari', 'hr', 76, 56],
+      ['Meitei', 'Meetei Mayek or Bengali', 'lr', 62, 48], ['Santali', 'Ol Chiki, among others', 'lr', 50, 37],
+      ['Sindhi', 'Perso-Arabic or Devanagari', 'lr', 48, 35], ['Kashmiri', 'Perso-Arabic or Devanagari', 'lr', 72, 51],
+      ['Konkani', 'Devanagari, among others', 'lr', 67, 49],
+      ['Nepali', 'Devanagari', 'poster'], ['Assamese', 'Assamese (Bengali–Assamese)', 'poster'], ['Odia', 'Odia', 'poster'],
+      ['Punjabi', 'Gurmukhi', 'poster'], ['Bodo', 'Devanagari', 'poster'],
+      ['Gujarati', 'Gujarati', 'example'], ['Kannada', 'Kannada', 'example'], ['Urdu', 'Perso-Arabic (Nastaliq)', 'example']
+    ];
+    var FAM = [
+      { n: 'Text recognition', g: 'perc', tasks: ['Scene text OCR', 'Handwritten OCR', 'Full-page OCR', 'Line OCR', 'Word OCR'],
+        why: 'Reads text exactly: a scene, a handwritten note, a full page, one line or one word.',
+        ex: [{ q: 'Give the line OCR for the image.', meta: 'Gujarati · Magazines' }] },
+      { n: 'Document segmentation', g: 'perc', tasks: ['Word detection', 'Line detection', 'Paragraph detection', 'Layout detection'],
+        why: 'Finds regions without reading them, from single words up to the full layout.',
+        ex: [{ q: 'Give the layout of this image.', meta: 'English · Tax forms' }] },
+      { n: 'Document parsing', g: 'perc', tasks: ['Document → Markdown', 'Document → HTML', 'Document → LaTeX'],
+        why: 'Converts a whole page into a structured text format.',
+        ex: [{ q: 'Convert the document to LaTeX.', meta: 'Bengali · Advertisements' }] },
+      { n: 'Structured extraction', g: 'perc', tasks: ['Chart → JSON', 'Chart → DataFrame', 'Table-cell localisation', 'Table → HTML', 'Table → LaTeX', 'Diagram → JSON', 'Form parsing'],
+        why: 'Turns one element (a chart, table, diagram or form) into data.',
+        ex: [{ q: 'Convert the table to LaTeX format.', a: '\\begin{tabular}{|c|c|c|c|c|c|c|} \\hline रवि & सोम & मंगल & बुध & गुरु & शुक्र & शनि \\\\ \\hline 1 & 2 …', meta: 'Hindi · Calendars' }] },
+      { n: 'Document VQA', g: 'reas', tasks: ['Extractive VQA', 'Abstractive VQA', 'Summarisation', 'Key information extraction', 'Layout-based QA', 'Visual QA', 'Language / script identification', 'Document classification', 'Quality assessment'],
+        why: 'Answers questions about one document: copy a value, explain, summarise, classify.',
+        ex: [{ q: 'What is the full address of the person whose entry is to be transposed?', a: '117, Kamarajar Salai, Ponnavarayankottai, Ponnavarayankottai, Thanjavur', meta: 'English · E-governance forms' }] },
+      { n: 'Knowledge and reasoning', g: 'reas', tasks: ['Multi-hop', 'Arithmetic', 'Logical', 'Ambiguous', 'Adversarial', 'Analogy', 'Counting', 'Compound', 'Science', 'Comparison', 'External knowledge', 'Explanation', 'Personal'],
+        why: 'Combines several facts, calculates, or resists a misleading premise.',
+        ex: [{ q: 'Which country has the highest total urban population among those listed, and what is the sum of its cities’ populations?', a: 'India, with 31 million (Delhi) + 12 million (Mumbai) = 43 million.', meta: 'Hindi · Infographics' }] },
+      { n: 'Structured reasoning', g: 'reas', tasks: ['Chart VQA', 'Table VQA', 'Table recognition', 'Diagram VQA', 'Form VQA'],
+        why: 'Reasons over the structure of a chart, table, diagram or form.',
+        ex: [{ q: 'ट्यूटोरिंग सेवा और अनुसंधान सहायक के बीच वेतन दर में कितना अंतर है?', a: '$3', meta: 'Hindi · Job descriptions' }] },
+      { n: 'Linguistic robustness', g: 'reas', tasks: ['Indic VQA', 'Cross-lingual VQA', 'Transliterated VQA', 'Code-mixed VQA'],
+        why: 'Asks the question in a different language or script from the page.',
+        ex: [{ q: 'Fair-Trade Tea de preference percentage kitna hai?', a: '45', meta: 'Transliterated VQA · Diagrams' },
+             { q: 'Title দেখে, এই compilation টি কোন cultural background এর children-দের জন্য তৈরি করা হয়েছে?', a: 'The compilation is intended for children with a Tamil cultural or linguistic background …', meta: 'Code-mixed VQA · Songs and rhymes' }] }
+    ];
+    var DOM = [
+      ['Government & Policy', ['Circulars', 'Orders & Notifications', 'Policies & Regulations', 'Bills & Budget Documents', 'Reports', 'Tenders & Advisories', 'MoUs & Agreements'], 'Sourced from national portals across several states and languages.'],
+      ['Print Media', ['Newspapers', 'Magazines', 'Brochures', 'Advertisements', 'Posters', 'Pamphlets'], 'Includes scan-heavy regional newspapers spanning decades.'],
+      ['Education', ['Textbooks', 'Exam Papers', 'Syllabus', 'Assignments', 'Marksheets', 'Research Papers & Theses'], 'Competitive exam papers, school textbooks and university theses in Indian-language mediums.'],
+      ['Business & Finance', ['Financial Statements', 'Annual Reports', 'Bank Statements', 'Payslips', 'Invoices & Bills', 'Loan & KYC Documents'], 'Includes annual reports and regulatory filings published on BSE and NSE in regional languages.'],
+      ['Personal Records', ['Certificates', 'Identity Cards', 'Tickets', 'Letters', 'Resumes & CV', 'Handwritten Notes'], ''],
+      ['Healthcare', ['Medical Reports', 'Hospital Bills', 'Doctor Prescriptions', 'Blood Test Charts', 'Pharmacy Bills'], ''],
+      ['Literature & Culture', ['Fiction & Non-fiction', 'Religious Scriptures', 'Music Notations', 'Translated Literature', 'Comics'], 'Includes historic novels and recipe books from archival sources.'],
+      ['Forms & Applications', ['Identity Forms', 'Service Forms', 'Utility Forms', 'Tax Forms', 'E-Governance Forms'], ''],
+      ['Manuals & Reference', ['User Manuals', 'Handbooks', 'Dictionaries', 'Encyclopedias', 'Datasheets (SDS)'], ''],
+      ['Digital & Web', ['UI Screenshots', 'Blogs & Articles', 'Emails', 'Wikipedia Pages', 'Code Pages'], ''],
+      ['Structured Visuals', ['Tables', 'Charts', 'Flowcharts', 'Diagrams'], 'Synthetic charts, tables and diagrams from Patram-Syn add to the native ones.'],
+      ['Scene Text', ['Street Signs', 'Shop Boards', 'Banners & Hoardings', 'Product Labels'], ''],
+      ['Presentations', ['Pitch Decks', 'Lecture Slides', 'General Slides'], '']
+    ];
+    var all = [];
+    function chip(parent, label, cls, fn) {
+      var b = H('button', { type: 'button', class: 'chip ' + (cls || ''), 'aria-pressed': 'false' }, parent);
+      b.textContent = label;
+      b.addEventListener('click', function () { all.forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); b.setAttribute('aria-pressed', 'true'); set(fn()); });
+      all.push(b); return b;
+    }
+    function set(html) { det.style.opacity = 0; setTimeout(function () { det.innerHTML = html; det.style.opacity = 1; }, RM ? 0 : 160); }
+    function tags(list) { return '<ul class="tags">' + list.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>'; }
+    LANGS.forEach(function (L) {
+      var cls = L[2] === 'hr' ? 'hr' : L[2] === 'lr' ? 'lr' : '';
+      chip(langEl, L[0], cls, function () {
+        var tier = L[2] === 'anchor' ? 'Anchor language in the robustness study' : L[2] === 'hr' ? 'High-resource in the robustness study' : L[2] === 'lr' ? 'Low-resource in the robustness study' : L[2] === 'poster' ? 'Shown in the poster’s multilingual examples' : 'Appears in the project page’s task examples';
+        var h = '<p class="kicker">Language · ' + tier + '</p><h5>' + L[0] + '</h5><p>Usually written in ' + esc(L[1]) + '. For languages written in more than one script, the public sources do not say which script the benchmark uses.</p>';
+        if (L[3] != null) {
+          var r1 = Math.round(100 * L[3] / 82), r2 = Math.round(100 * L[4] / 61);
+          h += '<p><strong>G-Eval (0 to 100):</strong> GPT-5 ' + L[3] + ', LLaVA-1.6-13B ' + L[4] + '.' + (L[2] !== 'anchor' ? ' That is ' + r1 + '% and ' + r2 + '% of their English scores (82 and 61).' : ' These are the baselines for the other languages.') + '</p>';
+        } else h += '<p>Per-language scores for this language are not in the public sources.</p>';
+        return h;
+      });
+    });
+    FAM.forEach(function (F) {
+      chip(taskEl, F.n, F.g, function () {
+        var h = '<p class="kicker">' + (F.g === 'perc' ? 'Perception' : 'Reasoning') + ' family</p><h5>' + F.n + '</h5><p>' + F.why + '</p>' + tags(F.tasks);
+        F.ex.forEach(function (e) {
+          h += '<div class="ex"><div class="meta">Benchmark example · ' + esc(e.meta) + '</div><div class="q">' + esc(e.q) + '</div>' + (e.a ? '<div class="meta" style="margin-top:4px">Answer: <span class="ind" style="font-size:13px;color:#14171a">' + esc(e.a) + '</span></div>' : '') + '</div>';
+        });
+        return h;
+      });
+    });
+    DOM.forEach(function (D) {
+      chip(domEl, D[0], '', function () {
+        return '<p class="kicker">Domain</p><h5>' + esc(D[0]) + '</h5><p>Classes shown in the paper’s taxonomy figure:</p>' + tags(D[1]) + (D[2] ? '<p>' + D[2] + '</p>' : '');
+      });
+    });
+    var start = taskEl.querySelectorAll('.chip')[7];
+    start.click();
+  })();
+
+  /* ================= Figure 3: one form, many tasks ================= */
+  (function () {
+    var svg = document.getElementById('form-svg'); if (!svg) return;
+    var cam = camera(svg), panel = document.getElementById('form-panel');
+    var g = S('g', {}, svg);
+    S('rect', { x: 10, y: 10, width: 450, height: 580, fill: '#fffdf7', stroke: '#cac6bd', 'stroke-width': 1.5 }, g);
+    function T(x, y, size, txt, extra) {
+      var a = { x: x, y: y, 'font-size': size, fill: '#14171a', 'font-family': INDIC };
+      if (extra) for (var k in extra) a[k] = extra[k];
+      return S('text', a, g, txt);
+    }
+    T(30, 58, 25, 'राशन कार्ड आवेदन पत्र', { 'font-weight': 700 });
+    T(30, 84, 15, 'Ration Card Application Form', { 'font-family': 'Georgia, serif' });
+    T(30, 106, 12, 'खाद्य एवं नागरिक आपूर्ति विभाग', { fill: '#474e53' });
+    S('circle', { cx: 405, cy: 68, r: 34, fill: 'rgba(11,94,168,0.05)', stroke: '#0b5ea8', 'stroke-width': 2 }, g);
+    S('circle', { cx: 405, cy: 68, r: 26, fill: 'none', stroke: '#0b5ea8', 'stroke-width': 1 }, g);
+    T(405, 73, 14, 'मुहर', { 'text-anchor': 'middle', fill: '#0b5ea8' });
+    S('line', { x1: 24, y1: 122, x2: 446, y2: 122, stroke: '#cac6bd' }, g);
+    var fields = [
+      ['आवेदक का नाम / Applicant name', 'Lakshmi Devi'],
+      ['पता / Address', '12, Gandhi Nagar, Warangal'],
+      ['मासिक आय / Monthly income', '₹ 9,500'],
+      ['आवेदन तिथि / Date', '14/08/2025']
+    ];
+    var rowY = [162, 202, 242, 282], vals = [];
+    fields.forEach(function (f, k) {
+      T(30, rowY[k], 13, f[0], { fill: '#474e53' });
+      vals.push(T(232, rowY[k], 14, f[1], { 'font-family': 'Georgia, serif', 'font-weight': 600 }));
+      S('line', { x1: 228, y1: rowY[k] + 6, x2: 446, y2: rowY[k] + 6, stroke: '#cac6bd', 'stroke-dasharray': '2 3' }, g);
+    });
+    T(30, 334, 15, 'परिवार के सदस्य', { 'font-weight': 700 });
+    var cols = [[30, 50, 'क्रम'], [80, 160, 'नाम'], [240, 110, 'संबंध'], [350, 90, 'आयु']];
+    S('rect', { x: 30, y: 346, width: 410, height: 28, fill: '#f1efe9', stroke: '#cac6bd' }, g);
+    cols.forEach(function (c) { T(c[0] + 8, 366, 13, c[2], { 'font-weight': 700 }); });
+    var rows = [['1', 'Lakshmi Devi', 'स्वयं', '41'], ['2', 'Ravi Kumar', 'पति', '45'], ['3', 'Anjali', 'पुत्री', '16'], ['4', 'Kiran', 'पुत्र', '12']];
+    var cells = [];
+    rows.forEach(function (r, k) {
+      var y = 374 + k * 30;
+      S('rect', { x: 30, y: y, width: 410, height: 30, fill: 'none', stroke: '#e3e0d9' }, g);
+      cells.push(r.map(function (v, j) { return T(cols[j][0] + 8, y + 20, 14, v, /[a-z]/i.test(v) ? { 'font-family': 'Georgia, serif' } : {}); }));
+    });
+    cols.slice(1).forEach(function (c) { S('line', { x1: c[0], y1: 346, x2: c[0], y2: 494, stroke: '#e3e0d9' }, g); });
+    T(30, 560, 12, 'हस्ताक्षर / Signature', { fill: '#474e53' });
+    S('path', { d: 'M150 552 C 160 530, 172 560, 182 542 S 205 528, 214 548 S 240 540, 258 536', fill: 'none', stroke: '#14171a', 'stroke-width': 1.6 }, g);
+    var st = S('g', { transform: 'rotate(-10 371 545)' }, g);
+    S('rect', { x: 301, y: 525, width: 140, height: 40, rx: 3, fill: 'rgba(184,67,47,0.05)', stroke: '#b8432f', 'stroke-width': 2.5 }, st);
+    S('text', { x: 371, y: 551, 'text-anchor': 'middle', 'font-size': 14, 'font-weight': 700, fill: '#b8432f', 'font-family': INDIC }, st, 'प्राप्त / RECEIVED');
+    var ov = S('g', {}, svg);
+
+    function bbox(el, pad) { var b = el.getBBox(); pad = pad || 4; return { x: b.x - pad, y: b.y - pad, w: b.width + 2 * pad, h: b.height + 2 * pad }; }
+    function hl(b, color, fill, delay, later, label) {
+      var r = S('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 3, fill: fill || 'none', stroke: color, 'stroke-width': 2.5, class: 'fade', opacity: 0 }, ov);
+      var lab = null;
+      if (label) {
+        lab = S('g', { class: 'fade', opacity: 0 }, ov);
+        var tw = label.length * 7.4 + 10;
+        S('rect', { x: b.x, y: b.y - 17, width: tw, height: 17, fill: color }, lab);
+        S('text', { x: b.x + 5, y: b.y - 4.5, 'font-size': 12, fill: '#fff', 'font-weight': 600 }, lab, label);
+      }
+      later(delay, function () { r.style.opacity = 1; if (lab) lab.style.opacity = 1; });
+      return r;
+    }
+    var BLUE = '#0b5ea8', OR = '#d66f00';
+    var LAYOUT = [['title', 20, 32, 355, 114], ['seal', 369, 32, 441, 104], ['key-value', 20, 134, 452, 292], ['table', 24, 312, 446, 497], ['signature', 24, 520, 270, 568], ['stamp', 295, 515, 447, 575]];
+    var steps = [
+      { tk: 'The page', fam: 'A drawn example', name: 'A bilingual ration card application',
+        why: 'Hindi and English labels, Latin-script values, a table whose headers are only in Hindi, a seal and a stamp. Every task below uses this one page.', cam: [0, 0, 470, 600] },
+      { tk: 'Text recognition', fam: 'Perception · Line OCR', name: 'Read one line exactly', prompt: 'Give the line OCR for the image.', out: 'मासिक आय / Monthly income   ₹ 9,500',
+        why: 'Reading one line in two scripts. Scored by character-level similarity, so a dropped vowel sign costs a character.', cam: [15, 110, 400, 511],
+        ov: function (later) { hl({ x: 22, y: 222, w: 428, h: 30 }, BLUE, 'rgba(11,94,168,0.10)', 500, later); } },
+      { tk: 'Document segmentation', fam: 'Perception · Layout detection', name: 'Find the regions', prompt: 'Give the layout of this image.',
+        out: LAYOUT.map(function (l) { return (l[0] + '          ').slice(0, 11) + '[' + l.slice(1).join(', ') + ']'; }).join('\n'),
+        why: 'Finding regions without reading them. On this family, specialist detectors trained on Indian layouts beat every general model.', cam: [0, 0, 470, 600],
+        ov: function (later) { LAYOUT.forEach(function (l, k) { hl({ x: l[1], y: l[2], w: l[3] - l[1], h: l[4] - l[2] }, k % 2 ? OR : BLUE, null, 300 + k * 320, later, l[0]); }); } },
+      { tk: 'Document parsing', fam: 'Perception · Document → HTML', name: 'Rewrite the page as HTML', prompt: 'Convert the document to HTML format.',
+        out: '<h1>राशन कार्ड आवेदन पत्र</h1>\n<p>Ration Card Application Form</p>\n<dl>\n  <dt>आवेदक का नाम / Applicant name</dt>\n  <dd>Lakshmi Devi</dd> …\n</dl>\n<table>\n  <tr><th>क्रम</th><th>नाम</th><th>संबंध</th><th>आयु</th></tr>\n  <tr><td>1</td><td>Lakshmi Devi</td><td>स्वयं</td><td>41</td></tr> …\n</table>',
+        why: 'Reading and structure together. The target keeps text and hierarchy, but not where things sit or how they look.', cam: [0, 0, 470, 600],
+        ov: function (later) { [[20, 32, 355, 114], [20, 134, 452, 292], [24, 312, 446, 497]].forEach(function (l, k) { hl({ x: l[0], y: l[1], w: l[2] - l[0], h: l[3] - l[1] }, '#7b8388', 'rgba(123,131,136,0.06)', 300 + k * 400, later); }); } },
+      { tk: 'Structured extraction', fam: 'Perception · Form parsing', name: 'Turn the form into data', prompt: 'Extract the applicant details as JSON.',
+        out: '{\n  "applicant_name": "Lakshmi Devi",\n  "address": "12, Gandhi Nagar, Warangal",\n  "monthly_income": "₹ 9,500",\n  "application_date": "14/08/2025",\n  "family_members": 4\n}',
+        why: 'Mapping printed labels in two languages to fixed keys, and counting the table rows for the last field.', cam: [0, 0, 470, 600],
+        ov: function (later) { vals.forEach(function (v, k) { hl(bbox(v), OR, 'rgba(214,111,0,0.10)', 300 + k * 260, later); }); hl({ x: 30, y: 374, w: 50, h: 120 }, OR, 'rgba(214,111,0,0.08)', 1400, later); } },
+      { tk: 'Document VQA', fam: 'Reasoning · Extractive VQA', name: 'Copy the answer from the page', prompt: 'आवेदक की मासिक आय कितनी है?', out: '₹ 9,500',
+        why: 'A Hindi question whose answer is copied from the page. Scored with ANLS.', cam: [15, 110, 400, 511],
+        ov: function (later) { hl(bbox(vals[2], 5), OR, 'rgba(214,111,0,0.14)', 500, later); } },
+      { tk: 'Linguistic robustness', fam: 'Reasoning · Cross-lingual VQA', name: 'An English question about Hindi text', prompt: 'What is Anjali’s relation to the applicant?', out: 'Daughter (पुत्री)',
+        why: 'The question is in English, but the answer sits in a table whose headers and relations are only in Hindi. The model has to read Hindi to answer.', cam: [25, 240, 390, 498],
+        ov: function (later) { hl(bbox(cells[2][1], 4), BLUE, 'rgba(11,94,168,0.10)', 400, later); hl(bbox(cells[2][2], 4), OR, 'rgba(214,111,0,0.16)', 1100, later); } },
+      { tk: 'Linguistic robustness', fam: 'Reasoning · Transliterated VQA', name: 'Hindi in Latin letters', prompt: 'Aavedak ki maasik aay kitni hai?', out: '₹ 9,500',
+        why: 'The same question as the extractive step, typed in Latin letters, the way many people write Hindi on a phone.', cam: [15, 110, 400, 511],
+        ov: function (later) { hl(bbox(vals[2], 5), OR, 'rgba(214,111,0,0.14)', 500, later); } },
+      { tk: 'Linguistic robustness', fam: 'Reasoning · Code-mixed VQA', name: 'Hindi and English in one question', prompt: 'इस form में application date क्या है?', out: '14/08/2025',
+        why: 'Hindi grammar with English words in the middle. This is the setting where twelve of thirteen open models lose most of their score.', cam: [15, 110, 400, 511],
+        ov: function (later) { hl(bbox(vals[3], 5), OR, 'rgba(214,111,0,0.14)', 500, later); } },
+      { tk: 'Knowledge and reasoning', fam: 'Reasoning · Multi-hop arithmetic', name: 'Two reads and a calculation', prompt: 'What is the monthly income per family member?', out: '₹ 9,500 ÷ 4 = ₹ 2,375',
+        why: 'The income and the number of table rows have to be found, then divided. The answer is printed nowhere on the page.', cam: [0, 0, 470, 600],
+        ov: function (later) { hl(bbox(vals[2], 5), OR, 'rgba(214,111,0,0.14)', 300, later); [0, 1, 2, 3].forEach(function (k) { hl({ x: 30, y: 374 + k * 30, w: 410, h: 30 }, BLUE, 'rgba(11,94,168,0.08)', 900 + k * 220, later); }); } }
+    ];
+    var first = true;
+    function render(i, instant, later) {
+      var s = steps[i];
+      while (ov.firstChild) ov.removeChild(ov.firstChild);
+      cam.to(s.cam, instant ? 0 : 1100);
+      var h = '<p class="tk">' + esc(s.tk) + '</p><p class="fam">' + esc(s.fam) + '</p><h5>' + esc(s.name) + '</h5>';
+      if (s.prompt) h += '<p class="lbl">Prompt</p><div class="prompt">' + esc(s.prompt) + '</div>';
+      if (s.out) h += '<p class="lbl">Expected output</p><pre class="ind">' + esc(s.out) + '</pre>';
+      h += '<p class="why">' + esc(s.why) + '</p>';
+      if (instant || first) { panel.innerHTML = h; first = false; }
+      else { panel.style.opacity = 0; panel.style.transition = 'opacity .25s ease'; setTimeout(function () { panel.innerHTML = h; panel.style.opacity = 1; }, 220); }
+      if (s.ov) s.ov(instant ? function (d, fn) { fn(); } : later);
+    }
+    stepper('fig-form', steps.length, render, { dwell: 4600, stage: svg });
+  })();
+
+  /* ================= Figure 4: data pipeline ================= */
+  (function () {
+    var svg = document.getElementById('pipe-svg'); if (!svg) return;
+    var stepEl = document.getElementById('pipe-step');
+    var boxes = {};
+    var cg = S('g', {}, svg);
+    var dotsG = S('g', {}, svg);
+    function box(id, x, y, w, h, lines, opt) {
+      opt = opt || {};
+      var g = S('g', { class: 'fade', opacity: 0.3 }, svg);
+      var r = S('rect', { x: x, y: y, width: w, height: h, rx: 6, fill: opt.fill || '#ffffff', stroke: '#cac6bd', 'stroke-width': 2 }, g);
+      r.style.transition = 'stroke .4s ease';
+      lines.forEach(function (l) { var bold = (l[2] || 400) >= 700; S('text', { x: l[3] != null ? l[3] : x + w / 2, y: y + l[0], 'text-anchor': l[3] != null ? 'start' : 'middle', 'font-size': l[1], 'font-weight': l[2] || 400, fill: l[4] || '#14171a', class: bold ? 'disp' : null, 'font-family': bold ? null : (l[6] || 'Newsreader, Georgia, serif') }, g, l[5]); });
+      boxes[id] = { g: g, r: r, x: x, y: y, w: w, h: h };
+      return g;
+    }
+    box('nat', 20, 30, 240, 215, [[30, 19, 700, 36, null, 'Native documents'], [66, 16, 400, 36, '#474e53', 'Governance · state portals'], [100, 16, 400, 36, '#474e53', 'Education · exams, textbooks'], [134, 16, 400, 36, '#474e53', 'Finance · BSE and NSE filings'], [168, 16, 400, 36, '#474e53', 'Archival · newspapers, novels'], [200, 12, 400, 36, '#7b8388', 'handwritten · printed · degraded', 'IBM Plex Mono, monospace']]);
+    box('syn', 20, 270, 240, 270, [[30, 19, 700, 36, null, 'Patram-Syn']]);
+    var synRows = ['1 · Persona (200K)', '2 · Source-aware retrieval', '3 · Render from code', '4 · Translate · 22 languages', '5 · Check · 14 experts'];
+    var synEls = synRows.map(function (t, k) {
+      var gg = S('g', {}, boxes.syn.g);
+      var rr = S('rect', { x: 34, y: 318 + k * 42, width: 212, height: 32, rx: 4, fill: '#f7f6f3', stroke: '#e3e0d9' }, gg);
+      rr.style.transition = 'fill .35s ease, stroke .35s ease';
+      S('text', { x: 46, y: 339 + k * 42, 'font-size': 15, fill: '#14171a', 'font-family': 'Newsreader, Georgia, serif' }, gg, t);
+      return rr;
+    });
+    box('pool', 310, 210, 150, 130, [[34, 18, 700, null, null, 'Document pool'], [70, 24, 700, null, '#0b5ea8', '0'], [94, 15, 400, null, '#474e53', 'documents'], [116, 14, 400, null, '#7b8388', '13 domains · 71 classes']]);
+    var poolCount = boxes.pool.g.querySelectorAll('text')[1];
+    box('seed', 505, 220, 140, 110, [[34, 17, 700, null, null, 'QA seeding'], [64, 16, 400, null, '#474e53', 'Gemini 3 Pro'], [86, 14, 400, null, '#7b8388', 'writes Q–A pairs']]);
+    box('qc', 690, 220, 140, 110, [[34, 17, 700, null, null, 'LLM QA/QC'], [64, 15, 400, null, '#474e53', 'flags hallucination'], [84, 15, 400, null, '#474e53', 'and grounding errors']]);
+    box('rej', 690, 400, 140, 70, [[30, 15, 700, null, '#b8432f', 'Flagged'], [52, 14, 400, null, '#7b8388', 'removed or fixed']], { fill: '#fbf1ef' });
+    box('full', 870, 220, 120, 110, [[34, 15, 700, null, null, 'Full set'], [68, 26, 700, null, '#0b5ea8', '2.4M+'], [90, 14, 400, null, '#474e53', 'QA annotations']]);
+    box('ann', 870, 370, 120, 70, [[28, 14, 700, null, null, '14 annotators'], [50, 14, 400, null, '#474e53', 'stratified subset']]);
+    box('gold', 870, 470, 120, 76, [[30, 24, 700, null, '#d66f00', '51.3k'], [52, 14, 400, null, '#474e53', 'gold QA pairs'], [68, 12, 400, null, '#7b8388', 'human-validated']], { fill: '#fdf3e6' });
+    // connectors
+    [['M260 140 C 290 140, 285 255, 310 262'], ['M260 405 C 290 405, 285 300, 310 300'], ['M460 275 L505 275'], ['M645 275 L690 275'], ['M830 275 L870 275'], ['M760 330 L760 400'], ['M930 330 L930 370'], ['M930 440 L930 470']].forEach(function (d) {
+      S('path', { d: d[0], fill: 'none', stroke: '#cac6bd', 'stroke-width': 2 }, cg);
+    });
+    var R = {
+      nat: [[200, 140], [260, 140], [286, 165], [290, 240], [310, 262]],
+      syn: [[200, 405], [260, 405], [286, 380], [290, 320], [310, 300]],
+      p2s: [[460, 275], [505, 275]], s2q: [[645, 275], [690, 275]], q2f: [[830, 275], [870, 275]],
+      q2r: [[760, 330], [760, 435]], f2a: [[930, 330], [930, 405]], a2g: [[930, 405], [930, 508]],
+      inPool: [[310, 275], [460, 275]], inSeed: [[505, 275], [645, 275]], inQc: [[690, 275], [830, 275]], inFull: [[870, 275], [930, 290], [930, 330]]
+    };
+    function cat() { var out = []; for (var a = 0; a < arguments.length; a++) out = out.concat(R[arguments[a]]); return out; }
+    var parts = [], step = 0, last = 0, acc = 0, running = false, visible = false;
+    var STRATA = ['#0b5ea8', '#2f8f5b', '#6a4c93'];
+    function spawn() {
+      var pts, color = '#0b5ea8', flag = false, strat = false;
+      var r = Math.random();
+      if (step === 1) pts = cat('nat');
+      else if (step === 2) pts = cat('syn');
+      else if (step === 3) pts = r < 0.5 ? cat('nat', 'inPool') : cat('syn', 'inPool');
+      else if (step === 4) pts = cat('inPool', 'p2s', 'inSeed');
+      else if (step === 5) { flag = r < 0.22; pts = flag ? cat('inSeed', 's2q', 'inQc').slice(0, 4).concat([[760, 300], [760, 435]]) : cat('inSeed', 's2q', 'inQc'); }
+      else if (step === 6) { flag = r < 0.22; pts = flag ? cat('s2q').concat([[760, 290], [760, 435]]) : cat('s2q', 'inQc', 'q2f', 'inFull'); }
+      else if (step === 7) { strat = true; pts = cat('inFull', 'f2a', 'a2g'); color = STRATA[Math.floor(Math.random() * 3)]; }
+      else if (step === 8) {
+        if (r < 0.18) { flag = true; pts = (Math.random() < 0.5 ? cat('nat') : cat('syn')).concat(cat('inPool', 'p2s', 'inSeed', 's2q')).concat([[760, 290], [760, 435]]); }
+        else if (r < 0.45) { strat = true; color = STRATA[Math.floor(Math.random() * 3)]; pts = (Math.random() < 0.5 ? cat('nat') : cat('syn')).concat(cat('inPool', 'p2s', 'inSeed', 's2q', 'inQc', 'q2f', 'inFull', 'f2a', 'a2g')); }
+        else pts = (Math.random() < 0.5 ? cat('nat') : cat('syn')).concat(cat('inPool', 'p2s', 'inSeed', 's2q', 'inQc', 'q2f', 'inFull'));
+      }
+      if (!pts) return;
+      var segs = [], L = 0;
+      for (var k = 1; k < pts.length; k++) { var d = Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]); segs.push(d); L += d; }
+      var c = S('circle', { r: 5.5, fill: color, cx: pts[0][0], cy: pts[0][1], stroke: '#fff', 'stroke-width': 1.5 }, dotsG);
+      parts.push({ pts: pts, segs: segs, L: L, s: 0, c: c, flag: flag, strat: strat, color: color });
+    }
+    function posAt(p) {
+      var s = p.s, k = 0;
+      while (k < p.segs.length && s > p.segs[k]) { s -= p.segs[k]; k++; }
+      if (k >= p.segs.length) return p.pts[p.pts.length - 1];
+      var a = p.pts[k], b = p.pts[k + 1], t = p.segs[k] ? s / p.segs[k] : 0;
+      return [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+    }
+    function frame(now) {
+      if (!running) return;
+      var api = window.__figs['fig-pipe']; var sp = api ? api.speed : 1;
+      var dt = Math.min(0.05, (now - (last || now)) / 1000); last = now;
+      acc += dt * sp;
+      var every = step === 8 ? 0.11 : 0.2;
+      while (acc > every) { acc -= every; spawn(); }
+      for (var k = parts.length - 1; k >= 0; k--) {
+        var p = parts[k];
+        p.s += dt * sp * 170;
+        var q = posAt(p);
+        p.c.setAttribute('cx', q[0]); p.c.setAttribute('cy', q[1]);
+        if (p.flag && q[0] > 740 && q[0] < 780 && q[1] > 285) p.c.setAttribute('fill', '#b8432f');
+        if (p.s >= p.L) { dotsG.removeChild(p.c); parts.splice(k, 1); }
+      }
+      requestAnimationFrame(frame);
+    }
+    function setRunning(on) {
+      if (RM) on = false;
+      if (on && !running) { running = true; last = 0; requestAnimationFrame(frame); }
+      if (!on) running = false;
+    }
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { es.forEach(function (en) { visible = en.isIntersecting; setRunning(visible && step > 0); }); }, { threshold: 0.15 }).observe(svg);
+    function staticDots() {
+      while (dotsG.firstChild) dotsG.removeChild(dotsG.firstChild); parts = [];
+      if (!RM) return;
+      var route = { 1: cat('nat'), 2: cat('syn'), 3: cat('nat', 'inPool'), 4: cat('inPool', 'p2s', 'inSeed'), 5: cat('inSeed', 's2q', 'inQc'), 6: cat('s2q', 'inQc', 'q2f'), 7: cat('inFull', 'f2a', 'a2g'), 8: cat('inPool', 'p2s', 'inSeed', 's2q', 'inQc', 'q2f') }[step];
+      if (!route) return;
+      var p = { pts: route, segs: [], L: 0 };
+      for (var k = 1; k < route.length; k++) { var d = Math.hypot(route[k][0] - route[k - 1][0], route[k][1] - route[k - 1][1]); p.segs.push(d); p.L += d; }
+      for (var j = 1; j <= 6; j++) { p.s = p.L * j / 7; var q = posAt(p); S('circle', { r: 5.5, cx: q[0], cy: q[1], fill: step === 7 ? STRATA[j % 3] : '#0b5ea8', stroke: '#fff', 'stroke-width': 1.5 }, dotsG); }
+    }
+    var order = { nat: 1, syn: 2, pool: 3, seed: 4, qc: 5, rej: 5, full: 6, ann: 7, gold: 7 };
+    var texts = [
+      'Two sources feed one pool of documents. Questions are then written by a model, checked by a model, and a stratified sample is validated by people.',
+      'Native documents: governance pages from state portals, exam papers and textbooks, BSE and NSE filings in regional languages, and archival newspapers and novels.',
+      'Patram-Syn: a persona and topic, retrieval of real Indian public data, rendering from code, translation into 22 languages, and a check by 14 native-speaker experts.',
+      'Both sources land in one pool: 52,607 documents across 13 domains and 71 classes.',
+      'Gemini 3 Pro seeds question–answer pairs for each document and task.',
+      'An LLM quality-control pass flags answers that are hallucinated or not supported by the page. Flagged items (red) leave the stream.',
+      'What passes forms the full benchmark: more than 2.4 million QA annotations across 52 tasks.',
+      '14 annotators review a stratified subset, so every stratum (colours) is represented. The result is the 51.3k-pair human-validated gold set.',
+      'The whole pipeline. Trust comes in layers: a model writes, a model checks, and people validate a representative 2% as gold.'
+    ];
+    function render(i, instant) {
+      step = i;
+      stepEl.textContent = texts[i];
+      Object.keys(boxes).forEach(function (id) {
+        var b = boxes[id], on = i === 0 ? false : (i === 8 || order[id] <= i);
+        b.g.style.opacity = i === 0 ? 0.55 : (on ? 1 : 0.22);
+        b.r.setAttribute('stroke', (order[id] === i) ? '#d66f00' : (id === 'gold' && i >= 7 ? '#d66f00' : '#cac6bd'));
+      });
+      synEls.forEach(function (r, k) { r.setAttribute('fill', '#f7f6f3'); r.setAttribute('stroke', '#e3e0d9'); });
+      if (i === 2) synEls.forEach(function (r, k) { var on = function () { r.setAttribute('fill', '#fdf1e4'); r.setAttribute('stroke', '#d66f00'); }; if (instant) on(); else setTimeout(function () { if (step === 2) on(); }, 300 + k * 450); });
+      if (i >= 3) {
+        if (instant || i !== 3) poolCount.textContent = '52,607';
+        else tween(1400, function (t) { poolCount.textContent = Math.round(52607 * t).toLocaleString('en-US'); });
+      } else poolCount.textContent = '0';
+      if (RM) staticDots(); else setRunning(visible && i > 0);
+      if (i === 0) { while (dotsG.firstChild) dotsG.removeChild(dotsG.firstChild); parts = []; }
+    }
+    stepper('fig-pipe', 9, render, { dwell: function (i) { return i === 8 ? 6000 : 4200; }, stage: svg });
+  })();
+
+  /* ================= Figure 5: ANLS ================= */
+  (function () {
+    var input = document.getElementById('anls-in'); if (!input) return;
+    var fig = document.getElementById('fig-anls');
+    var gtBar = fig.querySelector('.seg[aria-label="Ground truth"]'), pre = document.getElementById('anls-presets');
+    var GT = {
+      '₹ 9,500': [['exact', '₹ 9,500', 'Exact match: ANLS 1.'], ['no space', '₹9,500', 'One deletion: a small, fair penalty.'], ['digits only', '9500', 'Same number, three characters dropped. Still above the cut-off.'], ['Devanagari digits', '₹ ९,५००', 'The same amount in Devanagari digits. Four of seven characters differ, so ANLS gives 0 to a correct answer.'], ['wrong amount', '₹ 9,800', 'A wrong amount, one character off. ANLS gives it 0.857.'], ['full sentence', 'The monthly income is ₹ 9,500', 'Contains the right value, but the extra words push NLD past 0.5. A chatty model scores 0.']],
+      'Lakshmi Devi': [['exact', 'Lakshmi Devi', 'Exact match.'], ['OCR slip', 'Lakshmi Dev1', 'One character misread: a small penalty, as intended.'], ['lower case', 'lakshmi devi', 'Both strings are lower-cased before comparison, so case costs nothing.'], ['Hindi script', 'लक्ष्मी देवी', 'The same name in Devanagari. Every character differs: ANLS 0. Note how many code points the conjuncts take.'], ['first name', 'Lakshmi', 'Only half the answer, yet NLD stays under 0.5, so it still scores 0.583.'], ['full sentence', 'The applicant is Lakshmi Devi.', 'Right name inside a sentence: past the cut-off, so 0.']],
+      '14/08/2025': [['exact', '14/08/2025', 'Exact match.'], ['dashes', '14-08-2025', 'Two separators differ: 0.8.'], ['month first', '08/14/2025', 'The same date written month-first. ANLS sees four changed characters and gives 0.6; it cannot tell a format change from a different date.'], ['written out', '14 August 2025', 'A correct, readable date that scores 0.'], ['Devanagari digits', '१४/०८/२०२५', 'Correct in Devanagari digits: ANLS 0.'], ['wrong day', '15/08/2025', 'Wrong by one day: 0.9.']]
+    };
+    var gt = '₹ 9,500', note = document.getElementById('anls-note');
+    function lev(a, b) {
+      a = Array.from(a); b = Array.from(b);
+      var m = a.length, n = b.length, prev = [], cur = [];
+      for (var j = 0; j <= n; j++) prev[j] = j;
+      for (var i = 1; i <= m; i++) {
+        cur = [i];
+        for (var j2 = 1; j2 <= n; j2++) cur[j2] = Math.min(prev[j2] + 1, cur[j2 - 1] + 1, prev[j2 - 1] + (a[i - 1] === b[j2 - 1] ? 0 : 1));
+        prev = cur;
+      }
+      return prev[n];
+    }
+    function norm(s) { return s.trim().toLowerCase().replace(/\s+/g, ' '); }
+    function calc(custom) {
+      var a = norm(input.value), o = norm(gt);
+      var d = lev(a, o), L = Math.max(Array.from(a).length, Array.from(o).length);
+      var nld = L ? d / L : 0, s = nld < 0.5 ? 1 - nld : 0;
+      document.getElementById('anls-d').textContent = d;
+      document.getElementById('anls-len').textContent = L;
+      document.getElementById('anls-nld').textContent = nld.toFixed(3);
+      document.getElementById('anls-score').textContent = s.toFixed(3);
+      var f = document.getElementById('anls-fill');
+      f.style.width = Math.min(100, nld * 100) + '%';
+      f.style.background = nld < 0.5 ? '#0b5ea8' : '#b8432f';
+      if (custom) note.textContent = s === 0 ? 'Past the cut-off: this answer scores 0.' : 'Below the cut-off: the score is 1 − NLD.';
+    }
+    function presets() {
+      pre.querySelectorAll('button').forEach(function (b) { b.remove(); });
+      GT[gt].forEach(function (p, k) {
+        var b = H('button', { type: 'button', 'aria-pressed': k === 0 ? 'true' : 'false' }, pre); b.textContent = p[0];
+        b.addEventListener('click', function () { pre.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); input.value = p[1]; note.textContent = p[2]; calc(false); });
+      });
+      input.value = GT[gt][0][1]; note.textContent = GT[gt][0][2]; calc(false);
+    }
+    Object.keys(GT).forEach(function (k, idx) {
+      var b = H('button', { type: 'button', 'aria-pressed': idx === 0 ? 'true' : 'false', class: 'ind' }, gtBar); b.textContent = k;
+      b.style.fontFamily = 'var(--mono)';
+      b.addEventListener('click', function () { gt = k; gtBar.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); presets(); });
+    });
+    input.addEventListener('input', function () { pre.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); }); calc(true); });
+    presets();
+  })();
+
+  /* ================= Figure 6: DUCLI and SRS ================= */
+  var DS = [
+    ['Gemma-3-12B', [0.82, 0.66, 0.61, 0.63, 0.62], 0.767, [0.55, 0.63, 0.65], 1.160],
+    ['LLaMA4-Scout', [0.74, 0.50, 0.49, 0.48, 0.49], 0.664, [0.54, 0.16, 0.16], 0.297],
+    ['Gemma-3-27B', [0.79, 0.54, 0.50, 0.49, 0.51], 0.644, [0.57, 0.20, 0.20], 0.348],
+    ['Qwen3-VL-32B', [0.78, 0.51, 0.49, 0.48, 0.51], 0.637, [0.56, 0.13, 0.13], 0.234],
+    ['Qwen3-VL-7B', [0.77, 0.49, 0.48, 0.47, 0.48], 0.623, [0.55, 0.14, 0.14], 0.253],
+    ['Qwen3-VL-30B-A3B', [0.78, 0.48, 0.47, 0.46, 0.49], 0.608, [0.54, 0.14, 0.14], 0.257],
+    ['DeepSeek-VL2', [0.72, 0.39, 0.37, 0.36, 0.39], 0.523, [0.53, 0.14, 0.14], 0.266],
+    ['Molmo-2-8B', [0.70, 0.36, 0.34, 0.33, 0.33], 0.486, [0.52, 0.21, 0.21], 0.403],
+    ['InternVL3.5-30B-A3B', [0.72, 0.35, 0.33, 0.33, 0.35], 0.472, [0.54, 0.18, 0.18], 0.332],
+    ['InternVL-38B', [0.72, 0.34, 0.32, 0.32, 0.34], 0.458, [0.54, 0.12, 0.12], 0.224],
+    ['Pixtral-12B', [0.71, 0.33, 0.32, 0.31, 0.33], 0.456, [0.52, 0.10, 0.10], 0.192],
+    ['InternVL3.5-8B', [0.71, 0.32, 0.31, 0.31, 0.32], 0.444, [0.55, 0.14, 0.14], 0.253],
+    ['LLaVA-v1.6', [0.70, 0.31, 0.30, 0.30, 0.32], 0.441, [0.53, 0.12, 0.12], 0.228]
+  ];
+  (function () {
+    var sel = document.getElementById('ducli-model'); if (!sel) return;
+    DS.forEach(function (d, k) { var o = H('option', { value: k }, sel); o.textContent = d[0] + ' (DUCLI ' + d[2].toFixed(3) + ', SRS ' + d[4].toFixed(3) + ')'; });
+    var rng = document.getElementById('ducli-ee'), out = document.getElementById('ducli-ee-out');
+    var dB = document.getElementById('ducli-bars'), sB = document.getElementById('srs-bars');
+    var dl = ['English → English', 'Indic → Indic', 'English → Indic', 'Indic → English', 'High-res → low-res Indic'];
+    var sl = ['Pure Indic', 'Code-mixed', 'Transliterated'];
+    function bars(el, labels, cls) {
+      el.innerHTML = '';
+      return labels.map(function (l, k) {
+        var row = H('div', { class: 'bar-row' }, el);
+        H('span', {}, row).textContent = l;
+        var tr = H('div', { class: 'bar-track' }, row), f = H('div', { class: 'bar-fill ' + cls[k] }, tr);
+        var v = H('span', { class: 'bar-val' }, row);
+        return { f: f, v: v };
+      });
+    }
+    var db = bars(dB, dl, ['ee', 'in', 'in', 'in', 'in']), sb = bars(sB, sl, ['in', 'pert', 'pert']);
+    function upd(fromSel) {
+      var d = DS[+sel.value];
+      if (fromSel) rng.value = d[1][0];
+      var ee = +rng.value; out.textContent = ee.toFixed(2);
+      var comps = [ee].concat(d[1].slice(1));
+      comps.forEach(function (v, k) { db[k].f.style.width = (v * 100) + '%'; db[k].v.textContent = v.toFixed(2); });
+      var sum = d[1][1] + d[1][2] + d[1][3] + d[1][4], du = sum / 4 / ee, du0 = sum / 4 / d[1][0];
+      document.getElementById('ducli-formula').innerHTML = 'DUCLI = ¼ · (' + d[1].slice(1).map(function (v) { return v.toFixed(2); }).join(' + ') + ') / ' + ee.toFixed(2) + ' = <b>' + du.toFixed(3) + '</b>';
+      d[3].forEach(function (v, k) { sb[k].f.style.width = (v * 100) + '%'; sb[k].v.textContent = v.toFixed(2); });
+      var srs = 0.5 * (d[3][1] / d[3][0] + d[3][2] / d[3][0]);
+      document.getElementById('srs-formula').innerHTML = 'SRS = ½ · (' + d[3][1].toFixed(2) + ' / ' + d[3][0].toFixed(2) + ' + ' + d[3][2].toFixed(2) + ' / ' + d[3][0].toFixed(2) + ') = <b>' + srs.toFixed(3) + '</b>';
+      var n = document.getElementById('ducli-note');
+      var base = d[0] + ': published DUCLI ' + d[2].toFixed(3) + ' and SRS ' + d[4].toFixed(3) + ' (recomputed from the rounded components: ' + du0.toFixed(3) + ' and ' + srs.toFixed(3) + ').';
+      if (Math.abs(ee - d[1][0]) > 0.001) base += ' With S(E, E) = ' + ee.toFixed(2) + ' instead of ' + d[1][0].toFixed(2) + ', and the same Indic scores, DUCLI would be ' + du.toFixed(3) + (ee < d[1][0] ? ': higher, for a model that is worse in English.' : ': lower, for a model that is better in English.');
+      n.textContent = base;
+    }
+    sel.addEventListener('change', function () { upd(true); });
+    rng.addEventListener('input', function () { upd(false); });
+    upd(true);
+  })();
+
+  /* ================= Figure 7: heatmap ================= */
+  (function () {
+    var table = document.getElementById('heat-table'); if (!table) return;
+    var CLOSED = { 'GPT-5': 1, 'Gemini-3-Pro': 1, 'Claude-4.0-Sonnet': 1 };
+    var TASK = { cols: ['TR', 'DS', 'DP', 'EP', 'TDV', 'SER', 'AKR', 'LR'], labels: { TR: 'Text recognition', DS: 'Document segmentation', DP: 'Document parsing', EP: 'Element parsing', TDV: 'Text-centric DocVQA', SER: 'Structured element reasoning', AKR: 'Analytical and knowledge reasoning', LR: 'Linguistic robustness' }, unit: 'task score (0 to 1)', fmt: function (v) { return Math.round(v * 1000) % 10 ? v.toFixed(3) : v.toFixed(2); },
+      rows: [['Gemini-3-Pro', [0.88, 0.85, 0.89, 0.85, 0.86, 0.88, 0.89, 0.88]], ['Claude-4.0-Sonnet', [0.845, 0.83, 0.90, 0.83, 0.88, 0.87, 0.88, 0.85]], ['GPT-5', [0.85, 0.84, 0.885, 0.84, 0.87, 0.89, 0.91, 0.86]], ['Qwen3-VL-235B-A22B', [0.80, 0.78, 0.82, 0.80, 0.84, 0.85, 0.84, 0.83]], ['InternVL3.5-241B-A28B', [0.72, 0.70, 0.74, 0.73, 0.76, 0.74, 0.75, 0.75]], ['Qwen3-VL-32B', [0.78, 0.75, 0.80, 0.82, 0.85, 0.79, 0.80, 0.81]], ['Qwen3-VL-30B-A3B', [0.76, 0.74, 0.78, 0.77, 0.78, 0.76, 0.77, 0.84]], ['LLaMA4-Scout', [0.75, 0.72, 0.76, 0.78, 0.79, 0.77, 0.78, 0.79]], ['GLM-4.5V-9B', [0.74, 0.71, 0.75, 0.76, 0.77, 0.78, 0.86, 0.78]], ['InternVL-38B', [0.70, 0.68, 0.72, 0.71, 0.73, 0.72, 0.73, 0.72]], ['InternVL3.5-30B-A3B', [0.68, 0.66, 0.70, 0.69, 0.71, 0.70, 0.71, 0.70]], ['Pixtral-12B', [0.65, 0.64, 0.65, 0.15, 0.66, 0.65, 0.66, 0.65]], ['Molmo-2-8B', [0.60, 0.58, 0.60, 0.55, 0.60, 0.60, 0.60, 0.12]], ['InternVL3.5-8B', [0.55, 0.52, 0.55, 0.50, 0.55, 0.14, 0.55, 0.50]], ['Qwen3-VL-8B', [0.50, 0.50, 0.52, 0.48, 0.50, 0.50, 0.52, 0.48]], ['MiniCPM-V4.5', [0.45, 0.45, 0.45, 0.40, 0.45, 0.45, 0.48, 0.40]], ['DeepSeek-VL2', [0.40, 0.40, 0.40, 0.35, 0.40, 0.40, 0.40, 0.35]], ['LLaVA-v1.6', [0.21, 0.20, 0.18, 0.20, 0.17, 0.16, 0.15, 0.15]]] };
+    var LANG = { cols: ['en', 'hi', 'bn', 'te', 'ta', 'mr', 'mni', 'sat', 'sd', 'ks', 'kok'], labels: { en: 'English', hi: 'Hindi', bn: 'Bengali', te: 'Telugu', ta: 'Tamil', mr: 'Marathi', mni: 'Meitei', sat: 'Santali', sd: 'Sindhi', ks: 'Kashmiri', kok: 'Konkani' }, unit: 'G-Eval (0 to 100)', fmt: function (v) { return String(v); },
+      groups: [['', 1, ''], ['English', 1, '#7b8388'], ['High-resource', 5, '#0b5ea8'], ['Low-resource', 5, '#d66f00']],
+      rows: [['GPT-5', [82, 79, 77, 76, 75, 76, 62, 50, 48, 72, 67]], ['Gemini-3-Pro', [74, 69, 66, 66, 65, 66, 56, 43, 41, 60, 58]], ['Claude-4.0-Sonnet', [71, 67, 63, 64, 63, 64, 55, 46, 42, 59, 57]], ['Qwen3-VL-235B-A22B', [75, 71, 69, 70, 69, 70, 61, 48, 46, 62, 60]], ['InternVL3.5-241B-A28B', [71, 67, 65, 66, 65, 66, 54, 43, 41, 58, 56]], ['Qwen3-VL-30B-A3B', [73, 69, 67, 68, 67, 68, 59, 46, 44, 61, 59]], ['Qwen3-VL-32B', [69, 65, 63, 64, 63, 64, 56, 44, 42, 60, 58]], ['LLaMA4-Scout', [68, 64, 62, 63, 62, 63, 51, 40, 38, 55, 53]], ['Gemma-3-27B', [66, 62, 60, 61, 60, 61, 52, 40, 38, 55, 53]], ['Qwen3-VL-8B', [65, 61, 59, 60, 59, 60, 52, 41, 39, 57, 55]], ['Molmo-2-13B', [63, 59, 57, 58, 57, 58, 50, 39, 37, 53, 51]], ['LLaVA-1.6-13B', [61, 57, 55, 56, 55, 56, 48, 37, 35, 51, 49]], ['Pixtral-12B', [62, 58, 56, 57, 56, 57, 49, 38, 36, 52, 50]], ['Gemma-3-12B', [62, 58, 56, 57, 56, 57, 49, 38, 36, 52, 50]], ['InternVL3.5-8B', [61, 57, 55, 56, 55, 56, 48, 37, 35, 51, 49]], ['GLM-4.5V-9B', [60, 56, 54, 55, 54, 55, 47, 36, 34, 50, 48]], ['PANGEA', [59, 55, 53, 54, 53, 54, 46, 35, 33, 49, 47]], ['Chitrarth', [58, 54, 52, 53, 52, 53, 45, 34, 32, 48, 46]], ['CogVLM-17B', [58, 54, 52, 53, 52, 53, 45, 34, 32, 48, 46]], ['Molmo-1-7B', [57, 53, 51, 52, 51, 52, 45, 34, 32, 48, 46]], ['Maya', [57, 53, 51, 52, 51, 52, 44, 33, 31, 47, 45]], ['MiniCPM2-2.6V', [56, 52, 50, 51, 50, 51, 44, 33, 31, 47, 45]], ['Palo', [56, 52, 50, 51, 50, 51, 43, 32, 30, 46, 44]], ['InternVL3.5-1B', [53, 49, 47, 48, 47, 48, 40, 31, 30, 45, 43]]] };
+    var XL = { cols: ['eEN', 'eHR', 'eLR', 'iEN', 'iSHR', 'iSLR', 'iDHR', 'iDLR'], labels: { eEN: 'English page, question in English', eHR: 'English page, question in a high-resource Indic language', eLR: 'English page, question in a low-resource Indic language', iEN: 'Indic page, question in English', iSHR: 'Indic page, same high-resource language', iSLR: 'Indic page, same low-resource language', iDHR: 'Indic page, different high-resource language', iDLR: 'Indic page, different low-resource language' },
+      short: { eEN: 'Q:EN', eHR: 'Q:HR', eLR: 'Q:LR', iEN: 'Q:EN', iSHR: 'Same HR', iSLR: 'Same LR', iDHR: 'Diff HR', iDLR: 'Diff LR' }, unit: 'ANLS (0 to 1)', fmt: function (v) { return v.toFixed(3); },
+      groups: [['', 1, ''], ['English documents', 3, '#7b8388'], ['Indic documents', 5, '#0b5ea8']],
+      rows: [['Gemma-3-27B', [0.323, 0.327, 0.337, 0.193, 0.211, 0.161, 0.181, 0.19]], ['Qwen3-VL-32B', [0.289, 0.272, 0.289, 0.197, 0.169, 0.143, 0.143, 0.138]], ['LLaMA-4 Scout', [0.288, 0.279, 0.284, 0.184, 0.213, 0.173, 0.166, 0.175]], ['Qwen3-VL-30B', [0.273, 0.226, 0.237, 0.188, 0.161, 0.159, 0.133, 0.128]], ['InternVL-38B', [0.194, 0.181, 0.186, 0.075, 0.054, 0.064, 0.075, 0.077]], ['Pixtral-12B', [0.183, 0.171, 0.174, 0.081, 0.049, 0.068, 0.077, 0.067]], ['LLaVA-v1.6', [0.112, 0.079, 0.066, 0.054, 0.032, 0.056, 0.042, 0.031]]] };
+    var VIEWS = { task: TASK, lang: LANG, xl: XL }, view = 'task', sort = 'pub';
+    var read = document.getElementById('heat-read');
+    function color(t) {
+      var a = [238, 244, 250], b = [11, 94, 168];
+      return 'rgb(' + a.map(function (v, k) { return Math.round(lerp(v, b[k], t)); }).join(',') + ')';
+    }
+    function draw() {
+      var V = VIEWS[view], rows = V.rows.slice();
+      if (sort === 'mean') rows.sort(function (x, y) { return mean(y[1]) - mean(x[1]); });
+      var all = []; rows.forEach(function (r) { all = all.concat(r[1]); });
+      var mn = Math.min.apply(null, all), mx = Math.max.apply(null, all);
+      var h = '<thead>';
+      if (V.groups) { h += '<tr>' + V.groups.map(function (g) { return '<th colspan="' + g[1] + '" class="' + (g[0] ? 'grp' : '') + '" style="' + (g[2] ? 'background:' + g[2] : '') + '">' + g[0] + '</th>'; }).join('') + '</tr>'; }
+      h += '<tr><th></th>' + V.cols.map(function (c) { return '<th title="' + esc(V.labels[c]) + '">' + esc(V.short ? V.short[c] : c) + '</th>'; }).join('') + '</tr></thead><tbody>';
+      rows.forEach(function (r) {
+        h += '<tr><th class="model' + (CLOSED[r[0]] ? ' closed' : '') + '">' + esc(r[0]) + '</th>';
+        r[1].forEach(function (v, k) {
+          var t = mx > mn ? (v - mn) / (mx - mn) : 0;
+          h += '<td data-m="' + esc(r[0]) + '" data-c="' + V.cols[k] + '" data-v="' + v + '" style="background:' + color(t) + ';color:' + (t > 0.55 ? '#fff' : '#14171a') + '">' + V.fmt(v) + '</td>';
+        });
+        h += '</tr>';
+      });
+      table.innerHTML = h + '</tbody>';
+      document.getElementById('heat-min').textContent = V.fmt(mn);
+      document.getElementById('heat-max').textContent = V.fmt(mx);
+      document.getElementById('heat-unit').textContent = V.unit;
+      read.textContent = 'Hover a cell to read it.';
+    }
+    function mean(a) { return a.reduce(function (s, v) { return s + v; }, 0) / a.length; }
+    table.addEventListener('mouseover', function (e) {
+      var td = e.target.closest('td'); if (!td) return;
+      var V = VIEWS[view], c = td.dataset.c, v = +td.dataset.v;
+      var colVals = V.rows.map(function (r) { return r[1][V.cols.indexOf(c)]; }).sort(function (a, b) { return b - a; });
+      var rank = colVals.indexOf(v) + 1;
+      read.textContent = td.dataset.m + ' · ' + V.labels[c] + ' · ' + V.fmt(v) + ' (rank ' + rank + ' of ' + colVals.length + ' in this column)';
+    });
+    function seg(id, opts, cur, fn) {
+      var el = document.getElementById(id);
+      opts.forEach(function (o) {
+        var b = H('button', { type: 'button', 'aria-pressed': o[0] === cur ? 'true' : 'false' }, el); b.textContent = o[1];
+        b.addEventListener('click', function () { el.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); }); fn(o[0]); draw(); });
+      });
+    }
+    seg('heat-tabs', [['task', 'By task family'], ['lang', 'By language'], ['xl', 'Cross-lingual ANLS']], view, function (v) { view = v; });
+    seg('heat-sort', [['pub', 'Published order'], ['mean', 'Highest mean first']], sort, function (v) { sort = v; });
+    draw();
+  })();
+
+  /* ================= Figure 8: low-resource cliff ================= */
+  (function () {
+    var svg = document.getElementById('cliff-svg'); if (!svg) return;
+    var stepEl = document.getElementById('cliff-step');
+    var LL = ['English', 'Hindi', 'Bengali', 'Telugu', 'Tamil', 'Marathi', 'Meitei', 'Santali', 'Sindhi', 'Kashmiri', 'Konkani'];
+    var M = [
+      ['GPT-5', '#d66f00', 'circle', [82, 79, 77, 76, 75, 76, 62, 50, 48, 72, 67]],
+      ['Qwen3-VL-235B', '#7a5c00', 'square', [75, 71, 69, 70, 69, 70, 61, 48, 46, 62, 60]],
+      ['Qwen3-VL-32B', '#2f8f5b', 'diamond', [69, 65, 63, 64, 63, 64, 56, 44, 42, 60, 58]],
+      ['Gemma-3-27B', '#0b5ea8', 'triangle', [66, 62, 60, 61, 60, 61, 52, 40, 38, 55, 53]],
+      ['LLaVA-1.6-13B', '#b8432f', 'ring', [61, 57, 55, 56, 55, 56, 48, 37, 35, 51, 49]]
+    ];
+    var X0 = 100, DX = 70, Y = function (v) { return 470 - (v - 30) / 60 * 400; }, X = function (k) { return X0 + k * DX; };
+    var band = S('rect', { x: (X(5) + X(6)) / 2, y: 60, width: X(10) + 34 - (X(5) + X(6)) / 2, height: 415, fill: '#fdf1e4', class: 'fade', opacity: 0 }, svg);
+    var bandLbl = S('text', { x: (X(5) + X(6)) / 2 + 12, y: 84, 'font-size': 14, 'letter-spacing': 3, fill: '#b35c00', class: 'fade', opacity: 0 }, svg, 'LOW-RESOURCE');
+    S('text', { x: X0 - 10, y: 84, 'font-size': 14, 'letter-spacing': 3, fill: '#474e53' }, svg, 'ENGLISH + HIGH-RESOURCE');
+    [30, 45, 60, 75, 90].forEach(function (v) {
+      S('line', { x1: X0 - 20, x2: X(10) + 34, y1: Y(v), y2: Y(v), stroke: '#e3e0d9' }, svg);
+      S('text', { x: X0 - 30, y: Y(v) + 5, 'text-anchor': 'end', 'font-size': 15, fill: '#7b8388' }, svg, v);
+    });
+    S('text', { x: 28, y: 270, 'font-size': 15, fill: '#474e53', transform: 'rotate(-90 28 270)', 'text-anchor': 'middle' }, svg, 'G-Eval score');
+    LL.forEach(function (l, k) { S('text', { x: X(k), y: 500, 'font-size': 15, fill: '#474e53', 'text-anchor': 'end', transform: 'rotate(-35 ' + X(k) + ' 500)' }, svg, l); });
+    var hlS = S('rect', { x: X(7) - 26, y: 60, width: X(8) - X(7) + 52, height: 415, fill: 'rgba(184,67,47,0.08)', stroke: '#b8432f', 'stroke-dasharray': '5 4', class: 'fade', opacity: 0 }, svg);
+    var hlK = S('rect', { x: X(9) - 26, y: 60, width: X(10) - X(9) + 52, height: 415, fill: 'rgba(11,94,168,0.07)', stroke: '#0b5ea8', 'stroke-dasharray': '5 4', class: 'fade', opacity: 0 }, svg);
+    var lines = M.map(function (m) {
+      var pts = m[3].map(function (v, k) { return [X(k), Y(v)]; });
+      function path(a, b) { return 'M' + pts.slice(a, b + 1).map(function (p) { return p[0] + ' ' + p[1]; }).join(' L'); }
+      var hr = S('path', { d: path(0, 5), fill: 'none', stroke: m[1], 'stroke-width': 2.5, class: 'draw' }, svg);
+      var lr = S('path', { d: path(5, 10), fill: 'none', stroke: m[1], 'stroke-width': 2.5, class: 'draw' }, svg);
+      var mk = pts.map(function (p, k) {
+        var g = S('g', { class: 'fade', opacity: 0 }, svg), s = 6;
+        if (m[2] === 'circle') S('circle', { cx: p[0], cy: p[1], r: s, fill: m[1], stroke: '#fff', 'stroke-width': 2 }, g);
+        else if (m[2] === 'square') S('rect', { x: p[0] - s, y: p[1] - s, width: 2 * s, height: 2 * s, fill: m[1], stroke: '#fff', 'stroke-width': 2 }, g);
+        else if (m[2] === 'diamond') S('path', { d: 'M' + p[0] + ' ' + (p[1] - s - 2) + ' L' + (p[0] + s + 2) + ' ' + p[1] + ' L' + p[0] + ' ' + (p[1] + s + 2) + ' L' + (p[0] - s - 2) + ' ' + p[1] + 'Z', fill: m[1], stroke: '#fff', 'stroke-width': 2 }, g);
+        else if (m[2] === 'triangle') S('path', { d: 'M' + p[0] + ' ' + (p[1] - s - 1) + ' L' + (p[0] + s + 1) + ' ' + (p[1] + s) + ' L' + (p[0] - s - 1) + ' ' + (p[1] + s) + 'Z', fill: m[1], stroke: '#fff', 'stroke-width': 2 }, g);
+        else S('circle', { cx: p[0], cy: p[1], r: s, fill: '#fff', stroke: m[1], 'stroke-width': 3 }, g);
+        S('circle', { cx: p[0], cy: p[1], r: 13, fill: 'transparent' }, g);
+        S('title', {}, g, m[0] + ' · ' + LL[k] + ': ' + m[3][k]);
+        return g;
+      });
+      [hr, lr].forEach(function (pth) { var L = pth.getTotalLength(); pth.style.strokeDasharray = L; pth.style.strokeDashoffset = L; pth.dataset.len = L; });
+      return { hr: hr, lr: lr, mk: mk, m: m };
+    });
+    // end labels with collision avoidance
+    var ends = M.map(function (m, k) { return { k: k, y: Y(m[3][10]) }; }).sort(function (a, b) { return a.y - b.y; });
+    for (var j = 1; j < ends.length; j++) if (ends[j].y - ends[j - 1].y < 20) ends[j].y = ends[j - 1].y + 20;
+    var endLbl = ends.map(function (e) { var m = M[e.k]; return S('text', { x: X(10) + 44, y: e.y + 5, 'font-size': 15, 'font-weight': 600, fill: m[1], class: 'fade', opacity: 0 }, svg, m[0]); });
+    var engLbl = M.map(function (m, k) { return S('text', { x: X(0) - 14, y: Y(m[3][0]) + 5 + (k === 3 ? 4 : 0) - (k === 2 ? 0 : 0), 'text-anchor': 'end', 'font-size': 14, fill: m[1], 'font-weight': 600, class: 'fade', opacity: 0 }, svg, m[3][0]); });
+    var retLbl = M.map(function (m, k) { var v = m[3][8]; return S('text', { x: X(9) - 4, y: 386 + k * 19, 'font-size': 13.5, 'font-weight': 600, fill: m[1], class: 'fade', opacity: 0 }, svg, m[0] + '  ' + v + '/' + m[3][0] + ' = ' + Math.round(100 * v / m[3][0]) + '%'); });
+    var sindLbl = S('text', { x: X(7) - 20, y: 112, 'font-size': 15, fill: '#b8432f', 'font-weight': 600, class: 'fade', opacity: 0 }, svg, 'the floor: Santali, Sindhi');
+    var retNote = S('text', { x: X(9) - 4, y: 364, 'font-size': 13, fill: '#474e53', class: 'fade', opacity: 0 }, svg, 'Sindhi score / English score:');
+    var ksLbl = S('text', { x: X(9) - 20, y: 112, 'font-size': 15, fill: '#0b5ea8', 'font-weight': 600, class: 'fade', opacity: 0 }, svg, 'rebound');
+    function drawLine(p, on, instant) {
+      if (instant) { p.style.transition = 'none'; p.style.strokeDashoffset = on ? 0 : p.dataset.len; p.getBoundingClientRect(); p.style.transition = ''; }
+      else p.style.strokeDashoffset = on ? 0 : p.dataset.len;
+    }
+    var texts = [
+      'English first: GPT-5 82, Qwen3-VL-235B 75, Qwen3-VL-32B 69, Gemma-3-27B 66, LLaVA-1.6-13B 61.',
+      'Across the five high-resource languages the lines drift down slowly. GPT-5 stays between 75 and 79.',
+      'The low-resource group is a cliff. Meitei starts the fall.',
+      'Santali and Sindhi are the floor: GPT-5 scores 50 and 48, LLaVA-1.6-13B 37 and 35.',
+      'The drop is nearly proportional. On Sindhi every model keeps between 57% and 61% of its English score.',
+      'Kashmiri and Konkani are also low-resource, yet every model recovers on them. "Low-resource" is not one level of difficulty.',
+      'The full picture: larger and newer models sit higher, but every line has the same shape.'
+    ];
+    function render(i, instant, later) {
+      stepEl.textContent = texts[i];
+      lines.forEach(function (L, k) {
+        L.mk.forEach(function (g, j) { g.style.opacity = (j === 0) || (i >= 1 && j <= 5) || (i >= 2) ? 1 : 0; });
+        drawLine(L.hr, i >= 1, instant); drawLine(L.lr, i >= 2, instant);
+        if (!instant && i === 2) { L.mk.forEach(function (g, j) { if (j > 5) { g.style.opacity = 0; later(250 + (j - 5) * 210, function () { g.style.opacity = 1; }); } }); }
+        if (!instant && i === 1) { L.mk.forEach(function (g, j) { if (j >= 1 && j <= 5) { g.style.opacity = 0; later(150 + j * 200, function () { g.style.opacity = 1; }); } }); }
+      });
+      engLbl.forEach(function (t) { t.style.opacity = i === 0 ? 1 : 0; });
+      band.style.opacity = i >= 2 ? 1 : 0; bandLbl.style.opacity = i >= 2 ? 1 : 0;
+      hlS.style.opacity = (i === 3 || i === 4) ? 1 : 0; sindLbl.style.opacity = (i === 3 || i === 4) ? 1 : 0;
+      retNote.style.opacity = i === 4 ? 1 : 0;
+      retLbl.forEach(function (t, k) { t.style.opacity = 0; if (i === 4) { if (instant) t.style.opacity = 1; else later(300 + k * 180, function () { t.style.opacity = 1; }); } });
+      hlK.style.opacity = i === 5 ? 1 : 0; ksLbl.style.opacity = i === 5 ? 1 : 0;
+      endLbl.forEach(function (t) { t.style.opacity = i >= 2 ? 1 : 0; });
+    }
+    stepper('fig-cliff', 7, render, { dwell: function (i) { return i === 6 ? 5000 : 3800; }, stage: svg });
+  })();
+
+  /* ================= Figure 9: image-removal test ================= */
+  (function () {
+    var svg = document.getElementById('read-svg'); if (!svg) return;
+    var stepEl = document.getElementById('read-step');
+    var pipe = S('g', { class: 'fade' }, svg);
+    // question
+    S('rect', { x: 40, y: 30, width: 300, height: 46, rx: 23, fill: '#f3f7fb', stroke: '#0b5ea8' }, pipe);
+    S('text', { x: 190, y: 60, 'text-anchor': 'middle', 'font-size': 18, 'font-family': INDIC }, pipe, 'आवेदक की मासिक आय कितनी है?');
+    // document
+    var doc = S('g', { class: 'fade' }, pipe);
+    S('rect', { x: 80, y: 100, width: 220, height: 300, fill: '#fffdf7', stroke: '#cac6bd', 'stroke-width': 1.5 }, doc);
+    S('text', { x: 100, y: 134, 'font-size': 16, 'font-weight': 700, 'font-family': INDIC }, doc, 'राशन कार्ड आवेदन पत्र');
+    [160, 190, 250].forEach(function (y) { S('rect', { x: 100, y: y, width: 80, height: 7, fill: '#cfc9bc' }, doc); S('rect', { x: 196, y: y, width: 80, height: 7, fill: '#9d9583' }, doc); });
+    S('text', { x: 100, y: 228, 'font-size': 12, fill: '#474e53', 'font-family': INDIC }, doc, 'मासिक आय');
+    var amt = S('text', { x: 196, y: 228, 'font-size': 15, 'font-weight': 700, 'font-family': 'Georgia, serif' }, doc, '₹ 9,500');
+    for (var r = 0; r < 4; r++) S('rect', { x: 100, y: 290 + r * 24, width: 176, height: 18, fill: 'none', stroke: '#e3e0d9' }, doc);
+    var mask = S('rect', { x: 190, y: 210, width: 76, height: 26, rx: 3, fill: 'rgba(214,111,0,0.32)', stroke: '#d66f00', 'stroke-width': 2, class: 'fade', opacity: 0 }, pipe);
+    var gone = S('g', { class: 'fade', opacity: 0 }, pipe);
+    S('rect', { x: 80, y: 100, width: 220, height: 300, fill: '#f7f6f3', stroke: '#b8432f', 'stroke-width': 2, 'stroke-dasharray': '8 6' }, gone);
+    S('text', { x: 190, y: 255, 'text-anchor': 'middle', 'font-size': 18, fill: '#b8432f', 'font-weight': 600 }, gone, 'image removed');
+    S('path', { d: 'M340 250 L430 250', stroke: '#7b8388', 'stroke-width': 2.5, 'marker-end': 'url(#rd-arw)' }, pipe);
+    var defs = S('defs', {}, svg);
+    var mkr = S('marker', { id: 'rd-arw', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto' }, defs);
+    S('path', { d: 'M0 0 L10 5 L0 10z', fill: '#7b8388' }, mkr);
+    S('rect', { x: 440, y: 195, width: 150, height: 110, rx: 8, fill: '#ffffff', stroke: '#14171a', 'stroke-width': 2 }, pipe);
+    S('text', { x: 515, y: 258, 'text-anchor': 'middle', 'font-size': 26, 'font-weight': 700, class: 'disp' }, pipe, 'VLM');
+    S('path', { d: 'M590 250 L670 250', stroke: '#7b8388', 'stroke-width': 2.5, 'marker-end': 'url(#rd-arw)' }, pipe);
+    var ansBox = S('rect', { x: 680, y: 210, width: 280, height: 80, rx: 8, fill: '#eaf5ee', stroke: '#2f8f5b', 'stroke-width': 2 }, pipe);
+    ansBox.style.transition = 'fill .4s, stroke .4s';
+    var ans = S('text', { x: 820, y: 250, 'text-anchor': 'middle', 'font-size': 26, 'font-weight': 700, 'font-family': 'Georgia, serif' }, pipe, '₹ 9,500');
+    var ansSub = S('text', { x: 820, y: 278, 'text-anchor': 'middle', 'font-size': 14, fill: '#2f8f5b' }, pipe, 'read from the page');
+    // bars
+    var bars = S('g', { class: 'fade', opacity: 0 }, svg);
+    S('text', { x: 500, y: 40, 'text-anchor': 'middle', 'font-size': 15, fill: '#7b8388', 'letter-spacing': 2 }, bars, 'SCHEMATIC, NOT MEASURED');
+    var BW = 70, base = 400;
+    var bdef = [['Model that reads', 140, 290, 120, '#0b5ea8', 'large drop: it used the page'], ['Model that guesses', 560, 270, 210, '#d66f00', 'small drop: answers come from priors']];
+    var barEls = [];
+    bdef.forEach(function (b) {
+      S('text', { x: b[1] + 110, y: 80, 'text-anchor': 'middle', 'font-size': 18, 'font-weight': 700, class: 'disp' }, bars, b[0]);
+      var r1 = S('rect', { x: b[1] + 20, y: base, width: BW, height: 0, fill: b[4] }, bars);
+      var r2 = S('rect', { x: b[1] + 130, y: base, width: BW, height: 0, fill: b[4], opacity: 0.45 }, bars);
+      S('text', { x: b[1] + 55, y: base + 22, 'text-anchor': 'middle', 'font-size': 14, fill: '#474e53' }, bars, 'with image');
+      S('text', { x: b[1] + 165, y: base + 22, 'text-anchor': 'middle', 'font-size': 14, fill: '#474e53' }, bars, 'without');
+      var cap = S('text', { x: b[1] + 110, y: base + 52, 'text-anchor': 'middle', 'font-size': 15, fill: b[4], 'font-weight': 600 }, bars, b[5]);
+      barEls.push([r1, r2, b[2], b[3]]);
+    });
+    S('line', { x1: 100, x2: 900, y1: base, y2: base, stroke: '#7b8388' }, bars);
+    // ranking cards
+    var cards = S('g', { class: 'fade', opacity: 0 }, svg);
+    var cdef = [['MOST IMAGE-GROUNDED · CLOSED', ['Gemini 3 Pro', 'then Claude 4 Sonnet'], '#2f8f5b'], ['MOST IMAGE-GROUNDED · OPEN', ['Qwen3-VL-32B', 'then Qwen3-VL-30B', 'and Gemma-3-27B'], '#2f8f5b'], ['HEAVIEST RELIANCE ON PRIORS', ['Qwen3-VL-235B', 'then InternVL3.5-241B'], '#b8432f']];
+    var cardEls = cdef.map(function (c, k) {
+      var g = S('g', { class: 'move' }, cards);
+      var x = 40 + k * 315;
+      S('rect', { x: x, y: 80, width: 290, height: 250, rx: 6, fill: '#ffffff', stroke: c[2], 'stroke-width': 2 }, g);
+      S('rect', { x: x, y: 80, width: 290, height: 40, rx: 6, fill: c[2] }, g);
+      S('text', { x: x + 145, y: 106, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 600, fill: '#fff', 'letter-spacing': 1 }, g, c[0]);
+      c[1].forEach(function (t, j) { S('text', { x: x + 145, y: 175 + j * 40, 'text-anchor': 'middle', 'font-size': j === 0 ? 24 : 18, 'font-weight': j === 0 ? 700 : 400, fill: j === 0 ? '#14171a' : '#474e53', class: j === 0 ? 'disp' : null }, g, t); });
+      return g;
+    });
+    S('text', { x: 500, y: 380, 'text-anchor': 'middle', 'font-size': 16, fill: '#474e53' }, cards, 'Ranking by how much accuracy is lost when the image is withheld (paper, qualitative).');
+    S('text', { x: 500, y: 406, 'text-anchor': 'middle', 'font-size': 16, fill: '#474e53' }, cards, 'The two largest open models lose the least: they answer from language priors.');
+    var groundNote = S('text', { x: 680, y: 330, 'font-size': 15, fill: '#474e53', class: 'fade', opacity: 0 }, svg, 'A grounded answer must mark its evidence.');
+    var groundNote2 = S('text', { x: 680, y: 352, 'font-size': 15, fill: '#474e53', class: 'fade', opacity: 0 }, svg, 'With no page, there is nothing to mark.');
+    function setAns(kind) {
+      if (kind === 'read') { ans.textContent = '₹ 9,500'; ansSub.textContent = 'read from the page'; ansSub.setAttribute('fill', '#2f8f5b'); ansBox.setAttribute('fill', '#eaf5ee'); ansBox.setAttribute('stroke', '#2f8f5b'); }
+      if (kind === 'guess') { ans.textContent = '₹ 10,000'; ansSub.textContent = 'plausible, but not read'; ansSub.setAttribute('fill', '#b35c00'); ansBox.setAttribute('fill', '#fdf1e4'); ansBox.setAttribute('stroke', '#d66f00'); }
+      if (kind === 'ground') { ans.textContent = '₹ 9,500 ▣'; ansSub.textContent = 'answer + evidence mask'; ansSub.setAttribute('fill', '#2f8f5b'); ansBox.setAttribute('fill', '#eaf5ee'); ansBox.setAttribute('stroke', '#2f8f5b'); }
+    }
+    var texts = [
+      'The normal case: the page and a Hindi question go in, and the model reads the amount off the page.',
+      'Now withhold the page and ask the same question. A model that leans on language priors still answers, with something plausible for a form like this.',
+      'The test compares accuracy with and without the image. A large drop means the model was using the page. A small drop means its answers were coming from priors.',
+      'Patram-Bench’s result. The two largest open models are the most prior-driven; the most image-grounded open models are mid-sized.',
+      'Why grounding helps: a model that must mark its evidence on the page cannot hide a guess. With the page removed, there is nothing to mark.'
+    ];
+    function render(i, instant, later) {
+      stepEl.textContent = texts[i];
+      pipe.style.opacity = (i <= 1 || i === 4) ? 1 : 0;
+      bars.style.opacity = i === 2 ? 1 : 0;
+      cards.style.opacity = i === 3 ? 1 : 0;
+      gone.style.opacity = 0; doc.style.opacity = 1; mask.style.opacity = 0; groundNote.style.opacity = 0; groundNote2.style.opacity = 0;
+      setAns('read');
+      if (i === 1) {
+        if (instant) { gone.style.opacity = 1; doc.style.opacity = 0; setAns('guess'); }
+        else { later(600, function () { gone.style.opacity = 1; doc.style.opacity = 0; }); ans.textContent = '…'; ansSub.textContent = ''; later(1700, function () { setAns('guess'); }); }
+      }
+      if (i === 4) {
+        if (instant) { mask.style.opacity = 1; setAns('ground'); groundNote.style.opacity = 1; groundNote2.style.opacity = 1; }
+        else { later(500, function () { mask.style.opacity = 1; }); later(1100, function () { setAns('ground'); }); later(1700, function () { groundNote.style.opacity = 1; groundNote2.style.opacity = 1; }); }
+      }
+      barEls.forEach(function (b, k) {
+        var set = function (on) { [[b[0], b[2]], [b[1], b[3]]].forEach(function (pr) { var h = on ? pr[1] : 0; pr[0].setAttribute('height', h); pr[0].setAttribute('y', 400 - h); }); };
+        if (i !== 2) { set(false); return; }
+        if (instant) set(true);
+        else tween(1100, function (t) { [[b[0], b[2]], [b[1], b[3]]].forEach(function (pr) { var h = pr[1] * t; pr[0].setAttribute('height', h); pr[0].setAttribute('y', 400 - h); }); });
+      });
+      cardEls.forEach(function (g, k) {
+        if (i !== 3 || instant) { g.style.transform = 'translateY(0)'; g.style.opacity = 1; return; }
+        g.style.transition = 'none'; g.style.transform = 'translateY(40px)'; g.style.opacity = 0; g.getBoundingClientRect(); g.style.transition = '';
+        later(250 + k * 350, function () { g.style.transform = 'translateY(0)'; g.style.opacity = 1; });
+      });
+    }
+    stepper('fig-read', 5, render, { dwell: 4600, stage: svg });
+  })();
+})();
+</script>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+  </body>
+</html>

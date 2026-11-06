@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection." />
+    <meta name="author" content="Anirudh Srinivasan" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Train an Agent With Reinforcement Learning: environment, BC, GRPO and the full system" />
+    <meta property="og:description" content="Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/preview.png" />
+    <meta property="article:published_time" content="2026-11-06" />
+    <meta property="article:modified_time" content="2026-11-06" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Train an Agent With Reinforcement Learning: environment, BC, GRPO and the full system" />
+    <meta name="twitter:description" content="Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/preview.png" />
+    <title>Train an Agent With Reinforcement Learning: environment, BC, GRPO and the full system | Anirudh Srinivasan</title>
+    <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <link rel="stylesheet" href="../../assets/css/code-tutorial.css?v=1" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "@id": "https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/#article",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/" },
+        "headline": "Train an Agent With Reinforcement Learning",
+        "description": "Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection.",
+        "image": "https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/preview.png",
+        "datePublished": "2026-11-06",
+        "dateModified": "2026-11-06",
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
+        "keywords": ["Agent RL", "GRPO", "Environments"],
+        "isPartOf": [{ "@id": "https://srini-anirudh.github.io/blogs/#blog" }, { "@id": "https://srini-anirudh.github.io/blogs/#code" }]
+      }
+    </script>
+    <style>
+      :root {
+        --paper: #e4e2dc;
+        --paper-bright: #f7f6f3;
+        --ink: #14171a;
+        --ink-soft: #474e53;
+        --muted: #7b8388;
+        --rule: #cac6bd;
+        --display: "Bricolage Grotesque", system-ui, sans-serif;
+        --body: "Newsreader", Georgia, serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background-color: var(--paper);
+        background-image: linear-gradient(rgba(20, 23, 26, 0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(20, 23, 26, 0.028) 1px, transparent 1px);
+        background-size: 44px 44px;
+        font: 18.5px/1.68 var(--body);
+      }
+
+      .article-wrap { width: min(1180px, calc(100% - 52px)); margin: 0 auto; }
+      .article-mast { padding: 46px 0 30px; }
+      .article-eyebrow { color: var(--muted); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .article-title { max-width: 14ch; margin: 28px 0 18px; font: 800 clamp(46px, 8.4vw, 104px)/0.92 var(--display); letter-spacing: -0.045em; }
+      .article-subtitle { max-width: 58ch; margin: 0; color: var(--ink-soft); font-size: clamp(20px, 2.3vw, 25px); font-style: italic; line-height: 1.4; }
+      .article-content { width: min(70ch, calc(100% - 32px)); margin: 54px auto; }
+      .article-content h2 { margin: 64px 0 16px; font: 700 clamp(30px, 4.5vw, 46px)/1.04 var(--display); letter-spacing: -0.025em; }
+      .article-content h3 { margin: 38px 0 10px; font: 700 25px/1.12 var(--display); }
+      .article-content p { margin: 0 0 18px; }
+      .article-content ul, .article-content ol { margin: 0 0 18px; padding-left: 1.3em; }
+      .article-content li { margin: 0 0 8px; }
+      .article-content a { color: var(--ink); }
+      .lede { color: var(--ink-soft); font-size: 20.5px; }
+      .toc { margin: 34px 0 48px; padding: 20px 22px; background: var(--paper-bright); border: 1px solid var(--rule); }
+      .toc h2 { margin: 0 0 12px; color: var(--muted); font: 600 11.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; }
+      .toc ol { margin: 0; padding-left: 1.4em; columns: 2; column-gap: 32px; font: 15px/1.9 var(--mono); }
+      .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); }
+      .references-intro { color: var(--muted); font-style: italic; }
+      .reference-group { margin: 0 0 30px; }
+      .reference-group h3 { padding-bottom: 7px; color: var(--ink-soft); border-bottom: 1px solid var(--rule); font: 600 11.5px/1.4 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+      .reference-group ul { margin: 0; padding: 0; list-style: none; }
+      .reference-group li { margin: 0 0 13px; font-size: 16.5px; line-height: 1.45; }
+      .reference-group a { color: var(--ink); font-weight: 600; text-underline-offset: 3px; }
+      .article-footer { padding: 32px 0 0; color: var(--muted); border-top: 1px solid var(--rule); font: 12px/1.8 var(--mono); }
+      .insight-list li { margin-bottom: 12px; }
+
+      /* ---------- figure parts specific to this post (light only) ---------- */
+      .c12-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 0; font: 11.5px/1.4 var(--mono); color: var(--ink-soft); }
+      .c12-legend i { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; }
+      .c12-tip { min-height: 2.6em; margin: 6px 0 0; font: 11.5px/1.5 var(--mono); color: var(--ink-soft); }
+      .c12-tip b { color: var(--ink); }
+      .c12-select { max-width: 100%; padding: 4px 6px; color: var(--ink); background: #fbfaf8; border: 1px solid var(--rule); border-radius: 3px; font: 12px/1.3 var(--mono); }
+      .c12-btn { padding: 4px 9px; color: var(--ink); background: #fbfaf8; border: 1px solid var(--rule); border-radius: 3px; font: 11.5px/1.4 var(--mono); cursor: pointer; }
+      .c12-btn[aria-pressed="true"] { color: #fff; background: #0b5ea8; border-color: #0b5ea8; }
+      .c12-btn:focus-visible, .c12-cell:focus-visible, .c12-chip:focus-visible { outline: 2px solid #d66f00; outline-offset: 2px; }
+      #grp-cells { display: flex; flex-wrap: wrap; gap: 6px; }
+      .c12-cell { display: flex; flex-direction: column; align-items: center; width: 46px; padding: 4px 0; color: var(--ink); background: #fbfaf8; border: 1px solid var(--rule); border-radius: 3px; font: 11px/1.3 var(--mono); cursor: pointer; }
+      .c12-cell b { font-size: 14px; }
+      .c12-cell.is-win { background: rgba(47, 143, 91, 0.18); border-color: #2f8f5b; }
+      .c12-cell.is-mid { background: rgba(47, 143, 91, 0.08); border-color: #2f8f5b; }
+      #grp-bars { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .c12-advbar { position: relative; width: 46px; display: flex; flex-direction: column; align-items: center; font: 10.5px/1.3 var(--mono); }
+      .c12-advbar__up { display: flex; align-items: flex-end; height: 64px; }
+      .c12-advbar__up i { display: block; width: 26px; background: #0b5ea8; border-radius: 2px 2px 0 0; }
+      .c12-advbar__down { display: block; height: 64px; border-top: 1px solid #7b8388; width: 100%; text-align: center; }
+      .c12-advbar__down i { display: block; width: 26px; margin: 0 auto; background: #d66f00; border-radius: 0 0 2px 2px; }
+      .c12-advbar em { font-style: normal; color: var(--ink); }
+      #rp-members { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; }
+      .c12-chip { padding: 3px 7px; color: var(--ink); background: #fbfaf8; border: 1px solid var(--rule); border-radius: 3px; font: 11px/1.3 var(--mono); cursor: pointer; }
+      .c12-chip.is-win { border-color: #2f8f5b; }
+      .c12-chip.is-lose { border-color: #d66f00; }
+      .c12-chip[aria-pressed="true"] { color: #fff; background: #14171a; border-color: #14171a; }
+      .c12-step { display: grid; grid-template-columns: minmax(0, 1fr) 54px 120px; gap: 8px; align-items: center; padding: 5px 7px; border-top: 1px solid #dedad2; font: 11.5px/1.35 var(--mono); }
+      .c12-step.is-current { background: rgba(214, 111, 0, 0.09); }
+      .c12-step.is-future { opacity: 0.45; }
+      .c12-step__t code { display: block; color: #0b5ea8; font: inherit; font-weight: 600; overflow-wrap: anywhere; background: none; padding: 0; }
+      .c12-step__t span { display: block; color: var(--ink-soft); overflow-wrap: anywhere; }
+      .c12-step__t span.is-err { color: #b8432f; }
+      .c12-step__v { color: var(--muted); }
+      .c12-step__bar { position: relative; height: 22px; background: linear-gradient(#cac6bd, #cac6bd) center / 1px 100% no-repeat; }
+      .c12-step__bar i { position: absolute; top: 4px; height: 14px; border-radius: 2px; }
+      .c12-step__bar em { position: absolute; top: 3px; right: 0; color: var(--ink); font-style: normal; font-size: 10.5px; }
+      .series-chain { margin: 22px 0; padding: 16px 18px; background: var(--paper-bright); border: 1px solid var(--rule); list-style: none; font: 14px/1.5 var(--mono); }
+      .series-chain li { position: relative; margin: 0; padding: 7px 0 7px 22px; }
+      .series-chain li::before { content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+      .series-chain li::after { content: ""; position: absolute; left: 3px; top: 16px; width: 7px; height: 7px; background: #0b5ea8; border-radius: 50%; }
+      .series-chain span { display: block; color: var(--muted); font-size: 11.5px; }
+
+      @media (max-width: 640px) {
+        .article-wrap { width: calc(100% - 32px); }
+        .article-content { width: calc(100% - 32px); }
+        .toc ol { columns: 1; }
+        .c12-step { grid-template-columns: minmax(0, 1fr) 90px; }
+        .c12-step__v { display: none; }
+      }
+    </style>
+    <script>if (localStorage.getItem("darkMode") === "enabled") document.documentElement.classList.add("dark-mode");</script>
+  </head>
+  <body class="blog-article code-tutorial-article train-an-agent-with-rl-article">
+    <nav class="navbar" aria-label="Main navigation">
+      <div class="nav-container">
+        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../index.html" target="_self">Home</a></li>
+          <li><a href="../../research.html" target="_self">Research</a></li>
+          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
+          <li><a href="../../projects.html" target="_self">Projects</a></li>
+          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
+        </ul>
+        <div class="nav-toggle" role="button" tabindex="0" aria-label="Toggle navigation menu">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+    <header class="article-mast">
+      <div class="article-wrap">
+        <p class="article-eyebrow">Coding tutorial &middot; Build it from scratch</p>
+        <h1 class="article-title">Train an Agent With Reinforcement Learning</h1>
+        <p class="article-subtitle">We build a small filesystem environment, clone a scripted expert, watch one small mistake break the clone, and then train the agent online with GRPO. Every learning curve here ran on a laptop.</p>
+        <div class="article-taxonomy" aria-label="Tags">
+          <span>Agent RL</span><span>GRPO</span><span>Environments</span>
+        </div>
+        <div class="article-meta-bar">
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-06">November 6, 2026</time></span><span>55 min read</span>
+          <button class="article-share" type="button" aria-label="Share this article">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
+            Share
+          </button>
+          <span class="share-status" aria-live="polite"></span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="ml-series-nav" aria-label="Coding Tutorials series">
+      <a class="ml-series-nav__identity" href="../index.html?series=code">Coding Tutorials</a>
+      <span class="ml-series-nav__position">12 of 12 &middot; Agents</span>
+      <div class="ml-series-nav__links">
+        <a class="ml-series-nav__link" href="../add-memory-to-the-agent/"><span>Previous &middot; 11</span><strong>Add Memory and Context Engineering to the Agent</strong></a>
+        <span class="ml-series-nav__empty"></span>
+      </div>
+    </nav>
+
+    <main class="article-content">
+      <section class="build-brief" aria-labelledby="build-brief-title">
+        <div class="build-brief__head">
+          <h2 class="build-brief__kicker" id="build-brief-title">What you will build</h2>
+          <a class="build-brief__repo" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c12-agent-rl" target="_blank" rel="noopener noreferrer"><i class="fab fa-github" aria-hidden="true"></i><span>blog-coding-tutorials/c12-agent-rl</span></a>
+        </div>
+        <div class="build-brief__body">
+          <p class="build-brief__deliverable">A complete agent-RL system: an environment with injected tool failures, a behaviour-cloned policy, a GRPO trainer with trajectory-level and action-level credit, reward shaping with a deliberate hack, a curriculum, and a pipeline with a trajectory store and an independent verifier.</p>
+          <dl class="build-brief__facts">
+            <div class="build-brief__wide">
+              <dt>Theory first</dt>
+              <dd>
+                <div class="theory-links">
+                  <a class="theory-link" href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement learning for agents</a>
+                  <a class="theory-link" href="../reinforcement-learning-from-first-principles/">Reinforcement learning from first principles</a>
+                  <a class="theory-link" href="../how-reinforcement-learning-teaches-models-to-reason/">How RL teaches models to reason</a>
+                  <a class="theory-link" href="../inside-an-ai-agent-harness/">Inside an AI agent harness</a>
+                  <a class="theory-link" href="../the-agent-evaluation-playbook/">The agent evaluation playbook</a>
+                </div>
+              </dd>
+            </div>
+            <div><dt>Time</dt><dd>About three hours, with the runs</dd></div>
+            <div><dt>Hardware</dt><dd>Any laptop CPU. No GPU needed.</dd></div>
+            <div><dt>You need</dt><dd>Python 3.10+, PyTorch 2.x, pytest. Transformers and PEFT for the last step.</dd></div>
+            <div><dt>Package</dt><dd><code>agentrl</code></dd></div>
+          </dl>
+          <details class="repo-tree">
+            <summary>Final repo tree <span class="repo-tree__hint">c12-agent-rl/</span></summary>
+<pre>c12-agent-rl/
+├── README.md                # what, how to run, results table
+├── agentrl/
+│   ├── tasks.py             # step 1: the five levels
+│   ├── env.py               # step 1: reset, observe, step, reward, done
+│   ├── expert.py            # step 1: scripted demonstrator
+│   ├── trajectory.py        # step 2: text view and tensor view
+│   ├── codec.py             # step 2: word tokenizer, encode_trajectory
+│   ├── policy.py            # step 3: tiny transformer + value head
+│   ├── batching.py          # step 4: padded tensors and masks
+│   ├── bc.py                # step 4: behaviour cloning
+│   ├── shift.py             # step 5: perturbations, signatures
+│   ├── sampling.py          # step 6: shared rollout pieces
+│   ├── rollout_naive.py     # step 6: the reference
+│   ├── rollout.py           # step 6: batched generation
+│   ├── advantages.py        # steps 7, 9: group-relative, GAE
+│   ├── grpo.py              # step 8: clipped surrogate, update
+│   ├── online.py            # steps 8, 11, 12: loop, sampler, curriculum
+│   ├── rewards.py           # step 10: outcome, activity, potential
+│   ├── failures.py          # step 13: failure injection
+│   ├── offline.py           # step 14: offline GRPO, filtered BC
+│   ├── system.py            # step 15: store, verifier, workers, resume
+│   ├── hf_policy.py         # step 16: Llama and SmolLM2 adapters
+│   └── evaluate.py          # the four evaluation suites
+├── scripts/
+│   ├── demo_env.py
+│   ├── train_bc.py
+│   ├── distribution_shift.py
+│   ├── experiments.py       # main, credit, shaping, curriculum, ...
+│   ├── recovery_demo.py
+│   ├── export_figures.py
+│   └── train_system.py
+├── benchmarks/
+│   ├── bench_rollout.py
+│   └── bench_policy.py
+├── results/                 # measured outputs, as text and JSON
+├── tests/
+│   ├── test_env.py
+│   ├── test_policy_rollout.py
+│   ├── test_advantages_grpo.py
+│   └── test_system_hf.py
+└── conftest.py</pre>
+          </details>
+        </div>
+      </section>
+
+      <nav class="toc" aria-labelledby="toc-heading">
+        <h2 id="toc-heading">Contents</h2>
+        <ol>
+          <li><a href="#the-plan">The plan</a></li>
+          <li><a href="#step-01">Step 1: the environment</a></li>
+          <li><a href="#step-02">Step 2: record the trajectory</a></li>
+          <li><a href="#step-03">Step 3: a policy that can learn here</a></li>
+          <li><a href="#step-04">Step 4: behaviour cloning</a></li>
+          <li><a href="#step-05">Step 5: distribution shift</a></li>
+          <li><a href="#step-06">Step 6: online rollouts</a></li>
+          <li><a href="#step-07">Step 7: outcome reward and group advantages</a></li>
+          <li><a href="#step-08">Step 8: the GRPO update</a></li>
+          <li><a href="#step-09">Step 9: credit assignment</a></li>
+          <li><a href="#step-10">Step 10: shaping and the hack</a></li>
+          <li><a href="#step-11">Step 11: exploration</a></li>
+          <li><a href="#step-12">Step 12: curriculum</a></li>
+          <li><a href="#step-13">Step 13: failure recovery</a></li>
+          <li><a href="#step-14">Step 14: offline vs online</a></li>
+          <li><a href="#step-15">Step 15: the full system</a></li>
+          <li><a href="#step-16">Step 16: drop in a real LM</a></li>
+          <li><a href="#comparison">The methods compared</a></li>
+          <li><a href="#run-everything">Run everything</a></li>
+          <li><a href="#key-insights">Key insights and nuances</a></li>
+          <li><a href="#exercises">Exercises</a></li>
+          <li><a href="#series-outcome">What the series built</a></li>
+          <li><a href="#continue-reading">Continue reading</a></li>
+          <li><a href="#references">References</a></li>
+        </ol>
+      </nav>
+
+      <section id="the-plan">
+        <h2>The plan</h2>
+        <p class="lede">Can an agent that imitates successful runs be taught to handle what those runs never showed it? We build the system that answers this, and measure the answer.</p>
+        <p>The task is small. An agent must find the right config file, change one value, and submit. Five tools are available: <code>list</code>, <code>read</code>, <code>search</code>, <code>edit</code>, <code>submit</code>. The reward is 1 if the final files are correct, and 0 otherwise.</p>
+        <p>This toy has the same shape as real agent training. There is a task, a stateful world, tool output the model cannot predict, and a verifier. Because it is small, a policy can go through a real learning curve in minutes on a laptop. So every number in this post is measured. None is a sketch of what should happen.</p>
+        <p>We go from imitating demonstrations to learning from consequences. The derivations live in the theory posts. Here we implement each idea and look at what it does.</p>
+        <a class="theory-link" href="../reinforcement-learning-for-agents-from-first-principles/"><span class="theory-link__kicker">The theory of this post</span>Reinforcement learning for agents, from first principles</a>
+        <p>Clone the repo once. Every command below runs from its root.</p>
+        <figure class="terminal" data-cwd="code">
+          <pre><code>$ git clone https://github.com/srini-anirudh/blog-coding-tutorials.git
+$ cd blog-coding-tutorials
+$ python -m venv .venv &amp;&amp; .venv/bin/pip install -e ".[dev]"</code></pre>
+        </figure>
+      </section>
+
+      <section class="build-step" id="step-01" data-step-title="The environment">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 01</span></div>
+          <h2>Build the filesystem environment</h2>
+          <p class="build-step__goal"><span>Goal</span> A small world with state, five tools and an exact reward, driven entirely by text.</p>
+        </header>
+        <p>Start with what a task is. A task has some config files, a sentence that says what to change, and the files that a correct agent leaves behind. Each file holds three <code>key = value</code> lines.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/tasks.py" data-lines="35-56" data-lang="python">
+          <pre><code>class Subtask:
+    """One required edit. ``kind`` says how much the agent must discover before it can make it."""
+
+    kind: str                 # "direct" | "search" | "dependent" | "stale"
+    key: str                  # key to change
+    path: str                 # file that really holds ``key``
+    value: str                # value it must end up with
+    source_key: str | None = None   # dependent: the key whose value must be copied
+    source_path: str | None = None  # dependent: the file that holds ``source_key``
+    stale_path: str | None = None   # stale: the wrong path written in the task text
+
+    def text(self) -&gt; str:
+        if self.kind == "direct":
+            return f"set {self.key} in {self.path} to {self.value}"
+        if self.kind == "stale":
+            return f"set {self.key} in {self.stale_path} to {self.value}"
+        if self.kind == "search":
+            return f"set {self.key} to {self.value}"
+        return f"set {self.key} in {self.path} to value of {self.source_key}"
+
+    def optimal_calls(self) -&gt; int:
+        return {"direct": 1, "search": 2, "dependent": 3, "stale": 3}[self.kind]</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 1</span>One required edit. The kind says how much the agent must discover before it can make the edit.</figcaption>
+        </figure>
+        <p>The <code>kind</code> field is the difficulty. A <code>direct</code> task names the file. A <code>search</code> task names only the key, so the agent must find the file. A <code>dependent</code> task also hides the value: the agent must look up one key to learn what to write into another.</p>
+        <p>Now the environment. It has the five methods every RL environment has. Notice the types: strings go in and strings come out. A tiny word-level policy and a pretrained language model can both drive this, with no adapter inside the environment.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/env.py" data-lines="46-86" data-lang="python">
+          <pre><code>class FileSystemEnv:
+    def __init__(self, task: Task, max_steps: int | None = None, seed: int | None = None):
+        self.task = task
+        self.max_steps = max_steps or task.optimal_steps + 6
+        self.seed = task.seed if seed is None else seed
+
+    # -- the environment API -------------------------------------------------------------------------------
+    def reset(self) -&gt; str:
+        self.files: Files = copy.deepcopy(self.task.files)
+        self.rng = random.Random(self.seed)       # drives failure injection only
+        self.history: list[Step] = []
+        self.revealed: set[tuple[str, str]] = set()  # milestones the agent has observed
+        self.submitted = False
+        self._obs = self.task.text
+        return self._obs
+
+    def observe(self) -&gt; str:
+        return self._obs
+
+    def step(self, action: str) -&gt; tuple[str, float, bool]:
+        """Run one tool call. Returns (observation, reward, done)."""
+        assert not self.done(), "episode is over; call reset()"
+        parsed = parse_action(action)
+        if parsed is None:
+            obs = INVALID
+        else:
+            command, args = parsed
+            obs = inject(self.task.failures, command, self.rng) or self._run(command, args)
+        self._obs = obs
+        step = Step(action, obs, error=obs.startswith("error"))
+        self.history.append(step)  # appended first: done() counts the history
+        step.reward = self.reward() if self.done() else 0.0
+        step.progress = self.progress()
+        return obs, step.reward, self.done()
+
+    def reward(self) -&gt; float:
+        """Outcome reward: 1 if the agent submitted and the files equal the target, else 0."""
+        return 1.0 if self.submitted and self.files == self.task.target() else 0.0
+
+    def done(self) -&gt; bool:
+        return self.submitted or len(self.history) &gt;= self.max_steps</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 2</span>The API. The reward is computed from the files, not reported by the agent.</figcaption>
+        </figure>
+        <p>Three details matter. <code>reset</code> deep-copies the files, so no episode can leak into the next. <code>step</code> never raises on a bad action: a malformed call becomes the observation <code>error invalid input</code>, because the model has to read that message and react. And <code>reward</code> is a pure function of the final files.</p>
+        <p>Here are the tools. Only <code>edit</code> and <code>submit</code> change anything.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/env.py" data-lines="89-116" data-lang="python">
+          <pre><code>    def _run(self, command: str, args: list[str]) -&gt; str:
+        if command == "list":
+            hits = sorted(p for p in self.files if p.split("/")[0] == args[0])
+            return " ".join(hits) if hits else "error no such dir"
+        if command == "read":
+            path = args[0]
+            if path not in self.files:
+                return MISSING
+            for key in self.files[path]:
+                self.revealed.add((path, key))
+            return " ; ".join(f"{k} = {v}" for k, v in self.files[path].items())
+        if command == "search":
+            hits = sorted(p for p, kv in self.files.items() if args[0] in kv)
+            for p in hits:
+                self.revealed.add((p, "*"))
+            return "found " + " ".join(hits) if hits else "found none"
+        if command == "edit":
+            path, key, value = args
+            if path not in self.files:
+                return MISSING
+            if key not in self.files[path]:
+                return "error no such key"
+            if value not in VALUES:
+                return INVALID
+            self.files[path][key] = value
+            return "ok"
+        self.submitted = True  # submit
+        return "submitted"</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 3</span>The five tools, about 25 lines. The <code>revealed</code> set records what the agent has observed. Shaped rewards use it later.</figcaption>
+        </figure>
+        <figure class="ct-figure" id="fig-env">
+          <div class="ct-figure__stage" aria-label="Animated episode: the task, a search, a read, an edit and a submit, with the filesystem changing"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 1</span>One real level 3 episode from the task generator. The output of each tool becomes an argument of the next one.</figcaption>
+        </figure>
+        <p>Before any model exists, we need something that can solve every task. Otherwise a low score could mean the task is impossible. So we write a scripted expert. It is a generator: it yields an action and receives the tool's answer.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/expert.py" data-lines="27-55" data-lang="python">
+          <pre><code>def call(action: str) -&gt; Plan:
+    """Issue one tool call; retry while the error is transient. The step budget bounds the retries."""
+    obs = yield action
+    while obs in TRANSIENT:
+        obs = yield action
+    return obs
+
+
+def locate(key: str) -&gt; Plan:
+    obs = yield from call(f"search {key}")
+    return obs.split()[1]  # "found db/main" -&gt; "db/main"
+
+
+def lookup_value(key: str) -&gt; Plan:
+    path = yield from locate(key)
+    obs = yield from call(f"read {path}")
+    return dict(kv.split(" = ") for kv in obs.split(" ; "))[key]
+
+
+def solve(task_text: str) -&gt; Plan:
+    for sub in parse_task(task_text):
+        value = sub["value"] or (yield from lookup_value(sub["src"]))
+        path = sub["path"] or (yield from locate(sub["key"]))
+        obs = yield from call(f"edit {path} {sub['key']} {value}")
+        if obs == MISSING:  # stale path in the task text: find where the key really lives
+            path = yield from locate(sub["key"])
+            yield from call(f"edit {path} {sub['key']} {value}")
+    yield "submit"
+    return "done"</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 4</span>The expert. <code>yield from</code> keeps each plan readable. It parses only the task text and the tool output, the same inputs the policy gets.</figcaption>
+        </figure>
+        <p>Run it across the five curriculum levels.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/demo_env.py</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/demo_env.py">
+          <pre><code>task [1]: set workers in db/base to 67
+  0: edit db/base workers 67      -&gt; ok
+  1: submit                       -&gt; submitted
+  success=True submitted=True truncated=False 
+
+task [2]: set ttl to 0
+  0: search ttl                   -&gt; found jobs/main
+  1: edit jobs/main ttl 0         -&gt; ok
+  2: submit                       -&gt; submitted
+  success=True submitted=True truncated=False 
+
+task [3]: set ttl in web/base to value of host
+  0: search host                  -&gt; found jobs/main
+  1: read jobs/main               -&gt; mode = 84 ; timeout = 84 ; host = 43
+  2: edit web/base ttl 43         -&gt; ok
+  3: submit                       -&gt; submitted
+  success=True submitted=True truncated=False 
+
+task [4]: set timeout in app/main to 17
+  0: edit app/main timeout 17     -&gt; error no such file
+  1: search timeout               -&gt; error timeout
+  2: search timeout               -&gt; error timeout
+  3: search timeout               -&gt; found auth/base
+  4: edit auth/base timeout 17    -&gt; ok
+  5: submit                       -&gt; submitted
+  success=True submitted=True truncated=False 
+
+task [5]: set limit in web/main to value of timeout and set ttl to 8
+  0: search timeout               -&gt; found db/prod
+  1: read db/prod                 -&gt; timeout = 54 ; depth = 97 ; rate = 50
+  2: edit web/main limit 54       -&gt; ok
+  3: search ttl                   -&gt; error timeout
+  4: search ttl                   -&gt; found web/base
+  5: edit web/base ttl 8          -&gt; ok
+  6: submit                       -&gt; submitted
+  success=True submitted=True truncated=False</code></pre>
+        </figure>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>Tests pin the reward and the budget. An extra edit anywhere must make the reward 0. The expert must solve every level, which proves the tasks are solvable.</p>
+          <figure class="terminal" data-cwd="blog-coding-tutorials">
+            <pre><code>$ .venv/bin/python -m pytest c12-agent-rl/tests/test_env.py -q
+15 passed</code></pre>
+          </figure>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>demo_env.py</code> prints a successful episode for each level.</li>
+            <li>The expert's step count equals <code>optimal_steps</code> on the clean levels.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-02" data-step-title="Record the trajectory">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 02</span></div>
+          <h2>Record the trajectory as text and as tokens</h2>
+          <p class="build-step__goal"><span>Goal</span> One sequence that holds the whole episode, with a mask that says which tokens the policy produced.</p>
+        </header>
+        <p>A trajectory is &tau; = (s<sub>0</sub>, a<sub>0</sub>, r<sub>0</sub>, ..., s<sub>T</sub>). We store it two ways. The text view is for reading and for the verifier. The tensor view is for training.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/trajectory.py" data-lines="20-46" data-lang="python">
+          <pre><code>class Step:
+    action: str            # what the agent emitted, e.g. "search port"
+    observation: str       # what the tool returned, e.g. "found db/main"
+    reward: float = 0.0    # outcome reward arrives on the last step only
+    forced: bool = False   # True for injected mistakes (perturbed starts); never trained on
+    error: bool = False    # the tool returned an error
+    progress: float = 0.0  # potential Phi(s_{t+1}) in [0, 1]: fraction of task milestones reached
+
+
+@dataclass
+class Trajectory:
+    task_text: str
+    level: int
+    seed: int
+    steps: list[Step] = field(default_factory=list)
+    success: bool = False
+    submitted: bool = False
+    truncated: bool = False        # ran out of steps or context
+    # tensor view, filled by the rollout or by ``codec.encode_trajectory``
+    tokens: list[int] = field(default_factory=list)
+    action_mask: list[int] = field(default_factory=list)
+    logprobs: list[float] = field(default_factory=list)   # log pi_old(token) on action tokens, 0 elsewhere
+    step_of_token: list[int] = field(default_factory=list)  # step index for action tokens, -1 elsewhere
+    state_positions: list[int] = field(default_factory=list)  # index of the &lt;act&gt; token before each step
+    group: int = -1                # GRPO group id: trajectories of the same task share it
+    policy_version: int = 0
+    meta: dict = field(default_factory=dict)</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 5</span>The record. Highlighted: the tensor view. It stores the token ids the policy actually sampled.</figcaption>
+        </figure>
+        <aside class="callout callout-nuance">
+          <p class="callout-label">Nuance</p>
+          <p>Why store ids rather than re-tokenise the text later? With a word tokenizer it makes no difference, and a test confirms that. With a BPE tokenizer, decoding and re-encoding does not always give back the same ids. The log-probabilities in the update would then no longer describe what was sampled. Serving stacks that train agents keep token ids for this reason.</p>
+        </aside>
+        <p>The tensor layout is one line. Task, then action, then tool output, then the next action. This is one multi-turn conversation.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/codec.py" data-lines="62-82" data-lang="python">
+          <pre><code>def encode_trajectory(traj: Trajectory, codec: Codec) -&gt; Trajectory:
+    """Fill the tensor view of a text trajectory (used for expert demos and for offline data).
+
+    Layout: &lt;bos&gt; task &lt;act&gt; a_0 &lt;eos&gt; &lt;obs&gt; o_0 &lt;act&gt; a_1 &lt;eos&gt; &lt;obs&gt; o_1 ... ; mask = 1 on a_t and its &lt;eos&gt;.
+    """
+    tokens = prompt_ids(codec, traj.task_text)
+    mask, step_of, states = [0] * len(tokens), [-1] * len(tokens), []
+    for t, step in enumerate(traj.steps):
+        states.append(len(tokens) - 1)
+        action = codec.encode(step.action) + [codec.eos]
+        tokens += action
+        mask += [0 if step.forced else 1] * len(action)
+        step_of += [-1 if step.forced else t] * len(action)
+        if t &lt; len(traj.steps) - 1:
+            obs = observation_ids(codec, step.observation)
+            tokens += obs
+            mask += [0] * len(obs)
+            step_of += [-1] * len(obs)
+    traj.tokens, traj.action_mask, traj.step_of_token, traj.state_positions = tokens, mask, step_of, states
+    traj.logprobs = [0.0] * len(tokens)
+    return traj</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 6</span>Text into tensors. Only action tokens get mask 1, and injected mistakes get 0.</figcaption>
+        </figure>
+        <p>Look inside the tensors for one level 2 episode.</p>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/demo_env.py" data-label="Token view of one episode">
+          <pre><code>token  id  mask step
+&lt;bos&gt;        1  0  -1
+set         11  0  -1
+ttl         69  0  -1
+to          13  0  -1
+0           74  0  -1
+&lt;act&gt;        2  0  -1
+search       8  1   0
+ttl         69  1   0
+&lt;eos&gt;        3  1   0
+&lt;obs&gt;        4  0  -1
+found       17  0  -1
+jobs/main   58  0  -1
+&lt;act&gt;        2  0  -1
+edit         9  1   1
+jobs/main   58  1   1
+ttl         69  1   1
+0           74  1   1
+&lt;eos&gt;        3  1   1
+&lt;obs&gt;        4  0  -1
+ok          19  0  -1
+&lt;act&gt;        2  0  -1
+submit      10  1   2
+&lt;eos&gt;        3  1   2
+
+tokens torch.Size([1, 23])  action_mask torch.Size([1, 23])  actions tokens 10
+state positions (the &lt;act&gt; tokens): [5, 12, 20]</code></pre>
+        </figure>
+        <table class="shape-table">
+          <caption>The tensors of one training batch (B episodes, longest T tokens)</caption>
+          <thead><tr><th>Tensor</th><th>Shape</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>tokens</td><td>(B, T)</td><td>The whole episode, right-padded with <code>&lt;pad&gt;</code>.</td></tr>
+            <tr><td>action_mask</td><td>(B, T)</td><td>1 on tokens the policy sampled.</td></tr>
+            <tr><td>old_logprobs</td><td>(B, T)</td><td>log &pi;<sub>old</sub> of each sampled token, 0 elsewhere.</td></tr>
+            <tr><td>step_of_token</td><td>(B, T)</td><td>Which step each action token belongs to, &minus;1 elsewhere.</td></tr>
+            <tr><td>logits</td><td>(B, T, V)</td><td>V = 174. The next-token distribution at each position.</td></tr>
+            <tr><td>values</td><td>(B, T)</td><td>The critic's estimate of the final reward at each position.</td></tr>
+          </tbody>
+        </table>
+        <figure class="ct-figure ct-figure--wide" id="fig-tape">
+          <div class="ct-figure__stage" aria-label="Animated token tape of one episode with mask, log-probabilities and advantage rows"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 2</span>One real episode as tokens. Each row is a tensor. The camera follows how the update reads them.</figcaption>
+        </figure>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Every position in <code>state_positions</code> holds the <code>&lt;act&gt;</code> token.</li>
+            <li>A trajectory round-trips through JSON unchanged (<code>test_trajectory_json_roundtrip</code>).</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-03" data-step-title="A policy that can learn here">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 03</span></div>
+          <h2>Choose a policy that can learn on this machine</h2>
+          <p class="build-step__goal"><span>Goal</span> A language-model-shaped policy that is fast enough to produce real learning curves, with an interface a larger LM can fill.</p>
+        </header>
+        <p>The obvious choice is a pretrained LM with LoRA, as in C6 and C9. So we measure it first. The benchmark runs one GRPO iteration through each candidate: 16 episodes, then one update.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/benchmarks/bench_policy.py --tasks 4 --G 4</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/benchmarks/bench_policy.py">
+          <pre><code>one GRPO iteration: 4 tasks x G=4 = 16 episodes, untrained policies, Apple M5
+
+policy                        device        params   trainable  rollout s  update s  total s
+TinyPolicy d=128 L=3          cpu          686,465     686,465       0.99      0.14     1.14
+LlamaForCausalLM d=128 L=3    cpu          832,001     832,001       1.35      0.15     1.49
+
+Loading weights:   0%|          | 0/272 [00:00&lt;?, ?it/s]
+Loading weights:   0%|          | 1/272 [00:00&lt;00:49,  5.47it/s]
+Loading weights:  93%|█████████▎| 252/272 [00:00&lt;00:00, 1103.66it/s]
+Loading weights: 100%|██████████| 272/272 [00:00&lt;00:00, 934.56it/s] 
+SmolLM2-135M + LoRA r=16      cpu      136,358,785   1,843,777     289.07      9.18   298.25</code></pre>
+        </figure>
+        <p>This settles it. One iteration through SmolLM2-135M with LoRA took 298 seconds on the CPU. The tiny policy took 1.1 seconds. Our main run has 120 iterations at 12 times this batch size. At the SmolLM2 rate that would take days on this laptop, while other jobs compete for it. A real learning curve on this machine has to come from a small model, so that is what we use. Nothing about the algorithm depends on the size. The machine was busy during these timings, so read the ratio, not the absolute numbers.</p>
+        <p>The policy is a small decoder-only transformer: 686,465 parameters. It reads one token sequence and predicts the next token. It generates an action token by token until <code>&lt;eos&gt;</code>. So everything that follows is the code that would also train a larger LM. Step 16 proves that by swapping one in.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/policy.py" data-lines="36-85" data-lang="python">
+          <pre><code>class Block(nn.Module):
+    def __init__(self, cfg: PolicyConfig):
+        super().__init__()
+        self.n_heads = cfg.n_heads
+        self.norm1 = nn.RMSNorm(cfg.d_model)
+        self.qkv = nn.Linear(cfg.d_model, 3 * cfg.d_model, bias=False)
+        self.proj = nn.Linear(cfg.d_model, cfg.d_model, bias=False)
+        self.norm2 = nn.RMSNorm(cfg.d_model)
+        self.mlp = nn.Sequential(nn.Linear(cfg.d_model, 4 * cfg.d_model), nn.GELU(),
+                                 nn.Linear(4 * cfg.d_model, cfg.d_model))
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        B, T, D = x.shape
+        q, k, v = self.qkv(self.norm1(x)).view(B, T, 3, self.n_heads, D // self.n_heads).unbind(2)
+        att = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2),
+                                             is_causal=True)          # (B, H, T, d_h)
+        x = x + self.proj(att.transpose(1, 2).reshape(B, T, D))
+        return x + self.mlp(self.norm2(x))
+
+
+class TinyPolicy(nn.Module):
+    """Right-padded batches need no attention mask: with causal attention, position t never sees the padding
+    that comes after the sequence ends, so the logits at real positions are exact."""
+
+    def __init__(self, cfg: PolicyConfig):
+        super().__init__()
+        self.cfg = cfg
+        self.tok = nn.Embedding(cfg.vocab_size, cfg.d_model)
+        self.pos = nn.Embedding(cfg.max_len, cfg.d_model)
+        self.blocks = nn.ModuleList(Block(cfg) for _ in range(cfg.n_layers))
+        self.norm = nn.RMSNorm(cfg.d_model)
+        self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)
+        self.value_head = nn.Linear(cfg.d_model, 1)
+        self.apply(self._init)
+
+    @staticmethod
+    def _init(m: nn.Module) -&gt; None:
+        if isinstance(m, (nn.Linear, nn.Embedding)):
+            nn.init.normal_(m.weight, std=0.02)
+        if isinstance(m, nn.Linear) and m.bias is not None:
+            nn.init.zeros_(m.bias)
+
+    def forward(self, input_ids: torch.Tensor) -&gt; PolicyOutput:
+        """input_ids: (B, T) -&gt; logits (B, T, V), values (B, T)."""
+        T = input_ids.shape[1]
+        x = self.tok(input_ids) + self.pos(torch.arange(T, device=input_ids.device))
+        for block in self.blocks:
+            x = block(x)
+        h = self.norm(x)
+        return PolicyOutput(self.lm_head(h), self.value_head(h).squeeze(-1))</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 7</span>The policy. The block is a trimmed version of <a href="../build-a-modern-llm-from-scratch/">C4</a>. The value head is one linear layer. Only the action-level update uses it.</figcaption>
+        </figure>
+        <p>One log-probability helper does the alignment that causes most bugs in this kind of code. <code>out[:, t]</code> scores <code>tokens[:, t]</code>, computed from the logits at position <code>t - 1</code>.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/policy.py" data-lines="98-106" data-lang="python">
+          <pre><code>def token_logprobs(logits: torch.Tensor, tokens: torch.Tensor, temperature: float = 1.0) -&gt; torch.Tensor:
+    """log pi(tokens[:, t] | tokens[:, :t]) for t &gt;= 1, aligned so out[:, t] scores tokens[:, t]; out[:, 0] = 0.
+
+    logits: (B, T, V) from a forward over ``tokens`` (B, T). Returns (B, T).
+    Dividing by the sampling temperature keeps the training distribution equal to the one we sampled from.
+    """
+    logp = F.log_softmax(logits[:, :-1].float() / temperature, dim=-1)
+    picked = logp.gather(-1, tokens[:, 1:].unsqueeze(-1)).squeeze(-1)   # (B, T-1)
+    return F.pad(picked, (1, 0))</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 8</span>The shift by one is here and nowhere else.</figcaption>
+        </figure>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Right-padded batches need no attention mask. With causal attention, position t cannot see padding that comes after the sequence ends, so the logits at real positions are exact. The test <code>test_right_padding_needs_no_mask</code> checks this for our block, and <code>test_tiny_policy_right_padding_contract_matches_llama</code> checks it for Hugging Face Llama. In practice this removes a whole class of padding bugs from the rollout.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Changing a future token leaves earlier logits unchanged (<code>test_causality_future_tokens_do_not_change_past_logits</code>).</li>
+            <li>The checkpoint saves and loads with equal outputs.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-04" data-step-title="Behaviour cloning">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 04</span></div>
+          <h2>Clone the expert</h2>
+          <p class="build-step__goal"><span>Goal</span> Teach the action syntax and the procedure from clean demonstrations, then measure how far that gets.</p>
+        </header>
+        <p>Behaviour cloning minimises L = &minus;&sum;<sub>t</sub> log &pi;(a*<sub>t</sub> | s<sub>t</sub>). In code, this is cross-entropy with a loss mask. If you did <a href="../post-train-an-llm/">C6</a>, you have written this already. The only change is that the assistant turn is now many turns.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/bc.py" data-lines="22-34" data-lang="python">
+          <pre><code>def expert_demos(n: int, levels: tuple[int, ...], codec: Codec, seed: int = 0) -&gt; list[Trajectory]:
+    """Clean expert episodes. Seeds start at 10**6 so they never collide with evaluation seeds."""
+    rng = random.Random(seed)
+    demos = []
+    for k in range(n):
+        task = sample_task(rng.choice(levels), seed=10**6 + seed * n + k)
+        demos.append(encode_trajectory(run_episode(FileSystemEnv(task), ScriptedExpert(task.text)), codec))
+    return demos
+
+
+def bc_loss(policy, batch: Batch) -&gt; torch.Tensor:
+    logp = token_logprobs(policy(batch.tokens).logits, batch.tokens)       # (B, T)
+    return -(logp * batch.action_mask).sum() / batch.action_mask.sum()</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 9</span>The whole of behaviour cloning. Demonstrations come from clean environments at levels 1 to 3.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/train_bc.py --demos 30000 --steps 3000 --layers 3</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/train_bc.py" data-label="Apple M5 CPU, 2 threads">
+          <pre><code>device=cpu vocab=174 params=686,465 demos=30000
+step     1  loss 5.2665
+step   200  loss 0.1486
+step   400  loss 0.0771
+step   600  loss 0.0655
+step   800  loss 0.0444
+step  1000  loss 0.0666
+step  1200  loss 0.0292
+step  1400  loss 0.0425
+step  1600  loss 0.0414
+step  1800  loss 0.0335
+step  2000  loss 0.0345
+step  2200  loss 0.0276
+step  2400  loss 0.0251
+step  2600  loss 0.0322
+step  2800  loss 0.0262
+step  3000  loss 0.0436
+trained in 576s
+success (greedy, 300 unseen tasks per suite): {'clean': 0.797, 'perturbed': 0.143, 'failures': 0.2, 'long': 0.0}</code></pre>
+        </figure>
+        <p>Read the last line carefully. On clean tasks the policy succeeds 80% of the time. The misses are mostly level 3, where the value must be looked up in a read result. From perturbed starts it succeeds 14%. With failures injected it succeeds 20%. On long tasks it succeeds 0%. It never saw an error message or an <code>and</code> in a task, and it shows.</p><p>This is the cloned policy that the rest of the post starts from. A strong start is not the aim. It knows the action syntax and the procedure, which gives RL something to work with.</p>
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Train on 4,000 demonstrations instead of 30,000. An early version of this tutorial did that, with two layers. The training loss reached 0.0016, and yet greedy success on level 3 was far below levels 1 and 2. The failing episodes all look like this:</p>
+          <figure class="code-output" data-label="What you see">
+            <pre><code>task [3]: set mode in web/base to value of limit
+  0: search limit                 -> found cache/dev
+  1: read cache/dev               -> limit = 95 ; mode = 71 ; level = 56
+  2: edit web/base mode 71        -> ok
+  3: submit                       -> submitted</code></pre>
+          </figure>
+          <p>The policy read the right file and copied the wrong value. Level 3 needs a two-hop lookup: find the key from the task in the observation, then take the number after it. With few demonstrations the model memorises instead. A small loss on the training set says little here, so always evaluate on fresh tasks.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Loss falls below 0.01 and the <code>clean</code> suite passes on unseen tasks.</li>
+            <li><code>test_bc_loss_drops_and_save_load_roundtrip</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+      <section class="build-step" id="step-05" data-step-title="Distribution shift">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 05</span></div>
+          <h2>Break the clone with one small mistake</h2>
+          <p class="build-step__goal"><span>Goal</span> Put the policy one harmless step off the expert's path, and measure what happens.</p>
+        </header>
+        <p>A cloned policy has seen only the expert's states. The expert never errs. So the moment the policy makes any mistake, or the world behaves differently, it is somewhere it has never been. This is the compounding-error argument from the DAgger paper. We can measure it directly.</p>
+        <a class="theory-link" href="../reinforcement-learning-for-agents-from-first-principles/#cloning"><span class="theory-link__kicker">Derivation in</span>Why cloning is not enough</a>
+        <p>A perturbed start plays k wrong actions before the policy takes over: a search for an unrelated key, a read of a missing file, a malformed call. Each is harmless. The files do not change, and the budget still leaves room to finish. To make "a state no demonstration contains" a number, we abstract each state into its history of action types and outcome types.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/shift.py" data-lines="20-31" data-lang="python">
+          <pre><code>def random_mistake(task: Task, rng: random.Random) -&gt; str:
+    needed = {s.key for s in task.subtasks} | {s.source_key for s in task.subtasks}
+    kind = rng.choice(["search", "read", "list", "malformed", "missing"])
+    if kind == "search":
+        return f"search {rng.choice([k for k in KEYS if k not in needed])}"
+    if kind == "read":
+        return f"read {rng.choice(sorted(task.files))}"
+    if kind == "list":
+        return f"list {rng.choice(DIRS)}"
+    if kind == "malformed":
+        return rng.choice(["edit", "search", "read port", f"edit {rng.choice(sorted(task.files))}"])
+    return f"read {rng.choice([p for p in PATHS if p not in task.files])}"</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 10</span>The injected mistakes. None of them changes a file.</figcaption>
+        </figure>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/shift.py" data-lines="45-59" data-lang="python">
+          <pre><code>def signature(traj: Trajectory, t: int) -&gt; tuple[str, ...]:
+    """Abstract state before step t: the task level plus the (action type, outcome type) pairs so far."""
+    hist = tuple(f"{s.action.split()[0] if s.action.split() else '?'}:{_outcome(s.observation)}"
+                 for s in traj.steps[:t])
+    return (f"L{traj.level}",) + hist
+
+
+def seen_signatures(demos: list[Trajectory]) -&gt; set[tuple[str, ...]]:
+    return {signature(d, t) for d in demos for t in range(len(d.steps))}
+
+
+def unseen_rate(trajs: list[Trajectory], seen: set[tuple[str, ...]]) -&gt; float:
+    """Fraction of the policy's own decisions (forced steps excluded) taken in a state absent from the demos."""
+    states = [signature(tr, t) for tr in trajs for t, s in enumerate(tr.steps) if not s.forced]
+    return sum(s not in seen for s in states) / max(len(states), 1)</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 11</span>The measure. Forced steps are excluded: we only count decisions the policy took itself.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/distribution_shift.py --ckpt c12-agent-rl/runs/bc.pt</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/distribution_shift.py" data-label="Apple M5 CPU, 300 tasks per row">
+          <pre><code>9 distinct abstract states in 5000 demonstrations
+mistakes  success  expert  unseen-state rate  submitted
+       0    0.797   1.000              0.000      1.000
+       1    0.177   1.000              0.946      0.963
+       2    0.087   1.000              0.992      0.933
+       3    0.043   1.000              1.000      0.740
+
+task [2]: set ttl to 0
+  0: read jobs/main               -&gt; workers = 48 ; host = 76 ; ttl = 87 (forced)
+  1: edit edit db/dev ttl 30      -&gt; error invalid input
+  2: edit 0 ttl 0                 -&gt; error no such file
+  3: submit                       -&gt; submitted
+  success=False submitted=True truncated=False
+   step 0: state seen in demos = True
+   step 1: state seen in demos = False
+   step 2: state seen in demos = False
+   step 3: state seen in demos = False</code></pre>
+        </figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-shift">
+          <div class="ct-figure__stage" aria-label="Animated state paths and a bar chart of success against injected mistakes"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 3</span>Top left: the abstract states every demonstration visits. Bottom left: the states after one forced mistake. Right: the measured cost, against the expert from the same starts.</figcaption>
+        </figure>
+        <p>One harmless step takes success from 80% to 18%. Three steps take it to 4%. The expert stays at 100% from the same starts, so the task never became harder. Look at the first trajectory: after one correct-looking <code>read</code>, the policy emits <code>edit edit db/dev ttl 30</code>. That is not a syntax it was taught. It is what a next-token model does outside its data.</p><aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Only 0% of decisions are in unseen states from clean starts, and 95% after a single forced mistake. The state space of a procedure is narrow, and demonstrations cover exactly one path through it. So the first mistake is the expensive one. In practice, measure success from perturbed starts, not only from clean ones. A clean evaluation hides this completely.</p></aside><aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The abstract signature under-counts novelty. The second trajectory printed by the script has a forced <code>search</code> for the wrong key, and every state it visits has a signature seen in demos. The policy then reads the wrong file and edits with the wrong value. The signature says the state is familiar, while the tokens that matter are not. So treat the unseen rate as a lower bound.</p></aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>The expert stays at or near 100% at every k. The drop belongs to the policy.</li>
+            <li>The unseen-state rate rises as success falls.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-06" data-step-title="Online rollouts">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 06</span></div>
+          <h2>Let the policy act in the environment</h2>
+          <p class="build-step__goal"><span>Goal</span> Generate whole episodes with the current policy, write a slow version first, then make it fast and prove the two agree.</p>
+        </header>
+        <p>DAgger would ask an expert to label the new states. For agents, that expert rarely exists. So the policy learns from its own consequences instead, and that starts with letting it act. Here is the naive rollout. It handles one episode and one token at a time.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/rollout_naive.py" data-lines="13-44" data-lang="python">
+          <pre><code>@torch.no_grad()
+def rollout_one(policy, codec: Codec, env: FileSystemEnv, *, temperature: float = 1.0,
+                forced: list[str] | None = None, max_action_tokens: int = 6, max_len: int = 384,
+                device: str = "cpu") -&gt; Trajectory:
+    tr = new_trajectory(env, prompt_ids(codec, env.reset()))
+    forced = list(forced or [])
+    while not env.done():
+        step = len(env.history)
+        tr.state_positions.append(len(tr.tokens) - 1)   # the &lt;act&gt; token: the state the action is taken in
+        is_forced = bool(forced)
+        if is_forced:                                      # an injected mistake: played, never trained on
+            text = forced.pop(0)
+            append(tr, codec.encode(text) + [codec.eos], None, step)
+        else:
+            ids, lps = [], []
+            while len(ids) &lt; max_action_tokens:
+                x = torch.tensor([tr.tokens + ids], device=device)          # (1, T)
+                tok, lp = sample_token(policy(x).logits[:, -1], temperature)  # next-token logits (1, V)
+                ids.append(int(tok))
+                lps.append(float(lp))
+                if ids[-1] == codec.eos:
+                    break
+            append(tr, ids, lps, step)
+            text = codec.decode([i for i in ids if i != codec.eos])
+        obs, _, done = env.step(text)
+        env.history[-1].forced = is_forced
+        if done:
+            break
+        if len(tr.tokens) + max_action_tokens + OBS_BUDGET &gt; max_len:  # out of context: end the episode unsubmitted
+            break
+        append(tr, observation_ids(codec, obs), None, step)
+    return finish(tr, env)</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 12</span>The reference rollout. The highlighted loop generates one action. Each token needs a forward pass over the whole history.</figcaption>
+        </figure>
+        <p>It works. It is also slow, so we profile it.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/benchmarks/bench_rollout.py</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/benchmarks/bench_rollout.py">
+          <pre><code></code></pre>
+        </figure>
+        (pending)
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/rollout.py" data-lines="18-45" data-lang="python">
+          <pre><code>@torch.no_grad()
+def sample_actions(policy, prefixes: list[list[int]], codec: Codec, temperature: float,
+                   max_tokens: int, device: str) -&gt; list[tuple[list[int], list[float]]]:
+    """Generate one action for each prefix. Returns (token ids, log-probs) per row; ids end in &lt;eos&gt; if it fired."""
+    B = len(prefixes)
+    lens = torch.tensor([len(p) for p in prefixes], device=device)                         # (B,)
+    buf = torch.full((B, int(lens.max()) + max_tokens), codec.pad, dtype=torch.long, device=device)
+    for i, p in enumerate(prefixes):
+        buf[i, : len(p)] = torch.tensor(p, device=device)
+    out_tok = torch.full((B, max_tokens), -1, dtype=torch.long, device=device)              # -1 = not generated
+    out_lp = torch.zeros(B, max_tokens, device=device)
+    alive = torch.arange(B, device=device)                                                  # rows still generating
+    for k in range(max_tokens):
+        L = int(lens[alive].max())
+        logits = policy(buf[alive, :L]).logits                                              # (b, L, V)
+        tok, lp = sample_token(logits[torch.arange(len(alive), device=device), lens[alive] - 1], temperature)
+        buf[alive, lens[alive]] = tok
+        lens[alive] += 1
+        out_tok[alive, k], out_lp[alive, k] = tok, lp
+        alive = alive[tok != codec.eos]
+        if len(alive) == 0:
+            break
+    out_tok, out_lp = out_tok.tolist(), out_lp.tolist()
+    result = []
+    for ids, lps in zip(out_tok, out_lp):
+        n = sum(i &gt;= 0 for i in ids)
+        result.append((ids[:n], lps[:n]))
+    return result</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 13</span>Batched generation. One forward serves every episode that is waiting for an action. Each row reads its logits at its own last position.</figcaption>
+        </figure>
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>Two equivalence tests hold this together. Greedy naive and greedy batched rollouts must give identical tokens. And the log-probabilities recorded during sampling must equal those from a training forward over the finished sequence, which means the GRPO ratio starts at exactly 1.</p>
+        </aside>
+        <figure class="code-listing" data-src="c12-agent-rl/tests/test_policy_rollout.py" data-lines="61-68" data-lang="python">
+          <pre><code>def test_rollout_logprobs_match_a_training_forward():
+    """pi_old from sampling == pi_theta recomputed on the whole sequence: the GRPO ratio starts at exactly 1."""
+    pol = tiny(1)
+    torch.manual_seed(0)
+    trajs = rollout_batch(pol, codec, [FileSystemEnv(sample_task(2, i)) for i in range(8)], temperature=1.0)
+    batch = collate(trajs, codec.pad)
+    logp = token_logprobs(pol(batch.tokens).logits, batch.tokens)
+    torch.testing.assert_close(logp * batch.action_mask, batch.old_logprobs, atol=1e-5, rtol=0)</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 14</span>If this test fails, every later number is wrong. Check it first when an RL run behaves strangely.</figcaption>
+        </figure>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_naive_and_batched_rollouts_agree_greedy</code> passes.</li>
+            <li><code>test_rollout_logprobs_match_a_training_forward</code> passes at tolerance 1e-5.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-07" data-step-title="Group advantages">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 07</span></div>
+          <h2>Outcome reward and group-relative advantages</h2>
+          <p class="build-step__goal"><span>Goal</span> Turn one bit of feedback per episode into a signed signal, with no critic.</p>
+        </header>
+        <p>We start with the honest reward: 1 if the files are right, 0 otherwise. It cannot be gamed by looking busy. It also says nothing about which action helped. To get a gradient from it, GRPO samples G trajectories for the same task and compares them with each other.</p>
+        <a class="theory-link" href="../how-reinforcement-learning-teaches-models-to-reason/"><span class="theory-link__kicker">Derivation in</span>GRPO from first principles</a>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/advantages.py" data-lines="19-31" data-lang="python">
+          <pre><code>def group_relative(rewards: torch.Tensor, groups: torch.Tensor, scale: bool = True,
+                   eps: float = 1e-4) -&gt; torch.Tensor:
+    """rewards (N,), groups (N,) integer group ids -&gt; advantages (N,).
+
+    ``std`` is the unbiased sample std, as in TRL's GRPOTrainer. ``scale=False`` keeps only the mean baseline
+    (the Dr. GRPO variant), which stops low-variance groups from being amplified.
+    """
+    adv = torch.zeros_like(rewards)
+    for g in groups.unique():
+        m = groups == g
+        r = rewards[m]
+        adv[m] = (r - r.mean()) / (r.std() + eps) if scale else r - r.mean()
+    return adv</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 15</span>The whole baseline. Mean and std of a small group of rollouts replace a learned critic.</figcaption>
+        </figure>
+        <p>Try it. Click a trajectory to change its reward. Notice what happens when every reward is the same.</p>
+        <figure class="ct-figure" id="fig-group">
+          <div class="ct-knobs">
+            <label class="ct-knob">Group size G <input type="range" id="grp-g" min="2" max="16" value="8" /><output id="grp-g-out">8</output></label>
+            <label class="ct-knob"><input type="checkbox" id="grp-scale" checked /> Divide by std (GRPO)</label>
+            <span class="ct-seg">
+              <button type="button" class="c12-btn" data-preset="one">One winner</button>
+              <button type="button" class="c12-btn" data-preset="half">Half</button>
+              <button type="button" class="c12-btn" data-preset="almost">One loser</button>
+              <button type="button" class="c12-btn" data-preset="fail">All fail</button>
+              <button type="button" class="c12-btn" data-preset="win">All win</button>
+            </span>
+          </div>
+          <div class="ct-figure__stage">
+            <div id="grp-cells" aria-label="Rewards of the G trajectories"></div>
+            <div id="grp-bars" aria-label="Group-relative advantages"></div>
+          </div>
+          <div class="ct-readout" aria-live="polite">
+            <div><span>Group mean</span><b id="grp-mean">0</b></div>
+            <div><span>Group std</span><b id="grp-std">0</b></div>
+            <div><span>Largest A</span><b id="grp-max">0</b></div>
+            <div><span>Policy gradient</span><b id="grp-signal">none</b></div>
+          </div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 4</span>Group-relative advantages. Click a trajectory to cycle its reward through 0, 1 and 0.5. Blue bars push the trajectory's actions up. Orange bars push them down. A flat group gives no gradient at all.</figcaption>
+        </figure>
+        (pending)
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>We compare the implementation against a separate NumPy reference, and pin the properties: advantages sum to zero, a flat group gives zero everywhere, and one winner of eight gets a larger push than one loser of eight's opposite.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_group_relative_matches_numpy_reference</code> passes.</li>
+            <li><code>test_zero_variance_batch_produces_zero_policy_gradient</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-08" data-step-title="The GRPO update">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 08</span></div>
+          <h2>Write the GRPO update and train</h2>
+          <p class="build-step__goal"><span>Goal</span> A clipped surrogate over action tokens of whole episodes, and the first real RL learning curve.</p>
+        </header>
+        <p>The update is the same as in <a href="../post-train-an-llm/">C6</a>, applied to multi-turn sequences. Environment tokens stay out of the loss because of the mask. Everything else is PPO's clip and an optional KL to a reference policy.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/grpo.py" data-lines="69-89" data-lang="python">
+          <pre><code>def grpo_loss(policy, batch, adv_tok: torch.Tensor, cfg: GRPOConfig, ref_policy=None,
+              value_targets: torch.Tensor | None = None, value_mask: torch.Tensor | None = None):
+    out = policy(batch.tokens)
+    logp = token_logprobs(out.logits, batch.tokens, cfg.temperature)          # (B, T)
+    mask = batch.action_mask
+    n = mask.sum().clamp(min=1)
+    ratio = (logp - batch.old_logprobs).exp()
+    surr = torch.min(ratio * adv_tok, ratio.clamp(1 - cfg.clip, 1 + cfg.clip) * adv_tok)
+    loss = -(surr * mask).sum() / n
+    stats = {"clip_frac": (((ratio - 1).abs() &gt; cfg.clip).float() * mask).sum().item() / n.item()}
+    if ref_policy is not None and cfg.kl_beta &gt; 0:
+        with torch.no_grad():
+            ref = token_logprobs(ref_policy(batch.tokens).logits, batch.tokens, cfg.temperature)
+        kl = (ref - logp).exp() - (ref - logp) - 1                             # k3, &gt;= 0
+        loss = loss + cfg.kl_beta * (kl * mask).sum() / n
+        stats["kl"] = ((kl * mask).sum() / n).item()
+    if value_targets is not None:
+        v_loss = (((out.values - value_targets) ** 2) * value_mask).sum() / value_mask.sum().clamp(min=1)
+        loss = loss + cfg.value_coef * v_loss
+        stats["value_loss"] = v_loss.item()
+    return loss, stats</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 16</span>The loss. Highlighted: the ratio, the clip, and the mean over action tokens.</figcaption>
+        </figure>
+        <p>The online loop is short. It samples tasks, rolls out G episodes per task, and updates.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/online.py" data-lines="69-83" data-lang="python">
+          <pre><code>def group_rollouts(policy, codec: Codec, episodes: list[Episode], G: int, cfg: GRPOConfig, device: str,
+                   version: int = 0, group_offset: int = 0) -&gt; list[Trajectory]:
+    """G trajectories per task. Members share the task and the start; their tool-failure seeds differ."""
+    envs, forced, groups = [], [], []
+    for g, ep in enumerate(episodes):
+        task = sample_task(ep.task_level, ep.seed)
+        for j in range(G):
+            envs.append(FileSystemEnv(task, seed=ep.seed * 31 + j))
+            forced.append(ep.forced)
+            groups.append(group_offset + g)
+    trajs = rollout_batch(policy, codec, envs, forced=forced, temperature=cfg.temperature, device=device,
+                          version=version)
+    for t, g in zip(trajs, groups):
+        t.group = g
+    return trajs</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 17</span>Group members share the task and the start. Their failure seeds differ, so one member may hit a timeout that another does not.</figcaption>
+        </figure>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/online.py" data-lines="97-119" data-lang="python">
+          <pre><code>def train_online(policy, codec: Codec, sampler, cfg: GRPOConfig, *, iterations: int, tasks_per_iter: int = 32,
+                 G: int = 8, device: str = "cpu", ref_policy=None, curriculum: Curriculum | None = None,
+                 eval_fn=None, eval_every: int = 10, log=print) -&gt; list[dict]:
+    opt = torch.optim.AdamW(policy.parameters(), lr=cfg.lr, weight_decay=0.0)
+    ref_policy = ref_policy or (copy.deepcopy(policy).eval() if cfg.kl_beta &gt; 0 else None)
+    history = []
+    for it in range(1, iterations + 1):
+        t0 = time.time()
+        if curriculum is not None:
+            sampler.mix = curriculum.mix
+        trajs = group_rollouts(policy, codec, sampler.sample(tasks_per_iter), G, cfg, device, version=it)
+        t1 = time.time()
+        stats = update(policy, opt, trajs, cfg, pad=codec.pad, device=device, ref_policy=ref_policy, seed=it)
+        row = {"iter": it, **group_stats(trajs, cfg.reward), **stats,
+               "t_rollout": t1 - t0, "t_update": time.time() - t1}
+        if curriculum is not None:
+            row["stage"] = curriculum.stage
+            curriculum.record(row["success"])
+        if eval_fn is not None and (it % eval_every == 0 or it == iterations):
+            row["eval"] = eval_fn(policy)
+        history.append(row)
+        log(_fmt(row))
+    return history</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 18</span>The online RL loop. A fresh policy version generates every batch.</figcaption>
+        </figure>
+        <table class="shape-table">
+          <caption>One iteration of the main run</caption>
+          <thead><tr><th>Quantity</th><th>Shape or size</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>tasks per iteration</td><td>24</td><td>Sampled from levels 1 to 5, half of level 1 to 3 starts perturbed.</td></tr>
+            <tr><td>G</td><td>8</td><td>Rollouts per task, so 192 episodes per iteration.</td></tr>
+            <tr><td>minibatch tokens</td><td>(64, T)</td><td>T is the longest episode in the minibatch.</td></tr>
+            <tr><td>adv_tok</td><td>(64, T)</td><td>Per-token advantage, zero off the action mask.</td></tr>
+            <tr><td>ratio</td><td>(64, T)</td><td>exp(log &pi;<sub>&theta;</sub> &minus; log &pi;<sub>old</sub>), exactly 1 before the first step.</td></tr>
+          </tbody>
+        </table>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py main</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py main" data-label="Apple M5 CPU, 2 threads (every 20th iteration)">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-curves">
+          <div class="ct-knobs">
+            <label class="ct-knob">Experiment <select id="cv-exp" class="c12-select" aria-label="Experiment"></select></label>
+            <label class="ct-knob">Evaluation suite <select id="cv-suite" class="c12-select" aria-label="Evaluation suite"></select></label>
+          </div>
+          <div class="ct-figure__stage" id="cv-chart" aria-label="Learning curves from real runs"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 5</span>Every learning curve in this post, from real runs on the Apple M5 CPU. Each point is greedy success on fresh tasks. Choose the experiment and the suite. Single seed unless stated.</figcaption>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>The <code>failures</code> and <code>perturbed</code> suites rise above their BC values.</li>
+            <li>The <code>zero-var</code> column stays well below 1. If it is near 1, the update has no signal.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-09" data-step-title="Credit assignment">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 09</span></div>
+          <h2>Trajectory-level or action-level credit</h2>
+          <p class="build-step__goal"><span>Goal</span> Compare one advantage per episode against one advantage per action, on the long-horizon tasks.</p>
+        </header>
+        <p>Trajectory-level credit gives every action of an episode the same advantage. A winning episode with a pointless retry rewards the retry. Over many episodes the noise averages out, but it costs samples. The horizon makes this worse.</p>
+        <p>The alternative is a critic. The value head estimates V(s<sub>t</sub>), the expected final reward from a state. The difference V(s<sub>t+1</sub>) &minus; V(s<sub>t</sub>) then says whether one action helped. GAE blends these one-step differences.</p>
+        <a class="theory-link" href="../reinforcement-learning-for-agents-from-first-principles/#credit"><span class="theory-link__kicker">Derivation in</span>Credit over fifty steps</a>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/advantages.py" data-lines="34-42" data-lang="python">
+          <pre><code>def gae(rewards: list[float], values: list[float], gamma: float = 1.0, lam: float = 0.95) -&gt; list[float]:
+    """Per-step advantages for one episode. ``values[t]`` = V(s_t); the episode ends after the last step."""
+    adv, running = [0.0] * len(rewards), 0.0
+    for t in reversed(range(len(rewards))):
+        next_v = values[t + 1] if t + 1 &lt; len(values) else 0.0
+        delta = rewards[t] + gamma * next_v - values[t]
+        running = delta + gamma * lam * running
+        adv[t] = running
+    return adv</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 19</span>GAE in eight lines. With &lambda; = 1 this is the final reward minus the baseline. With &lambda; = 0 it is the one-step difference. The test checks both limits.</figcaption>
+        </figure>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/grpo.py" data-lines="42-55" data-lang="python">
+          <pre><code>def step_advantages(trajs: list[Trajectory], cfg: GRPOConfig,
+                    values: list[list[float]] | None = None) -&gt; tuple[list[list[float]], list[list[float]]]:
+    """Per-step advantages and value targets for each trajectory."""
+    rewards = [REWARDS[cfg.reward](t) for t in trajs]
+    if cfg.credit == "trajectory":
+        R = torch.tensor([sum(r) for r in rewards])
+        A = group_relative(R, torch.tensor([t.group for t in trajs]), scale=cfg.scale_std)
+        return [[float(a)] * t.n_steps for a, t in zip(A, trajs)], [[] for _ in trajs]
+    assert values is not None, "action-level credit needs V(s_t) from the value head"
+    adv = [gae(r, v, cfg.gamma, cfg.lam) for r, v in zip(rewards, values)]
+    targets = [[a + v for a, v in zip(ad, vs)] for ad, vs in zip(adv, values)]
+    flat = torch.tensor([a for ad in adv for a in ad])
+    mu, sd = flat.mean(), flat.std() + 1e-4          # whiten over the batch, as PPO does
+    return [[(a - mu.item()) / sd.item() for a in ad] for ad in adv], targets</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 20</span>Both kinds of credit return per-step advantages, so the loss does not change. <code>to_tokens</code> then scatters them onto action tokens.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py credit</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py credit" data-label="Apple M5 CPU, single seed, final evaluation">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        <p>Replay real episodes from a trained policy. Choose a group, a member and a credit mode. Find a wasted step and see what each mode says about it.</p>
+        <figure class="ct-figure ct-figure--wide" id="fig-replay">
+          <div class="ct-knobs">
+            <label class="ct-knob">Group <select id="rp-group" class="c12-select" aria-label="Task group"></select></label>
+            <span class="ct-seg" role="group" aria-label="Credit mode">
+              <button type="button" class="c12-btn" data-credit="traj" aria-pressed="true">Trajectory</button>
+              <button type="button" class="c12-btn" data-credit="gae" aria-pressed="false">GAE</button>
+              <button type="button" class="c12-btn" data-credit="td" aria-pressed="false">One-step TD</button>
+            </span>
+            <label class="ct-knob">Step <input type="range" id="rp-step" min="0" max="5" value="0" /><output id="rp-step-out">1</output></label>
+          </div>
+          <div id="rp-members" aria-label="Group members"></div>
+          <div class="ct-figure__stage" id="rp-steps" aria-label="Trajectory steps with advantages"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 6</span>Real rollouts of the policy trained with action-level credit. The advantages come from the same functions the update calls. Blue is positive, orange is negative.</figcaption>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_gae_matches_explicit_sum_and_special_cases</code> passes.</li>
+            <li><code>test_to_tokens_puts_step_advantage_on_its_action_tokens_only</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-10" data-step-title="Shaping and the hack">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 10</span></div>
+          <h2>Shape the reward, then hack it on purpose</h2>
+          <p class="build-step__goal"><span>Goal</span> Add intermediate rewards, watch a reasonable-looking one destroy the policy, and fix it with a form that cannot be farmed.</p>
+        </header>
+        <p>Outcome rewards are sparse. So people add milestones. Here are two ways, in the same file.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/rewards.py" data-lines="24-28" data-lang="python">
+          <pre><code>def activity(traj: Trajectory, bonus: float = 0.2) -&gt; list[float]:
+    r = [bonus if (not s.error and s.action != "submit") else 0.0 for s in traj.steps]
+    if r:
+        r[-1] += traj.outcome
+    return r</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 21</span>The hackable reward. It pays for activity.</figcaption>
+        </figure>
+        <p>Think about what the highest-scoring behaviour is. Solving a level 2 task gives 0.2 + 0.2 + 1 = 1.4. Looping <code>read</code> until the step budget ends gives 0.2 per call, for nine calls: 1.8. The reward prefers not solving the task. We wrote that, by accident, in one line.</p>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py shaping</code></pre>
+        </figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-hack">
+          <div class="ct-figure__stage" aria-label="Animated learning curves of shaped return and true success under the hacked reward, with sample trajectories"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 7</span>The deliberate hack, real run. Two separate panels with one axis each. The box below shows one sampled trajectory from the start of the run, then one from the end.</figcaption>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py shaping" data-label="Apple M5 CPU, single seed">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        (pending)
+        <p>The fix is potential-based shaping (Ng, Harada and Russell, 1999). Define &Phi;(s), the fraction of milestones reached. Pay &Phi;(s<sub>t+1</sub>) &minus; &Phi;(s<sub>t</sub>) on each step. Credit arrives early, but losing progress costs what gaining it paid.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/rewards.py" data-lines="31-40" data-lang="python">
+          <pre><code>def potential(traj: Trajectory, gamma: float = 1.0) -&gt; list[float]:
+    r = outcome(traj)
+    phi_prev = 0.0                       # Phi(s_0) = 0: nothing found or edited yet
+    for t, s in enumerate(traj.steps):
+        phi_next = s.progress            # the env sets Phi = 0 once the episode is over
+        if t == traj.n_steps - 1 and not s.reward and not traj.submitted:
+            phi_next = 0.0               # context-truncated episodes end too
+        r[t] += gamma * phi_next - phi_prev
+        phi_prev = phi_next
+    return r</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 22</span>Potential-based shaping. The environment defines &Phi; = 0 at the start and at the end.</figcaption>
+        </figure>
+        <aside class="callout callout-insight">
+          <p class="callout-label">Insight</p>
+          <p>Because &Phi; is 0 at both ends, the shaping terms cancel over an episode: the total shaped return equals the outcome, exactly. <code>test_potential_shaping_telescopes_to_the_outcome</code> checks this. So under trajectory-level GRPO, which only sees the sum, potential shaping changes nothing at all. It only matters with action-level credit, where the per-step rewards enter GAE. In practice, adding milestone potentials to a pure GRPO trainer is a no-op, and you should not expect it to help.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_activity_reward_pays_more_for_looping_than_for_solving</code> passes.</li>
+            <li>Always log true success beside the training reward. The gap between them is your reward-hack alarm.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-11" data-step-title="Exploration">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 11</span></div>
+          <h2>Exploration: temperature, group size, diverse starts</h2>
+          <p class="build-step__goal"><span>Goal</span> Measure what controls how much signal each batch of rollouts carries.</p>
+        </header>
+        <p>GRPO learns only from groups that disagree. So exploration has a concrete meaning here: it is whatever makes a group's outcomes differ. We measure the fraction of zero-variance groups, because each one is a batch of rollouts that taught nothing.</p>
+        <p>Three levers are in the code. Sampling temperature changes how often a group tries something else. Group size G changes how likely one member is to get lucky. The task sampler supplies diverse tasks and diverse starts. The temperature must also enter the training log-probabilities, otherwise the ratio no longer describes the sampling distribution. <code>token_logprobs</code> takes it as an argument for that reason.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/online.py" data-lines="29-43" data-lang="python">
+          <pre><code>class TaskSampler:
+    """Diverse tasks and diverse initial states. Training seeds start at 10**6, away from the eval seeds."""
+
+    def __init__(self, mix: TaskMix, seed: int = 0):
+        self.mix, self.rng, self.next_seed = mix, random.Random(seed), 10**6 + 10**5 * seed
+
+    def sample(self, n: int) -&gt; list[Episode]:
+        levels, weights = zip(*self.mix.levels.items())
+        out = []
+        for _ in range(n):
+            level, seed = self.rng.choices(levels, weights)[0], self.next_seed
+            self.next_seed += 1
+            k = self.rng.choice([1, 2]) if level &lt;= 3 and self.rng.random() &lt; self.mix.p_perturb else 0
+            out.append(Episode(level, seed, perturbations(sample_task(level, seed), k, seed) if k else []))
+        return out</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 23</span>Diverse tasks and diverse initial states. The perturbed starts from step 5 are now training data.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py exploration
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py groupsize</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py" data-label="Apple M5 CPU, single seed, final iteration">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Your training log reports zero-variance groups on every iteration.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-12" data-step-title="Curriculum">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 12</span></div>
+          <h2>Curriculum: from one tool to long horizons</h2>
+          <p class="build-step__goal"><span>Goal</span> Raise the difficulty only when the policy is ready, and compare that against starting at the hardest level.</p>
+        </header>
+        <p>The chance that a sampled episode solves a long task shrinks with its length. Below some point, whole groups fail and the update has nothing to work on. A curriculum keeps the policy where it sometimes succeeds. The ladder has five rungs.</p>
+        <figure class="ct-figure ct-figure--wide" id="fig-ladder">
+          <div class="ct-figure__stage" aria-label="Animated curriculum ladder from single tool to long horizon"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 8</span>The curriculum. Each rung adds one difficulty. The right side shows what the cloned policy scores before any RL.</figcaption>
+        </figure>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/online.py" data-lines="47-66" data-lang="python">
+          <pre><code>class Curriculum:
+    """Move to the next stage when the rolling training success on the current stage passes ``threshold``."""
+
+    stages: list[TaskMix]
+    threshold: float = 0.7
+    window: int = 5
+    stage: int = 0
+    recent: list[float] = field(default_factory=list)
+
+    @property
+    def mix(self) -&gt; TaskMix:
+        return self.stages[self.stage]
+
+    def record(self, success: float) -&gt; bool:
+        self.recent = (self.recent + [success])[-self.window:]
+        ready = len(self.recent) == self.window and sum(self.recent) / self.window &gt;= self.threshold
+        if ready and self.stage &lt; len(self.stages) - 1:
+            self.stage, self.recent = self.stage + 1, []
+            return True
+        return False</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 24</span>Promotion on a rolling success rate. There is no demotion. An exercise asks you to add it.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py curriculum</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py curriculum" data-label="Apple M5 CPU, single seed, final evaluation">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_curriculum_advances_on_threshold_only</code> passes.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-13" data-step-title="Failure recovery">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 13</span></div>
+          <h2>Failure recovery: timeouts, bad input, missing files</h2>
+          <p class="build-step__goal"><span>Goal</span> Inject the ways tools really fail, reward finishing anyway, and look at the behaviour that appears.</p>
+        </header>
+        <p>Real tools hang, crash, reject arguments and point at files that have moved. Demonstrations from clean runs show none of this. So we inject the failures in the environment, seeded per episode. A failed call costs a step, so a policy that panics runs out of budget.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/failures.py" data-lines="20-48" data-lang="python">
+          <pre><code>TIMEOUT = "error timeout"
+TOOL_ERROR = "error internal"
+INVALID = "error invalid input"
+MISSING = "error no such file"
+TRANSIENT = (TIMEOUT, TOOL_ERROR, INVALID)
+
+
+@dataclass(frozen=True)
+class FailureConfig:
+    p_timeout: float = 0.0
+    p_tool_error: float = 0.0
+    p_invalid: float = 0.0
+
+    @property
+    def enabled(self) -&gt; bool:
+        return self.p_timeout + self.p_tool_error + self.p_invalid &gt; 0
+
+
+def inject(cfg: FailureConfig, command: str, rng: random.Random) -&gt; str | None:
+    """Return an error message to replace the tool's real output, or None to let the call through."""
+    if command == "submit":
+        return None
+    if command in ("search", "read") and rng.random() &lt; cfg.p_timeout:
+        return TIMEOUT
+    if rng.random() &lt; cfg.p_tool_error:
+        return TOOL_ERROR
+    if command == "edit" and rng.random() &lt; cfg.p_invalid:
+        return INVALID
+    return None</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 25</span>Four failure types. The stale path comes from the task generator: the task names a file that no longer exists, so the first edit returns <code>error no such file</code>.</figcaption>
+        </figure>
+        <p>No recovery bonus is needed. The outcome reward already pays only the episodes that finish. Here is the same task before and after training.</p>
+        <figure class="code-output" data-from="results/recovery.txt" data-label="Greedy rollouts, same task and seed, Apple M5 CPU">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_failure_injection_is_seeded_and_recoverable</code> passes.</li>
+            <li>The <code>failures</code> suite success rises above the BC value.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-14" data-step-title="Offline vs online">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 14</span></div>
+          <h2>Offline against online</h2>
+          <p class="build-step__goal"><span>Goal</span> Give offline and online training the same data budget and the same gradient steps, and compare.</p>
+        </header>
+        <p>Online rollouts cost environment time. Offline training reuses a stored dataset for free. So the question is what the free data can teach. We collect one buffer from the cloned policy, with as many trajectories as the online run will generate. Then we train two offline methods on it.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/offline.py" data-lines="25-43" data-lang="python">
+          <pre><code>def offline_grpo(policy, codec: Codec, buffer: list[Trajectory], cfg: GRPOConfig, *, iterations: int,
+                 tasks_per_iter: int, device: str = "cpu", eval_fn=None, eval_every: int = 10, seed: int = 0,
+                 log=print) -&gt; list[dict]:
+    """Each iteration samples ``tasks_per_iter`` stored groups, so one iteration costs what an online one does."""
+    opt = torch.optim.AdamW(policy.parameters(), lr=cfg.lr, weight_decay=0.0)
+    rng = random.Random(seed)
+    groups: dict[int, list[Trajectory]] = {}
+    for t in buffer:
+        groups.setdefault(t.group, []).append(t)
+    keys = sorted(groups)
+    history = []
+    for it in range(1, iterations + 1):
+        batch = [t for g in rng.sample(keys, min(tasks_per_iter, len(keys))) for t in groups[g]]
+        row = {"iter": it, **update(policy, opt, batch, cfg, pad=codec.pad, device=device, seed=it)}
+        if eval_fn is not None and (it % eval_every == 0 or it == iterations):
+            row["eval"] = eval_fn(policy)
+            log(f"it {it:3d} clip {row['clip_frac']:.3f} eval {row['eval']}")
+        history.append(row)
+    return history</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 26</span>Offline GRPO reuses the stored groups and the stored log-probabilities. As the policy moves away from the behaviour policy, ratios leave the clip range.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/experiments.py offline</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/experiments.py offline" data-label="Apple M5 CPU, single seed">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        (pending)
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Offline GRPO's <code>clip_frac</code> climbs through the run. Online stays lower, because its old log-probs refresh every iteration.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-15" data-step-title="The full system">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 15</span></div>
+          <h2>The full agent-RL system</h2>
+          <p class="build-step__goal"><span>Goal</span> Separate the loop into the components a production trainer has, each timed and each testable.</p>
+        </header>
+        <p>The loop in step 8 mixes everything together. A real system separates it, because each part scales and fails differently. Task sampler, env workers, rollouts, trajectory store, verifier, batches, update, new policy.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/system.py" data-lines="75-99" data-lang="python">
+          <pre><code>class Verifier:
+    """Re-run the recorded actions on a fresh copy of the task and decide success from the final files.
+
+    The reward never comes from what the agent or the rollout worker claims. A disagreement means a bug or a
+    tampered record, so the verifier's answer wins and the mismatch is counted.
+    """
+
+    def __init__(self) -&gt; None:
+        self.checked = 0
+        self.mismatches = 0
+
+    def verify(self, traj: Trajectory) -&gt; Trajectory:
+        env = FileSystemEnv(sample_task(traj.level, traj.seed), seed=traj.meta.get("env_seed"))
+        env.reset()
+        for step in traj.steps:
+            if env.done():
+                break
+            env.step(step.action)
+        verdict = env.reward() == 1.0
+        self.checked += 1
+        self.mismatches += int(verdict != traj.success)
+        traj.success = verdict
+        if traj.steps:                       # outcome reward lives on the last step
+            traj.steps[-1].reward = float(verdict)
+        return traj</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 27</span>The verifier replays recorded actions on a fresh copy of the task and decides the reward from the files. The agent's claim and the rollout's claim do not count.</figcaption>
+        </figure>
+        <a class="theory-link" href="../the-agent-evaluation-playbook/"><span class="theory-link__kicker">Why grade the state, not the claim</span>The agent evaluation playbook</a>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/system.py" data-lines="151-175" data-lang="python">
+          <pre><code>    def iteration(self) -&gt; dict:
+        clock = {}
+        t = time.perf_counter()
+
+        def lap(name: str) -&gt; None:
+            nonlocal t
+            now = time.perf_counter()
+            clock[name] = now - t
+            t = now
+
+        episodes = self.sampler.sample(self.sys.tasks_per_iter)
+        lap("sample")
+        trajs = self.rollouts(episodes)
+        lap("rollout")
+        self.store.append(trajs)
+        lap("store")
+        trajs = [self.verifier.verify(tr) for tr in trajs]
+        lap("verify")
+        batch = make_batches(trajs, self.version, self.sys.max_lag)
+        lap("batch")
+        stats = update(self.policy, self.opt, batch, self.cfg, pad=self.codec.pad, device=self.device,
+                       seed=self.version)
+        lap("update")
+        self.version += 1
+        return {"version": self.version, **group_stats(trajs, self.cfg.reward), **stats, "clock": clock}</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 28</span>One pass through the pipeline, with a timer on each box.</figcaption>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials">
+          <pre><code>$ .venv/bin/python c12-agent-rl/scripts/train_system.py --iters 10</code></pre>
+        </figure>
+        <figure class="code-output" data-from="c12-agent-rl/scripts/train_system.py" data-label="Apple M5 CPU, 2 threads">
+          <pre><code>(pending)</code></pre>
+        </figure>
+        <figure class="ct-figure ct-figure--wide" id="fig-system">
+          <div class="ct-figure__stage" aria-label="Animated pipeline: task sampler, env workers, rollouts, store, verifier, batches, update, new policy"></div>
+          <p class="ct-figure__note"></p>
+          <figcaption><span class="ct-fig-num">Figure 9</span>The system, with the time each box took in a real run with instant tools.</figcaption>
+        </figure>
+        (pending)
+        <aside class="callout callout-test">
+          <p class="callout-label">Test</p>
+          <p>A run must survive a restart. <code>test_resume_gives_the_same_weights_as_an_uninterrupted_run</code> saves after one iteration, loads into a fresh system, and checks that the next iteration gives the same weights as an uninterrupted run. Weights, optimizer, sampler state, and both random generators are in the checkpoint. Forget any one of them and this test fails.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li>Verifier mismatches stay at 0 on a healthy run. Any other value means a bug or a tampered record.</li>
+            <li><code>test_system_iteration_runs_all_stages</code> and the resume test pass.</li>
+          </ul>
+        </footer>
+      </section>
+
+      <section class="build-step" id="step-16" data-step-title="Drop in a real LM">
+        <header class="build-step__head">
+          <div class="build-step__topline"><span class="build-step__badge">Step 16</span></div>
+          <h2>Drop in a Hugging Face model</h2>
+          <p class="build-step__goal"><span>Goal</span> Prove the interfaces hold: the same rollout and update code runs a trusted Llama and SmolLM2 with LoRA.</p>
+        </header>
+        <p>All of this claims to be LM-shaped. Here is the proof. An adapter gives any causal LM the same <code>PolicyOutput</code>, and nothing in <code>rollout.py</code>, <code>grpo.py</code> or <code>online.py</code> changes.</p>
+        <figure class="code-listing" data-src="c12-agent-rl/agentrl/hf_policy.py" data-lines="32-56" data-lang="python">
+          <pre><code>class HFPolicy(nn.Module):
+    def __init__(self, model, vocab_size: int | None = None):
+        super().__init__()
+        if vocab_size is not None and vocab_size != model.get_input_embeddings().num_embeddings:
+            model.resize_token_embeddings(vocab_size)
+        self.model = model
+        self.value_head = nn.Linear(model.config.hidden_size, 1)
+        nn.init.zeros_(self.value_head.weight)
+        nn.init.zeros_(self.value_head.bias)
+
+    def forward(self, input_ids: torch.Tensor) -&gt; PolicyOutput:
+        """Right-padded input needs no attention mask here either: causal attention never looks ahead."""
+        out = self.model(input_ids=input_ids, output_hidden_states=True)
+        h = out.hidden_states[-1]                                     # (B, T, D)
+        return PolicyOutput(out.logits, self.value_head(h.to(self.value_head.weight.dtype)).squeeze(-1))
+
+
+def tiny_llama_policy(vocab_size: int, hidden: int = 128, layers: int = 2, heads: int = 4) -&gt; HFPolicy:
+    """A randomly initialised LlamaForCausalLM the size of TinyPolicy: the trusted-implementation check."""
+    from transformers import LlamaConfig, LlamaForCausalLM
+
+    cfg = LlamaConfig(vocab_size=vocab_size, hidden_size=hidden, intermediate_size=4 * hidden,
+                      num_hidden_layers=layers, num_attention_heads=heads, num_key_value_heads=heads,
+                      max_position_embeddings=512, tie_word_embeddings=False)
+    return HFPolicy(LlamaForCausalLM(cfg))</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 29</span>The adapter, and a Llama the same size as our policy. This is the trusted implementation we compare against.</figcaption>
+        </figure>
+        <figure class="code-listing" data-src="c12-agent-rl/tests/test_system_hf.py" data-lines="121-136" data-lang="python">
+          <pre><code>def test_tiny_llama_drops_in_for_rollout_and_update():
+    """The trusted HF Llama architecture runs the same rollout and the same update, with no code change."""
+    torch.manual_seed(0)
+    pol = tiny_llama_policy(codec.vocab_size, hidden=32, layers=1, heads=2).eval()
+    trajs = rollout_batch(pol, codec, [FileSystemEnv(sample_task(1, i)) for i in range(4)], temperature=1.0)
+    for i, t in enumerate(trajs):
+        t.group = i // 2
+    b = collate(trajs, codec.pad)
+    logp = token_logprobs(pol(b.tokens).logits, b.tokens)
+    torch.testing.assert_close(logp * b.action_mask, b.old_logprobs, atol=1e-5, rtol=0)
+    trajs[0].success = True
+    trajs[0].steps[-1].reward = 1.0
+    before = copy.deepcopy(pol.state_dict())
+    update(pol, torch.optim.AdamW(pol.parameters(), lr=1e-3), trajs, GRPOConfig(minibatch=4, epochs=1),
+           pad=codec.pad, device="cpu")
+    assert any((before[k] != v).any() for k, v in pol.state_dict().items())</code></pre>
+          <figcaption><span class="ct-fig-num">Listing 30</span>The comparison test. The same rollout, the same log-probability identity, the same update, on HF Llama.</figcaption>
+        </figure>
+        (pending)
+        <aside class="callout callout-break">
+          <p class="callout-label">Break it</p>
+          <p>Add new marker tokens to SmolLM2 and train only LoRA. The model can never learn to end an action, because a new token's output row is frozen. Every episode then runs into the action limit. This is why <code>HFCodec</code> reuses the chat delimiters the model already knows.</p>
+        </aside>
+        <footer class="build-step__checkpoint">
+          <p class="checkpoint-label">Checkpoint</p>
+          <ul>
+            <li><code>test_tiny_llama_drops_in_for_rollout_and_update</code> passes offline.</li>
+            <li><code>test_smollm_lora_runs_one_episode</code> passes with the model in your cache (marked <code>network</code>).</li>
+          </ul>
+        </footer>
+      </section>
+      <section id="comparison">
+        <h2>The methods compared</h2>
+        <p>Rows are the training methods we ran. Columns are what the post measured. Read a column to see which method moved that suite. All numbers are greedy success on fresh tasks, from one seed, on the Apple M5 CPU. Differences of a few points on a single seed are not meaningful.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table">
+            <caption>Agent training methods in this tutorial</caption>
+            <thead><tr><th>Method</th><th>Needs</th><th>New env steps</th><th>Clean</th><th>Perturbed</th><th>Failures</th><th>Long</th><th>Main risk</th></tr></thead>
+            <tbody>
+(pending)
+            </tbody>
+          </table>
+        </div>
+        <p>(pending)</p>
+      </section>
+
+      <section id="run-everything">
+        <h2>Run everything</h2>
+        <p>The final folder, and every command that produced a number in this post. Checkpoints go to <code>runs/</code>, which git ignores. Measured outputs are in <code>results/</code>.</p>
+        <details class="repo-tree" open>
+          <summary>c12-agent-rl/ <span class="repo-tree__hint">final tree</span></summary>
+<pre>c12-agent-rl/
+├── README.md                # what, how to run, results table
+├── agentrl/
+│   ├── tasks.py             # step 1: the five levels
+│   ├── env.py               # step 1: reset, observe, step, reward, done
+│   ├── expert.py            # step 1: scripted demonstrator
+│   ├── trajectory.py        # step 2: text view and tensor view
+│   ├── codec.py             # step 2: word tokenizer, encode_trajectory
+│   ├── policy.py            # step 3: tiny transformer + value head
+│   ├── batching.py          # step 4: padded tensors and masks
+│   ├── bc.py                # step 4: behaviour cloning
+│   ├── shift.py             # step 5: perturbations, signatures
+│   ├── sampling.py          # step 6: shared rollout pieces
+│   ├── rollout_naive.py     # step 6: the reference
+│   ├── rollout.py           # step 6: batched generation
+│   ├── advantages.py        # steps 7, 9: group-relative, GAE
+│   ├── grpo.py              # step 8: clipped surrogate, update
+│   ├── online.py            # steps 8, 11, 12: loop, sampler, curriculum
+│   ├── rewards.py           # step 10: outcome, activity, potential
+│   ├── failures.py          # step 13: failure injection
+│   ├── offline.py           # step 14: offline GRPO, filtered BC
+│   ├── system.py            # step 15: store, verifier, workers, resume
+│   ├── hf_policy.py         # step 16: Llama and SmolLM2 adapters
+│   └── evaluate.py          # the four evaluation suites
+├── scripts/
+│   ├── demo_env.py
+│   ├── train_bc.py
+│   ├── distribution_shift.py
+│   ├── experiments.py       # main, credit, shaping, curriculum, ...
+│   ├── recovery_demo.py
+│   ├── export_figures.py
+│   └── train_system.py
+├── benchmarks/
+│   ├── bench_rollout.py
+│   └── bench_policy.py
+├── results/                 # measured outputs, as text and JSON
+├── tests/
+│   ├── test_env.py
+│   ├── test_policy_rollout.py
+│   ├── test_advantages_grpo.py
+│   └── test_system_hf.py
+└── conftest.py</pre>
+        </details>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Run it all">
+          <pre><code>$ .venv/bin/python -m pytest c12-agent-rl -m "not slow and not gpu" -q
+$ .venv/bin/python c12-agent-rl/scripts/demo_env.py
+$ .venv/bin/python c12-agent-rl/scripts/train_bc.py --demos 30000 --steps 3000 --layers 3
+$ .venv/bin/python c12-agent-rl/scripts/distribution_shift.py
+$ .venv/bin/python c12-agent-rl/benchmarks/bench_rollout.py
+$ .venv/bin/python c12-agent-rl/benchmarks/bench_policy.py --tasks 4 --G 4
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py main
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py credit
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py shaping
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py exploration
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py groupsize
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py curriculum
+$ .venv/bin/python c12-agent-rl/scripts/experiments.py offline
+$ .venv/bin/python c12-agent-rl/scripts/recovery_demo.py
+$ .venv/bin/python c12-agent-rl/scripts/export_figures.py
+$ .venv/bin/python c12-agent-rl/scripts/train_system.py --iters 10</code></pre>
+        </figure>
+        <figure class="terminal" data-cwd="blog-coding-tutorials" data-label="Test result">
+          <pre><code>$ .venv/bin/python -m pytest c12-agent-rl -m "not slow and not gpu" -q
+(pending)</code></pre>
+        </figure>
+      </section>
+
+      <section id="key-insights">
+        <h2>Key insights and nuances</h2>
+        <ul class="insight-list">
+(pending)
+        </ul>
+      </section>
+
+      <section id="exercises">
+        <h2>Exercises</h2>
+        <ol class="exercises">
+          <li><strong>Add DAgger</strong><span class="exercise-level">Medium</span> The scripted expert plans from the task text, so it can label any state. Roll out the cloned policy, ask the expert for the right action at each state it visits, add those to the demos and retrain. Compare the perturbed suite with step 5.
+            <details><summary>Hint</summary><p>Replay the actions so far through a fresh <code>ScriptedExpert</code> plan to get the next expert action. Forced steps stay masked.</p></details>
+          </li>
+          <li><strong>Try anchor-state groups</strong><span class="exercise-level">Hard</span> Trajectory groups compare whole episodes. Group-in-Group Policy Optimization compares actions taken from the same abstract state. Use <code>signature</code> from <code>shift.py</code> as the anchor, and compare against <code>group_relative</code> on the long suite.
+            <details><summary>Hint</summary><p>Compute one advantage per step: the step's return minus the mean return of all steps with the same signature in the batch.</p></details>
+          </li>
+          <li><strong>Add demotion and an automatic curriculum</strong><span class="exercise-level">Medium</span> Give <code>Curriculum</code> a demotion rule, then replace the fixed stages with sampling weights set by each level's zero-variance rate. Does it beat the fixed ladder?</li>
+          <li><strong>Break the verifier</strong><span class="exercise-level">Easy</span> Change <code>FileSystemEnv.reward</code> so it checks only the first subtask. Find which suite and which log line reveals the change first, and how long the policy takes to exploit it on level 5.</li>
+          <li><strong>Train the real LM</strong><span class="exercise-level">Hard</span> Use <code>smollm_policy</code> and the same <code>train_online</code>. First do SFT on the expert demos with LoRA, then GRPO. On a CUDA GPU, measure how many iterations per hour you get, and note what you had to change. Keep a small G at first.</li>
+        </ol>
+      </section>
+
+      <section id="series-outcome">
+        <h2>What the series built</h2>
+        <p>This is the last post in the series. Here is what you have now built, each piece from the one before it.</p>
+        <ol class="series-chain">
+          <li><a href="../pytorch-from-first-principles/">Raw PyTorch training loop</a><span>C1: tensors, autograd, optimizers, written by hand</span></li>
+          <li><a href="../the-hugging-face-stack/">The Hugging Face stack</a><span>C2: Transformers, Datasets, Trainer and Accelerate, opened up</span></li>
+          <li><a href="../build-attention-from-scratch/">Attention library</a><span>C3: MHA, GQA, MLA and fused kernels, with equivalence tests</span></li>
+          <li><a href="../build-a-modern-llm-from-scratch/">Modern LLM</a><span>C4: RoPE, GQA, KV cache and generation</span></li>
+          <li><a href="../train-an-llm-from-scratch/">Distributed LLM trainer</a><span>C5: data pipeline, mixed precision, DDP and resume</span></li>
+          <li><a href="../post-train-an-llm/">SFT, DPO and GRPO pipeline</a><span>C6: post-training a real pretrained model</span></li>
+          <li><a href="../build-a-vlm-from-scratch/">Vision-language model</a><span>C7: encoder, connector and image-token splicing</span></li>
+          <li><a href="../train-a-real-vlm/">Multimodal training system</a><span>C8: stages, mixtures and evaluation</span></li>
+          <li><a href="../post-train-a-vlm/">Multimodal RL system</a><span>C9: preferences, hallucination and vision rewards</span></li>
+          <li><a href="../build-an-agent-harness-from-scratch/">Coding-agent harness</a><span>C10: tools, the loop, permissions and event logs</span></li>
+          <li><a href="../add-memory-to-the-agent/">Agent memory system</a><span>C11: context engineering and stored memory</span></li>
+          <li><a href="#the-plan">Agent RL environment</a><span>C12: this post, from a toy filesystem to a full training system</span></li>
+        </ol>
+        <p>You should be able to go from a tensor operation all the way to a foundation model and agent system without any layer feeling magical. The GRPO loss in this post is a <code>log_softmax</code> and a <code>gather</code> from C1. It runs over a model from C4, with a loss mask from C6, in a loop whose environment has the shape of the harness from C10. There is no separate magic for the last step.</p>
+        <p>The toy here is small on purpose. To scale it, swap the environment for a sandboxed repository, swap the policy for a real LM, and put the rollouts on an inference server. The theory posts cover what changes then.</p>
+      </section>
+
+      <section id="continue-reading">
+        <h2>Continue reading</h2>
+        <ul>
+          <li><a href="../reinforcement-learning-for-agents-from-first-principles/">Reinforcement learning for agents, from first principles</a>: the theory behind every step of this post, including echo traps and environment scaling, which we did not build.</li>
+          <li><a href="../reinforcement-learning-from-first-principles/">Reinforcement learning from first principles</a>: returns, policy gradients and baselines, derived.</li>
+          <li><a href="../how-reinforcement-learning-teaches-models-to-reason/">How reinforcement learning teaches models to reason</a>: GRPO, RLVR and what the reward really buys in reasoning models.</li>
+          <li><a href="../the-agent-evaluation-playbook/">The agent evaluation playbook</a>: how to grade agents once the suite is bigger than four rows.</li>
+          <li><a href="../inside-an-ai-agent-harness/">Inside an AI agent harness</a>: the production shape of the environment we built here.</li>
+          <li><a href="../add-memory-to-the-agent/">Add Memory and Context Engineering to the Agent</a>: the previous tutorial, and the context policy this one's long episodes would need at scale.</li>
+        </ul>
+      </section>
+
+      <section id="references">
+        <h2>References</h2>
+        <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
+        <div class="reference-group">
+          <h3>Imitation and distribution shift</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1011.0686" target="_blank" rel="noopener noreferrer">A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning</a> &middot; Ross, Gordon and Bagnell, 2011 (DAgger)</li>
+            <li><a href="https://arxiv.org/abs/2510.08558" target="_blank" rel="noopener noreferrer">Agent Learning via Early Experience</a> &middot; Zhang et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Policy optimisation and credit</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/1707.06347" target="_blank" rel="noopener noreferrer">Proximal Policy Optimization Algorithms</a> &middot; Schulman et al., 2017</li>
+            <li><a href="https://arxiv.org/abs/1506.02438" target="_blank" rel="noopener noreferrer">High-Dimensional Continuous Control Using Generalized Advantage Estimation</a> &middot; Schulman et al., 2015</li>
+            <li><a href="https://arxiv.org/abs/2402.03300" target="_blank" rel="noopener noreferrer">DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models</a> &middot; Shao et al., 2024 (GRPO)</li>
+            <li><a href="https://arxiv.org/abs/2503.20783" target="_blank" rel="noopener noreferrer">Understanding R1-Zero-Like Training: A Critical Perspective</a> &middot; Liu et al., 2025 (Dr. GRPO)</li>
+            <li><a href="https://arxiv.org/abs/2503.14476" target="_blank" rel="noopener noreferrer">DAPO: An Open-Source LLM Reinforcement Learning System at Scale</a> &middot; Yu et al., 2025 (token-level loss normalisation)</li>
+            <li><a href="https://arxiv.org/abs/2505.10978" target="_blank" rel="noopener noreferrer">Group-in-Group Policy Optimization for LLM Agent Training</a> &middot; Feng et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Multi-turn agent RL</h3>
+          <ul>
+            <li><a href="https://arxiv.org/abs/2509.02547" target="_blank" rel="noopener noreferrer">The Landscape of Agentic Reinforcement Learning for LLMs: A Survey</a> &middot; Zhang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2510.01132" target="_blank" rel="noopener noreferrer">A Practitioner's Guide to Multi-turn Agentic Reinforcement Learning</a> &middot; 2025</li>
+            <li><a href="https://arxiv.org/abs/2503.09516" target="_blank" rel="noopener noreferrer">Search-R1: Training LLMs to Reason and Leverage Search Engines with Reinforcement Learning</a> &middot; Jin et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2504.20073" target="_blank" rel="noopener noreferrer">RAGEN: Understanding Self-Evolution in LLM Agents via Multi-Turn Reinforcement Learning</a> &middot; Wang et al., 2025</li>
+            <li><a href="https://arxiv.org/abs/2509.08755" target="_blank" rel="noopener noreferrer">AgentGym-RL: Training LLM Agents for Long-Horizon Decision Making through Multi-Turn Reinforcement Learning</a> &middot; Xi et al., 2025</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Rewards and reward hacking</h3>
+          <ul>
+            <li><a href="https://andrewng.org/publications/policy-invariance-under-reward-transformations-theory-and-application-to-reward-shaping" target="_blank" rel="noopener noreferrer">Policy Invariance Under Reward Transformations: Theory and Application to Reward Shaping</a> &middot; Ng, Harada and Russell, 1999</li>
+            <li><a href="https://lilianweng.github.io/posts/2024-11-28-reward-hacking/" target="_blank" rel="noopener noreferrer">Reward Hacking in Reinforcement Learning</a> &middot; Weng, 2024</li>
+            <li><a href="https://arxiv.org/abs/2604.15149" target="_blank" rel="noopener noreferrer">LLMs Gaming Verifiers: RLVR can Lead to Reward Hacking</a> &middot; 2026</li>
+            <li><a href="https://arxiv.org/abs/2605.21384" target="_blank" rel="noopener noreferrer">SpecBench: Measuring Reward Hacking in Long-Horizon Coding Agents</a> &middot; 2026</li>
+          </ul>
+        </div>
+        <div class="reference-group">
+          <h3>Models and code used</h3>
+          <ul>
+            <li><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/c12-agent-rl" target="_blank" rel="noopener noreferrer">blog-coding-tutorials: c12-agent-rl</a> &middot; the code for this tutorial</li>
+            <li><a href="https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct" target="_blank" rel="noopener noreferrer">SmolLM2-135M-Instruct</a> &middot; Hugging Face</li>
+            <li><a href="https://github.com/huggingface/peft" target="_blank" rel="noopener noreferrer">PEFT</a> &middot; Hugging Face</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <aside class="article-citation" aria-labelledby="cite-this-article">
+      <p class="article-citation-kicker">Use and attribution</p>
+      <h2 id="cite-this-article">Cite this article</h2>
+      <p class="article-citation-reference">Srinivasan, A. (2026). <cite>Train an Agent With Reinforcement Learning</cite> [Blog post]. <a href="https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/">https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/</a></p>
+      <div class="article-citation-code">
+        <pre><code>@misc{srinivasan2026trainagentrl,
+  author       = {Srinivasan, Anirudh},
+  title        = {Train an Agent With Reinforcement Learning},
+  year         = {2026},
+  month        = {nov},
+  howpublished = {Blog post},
+  url          = {https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/},
+  note         = {Published 2026-11-06; updated 2026-11-06}
+}</code></pre>
+        <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
+        <span class="citation-status" aria-live="polite"></span>
+      </div>
+    </aside>
+
+    <footer class="article-footer">
+      <div class="article-wrap">
+        <p>Anirudh Srinivasan &middot; Train an Agent With Reinforcement Learning</p>
+      </div>
+    </footer>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="mailto:anirudhsrinivasan.tms@gmail.com" title="Email"><i class="fas fa-envelope"></i>Email</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i>GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i>LinkedIn</a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar"><i class="fas fa-graduation-cap"></i>Google Scholar</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
+      <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
+    </footer>
+    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script src="../../assets/js/code-tutorial.js?v=1"></script>
+    <script>window.C12_DATA = {"demo":{"task":"set ttl in web/base to value of host","source":"host","files":{"web/dev":{"rate":"6","port":"3","depth":"14"},"auth/prod":{"port":"38","workers":"61","size":"16"},"web/base":{"workers":"43","ttl":"81","level":"90"},"jobs/dev":{"limit":"7","size":"92","level":"92"},"web/prod":{"mode":"21","ttl":"78","size":"35"},"jobs/main":{"mode":"84","timeout":"84","host":"43"}},"steps":[{"action":"search host","observation":"found jobs/main"},{"action":"read jobs/main","observation":"mode = 84 ; timeout = 84 ; host = 43"},{"action":"edit web/base ttl 43","observation":"ok"},{"action":"submit","observation":"submitted"}]},"tape":{"tokens":["<bos>","set","ttl","to","0","<act>","search","ttl","<eos>","<obs>","found","jobs/main","<act>","edit","jobs/main","ttl","0","<eos>","<obs>","ok","<act>","submit","<eos>"],"ids":[1,11,69,13,74,2,8,69,3,4,17,58,2,9,58,69,74,3,4,19,2,10,3],"mask":[0,0,0,0,0,0,1,1,1,0,0,0,0,1,1,1,1,1,0,0,0,1,1],"logp":[0.0,-7.416,-9.389,-13.73,-16.536,-13.101,-0.0,-0.0,-0.0,-10.668,-14.344,-11.283,-15.314,-0.0,-0.0,-0.0,-0.002,-0.0,-12.269,-15.176,-10.348,-0.0,-0.0],"states":[5,12,20],"adv":2.47},"shift":{"rows":[{"k":0,"success":0.7966666666666666,"expert":1.0,"unseen":0.0,"submitted":1.0},{"k":1,"success":0.17666666666666667,"expert":1.0,"unseen":0.945748987854251,"submitted":0.9633333333333334},{"k":2,"success":0.08666666666666667,"expert":1.0,"unseen":0.9917695473251029,"submitted":0.9333333333333333},{"k":3,"success":0.043333333333333335,"expert":1.0,"unseen":1.0,"submitted":0.74}],"examples":[{"task":"set ttl to 0","steps":[["read jobs/main","workers = 48 ; host = 76 ; ttl = 87",true],["edit edit db/dev ttl 30","error invalid input",false],["edit 0 ttl 0","error no such file",false],["submit","submitted",false]],"seen":[true,false,false,false]},{"task":"set depth in cache/base to value of timeout","steps":[["search host","found jobs/dev",true],["read jobs/dev","mode = 42 ; host = 80 ; level = 63",false],["edit cache/base depth 42","ok",false],["submit","submitted",false]],"seen":[true,true,true,true]},{"task":"set size to 72","steps":[["read db/dev","port = 13 ; rate = 18 ; host = 13",true],["edit edit edit edit 72","error invalid input",false],["edit 72 size 65","error no such file",false],["submit","submitted",false]],"seen":[true,false,false,false]}]},"replay":[],"curves":{},"ladder":[{"name":"single tool","task":"set port in db/main to 42","tools":"edit, submit","label":"clean suite (levels 1-3)","score":0.7966666666666666,"note":"Rung 1. The task names the file, the key and the value. The agent only has to call <code>edit<\/code> correctly and then submit."},{"name":"multiple tools","task":"set port to 42","tools":"search, edit, submit","label":"perturbed starts","score":0.14333333333333334,"note":"Rung 2. The file is not named. The output of <code>search<\/code> must become the path argument of <code>edit<\/code>."},{"name":"dependent tools","task":"set ttl in web/base to value of host","tools":"search, read, edit, submit","label":"failure recovery suite","score":0.2,"note":"Rung 3. The value is hidden too. The agent must read a file and copy one number. This is where cloning struggles most on clean tasks."},{"name":"failure recovery","task":"the same tasks, with timeouts, tool errors and stale paths","tools":"+ retry, search on miss","label":"long suite","score":0.0,"note":"Rung 4. Tools now fail. The demonstrations contain no error message at all, so all of this behaviour must come from RL."},{"name":"long horizon","task":"set ttl to 8 and set limit in web/main to value of timeout","tools":"5 to 7 calls + submit","label":null,"score":null,"note":"Rung 5. Two subtasks with failures. The cloned policy has never seen <code>and<\/code> in a task, and it scores 0% here."}],"system":[{"total":1,"clock":{},"stored":0,"checked":0,"mismatches":0}]};</script>
+    <script>
+(function () {
+  "use strict";
+  const { svg, lerp, stepper } = window.CT;
+  const D = window.C12_DATA;
+  const C = { ink: "#14171a", soft: "#474e53", muted: "#7b8388", rule: "#cac6bd", ruleSoft: "#dedad2", paper: "#f7f6f3", hi: "#fbfaf8", blue: "#0b5ea8", orange: "#d66f00", green: "#2f8f5b", red: "#b8432f", purple: "#7b4fa8" };
+  const SERIES = [C.blue, C.orange, C.green, C.purple];
+  const DASH = ["", "7 4", "2 3", "10 3 2 3"];
+  const pct = (v) => Math.round(100 * v) + "%";
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const clamp01 = (t) => Math.max(0, Math.min(1, t));
+  function T(p, x, y, text, o) { return svg("text", Object.assign({ x, y, "font-size": 13, fill: C.ink, text }, o || {}), p); }
+  function B(p, x, y, w, h, o) { return svg("rect", Object.assign({ x, y, width: w, height: h, rx: 3, fill: C.hi, stroke: C.rule }, o || {}), p); }
+
+  /* ---------- reusable line chart: one axis, legend, direct labels, crosshair tooltip ---------- */
+  function lineChart(host, spec) {
+    host.innerHTML = "";
+    const W = 860, H = 340, L = 56, R = 150, TOP = 16, BOT = 44;
+    const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": spec.label || "Line chart" }, host);
+    root.style.minWidth = "560px";
+    const all = spec.series.flatMap((s) => s.points);
+    const xmax = spec.xmax != null ? spec.xmax : Math.max(...all.map((p) => p[0]), 1);
+    const xmin = spec.xmin != null ? spec.xmin : 0;
+    const ymin = spec.ymin != null ? spec.ymin : 0;
+    const ymax = spec.ymax != null ? spec.ymax : Math.max(...all.map((p) => p[1]), 1);
+    const X = (v) => L + ((v - xmin) / Math.max(xmax - xmin, 1e-6)) * (W - L - R);
+    const Y = (v) => H - BOT - ((v - ymin) / Math.max(ymax - ymin, 1e-6)) * (H - TOP - BOT);
+    const ticks = 4;
+    for (let i = 0; i <= ticks; i++) {
+      const v = ymin + ((ymax - ymin) * i) / ticks;
+      svg("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: C.ruleSoft }, root);
+      T(root, L - 8, Y(v) + 4, spec.percent ? pct(v) : v.toFixed(1), { "text-anchor": "end", "font-size": 11, fill: C.muted });
+    }
+    const xt = 5;
+    for (let i = 0; i <= xt; i++) {
+      const v = xmin + ((xmax - xmin) * i) / xt;
+      T(root, X(v), H - BOT + 18, Math.round(v), { "text-anchor": "middle", "font-size": 11, fill: C.muted });
+    }
+    T(root, (L + W - R) / 2, H - 6, spec.xlabel || "iteration", { "text-anchor": "middle", "font-size": 11, fill: C.soft });
+    T(root, 12, TOP + 2, spec.ylabel || "", { "font-size": 11, fill: C.soft });
+    const labels = [];
+    spec.series.forEach((s, k) => {
+      const col = s.color || SERIES[k % 4];
+      const d = s.points.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + " " + Y(p[1]).toFixed(1)).join(" ");
+      svg("path", { d, fill: "none", stroke: col, "stroke-width": 2, "stroke-dasharray": s.dash != null ? s.dash : DASH[k % 4], "stroke-linejoin": "round", "stroke-linecap": "round" }, root);
+      if (s.points.length) {
+        const p = s.points[s.points.length - 1];
+        svg("circle", { cx: X(p[0]), cy: Y(p[1]), r: 4, fill: col, stroke: C.paper, "stroke-width": 2 }, root);
+        labels.push({ y: Y(p[1]), name: s.name, val: spec.percent ? pct(p[1]) : p[1].toFixed(2) });
+      }
+    });
+    labels.sort((a, b) => a.y - b.y);
+    labels.forEach((l, i) => { if (i && l.y < labels[i - 1].y + 15) l.y = labels[i - 1].y + 15; });
+    labels.forEach((l) => T(root, W - R + 10, l.y + 4, `${l.name} ${l.val}`, { "font-size": 11, fill: C.ink }));
+    const cross = svg("line", { y1: TOP, y2: H - BOT, stroke: C.muted, "stroke-width": 1, opacity: 0 }, root);
+    const legend = document.createElement("div");
+    legend.className = "c12-legend";
+    legend.innerHTML = spec.series.map((s, k) => `<span><i style="background:${s.color || SERIES[k % 4]}"></i>${esc(s.name)}</span>`).join("");
+    host.appendChild(legend);
+    const tip = document.createElement("div");
+    tip.className = "c12-tip";
+    tip.setAttribute("aria-live", "polite");
+    host.appendChild(tip);
+    const hit = svg("rect", { x: L, y: TOP, width: W - L - R, height: H - TOP - BOT, fill: "transparent" }, root);
+    function move(e) {
+      const pt = root.createSVGPoint();
+      pt.x = e.clientX; pt.y = e.clientY;
+      const q = pt.matrixTransform(root.getScreenCTM().inverse());
+      const xv = xmin + ((q.x - L) / (W - L - R)) * (xmax - xmin);
+      cross.setAttribute("x1", q.x); cross.setAttribute("x2", q.x); cross.setAttribute("opacity", 0.6);
+      const rows = spec.series.map((s) => {
+        if (!s.points.length) return "";
+        let best = s.points[0];
+        s.points.forEach((p) => { if (Math.abs(p[0] - xv) < Math.abs(best[0] - xv)) best = p; });
+        return `${esc(s.name)}: <b>${spec.percent ? pct(best[1]) : best[1].toFixed(2)}</b>`;
+      });
+      tip.innerHTML = `${spec.xlabel || "iteration"} ${Math.round(xv)} &middot; ` + rows.join(" &middot; ");
+    }
+    hit.addEventListener("pointermove", move);
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); tip.innerHTML = spec.tip || "Move across the chart to read values."; });
+    tip.innerHTML = spec.tip || "Move across the chart to read values.";
+    return root;
+  }
+
+  /* ---------- Figure 1: the environment loop ---------- */
+  (function envFigure() {
+    const fig = document.getElementById("fig-env");
+    if (!fig) return;
+    const demo = D.demo;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 450;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "One episode of the filesystem environment" }, stage);
+    root.style.minWidth = "640px";
+    const paths = Object.keys(demo.files);
+    T(root, 20, 26, "state: the filesystem", { "font-size": 12, fill: C.muted });
+    const cards = {};
+    paths.forEach((p, i) => {
+      const x = 20 + (i % 2) * 215, y = 40 + Math.floor(i / 2) * 134;
+      const g = svg("g", null, root);
+      const box = B(g, x, y, 200, 122);
+      T(g, x + 12, y + 22, p, { "font-size": 13.5, "font-weight": 600 });
+      const lines = Object.keys(demo.files[p]).map((k, j) => {
+        const bg = svg("rect", { x: x + 8, y: y + 33 + j * 27, width: 184, height: 24, rx: 2, fill: C.orange, "fill-opacity": 0 }, g);
+        const t = T(g, x + 14, y + 50 + j * 27, `${k} = ${demo.files[p][k]}`, { "font-size": 13, fill: C.soft });
+        return { k, bg, t };
+      });
+      cards[p] = { box, lines };
+    });
+    T(root, 470, 26, "task", { "font-size": 12, fill: C.muted });
+    B(root, 470, 34, 470, 44, { fill: "#fff" });
+    T(root, 484, 62, demo.task, { "font-size": 14.5, "font-weight": 600 });
+    T(root, 470, 104, "history: action -> tool output", { "font-size": 12, fill: C.muted });
+    const rows = demo.steps.map((s, i) => {
+      const g = svg("g", { opacity: 0 }, root);
+      const y = 112 + i * 56;
+      B(g, 470, y, 470, 48, { fill: "#fff" });
+      T(g, 482, y + 20, `a${i}  ${s.action}`, { "font-size": 13.5, fill: C.blue, "font-weight": 600 });
+      T(g, 482, y + 39, `o${i}  ${s.observation}`, { "font-size": 12.5, fill: C.soft });
+      return g;
+    });
+    const rg = svg("g", { opacity: 0 }, root);
+    B(rg, 470, 340, 470, 64, { fill: "#fff", stroke: C.green, "stroke-width": 1.5 });
+    T(rg, 484, 366, "verifier: final files == target files", { "font-size": 13.5 });
+    T(rg, 484, 390, "reward R = 1, given once, on the last step", { "font-size": 13.5, fill: C.green, "font-weight": 600 });
+    const tg = svg("g", { opacity: 0 }, root);
+    T(tg, 20, 436, "tau = (s0, a0, r0, s1, a1, r1, ..., sT)  every field is recorded", { "font-size": 13.5, fill: C.ink });
+    const s1 = demo.steps;
+    const srcPath = s1[0].observation.split(" ")[1];
+    const editParts = s1[2].action.split(" ");
+    const frames = [
+      { note: "<code>reset()</code> copies the files and returns the task as text. The agent sees only this sentence. It does not know which file holds <code>" + esc(demo.source) + "</code>." },
+      { note: "<code>" + esc(s1[0].action) + "</code> asks where the key lives. The tool answers with a path, which must become an argument of the next call." },
+      { note: "<code>" + esc(s1[1].action) + "</code> prints the file. The value of the source key is the input to the next call. This is what makes level 3 a dependent-tools task." },
+      { note: "<code>" + esc(s1[2].action) + "</code> changes the state. Only <code>edit</code> can change the files. The reward has not moved: it is still zero." },
+      { note: "<code>submit</code> ends the episode. The environment compares the files with the target. Any wrong edit, anywhere, gives zero." },
+      { note: "We keep every action, every observation and the reward. Later sections compute log-probabilities and advantages over exactly this record." },
+    ];
+    stepper(fig, {
+      frames, tween: 800, hold: 2400,
+      render(i, t, from) {
+        const vis = (k, f) => (k <= f ? 1 : 0);
+        rows.forEach((g, k) => g.setAttribute("opacity", lerp(vis(k + 1, from), vis(k + 1, i), t)));
+        rg.setAttribute("opacity", lerp(from >= 4 ? 1 : 0, i >= 4 ? 1 : 0, t));
+        tg.setAttribute("opacity", lerp(from >= 5 ? 1 : 0, i >= 5 ? 1 : 0, t));
+        const show = t < 0.5 ? from : i;
+        paths.forEach((p) => {
+          const c = cards[p];
+          c.box.setAttribute("stroke", (show === 1 && p === srcPath) || (show === 2 && p === srcPath) || (show >= 3 && p === editParts[1]) ? C.orange : C.rule);
+          c.box.setAttribute("stroke-width", (show >= 1 && (p === srcPath || (show >= 3 && p === editParts[1]))) ? 2 : 1);
+          c.lines.forEach((l) => {
+            const isSrc = p === srcPath && l.k === demo.source && show === 2;
+            const isEdit = p === editParts[1] && l.k === editParts[2] && show >= 3;
+            l.bg.setAttribute("fill-opacity", isSrc || isEdit ? 0.18 : 0);
+            l.t.textContent = isEdit ? `${l.k} = ${editParts[3]}` : `${l.k} = ${demo.files[p][l.k]}`;
+            l.t.setAttribute("fill", isSrc || isEdit ? C.ink : C.soft);
+          });
+        });
+      },
+    });
+  })();
+
+  /* ---------- Figure 2: one episode as one token sequence ---------- */
+  (function tapeFigure() {
+    const fig = document.getElementById("fig-tape");
+    if (!fig) return;
+    const tape = D.tape;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 330;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Trajectory token tape" }, stage);
+    root.style.minWidth = "640px";
+    const w = svg("g", null, root);
+    const CW = 66, X0 = 110, n = tape.tokens.length;
+    const rowY = { tok: 40, id: 88, mask: 130, lp: 172, adv: 214, pg: 256 };
+    const rowName = { tok: "token", id: "id", mask: "action_mask", lp: "log pi", adv: "A (adv)", pg: "A x log pi" };
+    const rowsG = {};
+    Object.keys(rowY).forEach((r) => {
+      rowsG[r] = svg("g", { opacity: 0 }, w);
+      T(rowsG[r], X0 - 12, rowY[r] + 24, rowName[r], { "text-anchor": "end", "font-size": 11.5, fill: C.muted });
+    });
+    const A = tape.adv;
+    tape.tokens.forEach((tok, i) => {
+      const x = X0 + i * CW, on = tape.mask[i];
+      B(rowsG.tok, x, rowY.tok, CW - 4, 38, { fill: on ? "rgba(11,94,168,0.14)" : C.hi, stroke: on ? C.blue : C.rule });
+      T(rowsG.tok, x + (CW - 4) / 2, rowY.tok + 24, tok, { "text-anchor": "middle", "font-size": tok.length > 8 ? 9.5 : 11.5 });
+      T(rowsG.id, x + (CW - 4) / 2, rowY.id + 22, tape.ids[i], { "text-anchor": "middle", "font-size": 11.5, fill: C.soft });
+      B(rowsG.mask, x, rowY.mask, CW - 4, 30, { fill: on ? C.blue : C.hi, stroke: on ? C.blue : C.ruleSoft });
+      T(rowsG.mask, x + (CW - 4) / 2, rowY.mask + 20, on, { "text-anchor": "middle", "font-size": 11.5, fill: on ? "#fff" : C.muted });
+      if (on) {
+        T(rowsG.lp, x + (CW - 4) / 2, rowY.lp + 22, tape.logp[i].toFixed(2), { "text-anchor": "middle", "font-size": 11.5, fill: C.ink });
+        B(rowsG.adv, x, rowY.adv, CW - 4, 30, { fill: "rgba(214,111,0,0.18)", stroke: C.orange });
+        T(rowsG.adv, x + (CW - 4) / 2, rowY.adv + 20, "+" + A.toFixed(2), { "text-anchor": "middle", "font-size": 11.5 });
+        T(rowsG.pg, x + (CW - 4) / 2, rowY.pg + 22, (A * tape.logp[i]).toFixed(2), { "text-anchor": "middle", "font-size": 11.5, fill: C.soft });
+      }
+    });
+    const first = tape.states[0];
+    const arrow = svg("g", { opacity: 0 }, w);
+    const ax = X0 + first * CW + (CW - 4) / 2, bx = ax + CW;
+    svg("path", { d: `M${ax} ${rowY.tok - 2} C ${ax} ${rowY.tok - 26}, ${bx} ${rowY.tok - 26}, ${bx} ${rowY.tok - 2}`, fill: "none", stroke: C.orange, "stroke-width": 2 }, arrow);
+    T(arrow, ax + CW / 2, rowY.tok - 26, "logits at <act> score the next token", { "text-anchor": "middle", "font-size": 11.5, fill: C.ink });
+    const sum = svg("g", { opacity: 0 }, root);
+    B(sum, 300, 288, 620, 32, { fill: "#fff", stroke: C.orange });
+    const total = tape.mask.reduce((a, m, i) => a + (m ? A * tape.logp[i] : 0), 0) / tape.mask.reduce((a, m) => a + m, 0);
+    T(sum, 312, 309, `surrogate = mean over ${tape.mask.reduce((a, m) => a + m, 0)} action tokens = ${total.toFixed(3)}`, { "font-size": 13 });
+    const cams = [
+      { x: 480, w: 960 }, { x: 900, w: 1700 }, { x: 900, w: 1700 }, { x: X0 + first * CW + 60, w: 760 },
+      { x: 900, w: 1700 }, { x: 900, w: 1700 }, { x: 900, w: 1700 },
+    ];
+    const shown = [["tok", "id"], ["tok", "id"], ["tok", "id", "mask"], ["tok", "id", "mask"], ["tok", "id", "mask", "lp"], ["tok", "id", "mask", "lp", "adv"], ["tok", "id", "mask", "lp", "adv", "pg"]];
+    const frames = [
+      { note: "The prompt: <code>&lt;bos&gt;</code>, the task, then <code>&lt;act&gt;</code>, which means your turn. The policy reads this and starts generating." },
+      { note: "The whole episode is one sequence (B = 1, T = " + n + "). Blue tokens were sampled by the policy. The rest were written by the environment." },
+      { note: "<code>action_mask</code> is 1 on sampled tokens. Same idea as the assistant-only loss mask in C6: the model is never scored on what the environment wrote." },
+      { note: "The logits at position t predict the token at t + 1. So one forward pass over the sequence gives every log-probability we need. No replay of the rollout is required." },
+      { note: "<code>token_logprobs</code> gathers log &pi; of each taken token. These numbers come from the cloned policy on this demonstration, on the Apple M5 CPU." },
+      { note: "Trajectory-level credit: this episode's advantage A = +" + A.toFixed(2) + " lands on every action token. It is an example value from a group with one winner of eight." },
+      { note: "The loss weights each log-probability by A and averages over action tokens. Environment tokens contribute nothing." },
+    ];
+    stepper(fig, {
+      frames, tween: 1000, hold: 2300,
+      render(i, t, from) {
+        const a = cams[from], b = cams[i];
+        const vw = lerp(a.w, b.w, t), vx = lerp(a.x, b.x, t);
+        const s = VW / vw;
+        w.setAttribute("transform", `translate(${VW / 2 - vx * s} ${(VH - 288 * s) / 2 - 6}) scale(${s})`);
+        Object.keys(rowsG).forEach((r) => {
+          const pa = shown[from].includes(r) ? 1 : 0, pb = shown[i].includes(r) ? 1 : 0;
+          rowsG[r].setAttribute("opacity", lerp(pa, pb, t));
+        });
+        arrow.setAttribute("opacity", lerp(from === 3 ? 1 : 0, i === 3 ? 1 : 0, t));
+        sum.setAttribute("opacity", lerp(from === 6 ? 1 : 0, i === 6 ? 1 : 0, t));
+      },
+    });
+  })();
+
+  /* ---------- Figure 3: distribution shift ---------- */
+  (function shiftFigure() {
+    const fig = document.getElementById("fig-shift");
+    if (!fig) return;
+    const rows = D.shift.rows;
+    if (!rows || !rows.length) return;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 400;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Distribution shift: states and success" }, stage);
+    root.style.minWidth = "640px";
+    function node(p, x, y, text, col) {
+      const g = svg("g", { opacity: 0 }, p);
+      B(g, x, y, 128, 36, { fill: col === C.red ? "rgba(184,67,47,0.12)" : "rgba(11,94,168,0.12)", stroke: col });
+      T(g, x + 64, y + 23, text, { "text-anchor": "middle", "font-size": 11.5 });
+      return g;
+    }
+    T(root, 16, 26, "abstract states (action type : outcome type)", { "font-size": 12, fill: C.muted });
+    const exp = [["start", 16, 56], ["search:found", 170, 56], ["read:ok", 324, 56], ["edit:ok", 16, 136], ["submit", 170, 136]];
+    const expNodes = exp.map(([s, x, y]) => node(root, x, y, s, C.blue));
+    const expLabel = svg("g", { opacity: 0 }, root);
+    T(expLabel, 16, 200, "every demonstration walks this path", { "font-size": 12.5, fill: C.blue });
+    const off = [["read:error", 16, 240], ["search:found", 170, 240], ["read:ok", 324, 240], ["edit:ok", 16, 320], ["submit", 170, 320]];
+    const offNodes = off.map(([s, x, y], k) => node(root, x, y, s, k === 0 ? C.orange : C.red));
+    const offLabel = svg("g", { opacity: 0 }, root);
+    T(offLabel, 16, 230, "after one harmless mistake, nothing below is in the demos", { "font-size": 12.5, fill: C.red });
+    // bars
+    const BX = 520, BW = 400, BY = 340, BH = 280;
+    const gb = svg("g", { opacity: 0 }, root);
+    T(gb, BX, 26, "success on unseen tasks, greedy, Apple M5 CPU", { "font-size": 12, fill: C.muted });
+    for (let i = 0; i <= 4; i++) {
+      const y = BY - (BH * i) / 4;
+      svg("line", { x1: BX + 30, x2: BX + BW, y1: y, y2: y, stroke: C.ruleSoft }, gb);
+      T(gb, BX + 24, y + 4, 25 * i + "%", { "text-anchor": "end", "font-size": 10.5, fill: C.muted });
+    }
+    const bars = rows.map((r, k) => {
+      const x = BX + 50 + k * 90;
+      const b = svg("rect", { x, y: BY, width: 56, height: 0, rx: 3, fill: C.blue }, gb);
+      const v = T(gb, x + 28, BY - 6, "", { "text-anchor": "middle", "font-size": 12.5, "font-weight": 600 });
+      T(gb, x + 28, BY + 18, k + (k === 1 ? " mistake" : " mistakes"), { "text-anchor": "middle", "font-size": 10.5, fill: C.soft });
+      const e = svg("line", { x1: x - 6, x2: x + 62, y1: BY, y2: BY, stroke: C.orange, "stroke-width": 2, opacity: 0 }, gb);
+      return { b, v, e, r };
+    });
+    T(gb, BX + 30, BY + 40, "orange line: the scripted expert from the same perturbed starts", { "font-size": 11, fill: C.soft });
+    const frames = [
+      { note: "A demonstration is one path through state space. The expert never errs, so its path is narrow." },
+      { note: "All of the policy's training data lives on this path. It has perfect loss on these states and no information about any other." },
+      { note: "We force one small mistake: a read of a file that does not exist. The task is still fully solvable. The expert would carry on." },
+      { note: "From here, the correct next action is the same as before. But the context is not. Every state that follows contains tokens the policy has never seen at those positions." },
+      { note: "Measured: with no mistakes the cloned policy succeeds " + pct(rows[0].success) + " of the time." },
+      { note: "One forced mistake: " + pct(rows[1].success) + ". The expert from the same starts: " + pct(rows[1].expert) + "." },
+      { note: "Two mistakes: " + pct(rows[2].success) + ". Three: " + pct(rows[3].success) + ". The mistakes are harmless. The drop is entirely the policy's." },
+    ];
+    stepper(fig, {
+      frames, tween: 900, hold: 2500,
+      render(i, t, from) {
+        const reveal = (cond) => lerp(cond(from) ? 1 : 0, cond(i) ? 1 : 0, t);
+        expNodes.forEach((n) => n.setAttribute("opacity", reveal((f) => f >= 0)));
+        expLabel.setAttribute("opacity", reveal((f) => f >= 1));
+        offNodes[0].setAttribute("opacity", reveal((f) => f >= 2));
+        offNodes.slice(1).forEach((n) => n.setAttribute("opacity", reveal((f) => f >= 3)));
+        offLabel.setAttribute("opacity", reveal((f) => f >= 3));
+        gb.setAttribute("opacity", reveal((f) => f >= 4));
+        bars.forEach((b, k) => {
+          const at = (f) => (f >= 4 + Math.min(k, 2) ? b.r.success : 0);
+          const v = lerp(at(from), at(i), t), h = v * BH;
+          b.b.setAttribute("y", BY - h);
+          b.b.setAttribute("height", h);
+          b.v.setAttribute("y", BY - h - 6);
+          b.v.textContent = at(i) || t < 1 && at(from) ? pct(v) : "";
+          const e = at(i) !== 0 || b.r.success === 0 && i >= 4 + Math.min(k, 2);
+          b.e.setAttribute("opacity", e ? 1 : 0);
+          b.e.setAttribute("y1", BY - b.r.expert * BH);
+          b.e.setAttribute("y2", BY - b.r.expert * BH);
+        });
+      },
+    });
+  })();
+
+  /* ---------- Figure 4: group-relative advantage explorer ---------- */
+  (function groupFigure() {
+    const fig = document.getElementById("fig-group");
+    if (!fig) return;
+    const gIn = fig.querySelector("#grp-g");
+    const scale = fig.querySelector("#grp-scale");
+    const cells = fig.querySelector("#grp-cells");
+    const bars = fig.querySelector("#grp-bars");
+    const note = fig.querySelector(".ct-figure__note");
+    let rewards = [1, 0, 0, 0, 0, 0, 0, 0];
+    function resize() {
+      const g = +gIn.value;
+      fig.querySelector("#grp-g-out").textContent = g;
+      while (rewards.length < g) rewards.push(0);
+      rewards.length = g;
+    }
+    function draw() {
+      resize();
+      const g = rewards.length;
+      const mean = rewards.reduce((a, b) => a + b, 0) / g;
+      const std = Math.sqrt(rewards.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(g - 1, 1));
+      const adv = rewards.map((r) => (scale.checked ? (r - mean) / (std + 1e-4) : r - mean));
+      cells.innerHTML = rewards.map((r, i) => `<button type="button" class="c12-cell${r === 1 ? " is-win" : r > 0 ? " is-mid" : ""}" data-i="${i}" aria-label="Trajectory ${i + 1} reward ${r}. Click to change.">&tau;<sub>${i + 1}</sub><b>${r}</b></button>`).join("");
+      const m = Math.max(1, ...adv.map(Math.abs));
+      bars.innerHTML = adv.map((a, i) => {
+        const h = (Math.abs(a) / m) * 62;
+        const zero = Math.abs(a) < 1e-9;
+        return `<div class="c12-advbar" title="A${i + 1} = ${a.toFixed(3)}"><span class="c12-advbar__up">${a > 0 ? `<i style="height:${h}px"></i>` : ""}</span><span class="c12-advbar__down">${a < 0 ? `<i style="height:${h}px"></i>` : ""}</span><em>${zero ? "0" : (a > 0 ? "+" : "") + a.toFixed(2)}</em></div>`;
+      }).join("");
+      const set = (id, v) => { fig.querySelector(id).textContent = v; };
+      set("#grp-mean", mean.toFixed(3));
+      set("#grp-std", std.toFixed(3));
+      const pos = adv.filter((a) => a > 0), maxA = Math.max(...adv);
+      set("#grp-max", maxA.toFixed(3));
+      const flat = Math.max(...rewards) === Math.min(...rewards);
+      set("#grp-signal", flat ? "none" : "active");
+      if (flat) note.innerHTML = "All rewards are equal, so every advantage is exactly 0. This group contributes no policy gradient. The rollouts were paid for and teach nothing. Count these groups in your logs.";
+      else if (pos.length === 1 && scale.checked) note.innerHTML = "One winner of " + g + " gets A = " + maxA.toFixed(2) + ". A rare success gets a large push. Every loser is pushed down a little. The advantages sum to zero.";
+      else if (!scale.checked) note.innerHTML = "Mean baseline only (the Dr. GRPO variant). A rare win now gets at most 1 minus the mean. Nothing is amplified, so low-variance groups no longer shout.";
+      else note.innerHTML = pos.length + " of " + g + " beat the group mean. The more common success is, the smaller the push it gets.";
+    }
+    cells.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const i = +b.dataset.i;
+      rewards[i] = rewards[i] === 0 ? 1 : rewards[i] === 1 ? 0.5 : 0;
+      draw();
+    });
+    fig.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+      const g = +gIn.value, p = b.dataset.preset;
+      rewards = Array.from({ length: g }, (_, i) => p === "one" ? (i === 0 ? 1 : 0) : p === "half" ? (i % 2 === 0 ? 1 : 0) : p === "win" ? 1 : p === "almost" ? (i === 0 ? 0 : 1) : 0);
+      draw();
+    }));
+    gIn.addEventListener("input", draw);
+    scale.addEventListener("input", draw);
+    draw();
+  })();
+
+  /* ---------- Figure 5: trajectory replay with per-step advantages ---------- */
+  (function replayFigure() {
+    const fig = document.getElementById("fig-replay");
+    if (!fig || !D.replay || !D.replay.length) return;
+    const groupSel = fig.querySelector("#rp-group");
+    const memberBox = fig.querySelector("#rp-members");
+    const list = fig.querySelector("#rp-steps");
+    const stepIn = fig.querySelector("#rp-step");
+    const note = fig.querySelector(".ct-figure__note");
+    let g = 0, m = 0, credit = "traj";
+    D.replay.forEach((x, i) => {
+      const o = document.createElement("option");
+      o.value = i; o.textContent = `Level ${x.level}, ${x.wins}/${x.members.length} wins: ${x.task}`;
+      groupSel.appendChild(o);
+    });
+    function pickDefault() {
+      const mem = D.replay[g].members;
+      m = Math.max(0, mem.findIndex((x) => x.success));
+    }
+    function draw() {
+      const G = D.replay[g];
+      const M = G.members[m];
+      memberBox.innerHTML = G.members.map((x, i) => `<button type="button" aria-pressed="${i === m}" data-m="${i}" class="c12-chip ${x.success ? "is-win" : "is-lose"}">&tau;<sub>${i + 1}</sub> ${x.success ? "pass" : "fail"}</button>`).join("");
+      stepIn.max = M.steps.length - 1;
+      if (+stepIn.value > M.steps.length - 1) stepIn.value = M.steps.length - 1;
+      const cur = +stepIn.value;
+      fig.querySelector("#rp-step-out").textContent = `${cur + 1} / ${M.steps.length}`;
+      const vals = M.steps.map((s) => (credit === "traj" ? M.traj_adv : credit === "gae" ? s.gae : s.td));
+      const mx = Math.max(0.3, ...vals.map(Math.abs));
+      list.innerHTML = M.steps.map((s, i) => {
+        const v = vals[i], w = (Math.abs(v) / mx) * 50;
+        return `<div class="c12-step${i === cur ? " is-current" : ""}${i > cur ? " is-future" : ""}">
+          <div class="c12-step__t"><code>${esc(s.action || "(empty)")}</code><span class="${s.error ? "is-err" : ""}">${esc(s.obs)}</span></div>
+          <div class="c12-step__v">V ${s.value.toFixed(2)}</div>
+          <div class="c12-step__bar"><i style="${v >= 0 ? "left:50%" : `left:${50 - w}%`};width:${w}%;background:${v >= 0 ? C.blue : C.orange}"></i><em>${(v >= 0 ? "+" : "") + v.toFixed(2)}</em></div>
+        </div>`;
+      }).join("");
+      const s = M.steps[cur];
+      note.innerHTML = credit === "traj"
+        ? `Trajectory level: every action of this ${M.success ? "winning" : "losing"} episode gets A = ${M.traj_adv.toFixed(2)}, including <code>${esc(s.action || "(empty)")}</code>. The update cannot tell a useful step from a wasted one.`
+        : credit === "gae"
+          ? `Action level, GAE with &lambda; = 0.95: this step gets ${s.gae.toFixed(2)}. V(s<sub>t</sub>) is the critic's estimate of the final reward before the action.`
+          : `One-step TD error (&lambda; = 0): V(s<sub>t+1</sub>) &minus; V(s<sub>t</sub>) = ${s.td.toFixed(2)}. It says whether this one action raised or lowered the critic's estimate.`;
+    }
+    groupSel.addEventListener("input", () => { g = +groupSel.value; pickDefault(); stepIn.value = 0; draw(); });
+    memberBox.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { m = +b.dataset.m; stepIn.value = 0; draw(); } });
+    fig.querySelectorAll("[data-credit]").forEach((b) => b.addEventListener("click", () => {
+      credit = b.dataset.credit;
+      fig.querySelectorAll("[data-credit]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      draw();
+    }));
+    stepIn.addEventListener("input", draw);
+    pickDefault();
+    draw();
+  })();
+
+  /* ---------- Figure 6: learning-curve explorer ---------- */
+  (function curveFigure() {
+    const fig = document.getElementById("fig-curves");
+    if (!fig) return;
+    const host = fig.querySelector("#cv-chart");
+    const note = fig.querySelector(".ct-figure__note");
+    const sel = fig.querySelector("#cv-exp");
+    const suiteSel = fig.querySelector("#cv-suite");
+    const evalPts = (run, suite) => {
+      const pts = [[0, run.start[suite]]];
+      run.history.forEach((h) => { if (h.eval && h.eval[suite] != null) pts.push([h.iter, h.eval[suite]]); });
+      return pts;
+    };
+    const EXP = D.curves;
+    if (!Object.keys(EXP).length) return;
+    Object.keys(EXP).forEach((k) => { const o = document.createElement("option"); o.value = k; o.textContent = EXP[k].title; sel.appendChild(o); });
+    function suites(exp) { return Object.keys(exp.runs[0].start); }
+    function fill() {
+      const exp = EXP[sel.value];
+      const prev = suiteSel.value;
+      suiteSel.innerHTML = suites(exp).map((s) => `<option value="${s}">${s}</option>`).join("");
+      if (suites(exp).includes(prev)) suiteSel.value = prev;
+      else if (exp.suite) suiteSel.value = exp.suite;
+    }
+    function draw() {
+      const exp = EXP[sel.value];
+      const suite = suiteSel.value;
+      const series = exp.runs.map((r) => ({ name: r.name, points: evalPts(r, suite) }));
+      lineChart(host, { series, percent: true, ymin: 0, ymax: 1, ylabel: `greedy success on the ${suite} suite`, xlabel: exp.xlabel || "iteration", label: exp.title });
+      note.innerHTML = exp.note;
+    }
+    sel.addEventListener("input", () => { fill(); draw(); });
+    suiteSel.addEventListener("input", draw);
+    sel.value = Object.keys(EXP)[0];
+    fill();
+    draw();
+  })();
+
+  /* ---------- Figure 7: the reward hack, two small multiples ---------- */
+  (function hackFigure() {
+    const fig = document.getElementById("fig-hack");
+    if (!fig) return;
+    const hack = D.hack;
+    if (!hack) return;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 430;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Reward hack: shaped return against true success" }, stage);
+    root.style.minWidth = "640px";
+    function panel(x, title, ymax, percent) {
+      const P = { x, y: 44, w: 420, h: 220, ymax, percent };
+      T(root, x, 26, title, { "font-size": 13, "font-weight": 600 });
+      for (let i = 0; i <= 4; i++) {
+        const v = (ymax * i) / 4, yy = P.y + P.h - (P.h * i) / 4;
+        svg("line", { x1: x + 34, x2: x + P.w, y1: yy, y2: yy, stroke: C.ruleSoft }, root);
+        T(root, x + 28, yy + 4, percent ? pct(v) : v.toFixed(1), { "text-anchor": "end", "font-size": 10.5, fill: C.muted });
+      }
+      T(root, x + 34 + (P.w - 34) / 2, P.y + P.h + 20, "iteration (shaped reward on)", { "text-anchor": "middle", "font-size": 10.5, fill: C.muted });
+      P.path = svg("path", { fill: "none", stroke: C.orange, "stroke-width": 2, "stroke-linejoin": "round" }, root);
+      P.dot = svg("circle", { r: 4.5, fill: C.orange, stroke: C.paper, "stroke-width": 2 }, root);
+      P.val = T(root, x, 0, "", { "font-size": 12.5, "font-weight": 600 });
+      return P;
+    }
+    const a = panel(20, "What the hacked reward reports: shaped return", Math.ceil(Math.max(...hack.ret)), false);
+    const b = panel(510, "What we wanted: true task success", 1, true);
+    const xs = hack.iters, N = xs.length, xmax = xs[N - 1];
+    function setPath(P, ys, upto) {
+      const X = (v) => P.x + 34 + (v / xmax) * (P.w - 34);
+      const Y = (v) => P.y + P.h - (v / P.ymax) * P.h;
+      const n = Math.max(1, Math.floor(upto));
+      const pts = [];
+      for (let i = 0; i < n; i++) pts.push([X(xs[i]), Y(ys[i])]);
+      if (upto < N) {
+        const f = upto - n, x0 = xs[n - 1], x1 = xs[n], y0 = ys[n - 1], y1 = ys[n];
+        pts.push([X(lerp(x0, x1, f)), Y(lerp(y0, y1, f))]);
+      }
+      P.path.setAttribute("d", pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" "));
+      const l = pts[pts.length - 1];
+      P.dot.setAttribute("cx", l[0]); P.dot.setAttribute("cy", l[1]);
+      const idx = Math.min(N - 1, Math.round(upto) - 1);
+      P.val.setAttribute("x", Math.min(l[0] + 8, P.x + P.w - 40));
+      P.val.setAttribute("y", Math.max(l[1] - 8, P.y + 8));
+      P.val.textContent = P.percent ? pct(ys[idx]) : ys[idx].toFixed(2);
+    }
+    B(root, 20, 300, 920, 116, { fill: "#fff" });
+    const tx = hack.traces.map((_) => svg("g", { opacity: 0 }, root));
+    hack.traces.forEach((lines, k) => lines.slice(0, 5).forEach((l, j) => T(tx[k], 32, 322 + j * 20, l, { "font-size": 12, fill: j === 0 ? C.muted : C.ink })));
+    const stops = [1, 0.25, 0.5, 0.75, 1].map((f, i) => (i === 0 ? 1 : Math.max(2, Math.round(f * N))));
+    const frames = [
+      { note: "The start: a policy cloned from demonstrations. Success is high. It calls tools only as needed, then submits." },
+      { note: "The reward now pays +0.2 for every tool call that does not error, plus the outcome. It sounds reasonable. Sampled trajectories that keep working score higher in their group." },
+      { note: "The group-relative advantage does its job. It pushes toward whatever scores higher. Return climbs." },
+      { note: "True success falls while return rises. A dashboard that shows only return would call this run a success." },
+      { note: "Final state. The policy stops submitting and spends its budget on calls that pay. This is the highest-scoring behaviour under the reward we wrote." },
+    ];
+    stepper(fig, {
+      frames, tween: 1400, hold: 2600,
+      render(i, t, from) {
+        const u = lerp(stops[from], stops[i], t);
+        setPath(a, hack.ret, u);
+        setPath(b, hack.success, u);
+        const late = (f) => (f >= 3 ? 1 : 0);
+        tx[0].setAttribute("opacity", lerp(1 - late(from), 1 - late(i), t));
+        tx[1].setAttribute("opacity", lerp(late(from), late(i), t));
+      },
+    });
+  })();
+
+  /* ---------- Figure 8: curriculum ladder ---------- */
+  (function ladderFigure() {
+    const fig = document.getElementById("fig-ladder");
+    if (!fig) return;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 400;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Curriculum ladder" }, stage);
+    root.style.minWidth = "640px";
+    const L = D.ladder;
+    const rung = L.map((r, i) => {
+      const y = VH - 74 - i * 68, x = 20 + i * 44;
+      const g = svg("g", { opacity: 0.25 }, root);
+      const box = B(g, x, y, 690 - i * 22, 58, { fill: "#fff" });
+      T(g, x + 12, y + 23, `${i + 1}  ${r.name}`, { "font-size": 14, "font-weight": 600 });
+      T(g, x + 12, y + 44, r.task, { "font-size": 12, fill: C.soft });
+      T(g, x + 676 - i * 22, y + 23, r.tools, { "text-anchor": "end", "font-size": 12, fill: C.blue });
+      return { g, box };
+    });
+    const frames = L.map((r) => ({ note: r.note }));
+    stepper(fig, {
+      frames, tween: 800, hold: 2600,
+      render(i, t, from) {
+        rung.forEach((r, k) => {
+          const on = (f) => (k <= f ? 1 : 0.25);
+          r.g.setAttribute("opacity", lerp(on(from), on(i), t));
+          r.box.setAttribute("stroke", k === i ? C.orange : C.rule);
+          r.box.setAttribute("stroke-width", k === i ? 2 : 1);
+        });
+      },
+    });
+    const side = svg("g", null, root);
+    T(side, 740, 40, "BC success", { "font-size": 12, fill: C.muted });
+    L.forEach((r, i) => {
+      if (r.score == null) return;
+      T(side, 740, 66 + i * 26, `${r.label}  ${pct(r.score)}`, { "font-size": 12.5 });
+    });
+  })();
+
+  /* ---------- Figure 9: the agent-RL system ---------- */
+  (function systemFigure() {
+    const fig = document.getElementById("fig-system");
+    if (!fig) return;
+    const stage = fig.querySelector(".ct-figure__stage");
+    const VW = 960, VH = 400;
+    const root = svg("svg", { viewBox: `0 0 ${VW} ${VH}`, role: "img", "aria-label": "Agent RL system pipeline" }, stage);
+    root.style.minWidth = "640px";
+    const S = D.system;
+    const boxes = [
+      ["task sampler", "sample", 20, 60], ["env workers", "rollout", 250, 60], ["agent rollouts", "rollout", 480, 60], ["trajectory store", "store", 710, 60],
+      ["verifier", "verify", 710, 220], ["training batches", "batch", 480, 220], ["policy update", "update", 250, 220], ["new policy", null, 20, 220],
+    ];
+    const sub = [
+      "levels 1-5, perturbed starts", "tools run, failures injected", "G per task, sampled ids kept", "append-only JSON lines",
+      "replay actions, check files", "drop stale, pad, mask", "clipped surrogate on actions", "version + 1, back to rollouts",
+    ];
+    const bw = 210, bh = 96;
+    const nodes = boxes.map((b, i) => {
+      const g = svg("g", { opacity: 0.3 }, root);
+      const r = B(g, b[2], b[3], bw, bh, { fill: "#fff" });
+      T(g, b[2] + 12, b[3] + 26, b[0], { "font-size": 14, "font-weight": 600 });
+      T(g, b[2] + 12, b[3] + 48, sub[i], { "font-size": 11, fill: C.soft });
+      const pctText = T(g, b[2] + 12, b[3] + 76, "", { "font-size": 12, fill: C.orange, "font-weight": 600 });
+      return { g, r, pctText, key: b[1] };
+    });
+    const links = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]];
+    function link(a, b) {
+      const A = boxes[a], B2 = boxes[b];
+      if (A[3] === B2[3]) {
+        if (A[2] < B2[2]) return [A[2] + bw, A[3] + bh / 2, B2[2], B2[3] + bh / 2];
+        return [A[2], A[3] + bh / 2, B2[2] + bw, B2[3] + bh / 2];
+      }
+      return [A[2] + bw / 2, A[3] + bh, B2[2] + bw / 2, B2[3]];
+    }
+    links.forEach(([a, b]) => { const l = link(a, b); svg("line", { x1: l[0], y1: l[1], x2: l[2], y2: l[3], stroke: C.muted, "stroke-width": 1.5 }, root); });
+    svg("path", { d: `M125 220 L125 156`, stroke: C.muted, "stroke-width": 1.5, "stroke-dasharray": "4 4", fill: "none" }, root);
+    const packet = svg("circle", { r: 8, fill: C.orange, opacity: 0 }, root);
+    const capt = T(root, 20, 360, "", { "font-size": 13, fill: C.soft });
+    const run = S[0];
+    const total = run.total;
+    const share = (k) => (k && run.clock[k] != null ? (100 * run.clock[k]) / total : null);
+    const frames = [
+      { note: "The sampler picks tasks and start states. Exploration lives here as much as in the sampling temperature: diverse tasks, diverse starts." },
+      { note: "Workers run the tools. Our toy tools take microseconds. Real tools take seconds, and that changes where the bottleneck is. Failures are injected here too." },
+      { note: "The policy generates actions for every waiting episode in one batch. Each record stores the sampled token ids, the log-probabilities and the policy version." },
+      { note: "Everything goes to disk first. An append-only store is what makes offline runs, audits and replay possible." },
+      { note: "The verifier replays the recorded actions on a fresh copy of the task and decides the reward from the files. It never trusts the rollout's claim." },
+      { note: "Batches drop stale versions and groups left too small. Padding and masks are built here." },
+      { note: "The clipped surrogate runs over action tokens. In this run the update took " + (share("update") || 0).toFixed(0) + "% of the wall time and rollouts took " + (share("rollout") || 0).toFixed(0) + "%." },
+      { note: "A new version goes back to the rollouts. Every trajectory records which version produced it, so staleness can be measured instead of guessed." },
+    ];
+    stepper(fig, {
+      frames, tween: 900, hold: 2100,
+      render(i, t, from) {
+        nodes.forEach((n, k) => {
+          const on = (f) => (k <= f ? 1 : 0.3);
+          n.g.setAttribute("opacity", lerp(on(from), on(i), t));
+          n.r.setAttribute("stroke", k === i ? C.orange : C.rule);
+          n.r.setAttribute("stroke-width", k === i ? 2 : 1);
+          const v = share(n.key);
+          n.pctText.textContent = v != null && k <= i ? v.toFixed(1) + "% of wall time" : "";
+        });
+        let px, py;
+        if (i === 0 || from > i) { px = boxes[i][2] + bw / 2; py = boxes[i][3] + bh / 2; }
+        else {
+          const a = boxes[from], b = boxes[i];
+          px = lerp(a[2] + bw / 2, b[2] + bw / 2, t);
+          py = lerp(a[3] + bh / 2, b[3] + bh / 2, t);
+        }
+        packet.setAttribute("cx", px); packet.setAttribute("cy", py);
+        packet.setAttribute("opacity", 0.75);
+        capt.textContent = `measured: ${S[0].stored} trajectories, ${S[0].checked} verified, ${S[0].mismatches} mismatches, ${total.toFixed(0)} s, Apple M5 CPU`;
+      },
+    });
+  })();
+
+  // Hand the figures to the preview exporter if it wants them.
+  window.C12_READY = true;
+})();
+
+    </script>
+  </body>
+</html>
