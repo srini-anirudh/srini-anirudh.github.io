@@ -1,0 +1,129 @@
+# Anirudh Srinivasan
+
+> Senior Research Engineer and Vision-Language Models Team Lead at BharatGen. Research on multimodal foundation models, grounded document intelligence and ML systems. This site hosts research write-ups, a blog of first-principles deep dives (The Backward Pass), runnable coding tutorials, and talks.
+
+The blog explains how modern AI models are built, trained and scaled, with interactive figures, cited sources and, for most posts, a runnable companion lab in the public code repository. Coding tutorials build a model, a VLM or an agent from scratch with code and measured results.
+
+## Start here
+
+- [Research](https://srini-anirudh.github.io/research.html): the three research interests (grounded document intelligence, VLM infrastructure, sovereign foundation models) with papers, project pages and posts.
+- [Blog index](https://srini-anirudh.github.io/blogs/): every article, filterable by topic and series.
+- [Talks](https://srini-anirudh.github.io/talks.html): guest lectures, conference talks and meetup presentations with slides.
+- [About](https://srini-anirudh.github.io/about.html): background, affiliation and contact.
+- [Code for the tutorials and labs](https://github.com/srini-anirudh/blog-coding-tutorials): 12 tutorials (c01 to c12) and one lab per theory post, with results.
+
+## Talks
+
+- [Building production-grade offline VLM inference engines at scale](https://srini-anirudh.github.io/talks/programming-ai-accelerators/): Guest lecture at IIIT Hyderabad: how vLLM works, then how Patram-Ingest keeps GPUs busy, survives crashes and runs graphs of stages.
+- [Patram-Ingest: durable execution around vLLM](https://srini-anirudh.github.io/talks/patram-ingest-slides/): Invited talk at vLLM Meetup Mumbai 2026: how Patram-Ingest wraps vLLM in durable execution so weeks-long data-generation runs survive node failures.
+- [Building Grounded Document Intelligence](https://srini-anirudh.github.io/research/docai-talk/): Thesis talk on grounded document intelligence: a lossless text representation of the page (REPLICA, FID-HTML) and mask-based grounding (M3Grounder, DoCoG, DocLayout-VL).
+
+## Coding tutorials
+
+- [PyTorch From First Principles](https://srini-anirudh.github.io/blogs/pytorch-from-first-principles/): Build a neural network and its training loop from raw PyTorch: strides, broadcasting, autograd, losses, optimizers and hooks, each checked against torch.
+- [The Hugging Face Stack](https://srini-anirudh.github.io/blogs/the-hugging-face-stack/): Run one training job through Transformers, Datasets, Trainer, Accelerate, PEFT and TRL, and check each layer against a raw PyTorch loop, number by number.
+- [Build Attention From Scratch](https://srini-anirudh.github.io/blogs/build-attention-from-scratch/): Build attention in PyTorch from one head to MHA, GQA, MLA and tiled online softmax, with tests against SDPA and measured benchmarks.
+- [Build a Modern LLM From Scratch](https://srini-anirudh.github.io/blogs/build-a-modern-llm-from-scratch/): Build a Llama-style language model in PyTorch, step by step, inspect every tensor, then match Hugging Face logits and run real SmolLM2 weights.
+- [Train an LLM From Scratch](https://srini-anirudh.github.io/blogs/train-an-llm-from-scratch/): Build a complete LLM pretraining system in PyTorch, from raw text to token shards, a resumable loader, AdamW, accumulation, bf16, exact resume, MFU, DDP and failure guards.
+- [Post-Train an LLM](https://srini-anirudh.github.io/blogs/post-train-an-llm/): Take one pretrained model through SFT, DPO and GRPO. Write each loss by hand, inspect every mask, check most losses against TRL, PEFT and Hugging Face and the rest by hand, and break it...
+- [Build a Vision-Language Model From Scratch](https://srini-anirudh.github.io/blogs/build-a-vlm-from-scratch/): Assemble a working vision-language model from SigLIP and SmolLM2: image processor, projector, feature scattering, labels, masks, tiling, generation and save_pretrained, with every tensor...
+- [Train a Real VLM](https://srini-anirudh.github.io/blogs/train-a-real-vlm/): Train a vision-language model in code: projector alignment, multimodal pretraining, task mixtures, text replay, tiling, packing, LoRA placement, grounding and per-task evaluation.
+- [Post-Train a VLM](https://srini-anirudh.github.io/blogs/post-train-a-vlm/): Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking.
+- [Build an Agent Harness From Scratch](https://srini-anirudh.github.io/blogs/build-an-agent-harness-from-scratch/): Build a coding agent from an eight-line loop: tools, validation, sandboxes, permissions, edit formats, compaction and an event log, each tested and measured.
+- [Add Memory and Context Engineering to the Agent](https://srini-anirudh.github.io/blogs/add-memory-to-the-agent/): Give the C10 agent working, episodic, semantic and procedural memory, a token budget and compression, then test whether memory causally improves its work.
+- [Train an Agent With Reinforcement Learning](https://srini-anirudh.github.io/blogs/train-an-agent-with-rl/): Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection.
+
+## Vision-language models
+
+- [The VLM Architecture Gallery](https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/): Seventy-one architectures on one standardized plate, from gated cross-attention to encoders absorbed into the base model.
+- [Teaching Language Models to See](https://srini-anirudh.github.io/blogs/teaching-language-models-to-see/): Why a good vision encoder plus a good LLM is not yet a VLM: freezing, data mixtures, resolution, objectives and data quality in real pretraining recipes.
+- [How Vision-Language Models Scale](https://srini-anirudh.github.io/blogs/how-vision-language-models-scale/): How compute splits between a VLM's two towers, what vision, data, fusion and visual-token scaling studies show, and what open VLMs spend.
+- [One Model, Many Visual Skills](https://srini-anirudh.github.io/blogs/one-model-many-visual-skills/): How visual instruction tuning turns a pretrained VLM into one assistant: loss masking, task mixtures, format conflicts, forgetting and synthetic data.
+- [Measuring What a VLM Can Do](https://srini-anirudh.github.io/blogs/measuring-what-a-vlm-can-do/): What a VLM benchmark score really measures: task, data, metric and protocol, the main benchmarks by capability, and how to read a results table.
+- [Aligning Vision-Language Models](https://srini-anirudh.github.io/blogs/aligning-vision-language-models/): How to teach a vision-language model to prefer answers the image supports: hallucination, image-conditioned DPO, negatives, AI judges and safety.
+- [When Language Must Point](https://srini-anirudh.github.io/blogs/when-language-must-point/): How VLMs show where they see: points, boxes, polygons and masks, coordinate tokens versus SAM-style decoders, granularity, grounded reasoning and metrics.
+- [How VLMs Read Documents](https://srini-anirudh.github.io/blogs/how-vlms-read-documents/): How VLMs turn a page into text and structure: OCR pipelines, OCR-free parsers, token budgets, output formats, tables, reading order and evaluation.
+- [Seeing in Time](https://srini-anirudh.github.io/blogs/seeing-in-time/): How video VLMs sample, encode, time-stamp and compress frames, find moments, and why many video benchmarks can be solved from a single frame.
+- [Rewarding What the Model Sees](https://srini-anirudh.github.io/blogs/rewarding-what-the-model-sees/): What a verifiable reward looks like for images: IoU, OCR and execution rewards, which weights RL changes, reward hacking, and zero-advantage groups.
+- [Thinking With Images](https://srini-anirudh.github.io/blogs/thinking-with-images/): Why a VLM that looks once cannot think its way back to lost pixels, and how zooming, visual search, verification and tools make perception a compute axis.
+- [VLMs That Act](https://srini-anirudh.github.io/blogs/vlms-that-act/): What changes when a VLM's image is a screen it can change: observations, grounding as clicking, action spaces, trajectories, RL, evaluation and safety.
+- [From VLMs to VLAs](https://srini-anirudh.github.io/blogs/from-vlms-to-vlas/): How vision-language models become robot policies: action tokens, chunking, FAST, flow-matching experts, dual systems, data, RL and evaluation.
+- [The Cost of a Picture](https://srini-anirudh.github.io/blogs/the-cost-of-a-picture/): Where an image's inference cost goes in a vision-language model, and how token compression, small models, quantization and serving cut it.
+- [Searching With Pixels](https://srini-anirudh.github.io/blogs/searching-with-pixels/): How multimodal retrieval finds the right image, page or frame, from CLIP and VLM embedders to ColPali late interaction, rerankers and cited visual RAG.
+- [What Happens Inside a VLM](https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/): How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image.
+- [Models That See and Draw](https://srini-anirudh.github.io/blogs/models-that-see-and-draw/): How one model can both read and draw images: image tokenizers, meaning versus pixels, bridge, autoregressive and hybrid designs, and evidence on synergy.
+- [How the Open VLM Families Were Built](https://srini-anirudh.github.io/blogs/how-the-open-vlm-families-were-built/): A family-by-family survey of how open VLMs were built: data, encoders, resolution, training stages, RL, compute, and what actually drove capability.
+- [Inside a Modern Vision Encoder](https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/): What changed in the visual half of VLMs: intake geometry, resolution, objectives, connectors, and the encoders models actually ship.
+
+## Deep Learning Foundations
+
+- [What Autograd Actually Does](https://srini-anirudh.github.io/blogs/what-autograd-actually-does/): Backpropagation and autograd from scalar chain rules to Jacobian products, saved tensors, and checkpointing.
+- [Why Transformers Do Not Explode](https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/): Initialization, residual paths, normalization, optimizer dynamics, precision, and the signatures of unstable training.
+- [Choosing the Next Token](https://srini-anirudh.github.io/blogs/choosing-the-next-token/): Temperature, search, truncation, penalties, grammars, and contrastive generation organized around entropy.
+- [How Attention Moves Information](https://srini-anirudh.github.io/blogs/how-attention-moves-information/): Why attention exists, how Q, K, and V arise, and how the same operation becomes MHA, GQA, sliding windows, linear attention, MLA, and multimodal attention.
+- [How Models Know Where They Are](https://srini-anirudh.github.io/blogs/how-models-know-where-they-are/): Absolute, sinusoidal, relative, RoPE, NoPE, 2D and Fourier features, and multimodal M-RoPE—explained visually.
+- [What an Optimizer Actually Does](https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/): A mechanical tour from SGD to Muon: how optimizers build an update, what their state costs, and where a training step stalls.
+- [The Geometry of Normalization](https://srini-anirudh.github.io/blogs/the-geometry-of-normalization/): Every normalization layer from BatchNorm to Peri-LN, plus why the modality interface in a VLM is a normalization problem.
+- [Why Neural Networks Need Nonlinearity](https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/): From sigmoid and ReLU to GELU, SwiGLU, and squared ReLU—with animated derivations and a map of what modern models use.
+
+## ML Systems
+
+- [How to Find What Is Slowing Your Model](https://srini-anirudh.github.io/blogs/how-to-find-what-is-slowing-your-model/): A practical method for reading timelines and counters, using PyTorch Profiler and Nsight, diagnosing Roofline regimes, and testing optimization hypotheses.
+- [The Serving Playbook](https://srini-anirudh.github.io/blogs/the-serving-playbook/): Continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, distributed serving, speculative decoding, and goodput under SLOs.
+- [The Mechanics of LLM Inference](https://srini-anirudh.github.io/blogs/the-mechanics-of-llm-inference/): Why inference becomes a different machine: autoregression, prefill, decode, KV cache, batching, bandwidth, latency metrics, quantization, and multimodal workloads.
+- [The Parallelism Playbook](https://srini-anirudh.github.io/blogs/the-parallelism-playbook/): The six things a training workload can split, from DDP and ZeRO/FSDP through tensor, pipeline, context, expert, and hybrid parallelism.
+- [Inside a Training Step](https://srini-anirudh.github.io/blogs/inside-a-training-step/): A first-principles walkthrough of tensor shapes, forward and backward passes, FLOPs, activation lifetimes, optimizer states, memory accounting, and checkpointing.
+- [Talk Is Not Cheap](https://srini-anirudh.github.io/blogs/talk-is-not-cheap/): What changes when data is no longer local: PCIe, NVLink, NVSwitch, RDMA, topology, collective communication, and overlap.
+- [Why Fast GPUs Still Wait for Memory](https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/): Arithmetic intensity and the Roofline model derived from first principles, then applied to GEMM, attention, fusion, optimizers, and real ML kernels.
+- [Why GPUs Are Built for Deep Learning](https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/): Why CPUs and GPUs spend their transistor budgets differently—and how execution hierarchy, latency hiding, memory access, tiling, and Tensor Cores follow from that choice.
+
+## Tool Use & Agentic Models
+
+- [The Agent Evaluation Playbook](https://srini-anirudh.github.io/blogs/the-agent-evaluation-playbook/): How to evaluate trajectories, state changes, reliability, safety, graders, budgets, and long-horizon failures.
+- [Inside an AI Agent Harness](https://srini-anirudh.github.io/blogs/inside-an-ai-agent-harness/): The agent harness as a system: context assembly, action protocols, verification, containment, budgets, and event state.
+- [Memory Is More Than Context](https://srini-anirudh.github.io/blogs/memory-is-more-than-context/): Working, episodic, semantic, procedural, and reflective memory as one bounded context-allocation problem.
+- [How Multi-Agent Systems Actually Coordinate](https://srini-anirudh.github.io/blogs/how-multi-agent-systems-actually-coordinate/): When multiple agents beat one: diversity, specialization, topology, communication cost, orchestration, and failure modes.
+- [Reinforcement Learning for Agents From First Principles](https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/): Reinforcement learning for agents: environments, reward design, credit assignment, horizons, and rollout systems.
+- [How Language Models Learn to Use Tools](https://srini-anirudh.github.io/blogs/how-language-models-learn-to-use-tools/): How models discover available tools at runtime, decide whether to call one, produce valid arguments, retrieve schemas, and learn from executable feedback.
+- [The Making of an AI Agent](https://srini-anirudh.github.io/blogs/the-making-of-an-ai-agent/): What changes when tool calls become a stateful loop: trajectory data, imitation versus RL, long-horizon credit assignment, memory, harnesses, and environments.
+
+## Research
+
+- [Building Grounded Document Intelligence](https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/): A text representation of documents that loses nothing, and grounding with masks instead of typed coordinates by joining a VLM (what) and SAM (where) end to end, connected in a closed loop.
+- [REPLICA: Visually Faithful Document Reconstruction](https://srini-anirudh.github.io/blogs/replica-visually-faithful-document-reconstruction/): Why converting a page to text loses information, and how REPLICA rebuilds it as faithful HTML with agents, checks the render, and generates training data.
+- [Grounding Document Answers With Masks](https://srini-anirudh.github.io/blogs/m3grounder-mask-based-document-grounding/): M3Grounder grounds document answers as pixel masks: a VLM writes a token per cited span and SAM draws phrase, line and block masks, trained end to end.
+- [Grounding Every Step of a Document Answer](https://srini-anirudh.github.io/blogs/docog-grounded-chain-of-thought/): DoCoG grounds every step of a document chain of thought with pixel masks, using a module between the language model and SAM and mask-safe preference training.
+- [DocLayout-VL: Hierarchical, Open-Set, Promptable Document Layout Segmentation](https://srini-anirudh.github.io/blogs/doclayout-vl-promptable-layout-segmentation/): DocLayout-VL treats layout as a tree of masks: a VLM writes the tree, HGC attends along it, SAM draws each region, in any vocabulary.
+
+## Post-training
+
+- [Teaching a Language Model to Follow Instructions](https://srini-anirudh.github.io/blogs/teaching-a-language-model-to-follow-instructions/): Supervised fine-tuning as behavior cloning: data construction, loss masking, distribution shift, and capability change.
+- [How LoRA Changes a Model Without Rewriting It](https://srini-anirudh.github.io/blogs/how-lora-changes-a-model-without-rewriting-it/): Why low-rank updates work, how LoRA and QLoRA spend memory, and when adapters lose to full fine-tuning.
+- [Mixing Data Without Losing Capabilities](https://srini-anirudh.github.io/blogs/mixing-data-without-losing-capabilities/): Why tasks interfere, how sampling weights become loss weights, how to measure transfer, and what to do when a capability regresses.
+- [Reinforcement Learning from First Principles](https://srini-anirudh.github.io/blogs/reinforcement-learning-from-first-principles/): Policy gradients, baselines, advantages, GAE, trust regions, and PPO derived first, then translated into language-model rollouts.
+- [Teaching a Model What We Prefer](https://srini-anirudh.github.io/blogs/teaching-a-model-what-we-prefer/): How comparisons become reward, why RLHF needs a KL leash, and how the same objective turns into DPO’s direct loss.
+
+## Architecture
+
+- [What Changed Inside the Transformer?](https://srini-anirudh.github.io/blogs/what-changed-inside-the-transformer/): What changed between the original Transformer and today’s Llama, Qwen, DeepSeek, and GLM-class models—one design pressure at a time.
+- [One Transformer, Two Modalities](https://srini-anirudh.github.io/blogs/one-transformer-two-modalities/): A block-by-block comparison: tokenizing versus patchifying, lookup tables versus projections, positions, masks, and heads.
+- [An Image Is a Sentence](https://srini-anirudh.github.io/blogs/an-image-is-a-sentence/): How Vision Transformers see, from the first patch embedding through ViT, DeiT, PVT, Swin, video transformers, and the cost of attention.
+- [Across the CNNVerse](https://srini-anirudh.github.io/blogs/across-the-cnnverse/): Thirty years of convolutional architecture, from sliding-window arithmetic and receptive fields to ResNet, EfficientNet, and ConvNeXt.
+- [Evolution of ML Architectures](https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/): Sixty-seven years of neural architectures, including how information moves, what training costs, what inference carries, and how gradients flow backward.
+
+## Training Science
+
+- [The Puzzle of Overparameterization](https://srini-anirudh.github.io/blogs/the-puzzle-of-overparameterization/): Interpolation, double descent and its limits, benign overfitting, implicit bias, function space, grokking, and what any of them explain about LLMs.
+- [How LLMs Are Pretrained](https://srini-anirudh.github.io/blogs/how-llms-are-pretrained/): Where pretraining data comes from, what survives curation, how mixtures and sequences are constructed, and how teams decide whether the recipe worked.
+- [Scaling Laws from First Principles](https://srini-anirudh.github.io/blogs/scaling-laws-from-first-principles/): Where C = 6ND comes from, why tokens per parameter is not a constant, and how to plan a large run from small experiments.
+
+## Reasoning Models
+
+- [How Reinforcement Learning Teaches Models to Reason](https://srini-anirudh.github.io/blogs/how-reinforcement-learning-teaches-models-to-reason/): What changes when answers can be checked automatically: verifiers, GRPO, DeepSeek-R1, exploration, and the limits of short RL runs.
+- [Thinking in Tokens](https://srini-anirudh.github.io/blogs/thinking-in-tokens/): Why a familiar Transformer can buy serial compute by writing, what reasoning traces reveal, and when longer thought makes answers worse.
+- [How Models Improve Without Changing Their Weights](https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/): Longer chains, more samples, search, and verifiers—plus why the best inference budget depends on the prompt rather than one global setting.
+
+## Optional
+
+- [RSS feed](https://srini-anirudh.github.io/feed.xml)
+- [Sitemap](https://srini-anirudh.github.io/sitemap.xml)

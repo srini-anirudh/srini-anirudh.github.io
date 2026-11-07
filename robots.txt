@@ -10,4 +10,13 @@ User-agent: GPTBot
 Allow: /
 Disallow: /docs/
 
+# Retrieval crawlers behind AI answer engines (search and on-demand fetches)
+User-agent: ChatGPT-User
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+Allow: /
+Disallow: /docs/
+
 Sitemap: https://srini-anirudh.github.io/sitemap.xml
