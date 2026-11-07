@@ -134,6 +134,6 @@ Research and write the article by `docs/blog-writing-guide.md` first: deep liter
 - Treat the index as an editorial magazine: one featured newest post followed by compact chronological rows.
 - Assign every card one or more stable filter keys using `data-blog-categories`; the visible category labels and filter buttons must match those keys.
 - Display both the original publication date and the last-modified date on the index and inside the article. Use semantic `<time datetime="YYYY-MM-DD">` markup and matching `article:published_time` / `article:modified_time` metadata.
-- Keep publication dates honest and stable after publishing. Updating an article changes only its last-modified date.
+- Keep publication dates stable after publishing. Updating an article changes only its last-modified date. One deliberate exception: the Vision-language models series (posts 04 to 20), the Coding tutorials and the research posts carry editorial dates arranged on a learning-roadmap timeline, decided on 2026-11-07, so each post sits next to the theory it builds on. Keep those dates as arranged and do not rewrite them to the day a post was written.
 - For a named series, keep its cards contiguous and number every entry visibly within the card label; do not add a separate full-width series banner to the index. Add a stable category filter and repeat a compact linked previous/next navigator after each article mast.
 - Connect series members in structured data with one stable `CreativeWorkSeries` `@id`; each member remains a `BlogPosting` and part of the main blog as well.
