@@ -93,6 +93,7 @@
           <button type="button" class="blog-filter" data-blog-filter="agents" data-blog-filter-label="Agents" data-blog-members="tool-agents" data-blog-paths="Agent sequence::how-language-models-learn-to-use-tools the-making-of-an-ai-agent inside-an-ai-agent-harness memory-is-more-than-context how-multi-agent-systems-actually-coordinate reinforcement-learning-for-agents-from-first-principles the-agent-evaluation-playbook" data-path-description="Go from a single tool call to complete agent harnesses, memory, coordination, learning, and evaluation." aria-pressed="false">Agents</button>
           <button type="button" class="blog-filter" data-blog-filter="systems" data-blog-filter-label="ML Systems" data-blog-members="ml-systems" data-blog-paths="Understanding the machine::why-gpus-are-built-for-deep-learning why-fast-gpus-still-wait-for-memory talk-is-not-cheap;Understanding the workloads::inside-a-training-step the-mechanics-of-llm-inference;Scaling the workloads::the-parallelism-playbook the-serving-playbook;Profiling::how-to-find-what-is-slowing-your-model" data-path-description="Choose a path through hardware and communication, workload mechanics, distributed scaling, serving, and performance diagnosis." aria-pressed="false">ML Systems</button>
           <button type="button" class="blog-filter" data-blog-filter="research" data-blog-filter-label="Research" data-blog-members="docai-research" data-blog-paths="Grounded document intelligence::building-grounded-document-intelligence replica-visually-faithful-document-reconstruction m3grounder-mask-based-document-grounding docog-grounded-chain-of-thought doclayout-vl-promptable-layout-segmentation" data-path-description="Research posts: the thesis and one post per publication, each built around what the work teaches." aria-pressed="false">Research</button>
+          <button type="button" class="blog-filter" data-blog-filter="code" data-blog-filter-label="Coding tutorials" data-blog-members="code-tutorials" data-blog-paths="Foundations::pytorch-from-first-principles the-hugging-face-stack build-attention-from-scratch;Language models::build-a-modern-llm-from-scratch train-an-llm-from-scratch post-train-an-llm;Vision-language models::build-a-vlm-from-scratch train-a-real-vlm post-train-a-vlm;Agents::build-an-agent-harness-from-scratch add-memory-to-the-agent train-an-agent-with-rl" data-path-description="Build, train and post-train models yourself, with code you can run." aria-pressed="false">Coding tutorials</button>
         </nav>
         <div class="blog-discovery-tools" role="search" aria-label="Search and filter articles by tag">
           <label class="blog-search-field">
@@ -107,7 +108,7 @@
           </label>
         </div>
         <div class="blog-filter-status-row">
-          <p class="blog-filter-status" aria-live="polite">Showing all 63 articles</p>
+          <p class="blog-filter-status" aria-live="polite">Showing all 75 articles</p>
           <button type="button" class="blog-filter-reset" hidden>Clear filters</button>
         </div>
         <section class="learning-path-panel" aria-live="polite" hidden>
@@ -338,6 +339,152 @@
             </div>
           </a>
           <!-- vlm-series:end -->
+          <!-- code-series:start -->
+          <a class="blog-card" href="pytorch-from-first-principles/" target="_self" data-blog-categories="code foundations" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="pytorch-from-first-principles/preview.png" data-still-src="pytorch-from-first-principles/preview.png" data-animated-src="pytorch-from-first-principles/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from PyTorch From First Principles." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 01</span>
+              <h3>PyTorch From First Principles</h3>
+              <p>Build a neural network and its training loop from raw PyTorch: strides, broadcasting, autograd, losses, optimizers and hooks, each checked against torch.</p>
+              <div class="blog-meta"><span>Published <time datetime="2024-12-15">December 15, 2024</time></span><span>Updated <time datetime="2025-01-05">January 5, 2025</time></span><span>68 min read</span></div>
+              <div class="blog-tags"><span>PyTorch</span><span>Autograd</span><span>Training loops</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="the-hugging-face-stack/" target="_self" data-blog-categories="code foundations" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="the-hugging-face-stack/preview.png" data-still-src="the-hugging-face-stack/preview.png" data-animated-src="the-hugging-face-stack/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from The Hugging Face Stack." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 02</span>
+              <h3>The Hugging Face Stack</h3>
+              <p>Run one training job through Transformers, Datasets, Trainer, Accelerate, PEFT and TRL, and check each layer against a raw PyTorch loop, number by number.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-01-12">January 12, 2025</time></span><span>Updated <time datetime="2025-02-02">February 2, 2025</time></span><span>60 min read</span></div>
+              <div class="blog-tags"><span>Hugging Face</span><span>Training loops</span><span>Model integration</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="build-attention-from-scratch/" target="_self" data-blog-categories="code foundations" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="build-attention-from-scratch/preview.png" data-still-src="build-attention-from-scratch/preview.png" data-animated-src="build-attention-from-scratch/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Build Attention From Scratch." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 03</span>
+              <h3>Build Attention From Scratch</h3>
+              <p>Build attention in PyTorch from one head to MHA, GQA, MLA and tiled online softmax, with tests against SDPA and measured benchmarks.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-06-08">June 8, 2025</time></span><span>Updated <time datetime="2025-06-29">June 29, 2025</time></span><span>78 min read</span></div>
+              <div class="blog-tags"><span>Attention</span><span>KV cache</span><span>FlashAttention</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="build-a-modern-llm-from-scratch/" target="_self" data-blog-categories="code training" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="build-a-modern-llm-from-scratch/preview.png" data-still-src="build-a-modern-llm-from-scratch/preview.png" data-animated-src="build-a-modern-llm-from-scratch/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Build a Modern LLM From Scratch." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 04</span>
+              <h3>Build a Modern LLM From Scratch</h3>
+              <p>Build a Llama-style language model in PyTorch, step by step, inspect every tensor, then match Hugging Face logits and run real SmolLM2 weights.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-07-13">July 13, 2025</time></span><span>Updated <time datetime="2025-08-03">August 3, 2025</time></span><span>43 min read</span></div>
+              <div class="blog-tags"><span>Language models</span><span>PyTorch</span><span>Hugging Face</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="train-an-llm-from-scratch/" target="_self" data-blog-categories="code training" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="train-an-llm-from-scratch/preview.png" data-still-src="train-an-llm-from-scratch/preview.png" data-animated-src="train-an-llm-from-scratch/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Train an LLM From Scratch." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 05</span>
+              <h3>Train an LLM From Scratch</h3>
+              <p>Build a complete LLM pretraining system in PyTorch, from raw text to token shards, a resumable loader, AdamW, accumulation, bf16, exact resume, MFU, DDP and failure guards.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-09-07">September 7, 2025</time></span><span>Updated <time datetime="2025-09-28">September 28, 2025</time></span><span>55 min read</span></div>
+              <div class="blog-tags"><span>LLM pretraining</span><span>Distributed Training</span><span>PyTorch</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="post-train-an-llm/" target="_self" data-blog-categories="code posttraining" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="post-train-an-llm/preview.png" data-still-src="post-train-an-llm/preview.png" data-animated-src="post-train-an-llm/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Post-Train an LLM." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 06</span>
+              <h3>Post-Train an LLM</h3>
+              <p>Take one pretrained model through SFT, DPO and GRPO. Write each loss by hand, inspect every mask, check most losses against TRL, PEFT and Hugging Face and the rest by hand, and break it on purpose.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-11-02">November 2, 2025</time></span><span>Updated <time datetime="2025-11-23">November 23, 2025</time></span><span>85 min read</span></div>
+              <div class="blog-tags"><span>Supervised fine-tuning</span><span>DPO</span><span>GRPO</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="build-a-vlm-from-scratch/" target="_self" data-blog-categories="code vlms training" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="build-a-vlm-from-scratch/preview.png" data-still-src="build-a-vlm-from-scratch/preview.png" data-animated-src="build-a-vlm-from-scratch/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Build a Vision-Language Model From Scratch." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 07</span>
+              <h3>Build a Vision-Language Model From Scratch</h3>
+              <p>Assemble a working vision-language model from SigLIP and SmolLM2: image processor, projector, feature scattering, labels, masks, tiling, generation and save_pretrained, with every tensor inspected.</p>
+              <div class="blog-meta"><span>Published <time datetime="2025-12-14">December 14, 2025</time></span><span>Updated <time datetime="2026-01-04">January 4, 2026</time></span><span>59 min read</span></div>
+              <div class="blog-tags"><span>Vision-language models</span><span>PyTorch</span><span>Hugging Face</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="train-a-real-vlm/" target="_self" data-blog-categories="code vlms training" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="train-a-real-vlm/preview.png" data-still-src="train-a-real-vlm/preview.png" data-animated-src="train-a-real-vlm/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Train a Real VLM." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 08</span>
+              <h3>Train a Real VLM</h3>
+              <p>Train a vision-language model in code: projector alignment, multimodal pretraining, task mixtures, text replay, tiling, packing, LoRA placement, grounding and per-task evaluation.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-01-18">January 18, 2026</time></span><span>Updated <time datetime="2026-02-08">February 8, 2026</time></span><span>55 min read</span></div>
+              <div class="blog-tags"><span>Vision-Language Models</span><span>Multimodal Training</span><span>Task Mixtures</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="post-train-a-vlm/" target="_self" data-blog-categories="code vlms posttraining" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="post-train-a-vlm/preview.png" data-still-src="post-train-a-vlm/preview.png" data-animated-src="post-train-a-vlm/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Post-Train a VLM." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 09</span>
+              <h3>Post-Train a VLM</h3>
+              <p>Post-train SmolVLM-256M in code: hallucination negatives on synthetic images, image-conditioned DPO, a blind-preference check, visual GRPO, freeze ablation and reward hacking.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-03-29">March 29, 2026</time></span><span>Updated <time datetime="2026-04-19">April 19, 2026</time></span><span>45 min read</span></div>
+              <div class="blog-tags"><span>Vision-Language Models</span><span>image-conditioned DPO</span><span>visual GRPO</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="build-an-agent-harness-from-scratch/" target="_self" data-blog-categories="code agents" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="build-an-agent-harness-from-scratch/preview.png" data-still-src="build-an-agent-harness-from-scratch/preview.png" data-animated-src="build-an-agent-harness-from-scratch/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Build an Agent Harness From Scratch." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 10</span>
+              <h3>Build an Agent Harness From Scratch</h3>
+              <p>Build a coding agent from an eight-line loop: tools, validation, sandboxes, permissions, edit formats, compaction and an event log, each tested and measured.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-08-23">August 23, 2026</time></span><span>Updated <time datetime="2026-09-13">September 13, 2026</time></span><span>50 min read</span></div>
+              <div class="blog-tags"><span>Coding agents</span><span>Tool calling</span><span>Sandboxing</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="add-memory-to-the-agent/" target="_self" data-blog-categories="code agents" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="add-memory-to-the-agent/preview.png" data-still-src="add-memory-to-the-agent/preview.png" data-animated-src="add-memory-to-the-agent/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Add Memory and Context Engineering to the Agent." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 11</span>
+              <h3>Add Memory and Context Engineering to the Agent</h3>
+              <p>Give the C10 agent working, episodic, semantic and procedural memory, a token budget and compression, then test whether memory causally improves its work.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-13">September 13, 2026</time></span><span>Updated <time datetime="2026-10-04">October 4, 2026</time></span><span>70 min read</span></div>
+              <div class="blog-tags"><span>Agent memory</span><span>Context engineering</span><span>Hybrid retrieval</span></div>
+            </div>
+          </a>
+          <a class="blog-card" href="train-an-agent-with-rl/" target="_self" data-blog-categories="code agents posttraining" data-blog-series="code-tutorials">
+            <picture class="blog-card-media">
+              <img src="train-an-agent-with-rl/preview.png" data-still-src="train-an-agent-with-rl/preview.png" data-animated-src="train-an-agent-with-rl/preview.gif" width="960" height="540" loading="lazy" decoding="async" alt="Animated preview of a figure from Train an Agent With Reinforcement Learning." />
+            </picture>
+            <div class="blog-card-body">
+              <span class="blog-card-label">Coding tutorials &middot; 12</span>
+              <h3>Train an Agent With Reinforcement Learning</h3>
+              <p>Build a filesystem environment, clone a scripted expert, watch distribution shift break it, then train the agent online with GRPO, real rewards and failure injection.</p>
+              <div class="blog-meta"><span>Published <time datetime="2026-09-20">September 20, 2026</time></span><span>Updated <time datetime="2026-10-11">October 11, 2026</time></span><span>55 min read</span></div>
+              <div class="blog-tags"><span>Agent RL</span><span>GRPO</span><span>Environments</span></div>
+            </div>
+          </a>
+          <!-- code-series:end -->
           <a class="blog-card" href="building-grounded-document-intelligence/" target="_self" data-blog-categories="vlms systems research" data-blog-series="docai-research">
             <picture class="blog-card-media">
               <img src="building-grounded-document-intelligence/preview.png" data-still-src="building-grounded-document-intelligence/preview.png" width="960" height="540" loading="lazy" decoding="async" alt="REPLICA at the top feeding three papers below it: M3Grounder, DoCoG and DocLayout-VL" />
