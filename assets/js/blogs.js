@@ -1096,7 +1096,9 @@ async function initializeBlogFlashcards() {
   const articleSource = captureFlashcardArticleSource(article);
 
   try {
-    const dataUrl = new URL("blog-flashcards-data.js", blogShellScriptSource).href;
+    const dataUrlObj = new URL("blog-flashcards-data.js", blogShellScriptSource);
+    dataUrlObj.search = new URL(blogShellScriptSource, location.href).search;
+    const dataUrl = dataUrlObj.href;
     if (!window.BLOG_FLASHCARDS?.[slug]) await loadScriptOnce(dataUrl);
   } catch (_error) {
     return;
@@ -1124,6 +1126,16 @@ async function initializeBlogFlashcards() {
   const cardsButton = flashcardElement("button", "article-view-switcher__button", "TL;DR flashcards");
   articleButton.type = cardsButton.type = "button";
   controls.append(articleButton, cardsButton);
+  const codeHref = document.querySelector('link[rel="code-companion"]')?.href;
+  if (codeHref) {
+    const codeLink = flashcardElement("a", "article-view-switcher__button article-view-switcher__button--code", "Run the code \u2197");
+    codeLink.href = codeHref;
+    codeLink.target = "_blank";
+    codeLink.rel = "noopener";
+    codeLink.setAttribute("aria-label", "Run the code (opens the code on GitHub in a new tab)");
+    controls.append(codeLink);
+    controls.classList.add("article-view-switcher__controls--three");
+  }
   switcherInner.appendChild(controls);
   switcher.appendChild(switcherInner);
 

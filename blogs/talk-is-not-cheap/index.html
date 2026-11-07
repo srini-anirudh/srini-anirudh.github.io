@@ -6,6 +6,7 @@
     <meta name="description" content="What changes when an operation depends on data outside the local GPU. A first-principles walk from PCIe to InfiniBand: why messages cost time, the alpha-beta model, NVLink and NVSwitch, scale-up versus scale-out, RDMA, topology, collectives, and overlap." />
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/" />
+    <link rel="code-companion" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/talk-is-not-cheap" />
     <link rel="alternate" type="application/rss+xml" title="The Backward Pass RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
@@ -26,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
     <script type="application/ld+json">
       {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/"},"headline":"Talk Is Not Cheap: Communication from PCIe to InfiniBand","description":"A first-principles guide to communication beyond one GPU: PCIe, NVLink, NVSwitch, RDMA, InfiniBand, topology, collectives, and overlap.","image":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png","datePublished": "2026-02-08", "dateCreated": "2026-09-01","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["PCIe", "NVLink", "NVSwitch", "InfiniBand", "RDMA", "collective communication"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
@@ -188,7 +189,7 @@
           <span>Interconnect</span><span>Collectives</span><span>Networking</span><span>NCCL</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-02-08">February 8, 2026</time></span><span>First online <time datetime="2026-09-01">September 1, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>60 min read</span><span><a class="article-lab-link" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/talk-is-not-cheap" target="_blank" rel="noopener">Run the code</a></span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-02-08">February 8, 2026</time></span><span>First online <time datetime="2026-09-01">September 1, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>60 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -4483,6 +4484,6 @@
         });
       })();
     </script>
-    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script src="../../assets/js/blogs.js?v=20261107-codebar"></script>
   </body>
 </html>

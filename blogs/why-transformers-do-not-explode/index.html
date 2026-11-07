@@ -6,6 +6,7 @@
 <meta name="description" content="Why a 100-layer Transformer does not explode. A first-principles walk from variance propagation through a single matmul, to Xavier and Kaiming, to residual streams, Pre-LN vs Post-LN, DeepNorm, attention entropy collapse, Adam instability, low-precision arithmetic, loss-spike debugging, and scale-consistent parameterization.">
 <meta name="author" content="Anirudh Srinivasan">
 <link rel="canonical" href="https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/">
+    <link rel="code-companion" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-transformers-do-not-explode" />
 <link rel="alternate" type="application/rss+xml" title="Anirudh Srinivasan — RSS" href="/feed.xml">
 
 <meta property="og:type" content="article">
@@ -30,7 +31,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 <link rel="stylesheet" href="../../assets/css/stylesheet.css">
-<link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula">
+<link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar">
 
 <script type="application/ld+json">
 {
@@ -292,7 +293,7 @@ figcaption.panel-caption b{color:var(--ink-soft); font-weight:600}
       <span>Published 8 Dec 2024</span>
           <span>First online 6 Sep 2026</span>
       <span>Updated 7 Nov 2026</span>
-      <span>~54 min read</span><span><a class="article-lab-link" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-transformers-do-not-explode" target="_blank" rel="noopener">Run the code</a></span>
+      <span>~54 min read</span>
       <button class="article-share" aria-label="Share this article">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
         Share
@@ -1423,7 +1424,7 @@ A companion lab rebuilds most of the stability stack in small PyTorch scripts th
   </div>
 </footer>
 
-<script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+<script src="../../assets/js/blogs.js?v=20261107-codebar"></script>
 <script>
 /* ============================================================================
    Figure engine — implements the blog animation contract for every panel.

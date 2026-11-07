@@ -15,6 +15,7 @@
     <meta name="description" content="How a language model learns that a function exists, decides to call it, and gets the arguments right — from the decode-time boundary token to retrieval over 100,000 APIs, synthetic trajectory pipelines, and executable rewards." />
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/how-language-models-learn-to-use-tools/" />
+    <link rel="code-companion" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-language-models-learn-to-use-tools" />
     <link rel="alternate" type="application/rss+xml" title="Illustrated Notes RSS" href="https://srini-anirudh.github.io/feed.xml" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
@@ -35,7 +36,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -174,7 +175,7 @@
           <span>Function calling</span><span>Agents</span><span>Post-training</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-07">June 7, 2026</time></span><span>First online <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>42 min read</span><span><a class="article-lab-link" href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-language-models-learn-to-use-tools" target="_blank" rel="noopener">Run the code</a></span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-07">June 7, 2026</time></span><span>First online <time datetime="2026-09-05">September 5, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>42 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -803,7 +804,7 @@ Thought N  I have both dates. Answer.</code></pre>
       <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i>X</a>
       <a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume"><i class="fas fa-file-lines"></i>Resume</a>
     </footer>
-    <script src="../../assets/js/blogs.js?v=20260907-formula"></script>
+    <script src="../../assets/js/blogs.js?v=20261107-codebar"></script>
     <script>
     (function () {
       "use strict";

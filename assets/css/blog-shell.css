@@ -684,6 +684,17 @@ body.blog-index {
   color: var(--blog-blue);
 }
 
+.article-view-switcher__controls--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+a.article-view-switcher__button {
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
 .article-view-switcher__button.is-active {
   color: var(--blog-paper-bright);
   background: var(--blog-ink);
