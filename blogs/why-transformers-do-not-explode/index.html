@@ -15,7 +15,7 @@
 <meta property="og:url" content="https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/">
 <meta property="og:image" content="https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/preview.png">
 <meta property="article:published_time" content="2024-12-08">
-<meta property="article:modified_time" content="2026-04-05">
+<meta property="article:modified_time" content="2026-11-07">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Why Transformers Do Not Explode">
@@ -42,7 +42,7 @@
   "description": "A first-principles account of why deep Transformers stay numerically alive: variance propagation through matrix multiplication, Xavier and Kaiming initialization, the product of L matrices, residual stream growth, Pre-LN vs Post-LN, DeepNorm and depth-dependent initialization, attention logit growth and entropy collapse, optimizer and precision instabilities, a loss-spike debugging taxonomy, and scale-consistent parameterization.",
   "image": "https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/preview.png",
   "datePublished": "2024-12-08",
-  "dateModified": "2026-04-05",
+  "dateModified": "2026-11-07",
   "author": { "@id": "https://srini-anirudh.github.io/#person" },
   "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
   "keywords": ["initialization","signal propagation","training stability","Xavier initialization","Kaiming initialization","residual networks","Pre-LN","Post-LN","DeepNorm","QK normalization","attention entropy collapse","loss spikes","mixed precision","FP8","muP","hyperparameter transfer","Transformers","deep learning"],
@@ -290,7 +290,7 @@ figcaption.panel-caption b{color:var(--ink-soft); font-weight:600}
     <div class="article-meta-bar">
       <span>Anirudh Srinivasan</span>
       <span>Published 8 Dec 2024</span>
-      <span>Updated 5 Apr 2026</span>
+      <span>Updated 7 Nov 2026</span>
       <span>~54 min read</span>
       <button class="article-share" aria-label="Share this article">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
@@ -712,7 +712,7 @@ Pre-LN  :   x_{ℓ+1} = x_ℓ + F( LN(x_ℓ) )</div>
 <ul>
 <li>If the model takes a large update early and the inputs to LN grow, the gradient through every LN shrinks proportionally. The model becomes hard to move, exactly when it has moved somewhere bad.</li>
 <li>Xiong and colleagues showed that at initialization, Post-LN's expected gradient norm at the last layer scales like <code>O(d√(ln d))</code> independent of depth, while the gradients at different depths are badly unbalanced — the top layers get a much larger share.</li>
-<li>Their conclusion — that Pre-LN Transformers have well-behaved gradients at initialization while Post-LN does not — is the reason warmup was practically mandatory for Post-LN and became optional for Pre-LN.</li>
+<li>Their conclusion — that Pre-LN Transformers have well-behaved gradients at initialization while Post-LN does not — is the reason warmup was practically mandatory for Post-LN and became optional for Pre-LN. A small companion lab (12 layers, 400 steps, one seed) did not see warmup rescue Post-LN: with Xavier init it stayed at the unigram level (validation loss 3.36 to 3.39) with and without warmup, while with <code>N(0, 0.02)</code> init it trained without warmup.</li>
 </ul>
 
 <p>The DeepNet authors traced the full causal chain in a 18-layer encoder-decoder and it is worth reproducing because it is a genuinely good piece of debugging: Post-LN takes an exploding update at the very start of training; this lands it in a bad region; the inputs to LN become large; by the <code>√d/‖x‖</code> relation, the gradient through LN collapses; the model can no longer escape. Instability and vanishing gradients are the same event seen at two moments. They also showed that better initialization alone does not fix it — a Post-LN model with down-scaled lower layers still had a <em>larger</em> last-layer gradient norm, yet converged, which is what ruled out "exploding gradients in deep layers" as the root cause and pointed at the update magnitude instead.</p>
@@ -913,7 +913,7 @@ If p → one-hot:  p_i(1 − p_i) → 0  for every i
 
 <div class="eq">z_ij = ⟨ LN(W_Q x_i), LN(W_K x_j) ⟩ / √d_h</div>
 
-<p>Now <code>‖q‖</code> and <code>‖k‖</code> are pinned to √d<sub>h</sub> by construction, so the logit magnitude is bounded by <code>d_h/√d_h = √d_h</code> regardless of how large the weights grow. The technique is due to Henry and colleagues, and it came to wide attention when Dehghani and colleagues hit divergence training ViT past 8B parameters and traced it to exactly this: extremely large attention logits producing near-one-hot attention weights with near-zero entropy. QK-norm fixed it. Wortsman and colleagues then showed the same instability reproduces in <em>small</em> models at high learning rate, and that qk-layernorm stabilizes training across three orders of magnitude of learning rate variation — which is what made it cheap to study and cheap to justify. It is now standard in OLMo 2, Gemma 3, Qwen 3 and much else.</p>
+<p>Now <code>‖q‖</code> and <code>‖k‖</code> are pinned to √d<sub>h</sub> by construction, so the logit magnitude is bounded by <code>d_h/√d_h = √d_h</code> regardless of how large the weights grow. That bound holds for LayerNorm with unit gain; with learnable gains it scales with the gains. In a small companion lab with learnable gains, the max logit still reached 18.3 at a learning rate of 3e-2, against about 47,000 without QK-norm. The technique is due to Henry and colleagues, and it came to wide attention when Dehghani and colleagues hit divergence training ViT past 8B parameters and traced it to exactly this: extremely large attention logits producing near-one-hot attention weights with near-zero entropy. QK-norm fixed it. Wortsman and colleagues then showed the same instability reproduces in <em>small</em> models at high learning rate, and that qk-layernorm stabilizes training across three orders of magnitude of learning rate variation — which is what made it cheap to study and cheap to justify. It is now standard in OLMo 2, Gemma 3, Qwen 3 and much else.</p>
 
 <p><strong>Logit soft-capping.</strong> Squash the logits through a scaled tanh instead of normalizing their inputs:</p>
 
@@ -1269,6 +1269,11 @@ The clean theory is about <b>width</b>. Depth transfer is harder and the correct
 Whether the modern recipe works because it approximately restores the conditions the signal-propagation theory identifies — near-critical gain, bounded update magnitude, controlled Jacobian spectra — or whether it works for reasons the theory does not capture and the agreement is partly retrospective. The mean-field and dynamical-isometry results are rigorous about random networks at initialization, and almost everything that matters happens after initialization, in a regime where the independence assumptions those derivations rest on are known to be false. I do not think this is resolved, and I would treat confident mechanistic claims in either direction with suspicion.
 </div>
 
+<div class="callout run-the-code">
+<span class="callout__label">Run the code</span>
+A companion lab rebuilds most of the stability stack in small PyTorch scripts that run on a CPU. You can watch variance compound through sixty plain layers, measure how far one Adam step moves a Post-LN model and a DeepNorm model as depth grows, and saturate a softmax until its gradient dies. Other scripts count FP16 underflow in real gradients and check whether the best learning rate moves with width under standard parameterization and under μP: <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-transformers-do-not-explode" target="_blank" rel="noopener noreferrer">labs/why-transformers-do-not-explode</a>.
+</div>
+
 <h2 id="references">13 — References</h2>
 
 <p class="references-intro">Grouped by the part of the argument they support. Where a paper's own numbers appear in the text above, they are the ones reported in that paper; the figures use schematic values unless a caption says otherwise.</p>
@@ -1394,7 +1399,7 @@ Whether the modern recipe works because it approximately restores the conditions
   month         = {Dec},
   howpublished =
     {\url{https://srini-anirudh.github.io/blogs/why-transformers-do-not-explode/}},
-  note         = {Blog post. Published December 8, 2024; updated April 5, 2026}
+  note         = {Blog post. Published December 8, 2024; updated November 7, 2026}
 }</code></pre>
     <button class="citation-copy" data-copy-citation>Copy BibTeX</button>
     <span class="citation-status" aria-live="polite"></span>

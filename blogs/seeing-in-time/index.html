@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/seeing-in-time/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/seeing-in-time/preview.png" />
     <meta property="article:published_time" content="2026-05-03" />
-    <meta property="article:modified_time" content="2026-05-24" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Seeing in Time: Video Understanding in Vision-Language Models" />
     <meta name="twitter:description" content="Frames, tokens, time: how vision-language models sample, encode, compress and ground video, and why many video benchmarks can be solved from one frame." />
@@ -37,7 +37,7 @@
         "description": "How vision-language models understand video: frame sampling, video encoders, temporal position encoding, token compression, long video, temporal grounding, data, and the single-frame shortcut in benchmarks.",
         "image": "https://srini-anirudh.github.io/blogs/seeing-in-time/preview.png",
         "datePublished": "2026-05-03",
-        "dateModified": "2026-05-24",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["video understanding", "vision-language models", "video LLMs", "temporal grounding", "long video", "M-RoPE"],
@@ -206,7 +206,7 @@
           <span>Video understanding</span><span>Vision-language models</span><span>Long context</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-03">May 3, 2026</time></span><span>Last modified <time datetime="2026-05-24">May 24, 2026</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-03">May 3, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -391,7 +391,7 @@
         </figure>
 
         <h3>Back to text, for a reason</h3>
-        <p>The fourth answer is the newest, and it is a return. Qwen3-VL replaced absolute-time M-RoPE with explicit text timestamps, such as <code>&lt;3.0 seconds&gt;</code>, placed before each group of frames. It trains with both seconds and hours:minutes:seconds formats. The report gives two reasons. Tying position numbers to absolute time makes them very large and sparse for long videos, which hurt long-range understanding. And learning time-aligned positions required training data spread evenly across many frame rates, which is expensive to build. Text timestamps cost a few extra tokens but avoid both problems.</p>
+        <p>The fourth answer is the newest, and it is a return. Qwen3-VL replaced absolute-time M-RoPE with explicit text timestamps, such as <code>&lt;3.0 seconds&gt;</code>, placed before each group of frames. It trains with both seconds and hours:minutes:seconds formats. The report gives two reasons. Tying position numbers to absolute time makes them very large and sparse for long videos, which hurt long-range understanding. And learning time-aligned positions required training data spread evenly across many frame rates, which is expensive to build. Text timestamps cost a few extra tokens but avoid both problems. A small companion lab adds a caution. A toy model trained at a single 2 frames per second with text timestamps counted frames and ignored the stamps, so its duration error at 1 frame per second was 1.73 s, against 0.32 s for absolute-time ids. In that toy, text timestamps still needed training at several frame rates.</p>
         <p>Qwen3-VL also changed how M-RoPE allocates frequencies. The original split gave each of the temporal, height and width parts its own contiguous block of rotary frequencies. The report says this produced an imbalanced frequency spectrum that hurt long-video benchmarks. The fix interleaves the three axes across the embedding dimensions, so each axis gets both low and high frequencies. InternVL3 attacked a related problem from another side. Its Variable Visual Position Encoding (V2PE) advances the position index by 1 for each text token but only by a fraction &delta; &lt; 1 for each visual token. Long visual inputs then use up less of the position range.</p>
 
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The Qwen line went from order only (early models) to absolute time inside RoPE (Qwen2.5-VL) and then back to text timestamps (Qwen3-VL). Apollo's ablation and VideoLLaMA 3's design reach the same place from independent directions. The lesson is not that position-encoding approaches failed. Absolute time in RoPE worked for second-level grounding. It became costly at hour scale and in data construction. If you build a video model today, text timestamps are the cheaper default, and the extra tokens are a small fraction of the visual tokens.</p></aside>
@@ -656,6 +656,7 @@
         <p>Return to the five questions about the ball and the cup. You can now say what each one demands of a model. The colour of the cup needs one good frame. The direction of the roll needs two frames close together inside the roll, and enough per-frame detail to see the ball move. The order of events needs frames from both events and a sequence position for each. The duration of the hold needs real time, either written as text or built into positions. The moment of the drop needs a frame inside a one-second window, which means dense sampling where it matters.</p>
         <p>You can also read a video model's design as a budget. Given a frame rate, a tokens-per-frame setting and a context window, you can compute how much video fits. Given a compression method, you can say what it gives up: detail, exact timing or old memories. Given a benchmark score, you can ask how much of it a single frame would have earned.</p>
         <p>Two threads continue in the next posts. The single-frame shortcut is a reward-hacking problem as much as an evaluation problem, and T-GRPO's shuffled-frame comparison is one instance of a broader idea: design the reward so that it can only be earned by looking. That is the subject of <a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a>. The search route for long video, where a model decides which moments to look at, is a form of active perception that <a href="../thinking-with-images/">Thinking With Images</a> develops for images.</p>
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>The companion lab rebuilds this article's token arithmetic, frame sampling, tubelets, M-RoPE time ids, slow-fast allocation and temporal IoU in small PyTorch code, on the same one-minute ball-and-cup clip. It checks the patch embedding and position ids against the Hugging Face code for Qwen2-VL, Qwen2.5-VL and Qwen3-VL.</p><p>It also trains tiny video models on a CPU. You can watch uniform sampling break speed estimates on long videos, and frame-index positions fail to tell seconds. You can see a model with no sense of order stay at chance on direction and order questions, and a video model fall to chance when its frames are shuffled. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/seeing-in-time">labs/seeing-in-time on GitHub</a></p></aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../when-language-must-point/">When Language Must Point</a></li><li><a href="../measuring-what-a-vlm-can-do/">Measuring What a VLM Can Do</a></li><li><a href="../rewarding-what-the-model-sees/">Rewarding What the Model Sees</a></li></ul></nav>
@@ -802,7 +803,7 @@
   month        = {May},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/seeing-in-time/},
-  note         = {Published May 3, 2026; updated May 24, 2026}
+  note         = {Published May 3, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

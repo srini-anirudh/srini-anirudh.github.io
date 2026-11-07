@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/scaling-laws-from-first-principles/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/scaling-laws-from-first-principles/preview.png" />
     <meta property="article:published_time" content="2025-07-20" />
-    <meta property="article:modified_time" content="2025-10-05" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Scaling Laws from First Principles" />
     <meta name="twitter:description" content="Where C = 6ND comes from, how compute-optimal allocation falls out of a one-line optimisation, and why the 20-tokens-per-parameter rule is not a constant." />
@@ -37,7 +37,7 @@
         "description": "A first-principles derivation of neural scaling laws, compute-optimal allocation, the Kaplan-Chinchilla discrepancy, inference-aware scaling, and the limits of extrapolation.",
         "image": "https://srini-anirudh.github.io/blogs/scaling-laws-from-first-principles/preview.png",
         "datePublished": "2025-07-20",
-        "dateModified": "2025-10-05",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["scaling laws", "compute-optimal training", "Chinchilla", "large language models", "pretraining"],
@@ -219,7 +219,7 @@
           <span>Scaling laws</span><span>Pretraining</span><span>Compute budgets</span><span>Interactive</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-07-20">July 20, 2025</time></span><span>Last modified <time datetime="2025-10-05">October 5, 2025</time></span><span>39 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-07-20">July 20, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>39 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -636,7 +636,7 @@
         <p>Three things are worth noticing before we derive any of it.</p>
         <p><strong>The curve is a hyperbola, not a line.</strong> Doubling the model halves the tokens. That is not a modelling choice; it is what a fixed compute budget means, and it comes directly from the identity in the next section.</p>
         <p><strong>The loss curve is flat near its minimum.</strong> Over a factor of two or three in model size, the achievable loss barely moves. This is why every lab that has published an IsoFLOP analysis says some version of &ldquo;the optimum is broad,&rdquo; and it is why the flagship model of a given generation is usually a round number rather than the exact argmin.</p>
-        <p><strong>The walls are steep and asymmetric.</strong> Going too large hurts faster than going too small, because the data term has the smaller exponent in this fit and therefore the slower decay. Under-training a big model is the more expensive mistake.</p>
+        <p><strong>The walls are steep and close to symmetric.</strong> With these constants, a model four times too small costs slightly more loss than one four times too big: +0.0301 against +0.0285 at 10<sup>23</sup> FLOPs. Neither mistake is clearly the worse one.</p>
       </section>
 
       <script>
@@ -2259,7 +2259,7 @@
         <div class="eq"><var>D</var><sub>raw</sub> &ne; <var>D</var><sub>effective</sub></div>
         <p>Muennighoff and colleagues measured the gap directly, training more than 400 models up to 9B parameters and 900B tokens, with repetition counts ranging up to 1,500 epochs. Their headline result is unusually actionable:</p>
         <p><strong>Up to about four epochs, repeated data is nearly as good as fresh data.</strong> An 8.7B model trained for four epochs on 44B unique tokens finished within half a percent of the validation loss of a single-epoch run on 178B unique tokens. That difference does not show up in downstream evaluations at all.</p>
-        <p><strong>Meaningful gains continue to roughly sixteen epochs, then collapse.</strong> Beyond that the return on additional compute decays toward zero: you are spending FLOPs to memorise text you have already extracted everything from.</p>
+        <p><strong>Meaningful gains continue to roughly sixteen epochs, then collapse.</strong> Beyond that the return on additional compute decays toward zero: you are spending FLOPs to memorise text you have already extracted everything from. In a small companion lab, a 3.4M-parameter model trained at fixed compute lost 1.1% at 4 epochs, 5.9% at 8 and 25.5% at 16, against a single pass over fresh data. That is a larger penalty than the effective-token formula predicts from 16 epochs on, at that scale and with one seed.</p>
 
         <div class="fig">
           <div class="fig-head">
@@ -3520,6 +3520,12 @@
         <p><strong>The failures are accounting failures.</strong> Every documented case of a scaling law being wrong &mdash; Kaplan's exponent, the Chinchilla parametric fit, mixed dense-and-sparse comparisons &mdash; came from a definition that drifted systematically with the very variable being swept. Bias that grows with scale does not look like noise. It looks like a slope, and a slope is what you extrapolate.</p>
         <p><strong>Forecast continuous things.</strong> Loss extrapolates; accuracy does not. Whether emergence is real or an artefact of scoring is a question you can mostly route around by predicting the smooth quantity underneath and thresholding at the end.</p>
         <p>The next article in this series takes the token axis seriously and asks where 15 trillion tokens actually come from, how they are filtered, and what a pretraining curriculum looks like once you stop pretending <span class="v">D</span> is a single number.</p>
+
+        <div class="callout run-the-code">
+          <h4>Run the code</h4>
+          <p>The companion lab trains a small family of language models on TinyStories at four compute budgets. It fits the IsoFLOP frontier and the parametric loss law to those real runs. It also counts the six FLOPs per parameter per token with PyTorch's own FLOP counter, checks the closed-form allocation against brute force, and shows how repeated data and an all-or-nothing metric change what you measure.</p>
+          <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/scaling-laws-from-first-principles">Open the lab on GitHub</a></p>
+        </div>
       </section>
 
       <script>
@@ -3974,7 +3980,7 @@
   month        = {Jul},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/scaling-laws-from-first-principles/},
-  note         = {Published July 20, 2025; updated October 5, 2025}
+  note         = {Published July 20, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

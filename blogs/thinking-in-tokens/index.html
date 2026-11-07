@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/thinking-in-tokens/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png" />
     <meta property="article:published_time" content="2025-11-09" />
-    <meta property="article:modified_time" content="2025-11-09" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Thinking in Tokens — What Reasoning Models Actually Do" />
     <meta name="twitter:description" content="Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work." />
@@ -37,7 +37,7 @@
         "description": "Reasoning models are ordinary autoregressive Transformers whose post-training taught them to write a long intermediate trajectory before answering. This is what that trajectory buys, what it costs, and how thinking budgets actually work.",
         "image": "https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png",
         "datePublished": "2025-11-09",
-        "dateModified": "2025-11-09",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["reasoning models", "chain of thought", "test-time compute", "thinking budget", "latent reasoning", "serial depth"],
@@ -197,7 +197,7 @@
           <span>Reasoning models</span><span>Test-time compute</span><span>Chain of thought</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-09">November 9, 2025</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-09">November 9, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -717,7 +717,7 @@
 
         <p>Their illustrative example is perfect in its stupidity: the model counts the letter r in "raspberry," concludes there are two, and moves to stop. Suppress the delimiter, append "Wait," and it re-reads the word letter by letter and corrects itself to three.</p>
 
-        <p>The numbers make the argument. s1-32B with budget forcing exceeded o1-preview on competition math by up to 27 points on MATH and AIME24, and — the striking part — forcing extended thinking pushed it <em>past its own unintervened ceiling</em>, from 50% to 57% on AIME24. Same weights, same prompt. The only change was refusing to let it stop.</p>
+        <p>The numbers make the argument. s1-32B with budget forcing exceeded o1-preview on competition math by up to 27 points on MATH and AIME24, and — the striking part — forcing extended thinking pushed it <em>past its own unintervened ceiling</em>, from 50% to 57% on AIME24. Same weights, same prompt. The only change was refusing to let it stop. A small companion lab did not reproduce this gain on an untuned Qwen3-0.6B: on 100 GSM8K questions, accuracy was 0.79, 0.81 and 0.75 with zero, one and two forced Waits. The standard error is about 4 points, so that run says nothing for tuned or larger models.</p>
 
         <p>Take those two mechanisms together and the picture is clear. Qwen3 truncates by injection; s1 extends by suppression. Both are string surgery on the decode loop. Neither touches a parameter.</p>
 
@@ -751,7 +751,7 @@
 
         <p><strong>Does the model use additional computation before answering?</strong> Yes, demonstrably and quantifiably. Every reasoning token is a forward pass; the serial depth of the computation grows linearly with trajectory length; the circuit-complexity separation says this is not a marginal effect but a change in what is computable at all.</p>
 
-        <p><strong>Is that computation doing useful work, or is the trace decorative?</strong> Useful. Cut the budget and accuracy falls, smoothly and reproducibly, on hard benchmarks. Extend it past where the model wanted to stop and accuracy rises. The tokens are load-bearing.</p>
+        <p><strong>Is that computation doing useful work, or is the trace decorative?</strong> Useful. Cut the budget and accuracy falls, smoothly and reproducibly, on hard benchmarks. (On Qwen3-0.6B and 100 GSM8K questions the curve in the companion lab was noisy rather than smooth: 0.61 with no thinking, 0.81 at a 1,024-token budget, 0.78 at 2,048.) Extend it past where the model wanted to stop and accuracy rises. The tokens are load-bearing.</p>
 
         <p><strong>Does the model deliberate in the sense of considering, evaluating and rejecting alternatives?</strong> The trace contains those moves. It also contained many of them before any reinforcement learning, which is the deflation from section six worth keeping in mind. What RL reliably did was make the behaviour productive and consistent rather than superficial — a real achievement, and a narrower claim than "the model learned to reflect."</p>
 
@@ -762,6 +762,9 @@
         <p>What would change things is progress on two fronts. Interpretability that could tell us when a stated step corresponds to the computation rather than merely coinciding with it. And training that makes faithfulness saturate rather than plateau — because if latent reasoning turns out to be the efficient path, we will be trading away the last legible window we have at precisely the moment models get good enough that we want to look through it.</p>
 
         <p>There is a smaller prediction I am more confident about. "Reasoning model" is probably not a lasting category. Qwen3 already folded both modes into one set of weights and exposed the difference as a request parameter; the other labs converged on the same surface within months. What we are heading toward is not models that think and models that don't, but models that estimate how much computation a request is worth and spend accordingly — at which point the interesting engineering question is not whether the model thinks, but whether its estimate is any good.</p>
+
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>A companion lab trains a small Transformer on parity, once answering in one token and once writing the running parity first. It shows the written trace buying the depth that a single pass lacks. It also checks the cost formulas in this post against a real FLOP counter and simulates when self-consistency voting helps.</p><p>The lab then runs Qwen3-0.6B on GSM8K with the controls from the budgets section: the empty think block, the /no_think flag, Qwen3's interrupt-and-salvage budget and s1's "Wait". All of them are edits to the token stream. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/thinking-in-tokens">labs/thinking-in-tokens on GitHub</a></p></aside>
+
       </section>
 
       <section id="references">
@@ -863,7 +866,7 @@
   month        = {Nov},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/thinking-in-tokens/},
-  note         = {Published November 9, 2025}
+  note         = {Published November 9, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

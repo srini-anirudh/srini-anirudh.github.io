@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/thinking-with-images/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/thinking-with-images/preview.png" />
     <meta property="article:published_time" content="2026-05-31" />
-    <meta property="article:modified_time" content="2026-06-21" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Thinking With Images: Reasoning VLMs and Multimodal Test-Time Scaling" />
     <meta name="twitter:description" content="Reasoning vision-language models and multimodal test-time scaling from first principles: why thinking longer cannot recover lost pixels, and how zooming, visual search, verification and visual tools turn perception into compute." />
@@ -37,7 +37,7 @@
         "description": "Reasoning vision-language models and multimodal test-time scaling from first principles: why thinking longer cannot recover lost pixels, and how zooming, visual search, verification and visual tools turn perception into compute.",
         "image": "https://srini-anirudh.github.io/blogs/thinking-with-images/preview.png",
         "datePublished": "2026-05-31",
-        "dateModified": "2026-06-21",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["multimodal reasoning", "test-time compute", "active perception", "vision-language models", "thinking with images", "visual chain of thought"],
@@ -235,7 +235,7 @@
           <span>Multimodal reasoning</span><span>Test-time compute</span><span>Active perception</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-31">May 31, 2026</time></span><span>Last modified <time datetime="2026-06-21">June 21, 2026</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-31">May 31, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -539,6 +539,8 @@
         <h3>Why reasoning cannot help once the detail is gone</h3>
         <p>At 448 pixels, the visual tokens carry almost no information about the closing time. By the data processing inequality from the <a href="#stages">first section</a>, nothing computed from those tokens can carry more.</p>
         <p>So consider giving the model ten times more reasoning tokens, then a hundred times more. Each extra token is another function of the same <i>z</i><sub>v</sub>. The model can reason about which shops usually close when. It can sample many chains and take a majority vote. All of that converges on the language prior: something like 18:00. The plaque says 17:30, and that fact is not in the input to any of these computations.</p>
+
+        <p>A small companion lab checked this on Qwen2-VL-2B. Voting over 16 text samples from one 448 px look scored 0.12, the same as one sample, as argued above. The samples did not converge on one prior, though. At temperature 1 the model gave about ten different answers per scene, and only 4% matched its no-image answer.</p>
 
         <div class="principle">
           <p class="principle__kicker">Principle</p>
@@ -928,6 +930,8 @@
           <li><strong>Over-querying is a phase.</strong> Tool use in DeepEyes went from exploration to a broad sweep to efficient use. Judge efficiency at the end of training. (<a href="#overthinking">Overthinking</a>)</li>
           <li><strong>Process reward gains were measured on reasoning-heavy benchmarks.</strong> Pair them with checks that re-read cited regions for perception-heavy tasks. (<a href="#verification">Verification</a>)</li>
         </ul>
+
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>A companion lab renders the bakery photo from this post and asks a small open model, Qwen2-VL-2B, when the bakery closes. You can watch accuracy fall as the encoder width shrinks. A longer chain of thought and more samples do not bring the plaque back, but a crop at the same token budget does. The lab also runs the diagnostic probes, measures attention on the image along a long trace, and compares one look, an attention-guided crop and a best-first region search with a verification step.</p><p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/thinking-with-images">labs/thinking-with-images on GitHub</a></p></aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title">
@@ -1068,7 +1072,7 @@
   month        = {May},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/thinking-with-images/},
-  note         = {Published May 31, 2026; updated June 21, 2026}
+  note         = {Published May 31, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

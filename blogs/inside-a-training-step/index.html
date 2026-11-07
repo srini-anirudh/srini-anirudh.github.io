@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/inside-a-training-step/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/inside-a-training-step/preview.png" />
     <meta property="article:published_time" content="2026-03-01" />
-    <meta property="article:modified_time" content="2026-03-01" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Inside a Training Step: what actually happens when a transformer trains" />
     <meta name="twitter:description" content="A first-principles, animated walkthrough of everything that happens inside a single transformer training step." />
@@ -37,7 +37,7 @@
         "description": "A first-principles, animated walkthrough of everything that happens inside a single transformer training step: data movement, tensor shapes, FLOPs, backprop, activation lifetime, and the memory ledger.",
         "image": "https://srini-anirudh.github.io/blogs/inside-a-training-step/preview.png",
         "datePublished": "2026-03-01",
-        "dateModified": "2026-03-01",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["transformer training", "activation memory", "backpropagation", "mixed precision", "MFU"],
@@ -174,7 +174,7 @@
           <span>transformers</span><span>memory</span><span>systems</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-01">March 1, 2026</time></span><span>29 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-01">March 1, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>29 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -467,6 +467,7 @@
           full checkpointing: &nbsp; memory ↓ ~10× &nbsp;·&nbsp; compute ↑ ~33%
           <span class="why">One extra forward (2ND) on top of 6ND gives 8ND. Recomputation is cheap because forward is the cheap half.</span>
         </div>
+        <p>These are the idealized figures. A companion lab measured 1.26× the FLOPs of a plain step for full checkpointing of a small model, because the LM head is not recomputed and a block's last GEMM is not rerun. On an 8-layer model on an H100 the peak fell only 7% (31.81 to 29.50 GiB), since the logits and loss are never checkpointed. The ~10× counts the layers' activations alone at 32 layers, and the lab did not measure it.</p>
         <p>Checkpointing every block is the blunt version. The sharp version is <strong>selective</strong>: recompute only the operations that are cheap in FLOPs and expensive in memory, and keep the ones that are the reverse. The SiLU-multiply is nearly free to recompute and saves 90 MB per layer. A GEMM output is expensive to recompute and saves the same 33 MB. Recompute the first, keep the second, and you capture most of the memory saving for a fraction of the compute penalty — Korthikanti et al. report keeping the overhead near 4% instead of 33%.</p>
         <p>The asymmetry gets sharper in multimodal models. In a VLM, the vision tower runs on far more tokens per image than the language model sees after pooling, and its activations are correspondingly larger relative to its parameter count. Full checkpointing on ViT blocks and selective checkpointing on LLM blocks is often the right split, precisely because the two towers sit at different points on this trade curve.</p>
       </section>
@@ -553,6 +554,9 @@
         <div class="pull">Which parts of this step can be divided across devices, and what does each division cost in communication?</div>
         <p>Look back at what we found. The <strong>batch</strong> divides trivially — different tokens are independent until the gradient all-reduce. The <strong>optimizer states</strong> divide cleanly, because each parameter's update depends only on that parameter. The <strong>parameters</strong> divide at the cost of gathering them back before every GEMM. The <strong>sequence</strong> divides everywhere except attention, which needs every token to see every other token. The <strong>layers</strong> divide, but they are strictly sequential, so dividing them creates idle time by construction.</p>
         <p>Five axes, five different communication bills. That is <a href="../the-parallelism-playbook/">The Parallelism Playbook</a>, and it is the next article.</p>
+        <div class="aside-note">
+          <p><strong>Run the code.</strong> A companion lab recomputes every back-of-envelope number in this post from the six architecture numbers, then makes the mechanisms happen on small models. You can count backward's two GEMMs with PyTorch's FLOP counter, watch the activation mountain rise and drain, and see BF16 updates round to nothing without an FP32 master copy. A GPU script times each op of one block at the post's shape on an H100 and measures the memory ledger, MFU and the cost of checkpointing on an 8-layer model: <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/inside-a-training-step">labs/inside-a-training-step</a>.</p>
+        </div>
       </section>
 
       <section id="references">
@@ -624,7 +628,7 @@
   month        = {Mar},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/inside-a-training-step/},
-  note         = {Published March 1, 2026}
+  note         = {Published March 1, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

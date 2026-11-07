@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-from-first-principles/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-from-first-principles/preview.png" />
     <meta property="article:published_time" content="2025-09-28" />
-    <meta property="article:modified_time" content="2025-11-02" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Reinforcement Learning from First Principles" />
     <meta name="twitter:description" content="How sequence generation becomes a reinforcement learning problem, derived from scratch: policy gradients, baselines, advantages, GAE, trust regions and PPO." />
@@ -37,7 +37,7 @@
         "description": "A first-principles derivation of reinforcement learning for language models: from the missing target of supervised learning, through the policy gradient, baselines, advantages, actor-critic and trust regions, to PPO and the tensors it becomes.",
         "image": "https://srini-anirudh.github.io/blogs/reinforcement-learning-from-first-principles/preview.png",
         "datePublished": "2025-09-28",
-        "dateModified": "2025-11-02",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Reinforcement learning", "Policy gradient", "PPO", "REINFORCE", "GAE", "Language models", "RLHF"],
@@ -209,7 +209,7 @@
           <span>Reinforcement learning</span><span>Policy gradients</span><span>PPO</span><span>Post-training</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-09-28">September 28, 2025</time></span><span>Last modified <time datetime="2025-11-02">November 2, 2025</time></span><span>58 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-09-28">September 28, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>58 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -3954,6 +3954,12 @@ RL (terminal) &nbsp;&asymp;&nbsp; 256 targets/step &nbsp;&nbsp;&middot;&nbsp;&nb
         <p>A different branch starts from the opposite premise. In mathematics, code and formal logic the reward <em>is</em> writable &mdash; a checker, a test suite, a proof assistant. No reward model, no overoptimisation, no human in the loop. That changes the calculus completely and is where the last two years of reasoning-model progress came from, along with the critic-free methods gestured at in &sect;14 and the unresolved question of whether any of it expands capability or merely sharpens it. That is <a href="../how-reinforcement-learning-teaches-models-to-reason/">L7: RL for Reasoning</a>.</p>
 
         <p>Both branches use the machinery derived here. Neither is comprehensible without it.</p>
+
+        <div class="nuance run-the-code">
+          <span class="nk">Run the code</span>
+          <p>The companion lab checks these derivations on a policy small enough that every possible answer can be listed. The true gradient, the true values and the exact KL are then all known. You can watch REINFORCE converge on the exact gradient, see baselines and GAE trade bias against variance, and see entropy collapse wipe out the rare prompts. You can also see PPO's clip slow the drift without bounding it.</p>
+          <p>A last script scores the same SmolLM2-135M samples along a sampler path and a trainer path. It shows how small numerical gaps add up over a sequence. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/reinforcement-learning-from-first-principles">labs/reinforcement-learning-from-first-principles on GitHub</a></p>
+        </div>
       </section>
 
       <section id="references">
@@ -4034,7 +4040,7 @@ RL (terminal) &nbsp;&asymp;&nbsp; 256 targets/step &nbsp;&nbsp;&middot;&nbsp;&nb
   year         = {2025},
   month        = {Sep},
   howpublished = {\url{https://srini-anirudh.github.io/blogs/reinforcement-learning-from-first-principles/}},
-  note         = {Understanding LLMs, Part 5. Published September 28, 2025; updated November 2, 2025}
+  note         = {Understanding LLMs, Part 5. Published September 28, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation aria-label="Copy the BibTeX citation">Copy BibTeX</button>
         <span class="citation-status" role="status"></span>

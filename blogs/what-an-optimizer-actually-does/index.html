@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A mechanical tour of neural network optimizers — from SGD to Muon — covering how each builds its update, what it costs in bytes per parameter, and where it bottlenecks a training run." />
     <meta property="article:published_time" content="2024-10-20" />
-    <meta property="article:modified_time" content="2026-03-08" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <title>What an Optimizer Actually Does | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/" />
@@ -21,7 +21,7 @@
     <meta name="twitter:description" content="A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/"},"headline":"What an Optimizer Actually Does","description":"A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks.","image":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/preview.png","datePublished":"2024-10-20","dateModified":"2026-03-08","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["neural network optimizers","SGD","AdamW","Muon","deep learning","model training"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/"},"headline":"What an Optimizer Actually Does","description":"A mechanical tour of neural network optimizers, from SGD to Muon, including update rules, memory costs, and bottlenecks.","image":"https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/preview.png","datePublished":"2024-10-20","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["neural network optimizers","SGD","AdamW","Muon","deep learning","model training"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -217,7 +217,7 @@
           <span>Optimizers</span><span>Distributed training</span><span>Memory</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-10-20">October 20, 2024</time></span><span>Last modified <time datetime="2026-03-08">March 8, 2026</time></span><span>34 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-10-20">October 20, 2024</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>34 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -445,10 +445,10 @@
           m₁ = 0.1 g&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; v₁ = 0.001 g²&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; √v₁ = 0.0316 |g|<br />
           <span class="c">uncorrected:</span> m₁/√v₁ = <span class="h">3.16 · sign(g)</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">corrected:</span> m̂₁/√v̂₁ = 1.00 · sign(g)
         </div>
-        <p>The numerator is suppressed by 10× but the denominator by ~32×, so the <em>ratio</em> is inflated by a factor of √(1−β₂)⁻¹·(1−β₁) ≈ 3.2. Without correction Adam takes its largest steps at initialisation, when the gradient estimate is worst. Bias correction is a built-in warmup, and it is one reason short-warmup recipes are viable at all.</p>
+        <p>The numerator is suppressed by 10× but the denominator by ~32×, so the <em>ratio</em> is inflated by a factor of √(1−β₂)⁻¹·(1−β₁) ≈ 3.2. Without correction Adam takes oversized steps early on, when the gradient estimate is worst. For a constant gradient the uncorrected step is 3.16× too large at step 1 and grows to about 6.6× by step 12 before it slowly settles. Bias correction is a built-in warmup, and it is one reason short-warmup recipes are viable at all.</p>
         <div class="callout callout--trap">
           <span class="callout-label">Where the update size comes from</span>
-          <p>Once bias correction has settled, <code>|m̂ / √v̂|</code> sits near <strong>1 for every coordinate</strong>, so Adam's update has RMS ≈ 1 element-wise regardless of layer, gradient scale, or loss scale. This is the property that makes a single global learning rate work across a 100-layer network — and it is exactly the property Muon has to replicate by hand with an explicit rescale, since an orthogonalised matrix has RMS <code>1/√max(m,n)</code>, not 1.</p>
+          <p>Once bias correction has settled, <code>|m̂ / √v̂|</code> sits near <strong>1 for every coordinate</strong>, so Adam's update has RMS ≈ 1 element-wise regardless of layer, gradient scale, or loss scale, as long as the gradient signal dominates the noise. For pure noise the RMS is about 0.23, and at a signal-to-noise ratio of 1 it is about 0.73. This is the property that makes a single global learning rate work across a 100-layer network — and it is exactly the property Muon has to replicate by hand with an explicit rescale, since an orthogonalised matrix has RMS <code>1/√max(m,n)</code>, not 1.</p>
         </div>
       </section>
 
@@ -518,7 +518,7 @@
         </div>
 
         <h3>8-bit optimizers — quantise the state</h3>
-        <p>Store <code>m</code> and <code>v</code> as 8-bit integers instead of fp32, dequantising on the fly inside the step. Naive quantisation fails because a single outlier sets the scale for the whole tensor; the fix is <strong>block-wise</strong> quantisation — split the state into blocks of 2048, normalise each block by its own absolute max, and use a non-linear (dynamic-exponent) code so small magnitudes keep resolution. State drops from 8 bytes to 2 bytes per parameter with no measurable loss on standard recipes. The failure mode to know about is that <code>v</code> is more sensitive than <code>m</code>, because errors there pass through a reciprocal square root.</p>
+        <p>Store <code>m</code> and <code>v</code> as 8-bit integers instead of fp32, dequantising on the fly inside the step. Naive quantisation fails because a single outlier sets the scale for the whole tensor; the fix is <strong>block-wise</strong> quantisation — split the state into blocks of 2048, normalise each block by its own absolute max, and use a non-linear (dynamic-exponent) code so small magnitudes keep resolution. State drops from 8 bytes to 2 bytes per parameter with no measurable loss on standard recipes. The failure mode to know about is small values of <code>v</code>: errors there pass through a reciprocal square root, and a linear code rounds many of them to zero. In a companion lab 2.8% of nonzero <code>v</code> entries rounded to zero under a block-wise linear code, which sends <code>m/(√v+ε)</code> to <code>m/ε</code> there. A log-spaced code avoided it.</p>
 
         <h3>Lion — throw away the second moment entirely</h3>
         <div class="eq">
@@ -540,7 +540,7 @@
           L ← L + G G<sup>⊤</sup>&nbsp;&nbsp;<span class="c">(m×m)</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; R ← R + G<sup>⊤</sup>G&nbsp;&nbsp;<span class="c">(n×n)</span><br />
           Δ = <span class="h">L<sup>−1/4</sup></span> G <span class="h">R<sup>−1/4</sup></span>
         </div>
-        <p>The quarter powers are not arbitrary: they are what makes the two-sided product equal <code>(L ⊗ R)<sup>−1/2</sup></code> applied to <code>vec(G)</code>, the Kronecker analogue of Adagrad's inverse square root. The cost is <code>m² + n²</code> floats of accumulator plus the same again for the cached roots, and an eigendecomposition that is <code>O(m³ + n³)</code> — which is why every real implementation amortises the root computation over 50–100 steps and runs it off the critical path. <strong>SOAP</strong> is the sharpest version of this idea: keep Shampoo's eigenbasis, update it rarely, and just run ordinary Adam <em>in that rotated basis</em>. You get the rotation from Shampoo and the cheap per-coordinate scaling from Adam.</p>
+        <p>The quarter powers are not arbitrary: they are what makes the two-sided product equal <code>(L ⊗ R)<sup>−1/4</sup></code> applied to <code>vec(G)</code>. That is the inverse square root of <code>(L ⊗ R)<sup>1/2</sup></code>, the Kronecker analogue of Adagrad's inverse square root. The cost is <code>m² + n²</code> floats of accumulator plus the same again for the cached roots, and an eigendecomposition that is <code>O(m³ + n³)</code> — which is why every real implementation amortises the root computation over 50–100 steps and runs it off the critical path. <strong>SOAP</strong> is the sharpest version of this idea: keep Shampoo's eigenbasis, update it rarely, and just run ordinary Adam <em>in that rotated basis</em>. You get the rotation from Shampoo and the cheap per-coordinate scaling from Adam.</p>
 
         <h3>Muon</h3>
         <p>Muon is the geometry argument from §3, made executable. Take the momentum matrix, replace it with the nearest semi-orthogonal matrix, step. The only question is how to orthogonalise a 4096×11008 matrix on every step without an SVD, and the answer is a <strong>Newton–Schulz iteration</strong>: a fixed odd polynomial applied to the matrix, which acts on the singular values without ever computing them.</p>
@@ -568,13 +568,13 @@
           <p class="stage-caption" data-caption></p>
         </div>
 
-        <p>The coefficients are the interesting part. A textbook Newton–Schulz iteration converges to exactly 1; these do not — their fixed point wobbles in a band roughly <code>[0.7, 1.3]</code>. That is deliberate. They are tuned to maximise the slope at <code>σ = 0</code>, so that the tiny singular values — the directions the raw gradient has almost no signal in — get lifted into the band within five steps instead of fifty. <strong>An optimizer does not need an orthogonal matrix; it needs a matrix whose singular values are all the same order of magnitude.</strong> Accepting ±30% error buys a 10× reduction in iterations and lets the whole thing run in bf16.</p>
+        <p>The coefficients are the interesting part. A textbook Newton–Schulz iteration converges to exactly 1; these do not — their fixed point wobbles in a band roughly <code>[0.7, 1.3]</code>. That is deliberate. They are tuned to maximise the slope at <code>σ = 0</code>, so that the tiny singular values — the directions the raw gradient has almost no signal in — get lifted into the band in a handful of steps. From a singular value of 10⁻², Muon's coefficients need 4 steps and the textbook cubic needs 11. Starts below about 3·10⁻³ still fall short of the band after five steps. <strong>An optimizer does not need an orthogonal matrix; it needs a matrix whose singular values are all the same order of magnitude.</strong> Accepting ±30% error buys roughly 3× fewer iterations (6 against 17 from a singular value of 10⁻³) and lets the whole thing run in bf16.</p>
 
         <h4>What Muon costs</h4>
         <p>Per <code>m×n</code> matrix with <code>n = min(m,n)</code>, one iteration is three matmuls: <code>XX<sup>⊤</sup></code> (2n²m), <code>A²</code> (2n³), <code>BX</code> (2n²m). Five iterations, divided by the <code>mn</code> parameters:</p>
         <div class="eq eq--muon">
           FLOPs per parameter ≈ 20n + 10n²/m&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">vs. forward+backward ≈ 6T per parameter, T = tokens per step</span><br />
-          overhead ≈ <span class="h">3.3 · d<sub>model</sub> / T</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">d = 4096, T = 4M tokens/step → 0.34%</span>
+          overhead ≈ <span class="h">4–5 · d<sub>model</sub> / T</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="c">d = 4096, T = 4M tokens/step → 0.4–0.5%</span>
         </div>
         <p>The overhead scales with model <em>width</em> and inversely with tokens per step, and at any realistic large-batch configuration it disappears. What does not disappear is the communication, which is the real reason Muon is harder than it looks — see §10.</p>
 
@@ -723,8 +723,8 @@
         <h4>3. Communication — and why Muon is harder than it looks</h4>
         <p>Under FSDP the per-step wire traffic is a reduce-scatter of gradients and an all-gather of parameters, roughly 2 bytes per parameter each way in bf16. Muon adds one more thing: <strong>Newton–Schulz needs the whole matrix.</strong> FSDP2 shards parameters along dimension 0, so each rank holds a horizontal stripe of every weight matrix — and a stripe cannot be orthogonalised. The standard implementation all-gathers the momentum for each 2-D tensor, runs the iteration on one rank (matrices assigned round-robin), then broadcasts the result back.</p>
         <div class="eq eq--muon">
-          extra traffic ≈ 2 bytes/param over the hidden weights ≈ <span class="h">13 GB per step</span> for a 7B model<br />
-          <span class="c">intra-node over NVLink @ ~400 GB/s → ~30 ms&nbsp;&nbsp;·&nbsp;&nbsp;inter-node over EFA @ ~40 GB/s → ~330 ms</span>
+          extra traffic ≈ 2 bytes/param over the hidden weights ≈ <span class="h">10–13 GB per step</span> for a 7B model, depending on the hidden share<br />
+          <span class="c">intra-node over NVLink @ ~400 GB/s → ~25–30 ms&nbsp;&nbsp;·&nbsp;&nbsp;inter-node over EFA @ ~40 GB/s → ~250–330 ms</span>
         </div>
         <p>On a single node this is invisible. Across an Ethernet-class fabric it is not, and it lands on the critical path because the optimizer step cannot start until every gradient has arrived. This asymmetry — cheap inside a node, expensive across one — is the whole reason the distributed-Muon variants exist: keep the orthogonalisation sharded, or approximate it in a low-rank subspace, so no full matrix ever has to cross the slow fabric.</p>
       </section>
@@ -763,6 +763,8 @@
           </table>
         </div>
         <p>And the standing advice regardless of which one you pick: <strong>measure the update-to-weight RMS ratio per layer.</strong> One scalar per tensor, logged every few hundred steps. Healthy training keeps <code>RMS(Δθ)/RMS(θ)</code> in a band around 10⁻³. If a layer drifts an order of magnitude off, you have found your problem before the loss curve shows it — and that diagnostic works identically for every optimizer in this article, because it measures the only thing they all agree they are doing.</p>
+
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>A companion lab writes every optimizer in this post as a short update rule, from SGD and Adam to Lion, Adafactor, 8-bit AdamW and Muon. It checks the post's claims one at a time: the six optimizers on 2-D landscapes, momentum's square-root speed-up, Adam's bias correction, the equilibrium weight norm, Newton–Schulz on singular values and the memory ledger. Where a measurement differs from the text, the lab README says so.</p><p>The small experiments run on a CPU in seconds to a few minutes. The training comparison takes about 40 minutes in one process, and one small benchmark times the optimizer step on an H100. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/what-an-optimizer-actually-does">labs/what-an-optimizer-actually-does on GitHub</a></p></aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../why-fast-gpus-still-wait-for-memory/">Why Fast GPUs Still Wait for Memory</a></li><li><a href="../talk-is-not-cheap/">Talk is not cheap</a></li><li><a href="../the-geometry-of-normalization/">The Geometry of Normalization</a></li></ul></nav>
@@ -841,7 +843,7 @@
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/what-an-optimizer-actually-does/},
-  note         = {Published October 20, 2024; updated March 8, 2026}
+  note         = {Published October 20, 2024; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -2013,7 +2015,7 @@
           { label: "Accumulating v", dur: 4.4, caption: "<b>The estimate.</b> v is an exponential moving average of the squared gradient, one number per parameter. It converges to each coordinate's own mean-square gradient, so it inherits the same three orders of magnitude." },
           { label: "Divide", dur: 4.4, caption: "<b>The rescale.</b> Dividing by √v collapses the range: every coordinate now takes a step of roughly the same size, on a linear axis this time. The learning rate finally means one thing across the whole network." },
           { label: "The sign-descent limit", dur: 3.6, caption: "<b>Where it ends up.</b> Set β₁ = β₂ and ε → 0 and the ratio is exactly sign(g). Adam's defaults soften this — the numerator averages over ~10 steps and the denominator over ~1000 — but the shape of the update is a sign, not a magnitude." },
-          { label: "Bias correction", dur: 4.6, caption: "<b>Correcting up, not down.</b> Both moments start at zero, but √v is suppressed ~32× while m is suppressed only 10×, so the <i>uncorrected</i> ratio starts at 3.16 and decays. Without correction Adam takes its biggest steps when its estimates are worst." },
+          { label: "Bias correction", dur: 4.6, caption: "<b>Correcting up, not down.</b> Both moments start at zero, but √v is suppressed ~32× while m is suppressed only 10×, so the <i>uncorrected</i> ratio starts at 3.16, peaks near 6.6 around step 12 for a constant gradient, and then settles slowly. Without correction Adam takes oversized steps when its estimates are worst." },
           { label: "β₂ staleness", dur: 5.0, caption: "<b>How loss spikes happen.</b> When the gradient regime shifts faster than the 1/(1−β₂) window, v is stale and too small, so the update is too large — for hundreds of steps. Lower β₂ shortens the memory; at scale the pragmatic fix is to detect the spike and skip the batch." },
           { label: "The full step", dur: 4.2, caption: "<b>Adam, assembled.</b> Smooth in time with β₁, estimate scale with β₂, correct both for initialisation bias, divide, and add ε as a floor. Eight bytes per parameter buys all of it." }
         ],
@@ -2054,7 +2056,7 @@
               c.restore();
             }
             F.txt(c, "step t", gx + gw - 16, gy + gh - 4, { size: 10.5, color: F.FAINT, align: "right" });
-            F.txt(c, "the uncorrected ratio starts 3.16× too large and takes ~40 steps to settle", px, H - 30, { size: 12, color: F.DIM });
+            F.txt(c, "the uncorrected ratio starts 3.16× too large, peaks near 6.6× (off this plot) and settles slowly", px, H - 30, { size: 12, color: F.DIM });
             return;
           }
 
@@ -2381,7 +2383,7 @@
           { label: "The quintic map", dur: 4.6, caption: "<b>One polynomial, applied to the matrix.</b> X ← aX + bAX + cA²X with A = XXᵀ. Because X and A share singular vectors, this is <i>exactly</i> the scalar map σ ← aσ + bσ³ + cσ⁵ applied to every singular value independently — no SVD is ever computed." },
           { label: "One iteration", dur: 4.6, caption: "<b>Follow the arcs.</b> Each singular value is read off the horizontal axis, pushed through the curve, and returned to the spectrum. The slope at the origin is 3.44, so the smallest values are amplified hardest — which is the whole design goal." },
           { label: "Five iterations", dur: 5.4, caption: "<b>Convergence into a band.</b> After five steps every singular value sits in roughly [0.7, 1.3]. Note it does <i>not</i> converge to exactly 1 — the map's fixed point oscillates. That is accepted deliberately." },
-          { label: "The composed map", dur: 4.4, caption: "<b>p∘p∘p∘p∘p.</b> The five-fold composition is nearly a step function on [0,1]: almost any input, however small, comes out near 1. This is why five iterations in bf16 are enough, and why an exact orthogonalisation would be a waste of FLOPs." },
+          { label: "The composed map", dur: 4.4, caption: "<b>p∘p∘p∘p∘p.</b> The five-fold composition is nearly a step function on [0,1]: almost any input comes out near 1 (starts below about 3·10⁻³ fall just short in five steps). This is why five iterations in bf16 are enough, and why an exact orthogonalisation would be a waste of FLOPs." },
           { label: "What it means geometrically", dur: 4.6, caption: "<b>Ellipse to circle.</b> The raw momentum stretches space unevenly — it would move the model far along a few directions and barely at all along the rest. The orthogonalised update moves it equally in every direction the layer has." },
           { label: "What it costs", dur: 5.4, caption: "<b>The bill.</b> Three matmuls per iteration, five iterations, and the whole thing runs in bf16 at high utilisation because these are large dense matmuls. The FLOPs are genuinely negligible at scale — the communication is not." }
         ],
@@ -2394,7 +2396,7 @@
               ["per iteration", "XX\u1D40 : 2n²m      A² : 2n³      BX : 2n²m", F.INK],
               ["five iterations, per parameter", "(20n²m + 10n³) / mn  =  20n + 10n²/m", P.muon],
               ["forward + backward, per parameter", "6 · T        T = tokens per optimizer step", F.DIM],
-              ["ratio", "≈ 3.3 · d_model / T", P.muon]
+              ["ratio", "≈ 4–5 · d_model / T", P.muon]
             ];
             for (var i = 0; i < lines.length; i++) {
               var k = g.reduced ? 1 : F.easeOut(F.seg(u, i * 0.1, i * 0.1 + 0.4));
@@ -2408,9 +2410,9 @@
             var by = 96 + 4 * 62 + 12;
             F.panel(c, 46, by, W - 92, H - by - 30, "WORKED EXAMPLE  ·  d = 4096,  T = 4M TOKENS/STEP");
             var cells = [
-              ["Newton-Schulz", "0.53 PFLOP / step", P.muon],
+              ["Newton-Schulz", "0.7–0.9 PFLOP / step", P.muon],
               ["fwd + bwd", "168 PFLOP / step", F.DIM],
-              ["overhead", "0.34 %", P.adam]
+              ["overhead", "0.4–0.5 %", P.adam]
             ];
             for (var j = 0; j < 3; j++) {
               var cw = (W - 92) / 3, cx = 46 + j * cw + 20;
@@ -2882,7 +2884,7 @@
             F.txt(c, (tot / 1000).toFixed(2) + " s", cur + 12, yy2 + 24, { size: 12.5, weight: 600, color: r === 2 ? P.lion : F.DIM });
             if (rows[r].note) F.txt(c, rows[r].note, cur + 12, yy2 + 44, { size: 11, color: r === 2 ? P.lion : P.adam });
           }
-          F.txt(c, "Muon's extra all-gather of the momentum matrix: ~13 GB/step for a 7B model.", 46, H - 48, { size: 12.5, color: F.INK });
+          F.txt(c, "Muon's extra all-gather of the momentum matrix: ~10–13 GB/step for a 7B model.", 46, H - 48, { size: 12.5, color: F.INK });
           F.txt(c, "Trivial over NVLink at ~400 GB/s. Not trivial over an Ethernet fabric at ~40 GB/s — and it is on the critical path.",
             46, H - 26, { size: 11.5, color: F.DIM });
         }

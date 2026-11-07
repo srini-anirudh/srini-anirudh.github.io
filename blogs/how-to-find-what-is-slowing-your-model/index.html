@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-to-find-what-is-slowing-your-model/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-to-find-what-is-slowing-your-model/preview.png" />
     <meta property="article:published_time" content="2026-06-14" />
-    <meta property="article:modified_time" content="2026-06-14" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How to Find What Is Slowing Your Model" />
     <meta name="twitter:description" content="Every optimisation is a hypothesis about the bottleneck. Profiling exists to test it." />
@@ -37,7 +37,7 @@
         "description": "How to determine what is actually limiting an ML workload rather than guessing: timelines, counters, roofline verdicts, and a diagnosis tree for training and inference.",
         "image": "https://srini-anirudh.github.io/blogs/how-to-find-what-is-slowing-your-model/preview.png",
         "datePublished": "2026-06-14",
-        "dateModified": "2026-06-14",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Profiling", "Performance analysis", "Nsight", "Roofline", "Distributed training", "Inference serving"],
@@ -205,7 +205,7 @@
           <span>Profiling</span><span>Performance analysis</span><span>Nsight</span><span>Roofline</span><span>Distributed training</span><span>Inference</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-14">June 14, 2026</time></span><span>38 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-14">June 14, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>38 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -1685,7 +1685,7 @@
         });
         </script>
 
-        <p>The failure mode in that figure — an out-of-memory error while gigabytes sit free — confuses people the first time and is entirely mundane once you see the shape. The allocator hands out blocks carved from larger segments. Freeing a tensor returns its block to the pool, not to the driver. If your step allocates a different mix of shapes each iteration, those pools fill with fragments that are individually too small for the next large request. Variable sequence lengths, variable image resolutions and dynamic batch composition are the usual culprits, which is precisely why multimodal training hits this more than plain language modelling.</p>
+        <p>The failure mode in that figure — an out-of-memory error while gigabytes sit free — confuses people the first time and is entirely mundane once you see the shape. The allocator hands out blocks carved from larger segments. Freeing a tensor returns its block to the pool, not to the driver. If your step allocates a different mix of shapes each iteration, those pools fill with fragments that are individually too small for the next large request. Variable sequence lengths, variable image resolutions and dynamic batch composition are the usual culprits, which is precisely why multimodal training hits this more than plain language modelling. A small companion lab found that the allocator flag does not always rescue this: on one H100 and torch build, <code>expandable_segments:True</code> did not fix an interleaved case that left 1.25 GiB cached and idle, while allocating the long-lived tensors first did. Try the flag, then check; see the code.</p>
         <div class="aside"><b>Aside · read the OOM message properly</b><br />
         Every PyTorch OOM tells you four numbers: what was requested, total capacity, how much is free, and how much is reserved-but-unallocated. If free is small, you have a capacity problem and you need to shard, checkpoint or shrink. If free is large and reserved-but-unallocated is also large, you have a fragmentation problem and the fix is allocator configuration or shape stability. Those are different problems with different fixes, and the message distinguishes them for you. For anything harder, <code>torch.cuda.memory._record_memory_history()</code> followed by a snapshot dump gives you a per-allocation timeline with stack traces.</div>
         <div class="warn"><b>Trap · optimising peak memory you do not need</b><br />
@@ -2061,6 +2061,10 @@
         </ol>
         <p>Question ten deserves the last word, because it is the one that turns a technique into a discipline. Amdahl's arithmetic is unforgiving: a component that is 30% of your step time can never buy you more than 1.43×, no matter how brilliantly you eliminate it. Knowing the answer to question ten before you begin tells you whether the week is worth spending, and knowing it afterwards tells you when to stop.</p>
         <p class="reading-note">Performance in machine learning systems is not about maximising GPU utilisation in isolation. It is about orchestrating compute, memory, communication, I/O and synchronisation so that the scarce resource stays useful while everything else stays out of its way — and then, when it finally is, having the discipline to stop.</p>
+
+        <div class="aside run-the-code"><b>Aside · Run the code</b><br />
+        The companion lab turns this article's measurements into small Python scripts. It computes the GPU busy fraction from a PyTorch profiler trace, shows the NVML utilisation counter read 100% for a tiny add and for a large matmul, gives roofline verdicts from three numbers, and runs a real DataLoader that agrees with a queue model of when the input pipeline runs dry.<br /><br />
+        It also splits a slow all-reduce into arrival skew and transfer with a barrier (on four CPU processes), triggers an out-of-memory error while more than a gigabyte sits cached and idle, times decode as the batch grows, and replays a smaller whack-a-mole case study on an H100. Its numbers are not this article's. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-to-find-what-is-slowing-your-model" target="_blank" rel="noopener noreferrer">labs/how-to-find-what-is-slowing-your-model on GitHub</a></div>
       </section>
 
       <section id="references">
@@ -2152,7 +2156,7 @@
   month        = {Jun},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-to-find-what-is-slowing-your-model/},
-  note         = {Published June 14, 2026}
+  note         = {Published June 14, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

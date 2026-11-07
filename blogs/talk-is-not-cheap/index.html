@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png" />
     <meta property="article:published_time" content="2026-02-08" />
-    <meta property="article:modified_time" content="2026-02-08" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Talk Is Not Cheap: Communication from PCIe to InfiniBand" />
     <meta name="twitter:description" content="A first-principles guide to communication beyond one GPU: PCIe, NVLink, NVSwitch, RDMA, InfiniBand, topology, collectives, and overlap." />
@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/"},"headline":"Talk Is Not Cheap: Communication from PCIe to InfiniBand","description":"A first-principles guide to communication beyond one GPU: PCIe, NVLink, NVSwitch, RDMA, InfiniBand, topology, collectives, and overlap.","image":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png","datePublished": "2026-02-08","dateModified":"2026-02-08","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["PCIe", "NVLink", "NVSwitch", "InfiniBand", "RDMA", "collective communication"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/"},"headline":"Talk Is Not Cheap: Communication from PCIe to InfiniBand","description":"A first-principles guide to communication beyond one GPU: PCIe, NVLink, NVSwitch, RDMA, InfiniBand, topology, collectives, and overlap.","image":"https://srini-anirudh.github.io/blogs/talk-is-not-cheap/preview.png","datePublished": "2026-02-08","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["PCIe", "NVLink", "NVSwitch", "InfiniBand", "RDMA", "collective communication"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
       :root {
         --paper: #e4e2dc;
@@ -188,7 +188,7 @@
           <span>Interconnect</span><span>Collectives</span><span>Networking</span><span>NCCL</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-02-08">February 8, 2026</time></span><span>60 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-02-08">February 8, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>60 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -3417,7 +3417,7 @@
           })();
         </script>
 
-        <p>Play with it for a minute and the structure becomes obvious. With α = 12 µs (EFA-like) and 45 GB/s, at p = 64 the tree wins below roughly 100 KiB and the ring wins above it. Push α down to 2 µs (InfiniBand-like) and the crossover moves left. Push p up to 1024 and the ring's 2(p−1)α term — over 24 milliseconds of pure latency at α = 12 µs — makes it hopeless for anything small, which is exactly why NCCL ships a tree algorithm and switches between them.</p>
+        <p>Play with it for a minute and the structure becomes obvious. With α = 12 µs (EFA-like) and 45 GB/s, at p = 64 the tree wins below roughly 6 MiB and the ring wins above it. Push α down to 2 µs (InfiniBand-like) and the crossover moves left, to about 1 MiB. Push p up to 1024 and the ring's 2(p−1)α term — over 24 milliseconds of pure latency at α = 12 µs — makes it hopeless for anything small, which is exactly why NCCL ships a tree algorithm and switches between them.</p>
 
         <div class="aside-note">
           <p><strong>What NCCL actually does.</strong> It implements ring, tree, CollNet (switch-offloaded) and NVLS (NVLink SHARP) algorithms, and three wire protocols — <code>Simple</code>, <code>LL</code> and <code>LL128</code>. LL trades bandwidth for latency by embedding a 4-byte flag alongside every 4 bytes of payload, so a receiver can poll for arrival without a separate synchronisation; that is 50% efficiency, acceptable when you are latency-bound anyway. LL128 uses 128-byte lines carrying 120 bytes of data — 93.75% efficient — and is the default on NVLink. The selection is a tuned lookup over message size, rank count and topology, and you can override it with <code>NCCL_ALGO</code> and <code>NCCL_PROTO</code> when the heuristic guesses wrong.</p>
@@ -3670,7 +3670,7 @@
                   net: "0.38 n", foot: "network volume = 2(N−1)/N · n/G = 0.375 n   ·   all four rails busy in parallel" },
                 { n: "Phase 3: intra-node all-gather", t: "Broadcast the finished slices back over NVLink", s: "each node reassembles the full reduced vector internally",
                   net: "0.38 n", foot: "cost (G−1)/G · n / 450 GB/s   ·   again, nothing leaves the node" },
-                { n: "Five times less network traffic", t: "The general rule", s: "decomposing an AllReduce across a G-wide fast domain cuts fabric traffic by about a factor of G",
+                { n: "Five times less network traffic", t: "The general rule", s: "decomposing an AllReduce across a G-wide fast domain cuts the bytes each GPU sends over the fabric by about a factor of G",
                   net: "5×", foot: "1.88 n / 0.375 n = 5.0×   ·   and the NVLink phases run at 9× the bandwidth on top of that" }
               ];
               var stages = ST.map(function (s) { return { name: s.n, dur: 3800 }; });
@@ -3680,7 +3680,7 @@
                 hudT.textContent = S.t; hudS.textContent = S.s; foot.textContent = S.foot;
                 netN.textContent = S.net;
                 netN.setAttribute("fill", si >= 2 ? "var(--g)" : "var(--r)");
-                netL.textContent = si === 5 ? "less traffic on the fabric" : "bytes over the network, per GPU";
+                netL.textContent = si === 5 ? "less traffic per GPU on the fabric" : "bytes over the network, per GPU";
 
                 while (gF.firstChild) gF.removeChild(gF.firstChild);
                 rails.forEach(function (r, i) { r.setAttribute("opacity", (si === 3 || si === 5) ? 0.9 : ((si <= 1) ? 0.5 : 0.16)); });
@@ -3738,12 +3738,12 @@
 
         <p>Written out, the hierarchical cost for G GPUs per node and N nodes is</p>
         <div class="eq">T = 2·(G−1)/G·n·β<sub>nv</sub> &nbsp;+&nbsp; 2·(N−1)/N·(n/G)·β<sub>net</sub> &nbsp;+&nbsp; (latency terms)</div>
-        <p>against the flat ring's 2(P−1)/P·n·β<sub>net</sub> with P = N·G. The network term shrinks by a factor of G·(P−1)/P·N/(N−1), which for realistic sizes is just about exactly <strong>G</strong> — the number of GPUs in the fast domain. On an 8-GPU node that is an 8&times; reduction in fabric traffic before you account for the fact that the NVLink phases also run 9&times; faster.</p>
+        <p>against the flat ring's 2(P−1)/P·n·β<sub>net</sub> with P = N·G. The network term shrinks by a factor of G·(P−1)/P·N/(N−1), which for realistic sizes is just about exactly <strong>G</strong> — the number of GPUs in the fast domain. On an 8-GPU node that is about an 8&times; reduction in the bytes each NIC carries, before you account for the fact that the NVLink phases also run 9&times; faster. The total bytes on the fabric fall much less. In the companion lab, 4 nodes of 8 GPUs cut the busiest NIC's bytes by 10.3&times; but the fabric total by only 1.29&times;, because the flat ring squeezes its traffic through the node-boundary NICs and the hierarchical version spreads nearly the same total over all of them.</p>
         <p>NCCL does this automatically when it can see the topology, which is one reason its tree algorithm has a two-level structure: an intra-node phase and an inter-node phase with one representative GPU per node per rail. It is also, structurally, exactly what HSDP does with its sharding and replication dimensions.</p>
         <aside class="nuance" id="nuance-12">
           <p class="nuance-tag"><span class="n">Nuance 12</span> Hierarchy buys you G, not the bandwidth ratio</p>
           <p class="nuance-said"><b>Often said</b>Doing the collective hierarchically speeds it up by the NVLink-to-network ratio, 9&times;.</p>
-          <p class="nuance-real"><b>Actually</b>Two distinct factors are at work, and they compose. The <em>traffic</em> reduction is G·(P−1)/P·N/(N−1) ≈ G, the number of GPUs in the fast domain — 8 on a standard node — and it has nothing to do with how fast NVLink is; it would hold even if NVLink and the fabric ran at identical speed. On top of that, the phases that moved onto NVLink run at 9&times; the bandwidth. Quoting either number alone understates what decomposition does.</p>
+          <p class="nuance-real"><b>Actually</b>Two distinct factors are at work, and they compose. The per-NIC <em>traffic</em> reduction is G·(P−1)/P·N/(N−1) ≈ G, the number of GPUs in the fast domain — 8 on a standard node — and it has nothing to do with how fast NVLink is; it would hold even if NVLink and the fabric ran at identical speed. On top of that, the phases that moved onto NVLink run at 9&times; the bandwidth. Quoting either number alone understates what decomposition does.</p>
         </aside>
 
 
@@ -4122,11 +4122,11 @@
 
         <h3>ECMP and the birthday problem</h3>
         <p>A leaf switch with several uplinks to the spine layer must choose one for each packet. Choosing per-packet would reorder the flow, which a reliable-connection transport cannot tolerate, so the standard answer is <strong>ECMP</strong>: hash the five-tuple — source and destination IP, source and destination port, protocol — and send the whole flow down whichever uplink the hash selects. Order is preserved because every packet of a flow follows one path.</p>
-        <p>The cost is that path selection is random and uncoordinated. Two flows can hash to the same uplink while a neighbouring uplink sits idle, and no mechanism notices. This is the balls-in-bins problem: throw k flows into k uplinks and the expected occupancy of the busiest is not 1 but roughly <strong>ln k / ln ln k</strong>. At k = 64 that is about 2.9 — the unluckiest link carries nearly three times its share, and since a collective runs at the speed of its slowest participant, that link sets the pace for everyone.</p>
+        <p>The cost is that path selection is random and uncoordinated. Two flows can hash to the same uplink while a neighbouring uplink sits idle, and no mechanism notices. This is the balls-in-bins problem: throw k flows into k uplinks and the expected occupancy of the busiest is not 1 but grows like <strong>ln k / ln ln k</strong>. That is only the leading term: at k = 64 it gives 2.9, while a simulation of 64 flows over 64 uplinks gives about 4. The unluckiest link carries about four times its share, and since a collective runs at the speed of its slowest participant, that link sets the pace for everyone.</p>
         <aside class="nuance" id="nuance-16">
           <p class="nuance-tag"><span class="n">Nuance 16</span> ECMP collisions are the normal case</p>
           <p class="nuance-said"><b>Often said</b>Two flows landing on the same uplink is bad luck.</p>
-          <p class="nuance-real"><b>Actually</b>It is the expected outcome. Throwing k flows into k uplinks is balls in bins: the busiest bin holds roughly ln k / ln ln k, about 2.9 at k = 64, not 1. Because a collective advances at the pace of its slowest participant, the unluckiest link sets the step time for everyone. The diagnostic tell is run-to-run variance at fixed configuration — a fabric that is fine on one job and slow on the next with nothing changed is usually just hashing differently.</p>
+          <p class="nuance-real"><b>Actually</b>It is the expected outcome. Throwing k flows into k uplinks is balls in bins: the busiest bin holds about ln k / ln ln k for large k, not 1. That formula gives 2.9 at k = 64, but simulation gives about 4. Because a collective advances at the pace of its slowest participant, the unluckiest link sets the step time for everyone. The diagnostic tell is run-to-run variance at fixed configuration — a fabric that is fine on one job and slow on the next with nothing changed is usually just hashing differently.</p>
         </aside>
 
 
@@ -4197,7 +4197,7 @@
                   m: "srcIP · dstIP · srcPort · dstPort · proto  →  hash mod 4", map: [0, 1, 2, 3, 1], spray: false, load: [1, 1, 1, 1] },
                 { n: "Collision", t: "Two flows, one uplink, and an idle neighbour", s: "the hash is uncoordinated — nothing rebalances, and both flows get half the link",
                   m: "flows 1 and 4 collided on spine 1 · spine 0 is at 33% while spine 1 is saturated", map: [0, 1, 2, 3, 1], spray: false, load: [1, 2, 1, 1], hot: 1 },
-                { n: "At scale it is the norm", t: "Balls in bins: the busiest link carries ln k / ln ln k", s: "with 64 flows over 64 paths the unluckiest path carries about 2.9× its share",
+                { n: "At scale it is the norm", t: "Balls in bins: the busiest link carries several times its share", s: "with 64 flows over 64 paths the unluckiest path carries about 4× its share in simulation",
                   m: "and a collective runs at the pace of its slowest participant", map: [0, 1, 1, 1, 3], spray: false, load: [1, 3, 0, 1], hot: 1 },
                 { n: "Packet spraying", t: "AWS SRD sprays a single flow across every path", s: "packets arrive out of order and are reassembled by the transport, not by the network",
                   m: "load is even by construction · the cost is reordering logic and a larger α", spray: true, load: [1, 1, 1, 1] },
@@ -4306,7 +4306,7 @@
           <dt>Collectives are specifications, and the algorithm is a free choice</dt>
           <dd>The naive AllReduce is linear in p because one link carries everything. Trees fix the latency term, rings fix the bandwidth term, and rings provably cannot be beaten on bytes moved.</dd>
           <dt>Flat algorithms waste hierarchical machines</dt>
-          <dd>A ring advances at the pace of its slowest link, so decomposing by level cuts fabric traffic by roughly the size of the fast domain.</dd>
+          <dd>A ring advances at the pace of its slowest link, so decomposing by level cuts the bytes each NIC carries by roughly the size of the fast domain.</dd>
           <dt>Communication you can hide is nearly free, and the tail is what remains</dt>
           <dd>Which turns most tuning into a question about bucket sizes and dependency structure rather than about bandwidth.</dd>
         </dl>
@@ -4328,6 +4328,10 @@
 
         <p>So the honest state of things is this. We now understand compute, memory and communication as machinery. What we have not asked is what an ML training job actually creates: which tensors exist, how large they are, how long they live, and why any of them need to move at all. Without that, the cost models above are a calculator with no inputs.</p>
         <p>That is <a href="../inside-a-training-step/">Blog 04: Inside a Training Step</a>.</p>
+
+        <div class="aside-note run-the-code">
+          <p><strong>Run the code.</strong> The companion lab writes naive, tree, ring and Rabenseifner AllReduce as explicit send and receive schedules. It checks each one against the 2(p&minus;1)/p&middot;n byte bound and times the same schedules on CPU processes. It fits &alpha; and &beta; to a measured ping-pong, on CPU processes and on two H100s. It also prices a flat ring against a hierarchical AllReduce, and models gradient bucketing and ECMP collisions. The code is at <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/talk-is-not-cheap">labs/talk-is-not-cheap</a>.</p>
+        </div>
       </section>
 
       <section id="nuances">
@@ -4350,7 +4354,7 @@
           <li><span class="n">13</span><span><a href="#nuance-13">In-network reduction is not a bandwidth optimisation</a> — <em>2n versus 1.97n; sell it on latency and SM occupancy.</em></span></li>
           <li><span class="n">14</span><span><a href="#nuance-14">The bucket optimum tracks p, not bandwidth</a> — <em>25 MB is far too small at four-digit rank counts.</em></span></li>
           <li><span class="n">15</span><span><a href="#nuance-15">Hidden communication still costs a few percent</a> — <em>overlapped means 3% instead of 30%, not zero.</em></span></li>
-          <li><span class="n">16</span><span><a href="#nuance-16">ECMP collisions are the normal case</a> — <em>the busiest of k links carries about 2.9&times; its share at k = 64.</em></span></li>
+          <li><span class="n">16</span><span><a href="#nuance-16">ECMP collisions are the normal case</a> — <em>the busiest of k links carries about 4&times; its share at k = 64.</em></span></li>
           <li><span class="n">17</span><span><a href="#nuance-17">PFC pauses traffic unrelated to the congestion</a> — <em>which is how one hot receiver stalls a region of the fabric.</em></span></li>
         </ol>
 
@@ -4425,7 +4429,7 @@
   month        = {Feb},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/talk-is-not-cheap/},
-  note         = {Published February 8, 2026}
+  note         = {Published February 8, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

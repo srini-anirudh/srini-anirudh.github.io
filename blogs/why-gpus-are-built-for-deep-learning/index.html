@@ -56,7 +56,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/preview.png" />
     <meta property="article:published_time" content="2026-01-11" />
-    <meta property="article:modified_time" content="2026-01-11" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Why GPUs Are Built for Deep Learning" />
     <meta name="twitter:description" content="Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores." />
@@ -70,7 +70,7 @@
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/"},"headline":"Why GPUs Are Built for Deep Learning","description":"Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores.","image":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/preview.png","datePublished": "2026-01-11","dateModified":"2026-01-11","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["CPU vs GPU", "GPU parallelism", "SIMT", "latency hiding", "GPU memory hierarchy", "Tensor Cores"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/"},"headline":"Why GPUs Are Built for Deep Learning","description":"Why GPUs are effective for deep learning, derived from transistor budgets, forms of parallelism, execution hierarchies, latency hiding, memory access, tiling, and Tensor Cores.","image":"https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/preview.png","datePublished": "2026-01-11","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["CPU vs GPU", "GPU parallelism", "SIMT", "latency hiding", "GPU memory hierarchy", "Tensor Cores"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
       :root {
         --paper: #e4e2dc;
@@ -289,7 +289,7 @@
           <span>GPU architecture</span><span>Memory hierarchy</span><span>Parallelism</span><span>Performance engineering</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-11">January 11, 2026</time></span><span>38 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-11">January 11, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>38 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -2704,7 +2704,7 @@
             <p class="lab-verdict" data-out="verdict">—</p>
           </div>
           <figcaption class="fig-caption">Try 256 threads at 32 registers, then push registers to 64, then to 128. Occupancy falls in <b>steps, not smoothly</b> — because blocks are indivisible. One register over a threshold can cost you a whole block's worth of warps, which is exactly what <code>__launch_bounds__</code> exists to prevent.</figcaption>
-          <p class="fig-note"><span class="tag tag--model">model</span>Models compute capability 9.0: 64 warp slots, 32 blocks and 65,536 registers per SM, 228 KB of shared memory per SM with a 227 KB per-block cap, registers allocated at 256-per-warp granularity and shared memory at 128-byte granularity. It does not model the L1/shared carveout, which can lower the shared memory budget further.</p>
+          <p class="fig-note"><span class="tag tag--model">model</span>Models compute capability 9.0: 64 warp slots, 32 blocks and 65,536 registers per SM, 228 KB of shared memory per SM with a 227 KB per-block cap, registers allocated at 256-per-warp granularity and shared memory at 128-byte granularity. It does not model the L1/shared carveout, which can lower the shared memory budget further. It also omits the 1 KB of shared memory the driver reserves per block and the way registers are split across the four processing blocks, so it can overestimate blocks per SM. In a small companion lab on an H100 it matched the driver's own occupancy calculator in 119 of 138 tested configurations.</p>
         </figure>
 
         <script>
@@ -3903,6 +3903,11 @@
           <h4>The one-sentence version</h4>
           <p>A CPU is a machine built to make one thing happen as soon as possible, and it spends most of its silicon finding parallelism you did not write down. A GPU is a machine built to make an enormous number of things happen per unit time, and it spends almost none — <b>which is why it is faster, and why it makes you do the work.</b></p>
         </div>
+
+        <div class="callout run-the-code">
+          <h4>Run the code</h4>
+          <p>A companion lab measures this article's mechanisms on a real H100, next to CPU baselines. Small CUDA kernels time a dependent FMA chain against tens of thousands of threads, chase pointers down the memory ladder, and make warps diverge. Others count bank conflicts, stride a load past its sectors, and tile a matmul. Each measurement sits beside the article's own model: the divergence passes, the occupancy calculator, the sector and bank counts, and the 295 FLOP-per-byte ridge. The models run and are tested on any CPU. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-gpus-are-built-for-deep-learning">Open the lab on GitHub</a>.</p>
+        </div>
       </section>
 
       <section id="references">
@@ -3978,7 +3983,7 @@
   month        = {Jan},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/why-gpus-are-built-for-deep-learning/},
-  note         = {Published January 11, 2026}
+  note         = {Published January 11, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

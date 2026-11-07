@@ -20,7 +20,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/models-that-see-and-draw/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/models-that-see-and-draw/preview.png" />
     <meta property="article:published_time" content="2026-10-18" />
-    <meta property="article:modified_time" content="2026-11-01" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Models That See and Draw: Unified Multimodal Understanding and Generation" />
     <meta name="twitter:description" content="Unified multimodal understanding and generation from first principles: why emitting an image is harder than reading one, how image tokenizers trade semantics for pixels, and how bridge, autoregressive and hybrid diffusion models see and draw." />
@@ -43,7 +43,7 @@
         "description": "Unified multimodal understanding and generation from first principles: why emitting an image is harder than reading one, how image tokenizers trade semantics for pixels, and how bridge, autoregressive and hybrid diffusion models see and draw.",
         "image": "https://srini-anirudh.github.io/blogs/models-that-see-and-draw/preview.png",
         "datePublished": "2026-10-18",
-        "dateModified": "2026-11-01",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["unified multimodal models", "image generation", "visual tokenizers", "vision-language models", "autoregressive image generation", "diffusion", "Transfusion", "Janus", "BAGEL"],
@@ -259,7 +259,7 @@
           <span>Unified multimodal models</span><span>Image generation</span><span>Visual tokenizers</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-10-18">October 18, 2026</time></span><span>Last modified <time datetime="2026-11-01">November 1, 2026</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-10-18">October 18, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -416,7 +416,7 @@
         <h3>Keeping the codebook alive</h3>
         <p>Vector quantization has a well-known failure. Many codebook entries are never chosen, so they never receive gradient and stay dead. A large nominal codebook can behave like a small one. Several fixes followed, and each one shows up in today's unified models.</p>
         <ul>
-          <li><strong>Low-dimensional, normalised codes.</strong> LlamaGen projects codes to a low dimension and ℓ<sub>2</sub>-normalises them. Lowering the code dimension from 256 to 8 improved both reconstruction and codebook usage. Its tokenizer reached 97% usage with a 16,384-entry codebook.</li>
+          <li><strong>Low-dimensional, normalised codes.</strong> LlamaGen projects codes to a low dimension and ℓ<sub>2</sub>-normalises them. Lowering the code dimension from 256 to 8 improved both reconstruction and codebook usage. Its tokenizer reached 97% usage with a 16,384-entry codebook. A small companion lab did not reproduce the usage gain on toy 16 × 16 images: the normalised low-dimension code improved reconstruction but usage stayed at 6.4%, against 4.5% for plain VQ, while FSQ reached 77.4%.</li>
           <li><strong>Finite scalar quantization (FSQ).</strong> Project to a handful of dimensions and round each one to a few fixed levels. The codebook is implicit, the product of the levels, for example [8, 8, 8, 5, 5, 5]. There is nothing to collapse. The FSQ paper reports usage near 100% without auxiliary losses.</li>
           <li><strong>Lookup-free quantization (LFQ).</strong> MAGVIT-v2 shrinks the code dimension to log<sub>2</sub> <i>K</i> and quantises each dimension to its sign. There is no codebook lookup at all. This makes very large vocabularies trainable. Show-o uses an LFQ tokenizer with 8,192 entries.</li>
         </ul>
@@ -865,6 +865,8 @@
           <li><strong>Loss weights correct for counting.</strong> Emu3's 0.5 and Transfusion's 5 fix opposite normalisations. (<a href="#training-recipe">The training recipe</a>)</li>
           <li><strong>Check GenEval provenance.</strong> Prompt rewriting and synthetic captions move scores by several points. (<a href="#evaluation">How unified models are evaluated</a>)</li>
         </ul>
+
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>The companion lab builds the writing path of this post at toy scale, on a CPU, in plain PyTorch. You can watch squared-error regression blur two modes into one while a flow sampler and a token sampler each commit to one, train VQ and FSQ tokenizers and count their live codes, and decode the same token image in raster order and with MaskGIT. It also trains a tiny Transfusion-style model with one trunk, a text loss and a flow loss, and tests its attention mask. Other scripts measure what classifier-free guidance does to diversity and prompt following, and what pixel-trained and caption-trained encoders each keep. The paper-scale results in this article are not reproduced. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/models-that-see-and-draw">labs/models-that-see-and-draw</a>.</p></aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../the-vlm-architecture-gallery/">The VLM Architecture Gallery</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../thinking-with-images/">Thinking With Images</a></li><li><a href="../choosing-the-next-token/">Choosing the Next Token</a></li></ul></nav>
@@ -1027,7 +1029,7 @@
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/models-that-see-and-draw/},
-  note         = {Published October 18, 2026; updated November 1, 2026}
+  note         = {Published October 18, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

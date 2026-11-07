@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/inside-an-ai-agent-harness/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/inside-an-ai-agent-harness/preview.png" />
     <meta property="article:published_time" content="2026-08-02" />
-    <meta property="article:modified_time" content="2026-08-02" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Inside an AI Agent Harness" />
     <meta name="twitter:description" content="A first-principles anatomy of the agent harness: the loop, the context builder, the agent-computer interface, edit protocols, observation design, sandboxes, permissions, budgets, event logs, and why the same model scores differently inside different machinery." />
@@ -37,7 +37,7 @@
         "description": "A first-principles anatomy of the agent harness: the loop, the context builder, the agent-computer interface, edit protocols, observation design, sandboxes, permissions, budgets, event logs, and why the same model scores differently inside different machinery.",
         "image": "https://srini-anirudh.github.io/blogs/inside-an-ai-agent-harness/preview.png",
         "datePublished": "2026-08-02",
-        "dateModified": "2026-08-02",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Agent harness", "Coding agents", "Agent-computer interface", "Sandboxing", "Context engineering", "Agent evaluation"],
@@ -167,7 +167,7 @@
           <span>Agent harness</span><span>Coding agents</span><span>Agent-computer interface</span><span>Systems design</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-02">August 2, 2026</time></span><span>72 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-02">August 2, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>72 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -1176,6 +1176,10 @@ PlanUpdated(items)         Compacted(from, to, summary_id)</code></pre>
         <p><strong>What is the right unit of evaluation?</strong> The case for ranking harness&ndash;model pairs with cost, idle turns and failure-category vectors alongside pass rate seems overwhelming to me. It is also more expensive to produce and harder to summarise in a headline, which is usually what decides these things.</p>
         <p><strong>Whose identity does the agent act under?</strong> Should an agent have its own principal identity, or inherit the user's permissions? Anthropic's current answer for one product is concrete — credentials stay in the host keychain, the sandbox gets a scoped, separately revocable session token — but the general cross-platform question is open, and it is the question that decides what "audit" means for a fleet of agents.</p>
         <p>If there is one thing to carry out of all this, it is the reframing at the top. A benchmark row that reads "model X: 57.8%" is not measuring a model. It is measuring \(f(\pi_\theta, H, \mathcal{A}, \mathcal{E})\) and reporting only the first argument. Once you have seen the other three, the number stops being a fact about intelligence and starts being a fact about a system — which is, after all, what you are actually going to deploy.</p>
+        <div class="callout">
+          <span class="callout-k">Run the code</span>
+          <p>A companion lab turns this article's cost arguments into small programs: a prefix cache that shows the loop's quadratic cost, and a real transformer KV cache that shows why the context is append-only. Other scripts compare code actions with per-item tool calls, edit formats with their retry costs, and truncation policies by whether the line that explains a failure survives. It also models the permission ladder, approval fatigue, turn budgets and a stop rule that needs the tests to pass. The agents are scripted or simulated, not a real model choosing actions. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/inside-an-ai-agent-harness">labs/inside-an-ai-agent-harness</a>.</p>
+        </div>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -1276,7 +1280,7 @@ PlanUpdated(items)         Compacted(from, to, summary_id)</code></pre>
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/inside-an-ai-agent-harness/},
-  note         = {Published August 2, 2026}
+  note         = {Published August 2, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

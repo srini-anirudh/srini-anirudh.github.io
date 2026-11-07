@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-multi-agent-systems-actually-coordinate/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-multi-agent-systems-actually-coordinate/preview.png" />
     <meta property="article:published_time" content="2026-08-16" />
-    <meta property="article:modified_time" content="2026-08-16" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How Multi-Agent Systems Actually Coordinate" />
     <meta name="twitter:description" content="When is N agents better than one agent with N times the compute? A first-principles account of specialisation, information partitioning, communication topology, correlated error, and learned orchestration." />
@@ -37,7 +37,7 @@
         "description": "A first-principles guide to multi-agent LLM systems: when N agents beat one agent with N times the compute, why error correlation caps the value of voting, what communication topology actually costs, and why the 2026 frontier is learned orchestration rather than more agents.",
         "image": "https://srini-anirudh.github.io/blogs/how-multi-agent-systems-actually-coordinate/preview.png",
         "datePublished": "2026-08-16",
-        "dateModified": "2026-08-16",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Multi-agent systems", "LLM agents", "Orchestration", "Communication topology", "Test-time compute", "Reinforcement learning"],
@@ -179,7 +179,7 @@
           <span>Multi-agent systems</span><span>Orchestration</span><span>Test-time compute</span><span>Context engineering</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-16">August 16, 2026</time></span><span>48 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-16">August 16, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>48 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -801,6 +801,13 @@
         <h3>The compressed version</h3>
         <p>If you want a single decision rule, it is this. Add an agent when you can name which of three things it buys &mdash; <em>a shorter context</em>, <em>a decorrelated check</em>, or <em>a cheaper token</em> &mdash; and when you have measured that a compute-matched single agent does not already give you it. Otherwise you are buying coordination overhead and calling it collaboration.</p>
         <p>The interesting future is almost certainly not more agents. It is adaptive orchestration: the right number of specialised policies, exchanging the right information, under a fixed compute budget, with the decision about all three learned rather than configured.</p>
+
+        <div class="callout run-the-code">
+          <p class="callout-kicker">Run the code</p>
+          <p>The companion lab rebuilds the voting ceiling, the topology table, the token bill, the Amdahl turn and the split-decision lab in small Python files. It also checks each one against the formulas in this article.</p>
+          <p>It then runs one small open model (Qwen2.5-0.5B-Instruct) as every agent. In one test the model votes with itself, sampled or under different personas. In another it reads a growing record store alone or as a coordinator with workers. A toy orchestrator also learns how many subagents to spawn, and collapses to serial when it is rewarded on task success alone.</p>
+          <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-multi-agent-systems-actually-coordinate" target="_blank" rel="noopener noreferrer">labs/how-multi-agent-systems-actually-coordinate on GitHub</a></p>
+        </div>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -906,7 +913,7 @@
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-multi-agent-systems-actually-coordinate/},
-  note         = {Published August 16, 2026}
+  note         = {Published August 16, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

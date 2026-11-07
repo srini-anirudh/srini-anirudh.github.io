@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/preview.png" />
     <meta property="article:published_time" content="2026-01-25" />
-    <meta property="article:modified_time" content="2026-01-25" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Why Fast GPUs Still Wait for Memory" />
     <meta name="twitter:description" content="A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels." />
@@ -28,7 +28,7 @@
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
     <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20260907-formula" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/"},"headline":"Why Fast GPUs Still Wait for Memory","description":"A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels.","image":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/preview.png","datePublished": "2026-01-25","dateModified":"2026-01-25","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["Roofline model", "arithmetic intensity", "compute-bound", "memory-bound", "GPU performance", "FlashAttention"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/"},"headline":"Why Fast GPUs Still Wait for Memory","description":"A first-principles derivation of arithmetic intensity and the Roofline model, applied to GEMM, attention, fusion, optimizers, and real ML kernels.","image":"https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/preview.png","datePublished": "2026-01-25","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["Roofline model", "arithmetic intensity", "compute-bound", "memory-bound", "GPU performance", "FlashAttention"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@type":"CreativeWorkSeries","@id":"https://srini-anirudh.github.io/blogs/#ml-systems","name":"ML Systems from First Principles"}]}
     </script>    <style>
       :root {
         --paper: #e4e2dc;
@@ -199,7 +199,7 @@
           <span>Roofline</span><span>Arithmetic intensity</span><span>Memory bandwidth</span><span>Kernel analysis</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-25">January 25, 2026</time></span><span>46 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-01-25">January 25, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>46 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -768,7 +768,7 @@
           });
         </script>
 
-        <div class="approx"><b>Approximation · measure your own ceilings before trusting them</b><br />Every number in the stack above is a burst peak under ideal conditions, and β is no better — real coalesced streaming typically lands near 85% of published bandwidth. Comparing a measured point against spec roofs therefore systematically overstates your headroom, and the overstatement is largest exactly where you are already doing well. An empirical roofline, with both rates measured on the machine you are actually using in the datatype and access pattern you are actually using, is worth more than a precise model built on vendor maxima.</div>
+        <div class="approx"><b>Approximation · measure your own ceilings before trusting them</b><br />Every number in the stack above is a burst peak under ideal conditions, and β is no better — real coalesced streaming typically lands near 85% of published bandwidth. A small companion lab measured 91% (3.04 of 3.35 TB/s) on one H100, so treat 85% as a rough figure, not a constant. Comparing a measured point against spec roofs therefore systematically overstates your headroom, and the overstatement is largest exactly where you are already doing well. An empirical roofline, with both rates measured on the machine you are actually using in the datatype and access pattern you are actually using, is worth more than a precise model built on vendor maxima.</div>
 
 
       </section>
@@ -3394,6 +3394,8 @@
         <p>Those numbers are the whole reason distributed training looks the way it does. Nearly twenty thousand FLOPs per byte is a bar that almost nothing clears by accident, which is why some parallelism strategies are confined to a single node while others cross datacentres, and why the arrangement of GPUs into nodes is a performance decision rather than a packaging one. Working that out properly needs its own treatment — collective algorithms, overlap, the arithmetic of each parallelism strategy — and that is the next article.</p>
                 <div class="note"><b>Nuance · the ridge is the only thing that changed</b><br />It is worth being clear about what this section is and is not claiming. The inequality is identical, the derivation is identical, and arithmetic intensity means exactly what it has meant throughout — FLOPs per byte crossing a boundary. All that moved is which boundary, and therefore how large I* is. That is why the network case belongs in a separate article rather than a longer version of this one: the model needs no extension, only new numbers and the collective algorithms that produce them.</div>
 <p>Everything up to here assumed the bytes you need already live on this GPU. The remaining question is what happens when they do not.</p>
+
+        <div class="note run-the-code"><b>Run the code</b><br />A companion lab measures this article's roofline on a real H100. It times copy bandwidth, the compute ceiling for each datatype, a kernel that sweeps across the ridge, GEMMs over a range of token counts, a fusion chain with every choice of kernel boundaries, naive versus flash attention, and optimizer steps. Each measurement sits next to the bytes-over-bandwidth prediction from the text. The article's analytical numbers are also recomputed and tested on CPU. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-fast-gpus-still-wait-for-memory" target="_blank" rel="noopener noreferrer">Open the lab on GitHub</a>.</div>
       </section>
 
       <section id="references">
@@ -3502,7 +3504,7 @@
   month        = {Jan},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/why-fast-gpus-still-wait-for-memory/},
-  note         = {Published January 25, 2026}
+  note         = {Published January 25, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-reinforcement-learning-teaches-models-to-reason/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-reinforcement-learning-teaches-models-to-reason/preview.png" />
     <meta property="article:published_time" content="2025-10-26" />
-    <meta property="article:modified_time" content="2026-04-05" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How Reinforcement Learning Teaches Models to Reason" />
     <meta name="twitter:description" content="A first-principles account of reinforcement learning for reasoning language models: verifiable rewards, outcome versus process supervision, the derivation of GRPO, what DeepSeek-R1 actually changed, and what the replication literature says about the aha moment." />
@@ -37,7 +37,7 @@
         "description": "A first-principles account of reinforcement learning for reasoning language models: verifiable rewards, outcome versus process supervision, the derivation of GRPO, what DeepSeek-R1 actually changed, and what the replication literature says about the aha moment.",
         "image": "https://srini-anirudh.github.io/blogs/how-reinforcement-learning-teaches-models-to-reason/preview.png",
         "datePublished": "2025-10-26",
-        "dateModified": "2026-04-05",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["reinforcement learning with verifiable rewards", "GRPO", "DeepSeek-R1", "process reward models", "reasoning language models", "policy gradient"],
@@ -156,7 +156,7 @@
           <span>RLVR</span><span>GRPO</span><span>DeepSeek-R1</span><span>Policy gradients</span><span>Process supervision</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-26">October 26, 2025</time></span><span>Last modified <time datetime="2026-04-05">April 5, 2026</time></span><span>46 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-26">October 26, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>46 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -592,7 +592,7 @@ format reward:    1[ reasoning appears between &lt;think&gt; and &lt;/think&gt; 
 
         <p>The optimizer does not know it is being asked about correctness. It sees a loss surface on which, among the responses it is being told to avoid, the long ones are cheaper to keep. Repeat that for thousands of steps and the length distribution of incorrect responses drifts right. Liu et al. observe exactly this: GRPO continues to generate longer responses even after reward improvement has flattened, and their fix &mdash; removing the length normalization and the standard-deviation normalization, which they call Dr. GRPO &mdash; prevents the model from generating progressively longer incorrect responses, improving token efficiency without hurting accuracy.</p>
 
-        <p>DAPO arrived at the same family of fix independently, replacing per-response normalization with a token-level loss that normalizes by the total token count across the group so that every token in the batch carries equal weight.</p>
+        <p>DAPO arrived at the same family of fix independently, replacing per-response normalization with a token-level loss that normalizes by the total token count across the group so that every token in the batch carries equal weight. In a small companion toy, normalizing by one group's token count, as the formula is written, still kept about a third of GRPO's length bias, while normalizing over the whole batch removed it; see the code.</p>
 
         <div class="callout">
           <span class="callout-kicker">Why this matters beyond the fix</span>
@@ -855,6 +855,12 @@ format reward:    1[ reasoning appears between &lt;think&gt; and &lt;/think&gt; 
         <p>If you want the policy-gradient foundations underneath section five, they are in <a href="../reinforcement-learning-from-first-principles/">RL for LLMs from First Principles</a>. The preference-modelling half of the story, including why DPO exists and where it stops working, is in <a href="../teaching-a-model-what-we-prefer/">From RLHF to DPO</a>. What happens when you spend the verification budget at inference rather than during training is <a href="../how-models-improve-without-changing-their-weights/">Test-Time Scaling</a>. And if you are actually going to run one of these loops, the systems problem &mdash; interleaving a generation engine with a training engine across a cluster, and keeping their weights in sync &mdash; is a different beast entirely, closer to <a href="../the-parallelism-playbook/">The Parallelism Playbook</a> and <a href="../the-serving-playbook/">The Serving Playbook</a> than to anything in this post.</p>
 
         <p>The last thing worth saying is that the substitution this article opened with has not finished playing out. We swapped a human judge for a calculator, and got scale. The domains where that swap is available &mdash; mathematics, code, formal logic, anything with a checker &mdash; are exactly the domains where reasoning models have improved fastest, and that correspondence is not a coincidence. The interesting question for the next few years is not how to optimize better against verifiers. It is what to do about everything a verifier cannot see.</p>
+
+        <div class="callout run-the-code">
+          <span class="callout-kicker">Run the code</span>
+          <p>The companion lab rebuilds this post's mechanisms in small PyTorch toys. Each one runs in seconds on a laptop CPU. You can watch best-of-N turn over against an imperfect scorer, and check that a group-mean baseline shrinks the gradient by exactly (G&minus;1)/G. You can also watch GRPO's length normalization make wrong answers longer, see RL raise pass@1 while the base model wins at large k, and see SFT reach a mode that RL never samples.</p>
+          <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-reinforcement-learning-teaches-models-to-reason" target="_blank" rel="noopener noreferrer">Open the lab on GitHub</a></p>
+        </div>
       </section>
 
       <section id="references">
@@ -932,7 +938,7 @@ format reward:    1[ reasoning appears between &lt;think&gt; and &lt;/think&gt; 
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-reinforcement-learning-teaches-models-to-reason/},
-  note         = {Published October 26, 2025; updated April 5, 2026}
+  note         = {Published October 26, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

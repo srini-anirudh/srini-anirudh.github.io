@@ -17,7 +17,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Seventy-one vision-language architectures drawn to one standardized plate, from Flamingo's gated cross-attention to encoders that dissolve into the base model entirely." />
     <meta property="article:published_time" content="2025-12-07" />
-    <meta property="article:modified_time" content="2026-08-18" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <title>The VLM Architecture Gallery: 71 Vision-Language Model Designs | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/" />
@@ -33,7 +33,7 @@
     <meta name="twitter:description" content="Seventy-one vision-language architectures drawn to one standardized plate, from gated cross-attention to unified multimodal models." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/"},"headline":"The VLM Architecture Gallery: 71 Vision-Language Model Designs","description":"Seventy-one vision-language architectures drawn to one standardized plate, from gated cross-attention to unified multimodal models.","image":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/preview.png","datePublished":"2025-12-07","dateModified":"2026-08-18","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["vision-language models","VLM architectures","multimodal AI","cross-attention","visual tokens","architecture gallery"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@id":"https://srini-anirudh.github.io/blogs/#vlms"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/"},"headline":"The VLM Architecture Gallery: 71 Vision-Language Model Designs","description":"Seventy-one vision-language architectures drawn to one standardized plate, from gated cross-attention to unified multimodal models.","image":"https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/preview.png","datePublished":"2025-12-07","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["vision-language models","VLM architectures","multimodal AI","cross-attention","visual tokens","architecture gallery"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@id":"https://srini-anirudh.github.io/blogs/#vlms"}]}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -597,7 +597,7 @@ footer a:hover{color:var(--enc)}
       <span>Vision-language models</span><span>Architecture</span><span>Connectors</span><span>Token budgets</span>
     </div>
     <div class="article-meta-bar">
-    <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-07">December 7, 2025</time></span><span>Last modified <time datetime="2026-08-18">August 18, 2026</time></span><span>34 min read</span>
+    <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-07">December 7, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>34 min read</span>
       <button class="article-share" type="button" aria-label="Share this article">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
         Share
@@ -742,6 +742,8 @@ footer a:hover{color:var(--enc)}
     </div>
   </div>
 
+  <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>A companion lab builds the gallery's recurring parts as small swappable PyTorch modules. It has six connectors (linear, MLP, pixel shuffle, average and attentional pooling, a Perceiver resampler) and four fusion points (prefix, gated cross-attention, visual expert with a PLoRA variant, encoder-free). It trains each one on the same tiny synthetic task on a CPU, so you can see which connectors keep fine detail and which recipes make the language model forget.</p><p>It also counts visual tokens for fixed, tiled, native and multi-crop inputs, and measures the KV cache of a visual prefix. It reads nine real model configs from the Hub and compares them with the token counts in this gallery. Eight match. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/the-vlm-architecture-gallery">labs/the-vlm-architecture-gallery on GitHub</a></p></aside>
+
   <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../an-image-is-a-sentence/">An Image Is a Sentence</a></li><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li></ul></nav>
   <h2 id="references" data-toc="References">References</h2>
   <p>Everything the gallery is built from, grouped by the problem each line of work was solving. Every entry links out to the report, the blog post, or the repository; model entries also open their plate here.</p>
@@ -764,7 +766,7 @@ footer a:hover{color:var(--enc)}
   month        = {Dec},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-vlm-architecture-gallery/},
-  note         = {Published December 7, 2025; updated August 18, 2026}
+  note         = {Published December 7, 2025; updated November 7, 2026}
 }</code></pre>
     <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
     <span class="citation-status" aria-live="polite"></span>
@@ -2780,7 +2782,7 @@ const CONCEPTS = {
 'anyres':{t:'AnyRes tiling',b:`
 <p>Choose a tile grid from a small preset list based on the image's aspect ratio, cut the image into full-resolution tiles, encode each tile independently through the same ViT, and prepend a resized global view so the model still sees the whole layout.</p>
 <p>Introduced in LLaVA-NeXT and adopted almost universally within a year, because it turns a fixed-resolution encoder into an arbitrary-resolution one with no architecture change at all.</p>
-<p><strong>The cost is linear and it adds up fast.</strong> Five tiles at 576 tokens each is 2 880 tokens; InternVL's 40-tile mode with pixel shuffle is over 10 000. This is the single biggest driver of VLM serving cost, and the reason the field split into a fixed-budget camp (Gemma 3, MiniCPM-V) and a fidelity camp.</p>`},
+<p><strong>The cost is linear and it adds up fast.</strong> Five tiles at 576 tokens each is 2 880 tokens (Hugging Face's implementation also adds one newline token per row and drops padding, which gives 2 928 on the largest canvas); InternVL's 40-tile mode with pixel shuffle is over 10 000. This is the single biggest driver of VLM serving cost, and the reason the field split into a fixed-budget camp (Gemma 3, MiniCPM-V) and a fidelity camp.</p>`},
 
 'tiling':{t:'Dynamic tiling',b:`
 <p>The general family that AnyRes belongs to: partition a high-resolution image into encoder-sized tiles, encode each separately, concatenate the results.</p>
@@ -2841,7 +2843,7 @@ const CONCEPTS = {
 
 'attention-pooling':{t:'Attentional pooling',b:`
 <p>Molmo's connector. Rather than averaging a 2×2 patch neighbourhood or learning a global query set, it runs a small attention operation over each local neighbourhood — a learned, content-dependent weighting instead of a uniform mean.</p>
-<p>It sits between mean pooling (cheap, destroys high frequencies) and a full resampler (flexible, globally lossy). Locality is the key property: nothing is compressed with anything far away from it.</p>`},
+<p>It sits between mean pooling (cheap, destroys high frequencies) and a full resampler (flexible, globally lossy). Locality is the key property: nothing is compressed with anything far away from it. A small companion lab did not see it beat plain averaging on a toy task: 0.404 against 0.399 on the fine question at four tokens, over two seeds.</p>`},
 
 'avg-pooling':{t:'Average pooling',b:`
 <p>Mean over a patch neighbourhood, then project. Gemma 3 uses it to hit a fixed 256 tokens per window regardless of input.</p>

@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/the-mechanics-of-llm-inference/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/the-mechanics-of-llm-inference/preview.png" />
     <meta property="article:published_time" content="2026-03-22" />
-    <meta property="article:modified_time" content="2026-03-22" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Mechanics of LLM Inference" />
     <meta name="twitter:description" content="A first-principles field guide to LLM inference: prefill and decode, the KV cache, arithmetic intensity, latency metrics, and VLM serving." />
@@ -37,7 +37,7 @@
         "description": "A first-principles field guide to LLM inference: prefill and decode, the KV cache derived from scratch, arithmetic intensity and batching, latency metrics, quantization, distributed serving, and vision-language inference.",
         "image": "https://srini-anirudh.github.io/blogs/the-mechanics-of-llm-inference/preview.png",
         "datePublished": "2026-03-22",
-        "dateModified": "2026-03-22",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["LLM inference", "KV cache", "prefill and decode", "arithmetic intensity", "vision-language models"],
@@ -204,7 +204,7 @@
           <span>LLM inference</span><span>KV cache</span><span>Prefill &amp; decode</span><span>Serving</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-22">March 22, 2026</time></span><span>56 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-03-22">March 22, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>56 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -861,7 +861,7 @@
           W<sub>prefill</sub> ≈ 2·P·N<sub>p</sub> &nbsp;+&nbsp; 2·L·N<sub>p</sub>²·d &nbsp;&nbsp;<em>(linear layers, then causal attention)</em><br />
           W<sub>decode step</sub> ≈ 2·P &nbsp;+&nbsp; 4·L·N·d &nbsp;&nbsp;<em>(one token against N cached positions)</em>
         </div>
-        <p>The quadratic term in prefill is the familiar N² of attention, halved by causality. It is smaller than people expect at ordinary context lengths: the two terms are equal when N<sub>p</sub> = P/(L·d), which for an 8B model with L = 32 and d = 4096 is about <strong>53,000 tokens</strong>. Below that, prefill cost is dominated by the dense linear layers and is essentially linear in prompt length; above it, attention takes over and prefill becomes genuinely quadratic.</p>
+        <p>The quadratic term in prefill is the familiar N² of attention, halved by causality. It is smaller than people expect at ordinary context lengths: the two terms are equal when N<sub>p</sub> = P/(L·d), which for an 8B model with L = 32 and d = 4096 is about <strong>61,000 tokens</strong> with P = 8.03 × 10<sup>9</sup>, or about 53,000 if P counts only the 6.98 × 10<sup>9</sup> parameters outside the embedding table and LM head. Below that, prefill cost is dominated by the dense linear layers and is essentially linear in prompt length; above it, attention takes over and prefill becomes genuinely quadratic.</p>
         <h3>The shapes are what matter</h3>
         <p>Take any single linear layer, weights of shape d × d<sub>out</sub>. During prefill it sees a matrix of N<sub>p</sub> activation rows; during decode it sees one row. That is the same weight matrix in two completely different GEMMs:</p>
         <div class="eq">
@@ -1227,7 +1227,7 @@
             </tbody>
           </table>
         </div>
-        <p>The 128k column is the one to stare at. A single Llama-2-7B-shaped sequence at full context needs <strong>68.7 GB of KV cache</strong> — more than five times the model's own bf16 weights, and more than an 80 GB H100 has left after loading them. One request. Not a batch.</p>
+        <p>The 128k column is the one to stare at. A single Llama-2-7B-shaped sequence at full context needs <strong>68.7 GB of KV cache</strong> — more than five times the model's own bf16 weights. Weights plus cache come to 82.2 GB, which fills an 80 GB H100 (about 85 GB in decimal units) with almost nothing to spare. One request. Not a batch.</p>
 
         <div class="article-panel" id="fig-kvmem" role="img" aria-label="Animation showing KV cache size growing with context length and batch size for several model shapes, with an 80 gigabyte capacity line that the cache crosses, and the resulting maximum concurrency.">
           <span class="fig-tag">Figure 05</span>
@@ -2745,7 +2745,7 @@
           E[tokens] = (1 − α<sup>γ+1</sup>) / (1 − α)<br /><br />
           speed-up ≈ E[tokens] / (1 + γ·c) &nbsp;&nbsp;<em>where c is the draft's cost relative to one target step</em>
         </div>
-        <p>At α = 0.8 with γ = 4 that is 3.36 tokens per pass; with a draft costing 5% of a target step the net speed-up is about <strong>2.8×</strong>. Acceptance rate is the whole ballgame — it depends on how well the draft mimics the target, and it varies enormously by domain. Code and structured output accept extremely well; open-ended creative text much less so.</p>
+        <p>At α = 0.8 with γ = 4 that is 3.36 tokens per pass; with a draft costing 5% of a target step the net speed-up is about <strong>2.8×</strong>. Acceptance rate is the whole ballgame — it depends on how well the draft mimics the target, and it varies enormously by domain. Code and structured output accept extremely well; open-ended creative text much less so. A companion lab found two gaps between this formula and a plain PyTorch run on an H100. Verifying extra positions cost 1.2 to 1.3 times one step at batch 1, not 1.0. And a real SmolLM2-135M drafting for SmolLM2-360M reached acceptance 0.88 but ran at 0.45 to 0.82 times plain decoding, because both models are launch-bound and c is near 1.</p>
         <h3>Where it stops working</h3>
         <p>Speculation spends idle arithmetic. When the arithmetic is no longer idle, the trade inverts. Verifying γ+1 positions for each of B sequences puts B(γ+1) rows through every GEMM, so the effective intensity is 2B(γ+1)/s<sub>w</sub> and the step becomes compute-bound once</p>
         <div class="eq">B(γ+1) &gt; B* = s<sub>w</sub>·π/(2β) &nbsp;&nbsp;→&nbsp;&nbsp; on an H100 in bf16, B(γ+1) &gt; 295</div>
@@ -3095,7 +3095,7 @@
         <h3>Where the time goes</h3>
         <p>Three costs stack before the LLM has done anything.</p>
         <div class="eq">
-          <span class="lead">TTFT budget, one image, 7B backbone, H100</span>
+          <span class="lead">TTFT budget, one image, 7B backbone (7.3 × 10<sup>9</sup> parameters), H100</span>
           preprocess (JPEG decode, resize, 13 crops) &nbsp;&nbsp;&nbsp;≈ 15 ms &nbsp;<em>on CPU</em><br />
           ViT: 2·P<sub>vit</sub>·9477 + 4·L<sub>vit</sub>·729²·d<sub>vit</sub>·13 ≈ 8.4 TFLOP &nbsp;&nbsp;≈ 21 ms<br />
           LLM prefill over 2,400 tokens ≈ 36.6 TFLOP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;≈ 82 ms<br />
@@ -3728,6 +3728,11 @@
 
         <p>Which is where this article stops and the next one begins. Everything here has been about a single request or a single batch on a single machine, reasoned from bytes and FLOPs. The scheduling problem sketched above is a different kind of problem — queueing, admission, fairness, SLO negotiation, cache placement across a fleet — and it deserves its own treatment. That is the subject of the next piece: <a href="../the-serving-playbook/">The Serving Playbook</a>.</p>
         <p>What should survive from this one is smaller and more portable. Prefill is compute-bound and decode is memory-bound, and almost every surprising fact about inference performance is a corollary of that sentence. When something is slower than you expect, work out which of the two phases you are in, count the bytes that phase must move, divide by bandwidth, and compare with what you measured. The gap is where the answer is.</p>
+
+        <aside class="cal aside run-the-code"><b>RUN THE CODE · the companion lab</b>
+          The companion lab recomputes the paper numbers in this article from its formulas, and it shows the KV cache is exact: the cached keys match bit for bit, and cached and uncached generation give the same tokens. Then it measures the article's claims on an H100 with a Llama-3-8B-shaped decoder: prefill against decode, the decode wall as context grows, batching with private caches, weight bytes against step time, and the cost of verifying several speculative tokens.
+          <br /><br />It also runs real speculative decoding with SmolLM2-135M drafting for SmolLM2-360M, and simulates static against continuous batching on the eight requests of Figure 15. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/the-mechanics-of-llm-inference">labs/the-mechanics-of-llm-inference on GitHub</a>.
+        </aside>
       </section>
 
       <section id="references">
@@ -3809,7 +3814,7 @@
   month        = {Mar},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-mechanics-of-llm-inference/},
-  note         = {Published March 22, 2026}
+  note         = {Published March 22, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

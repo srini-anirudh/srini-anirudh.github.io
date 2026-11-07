@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/teaching-a-model-what-we-prefer/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/teaching-a-model-what-we-prefer/preview.png" />
     <meta property="article:published_time" content="2025-09-14" />
-    <meta property="article:modified_time" content="2025-09-14" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Teaching a Model What We Prefer: From RLHF to DPO" />
     <meta name="twitter:description" content="Humans cannot hand a neural network a differentiable definition of a good answer. This is a first-principles derivation of how we manufacture one." />
@@ -38,7 +38,7 @@
         "description": "A first-principles derivation of preference learning for language models: Bradley–Terry, reward models and their pathologies, the KL-regularised objective, the DPO identity, and the family of offline preference losses.",
         "image": "https://srini-anirudh.github.io/blogs/teaching-a-model-what-we-prefer/preview.png",
         "datePublished": "2025-09-14",
-        "dateModified": "2025-09-14",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["RLHF", "Direct Preference Optimization", "Bradley-Terry model", "reward modelling", "KL regularisation", "preference optimization", "Constitutional AI", "RLAIF"],
@@ -192,7 +192,7 @@
           <span>RLHF</span><span>Bradley–Terry</span><span>DPO</span><span>Preference optimization</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-09-14">September 14, 2025</time></span><span>54 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-09-14">September 14, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>54 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -2660,6 +2660,12 @@
         <p><strong>Four.</strong> The data pipeline dominates the loss function. Prompt diversity, label quality, on-policy completions and length control move the numbers reproducibly. The choice of acronym moves them by about a point. Spend accordingly.</p>
 
         <p>The uncomfortable thread running through all of it is that we never escaped the original problem. We are still, at the end, optimising against a model of what a tired annotator preferred on a Tuesday. <a href="../how-reinforcement-learning-teaches-models-to-reason/">The next article</a> is about what changes when the reward stops being a model of anyone's preference and starts being a fact.</p>
+
+        <div class="nuance run-the-code">
+          <p class="kicker">Run the code</p>
+          <p>The companion lab checks the derivations in this article on small examples you can print. It simulates Gumbel annotators to get the Bradley&ndash;Terry sigmoid, solves the KL-regularised objective exactly and recovers the reward from the policy, and fits DPO until it lands on the same optimum.</p>
+          <p>It also reproduces three failures at toy scale on a CPU. A proxy reward model is over-optimised by best-of-n and by the KL tilt. Likelihood displacement appears when the chosen and rejected answers are similar. Offline DPO sends its mass to completions it never saw labelled. The displacement run is repeated on SmolLM2-135M-Instruct. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/teaching-a-model-what-we-prefer">labs/teaching-a-model-what-we-prefer on GitHub</a></p>
+        </div>
       </section>
 
       <section id="references">
@@ -2771,7 +2777,7 @@
   year         = {2025},
   month        = {Sep},
   howpublished = {\url{https://srini-anirudh.github.io/blogs/teaching-a-model-what-we-prefer/}},
-  note         = {Understanding LLMs, part 6 of 9. Published September 14, 2025}
+  note         = {Understanding LLMs, part 6 of 9. Published September 14, 2025; updated November 7, 2026}
 }</code></pre>
         <button type="button" class="citation-copy" data-copy-citation aria-label="Copy the BibTeX citation to the clipboard">Copy BibTeX</button>
         <span class="citation-status" role="status" aria-live="polite"></span>

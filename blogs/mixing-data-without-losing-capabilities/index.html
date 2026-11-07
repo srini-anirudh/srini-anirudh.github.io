@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/mixing-data-without-losing-capabilities/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/mixing-data-without-losing-capabilities/preview.png" />
     <meta property="article:published_time" content="2025-08-31" />
-    <meta property="article:modified_time" content="2026-05-10" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Mixing Data Without Losing Capabilities" />
     <meta name="twitter:description" content="Why making a model better at one skill can make it worse at another — negative transfer, catastrophic forgetting, mixture laws, replay and merging, derived from first principles." />
@@ -37,7 +37,7 @@
         "description": "Why making a model better at one skill can make it worse at another — negative transfer, catastrophic forgetting, mixture laws, replay and merging, derived from first principles.",
         "image": "https://srini-anirudh.github.io/blogs/mixing-data-without-losing-capabilities/preview.png",
         "datePublished": "2025-08-31",
-        "dateModified": "2026-05-10",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["post-training", "data mixtures", "catastrophic forgetting", "negative transfer", "instruction tuning", "multi-task learning"],
@@ -183,7 +183,7 @@
           <span>Data mixtures</span><span>Multi-task learning</span><span>Catastrophic forgetting</span><span>Instruction tuning</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-08-31">August 31, 2025</time></span><span>Last modified <time datetime="2026-05-10">May 10, 2026</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-08-31">August 31, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -585,7 +585,7 @@
             <button type="button" data-speed="2" aria-label="Play animation at double speed" aria-pressed="false">2x</button>
             <span class="animation-status">Stage 01 / 08</span>
           </div>
-          <p class="fig-cap">Six capabilities, tuned one after another. Each stage improves its target and quietly taxes something else; by the end the model is good at the thing it learned last. Training a single mixture recovers most of what the sequence destroyed — but none of the runs reach the ceilings set by single-skill specialists. Scores are illustrative and drawn to make the shape of the effect legible; the qualitative pattern (sequential tuning forgets, mixtures compromise, specialists top out higher) is the one reported across the instruction-tuning literature.</p>
+          <p class="fig-cap">Six capabilities, tuned one after another. Each stage improves its target and quietly taxes something else; by the end the model is good at the thing it learned last. Training a single mixture recovers most of what the sequence destroyed — but none of the runs reach the ceilings set by single-skill specialists. Scores are illustrative and drawn to make the shape of the effect legible; the qualitative pattern (sequential tuning forgets, mixtures compromise, specialists top out higher) is the one reported across the instruction-tuning literature. In a small companion lab on tiny exact-answer tasks, the mixture matched the specialists on most skills and fell clearly below them only on one of four; see the code.</p>
         </div>
 
         <p>Two things in that figure deserve to be pulled apart immediately, because they look identical on a dashboard and have completely different fixes.</p>
@@ -3684,6 +3684,8 @@
 
         <p>The second is that a large fraction of what gets counted as forgetting is not loss of knowledge at all. This is the spurious-forgetting result from §2, and it has a sharp operational consequence: <strong>diagnose before you mitigate</strong>. Replay, regularisation and merging are all expensive. Restoring an output convention is not.</p>
 
+        <p>A small companion lab did not reproduce the spurious-forgetting result. On a 47,000-parameter transformer trained from scratch, a "&gt;" preamble leaked into 80% to 92% of <code>add</code> answers, but the digits were wrong too, so a lenient parser recovered nothing. What did show was displaced versus destroyed. After 30 steps of new data, 25 steps of <code>add</code> restored it. After 3,000 steps, it took 350 to 675.</p>
+
         <div class="article-panel" id="fig11">
           <div class="fig-head">
             <span class="fig-num">Figure 11</span>
@@ -4648,6 +4650,11 @@
         </div>
 
         <p>The systems side of all of this — how a mixture actually becomes batches, what the data loader does with per-source weights, and where the throughput goes — is the subject of <a href="../inside-a-training-step/">Inside a Training Step</a>. The scaling side, and where the token budget in §13 comes from, is in <a href="../scaling-laws-from-first-principles/">Scaling Laws from First Principles</a>.</p>
+
+        <div class="takeaway">
+          <h4>Run the code</h4>
+          <p>The companion lab trains a two-layer transformer of about 47,000 parameters on small exact-answer tasks, on a CPU. You can measure the gradient Gram matrix and check the first-order law ΔL ≈ −ηKλ at small step sizes, watch token-mean loss reweight a 30/30/40 mixture, and see sequential tuning forget while a mixture keeps every skill. It also runs leave-one-out ablations, a fitted mixture law tested against stratified sampling, a replay sweep, the loss-chasing trap and the four-rung diagnostic ladder. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/mixing-data-without-losing-capabilities">labs/mixing-data-without-losing-capabilities</a>.</p>
+        </div>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -4739,7 +4746,7 @@
   year         = {2025},
   month        = {Aug},
   howpublished = {\url{https://srini-anirudh.github.io/blogs/mixing-data-without-losing-capabilities/}},
-  note         = {Blog post. Published August 31, 2025; updated May 10, 2026}
+  note         = {Blog post. Published August 31, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation aria-label="Copy the BibTeX citation">Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

@@ -21,7 +21,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/from-vlms-to-vlas/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/from-vlms-to-vlas/preview.png" />
     <meta property="article:published_time" content="2026-07-12" />
-    <meta property="article:modified_time" content="2026-08-02" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="From VLMs to VLAs: Vision-Language-Action Models for Robot Control" />
     <meta name="twitter:description" content="How vision-language models become robot policies: action tokens, action chunking, FAST, flow-matching action experts, dual-system designs, data, training, evaluation and safety." />
@@ -45,7 +45,7 @@
         "description": "How vision-language models become robot policies: the control problem, action tokens, action chunking, FAST, flow-matching action experts, dual-system designs, data, training recipes, RL, world models, evaluation and safety.",
         "image": "https://srini-anirudh.github.io/blogs/from-vlms-to-vlas/preview.png",
         "datePublished": "2026-07-12",
-        "dateModified": "2026-08-02",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Vision-language-action models", "Robot learning", "Action representation"],
@@ -216,7 +216,7 @@
           <span>Vision-language-action models</span><span>Robot learning</span><span>Action representation</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-07-12">July 12, 2026</time></span><span>Last modified <time datetime="2026-08-02">August 2, 2026</time></span><span>48 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-07-12">July 12, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>48 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -420,7 +420,7 @@
         <p>A language model ends in a softmax over a vocabulary. A robot needs real numbers. Between those two ends sits the most consequential design choice in a VLA. This section walks through the options in the order the field discovered them.</p>
 
         <h3>Bins as tokens</h3>
-        <p>The RT-1, RT-2 and OpenVLA approach maps each action dimension to one of 256 bins. With actions normalised to [&minus;1, 1], a bin is 2/256 wide, so the rounding error is at most 1/256 of the range. That is fine for coarse tabletop moves.</p>
+        <p>The RT-1, RT-2 and OpenVLA approach maps each action dimension to one of 256 bins. With actions normalised to [&minus;1, 1], a bin is 2/256 wide, so the rounding error is at most half a bin, or 1/256 in absolute units. That is 1/512 of the range. That is fine for coarse tabletop moves.</p>
         <p>Two problems appear as tasks get faster. The first is speed. Decoding is sequential, one token per forward pass of the whole model. A seven-dimensional action costs seven passes.</p>
         <p>The second problem is subtler, and the FAST paper explains it well. Suppose the policy predicts a one-second chunk at 50&nbsp;Hz, one token per dimension per step. That is 50 &times; 7 = 350 tokens. A smooth arm motion changes very little in 20&nbsp;milliseconds. So given the previous token, the next one is nearly determined. The model can reach a low loss by copying. The training signal carried by each token, its marginal information, goes toward zero as the control frequency rises. The FAST authors found that autoregressive VLAs with per-step binning failed completely on their dexterous high-frequency tasks.</p>
 
@@ -572,7 +572,7 @@
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>The last layer of a VLM is shaped by next-token prediction over text. Control seems to want earlier, more visual features. GR00T N1 reports higher success and faster inference from layer 12 than from the final layer, and SmolVLA drops the upper half of its VLM. So treat the read-out layer as a hyperparameter, and remember that truncating the VLM can buy speed and accuracy together. Post 18, <a href="../what-happens-inside-a-vlm/">What Happens Inside a VLM</a>, looks at why visual information is concentrated in middle layers.</p></aside>
 
         <h3>Pretrained knowledge can be damaged</h3>
-        <p>The VLM's knowledge is not guaranteed to survive robot training. Physical Intelligence studied this in a 2025 paper on <b>knowledge insulation</b>. Their observation was blunt. Adding a randomly initialised action expert and training everything together harmed the model's ability to follow language. Their example: told to put a spoon in the bin, a model grasped a piece of trash instead. They attribute this to gradient interference: large, noisy gradients from the new expert flow into the pretrained backbone.</p>
+        <p>The VLM's knowledge is not guaranteed to survive robot training. Physical Intelligence studied this in a 2025 paper on <b>knowledge insulation</b>. Their observation was blunt. Adding a randomly initialised action expert and training everything together harmed the model's ability to follow language. Their example: told to put a spoon in the bin, a model grasped a piece of trash instead. They attribute this to gradient interference: large, noisy gradients from the new expert flow into the pretrained backbone. A small companion lab reproduced the damage to a pretrained skill but not the loss of instruction following: in its toy, joint training raised the backbone's pointing error from 0.014 to 0.80, while the four variants could not be ranked on unseen instructions.</p>
         <p>The fix has three parts. The backbone is trained on discrete FAST action tokens, which fit its next-token objective, and on web data. The action expert is trained with flow matching. A <b>stop-gradient</b> keeps the expert's gradients out of the backbone. Information still flows forward from the VLM to the expert through attention. The authors report that this trains faster, runs fast, and keeps language following. <a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a> covers gradient interference in general.</p>
 
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Adding an action expert makes a VLA faster and more precise, and can also make it understand language worse. The knowledge-insulation paper shows that the damage comes from training the new, randomly initialised weights jointly with the pretrained backbone. So "initialised from a VLM" does not mean "keeps the VLM's knowledge". Check language following after robot training, not only task success.</p></aside>
@@ -855,6 +855,12 @@
           <li><b>Small trial counts hide differences.</b> Twenty trials give about &plusmn;22 points; LIBERO is near saturation. <a href="#evaluation">Evaluating a robot policy</a></li>
           <li><b>Jailbreaks become physical.</b> Safety must sit in layers below the model. <a href="#safety">Safety when the output moves</a></li>
         </ul>
+
+        <aside class="callout callout-insight run-the-code">
+          <p class="callout-label">Run the code</p>
+          <p>The companion lab builds the core mechanisms of this post from scratch in small PyTorch and NumPy scripts that run on a CPU. You can watch errors compound in behaviour cloning and DAgger remove them. You can see an MSE head drive into an obstacle when bins or flow matching steer around it, and count how many tokens per-step bins and FAST spend on one second of motion.</p>
+          <p>It also has a &pi;<sub>0</sub>-style action expert with a block-wise causal mask and a prefix cache, a 50&nbsp;Hz loop for chunk size against latency, a toy of knowledge insulation, and the trial-count statistics from the evaluation section. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/from-vlms-to-vlas">labs/from-vlms-to-vlas on GitHub</a>.</p>
+        </aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../vlms-that-act/">VLMs That Act</a></li><li><a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a></li><li><a href="../reinforcement-learning-from-first-principles/">Reinforcement Learning from First Principles</a></li></ul></nav>
@@ -1005,7 +1011,7 @@
   month        = {Jul},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/from-vlms-to-vlas/},
-  note         = {Published July 12, 2026; updated August 2, 2026}
+  note         = {Published July 12, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -1645,7 +1651,7 @@
     function setFlow(tau) { fdots.forEach(function (d, i) { setA(d, { cy: Y(tau * A[i] + (1 - tau) * EPS[i]) }); }); }
     var P = {
       0: ["The raw signal", ["50 real numbers, one every 20 ms.", "A 7-D arm produces seven such", "curves per second.", "", "The model must emit them as", "tokens, numbers or a sample."]],
-      1: ["Per-step bins", ["each value → one of 256 bins", "one token per step", "first tokens: " + bins.slice(0, 4).join(", ") + " …", "", "rounding error ≤ 1/256 of", "the [−1, 1] range"]],
+      1: ["Per-step bins", ["each value → one of 256 bins", "one token per step", "first tokens: " + bins.slice(0, 4).join(", ") + " …", "", "rounding error ≤ 1/512 of", "the [−1, 1] range"]],
       2: ["Per-step bins, zoomed", ["neighbours differ by a few bins", "(orange: change from previous)", "", "the next token is almost", "a copy of the last one:", "little new information per token"]],
       3: ["Per-step bins: cost", ["7 dims × 50 steps", "= 350 tokens per chunk,", "decoded one at a time", "", "FAST paper: this scheme fails", "on dexterous 50 Hz tasks"]],
       4: ["FAST, step 1: DCT", ["cosine weights of the curve", "energy sits in the first few", "coefficients (left)", "", "same idea as JPEG for", "image blocks"]],

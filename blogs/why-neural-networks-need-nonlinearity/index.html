@@ -11,7 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="An illustrated survey of neural network activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU, with animated derivations and a map of which LLMs and VLMs use which." />
     <meta property="article:published_time" content="2024-06-16" />
-    <meta property="article:modified_time" content="2026-01-11" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <title>Why Neural Networks Need Nonlinearity | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/" />
@@ -27,7 +27,7 @@
     <meta name="twitter:description" content="An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/"},"headline":"Why Neural Networks Need Nonlinearity","description":"An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU.","image":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png","datePublished":"2024-06-16","dateModified":"2026-01-11","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["activation functions","ReLU","GELU","SwiGLU","neural networks","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/"},"headline":"Why Neural Networks Need Nonlinearity","description":"An illustrated survey of activation functions, from sigmoid and ReLU to GELU, SwiGLU and squared ReLU.","image":"https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/preview.png","datePublished":"2024-06-16","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["activation functions","ReLU","GELU","SwiGLU","neural networks","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -193,7 +193,7 @@
           <span>Activation functions</span><span>Transformers</span><span>Vision-language models</span><span>Optimization</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-06-16">June 16, 2024</time></span><span>Last modified <time datetime="2026-01-11">January 11, 2026</time></span><span>34 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-06-16">June 16, 2024</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>34 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -266,7 +266,7 @@
       <figure class="fig" data-fig="vanish" role="group" aria-label="Animated backward pass showing gradient magnitude decaying with depth for sigmoid, tanh and ReLU networks">
         <div class="fig-head"><span class="fig-num">FIG 02</span><h3 class="fig-title">Watching a gradient die</h3></div>
         <div class="animation-stage"></div>
-        <figcaption class="fig-cap">A gradient pulse travels backward through 18 layers. Bars are <b>log₁₀</b> of the gradient norm relative to the loss — each row drops by roughly a constant factor per layer, so a straight diagonal on this plot is exponential decay. Sigmoid with Xavier initialisation loses about 0.65 decades per layer; ReLU with He initialisation holds its own.</figcaption>
+        <figcaption class="fig-cap">A gradient pulse travels backward through 18 layers. Bars are <b>log₁₀</b> of the gradient norm relative to the loss — each row drops by roughly a constant factor per layer, so a straight diagonal on this plot is exponential decay. Sigmoid with Xavier initialisation loses about 0.63 decades per layer; ReLU with He initialisation holds its own.</figcaption>
       </figure>
 
       <p>Notice what the fix is <em>not</em>. Nothing about sigmoid limits what the network can represent. The problem is entirely about the conditioning of the optimisation, which is exactly the framing from section 01.</p>
@@ -332,13 +332,13 @@ sigmoid approximation: x · σ(1.702x)          ← "QuickGELU", used by OpenAI 
         <figcaption class="fig-cap">Left: keep-probability Φ(x), with live Bernoulli draws at 41 sample points. Right: the Monte-Carlo estimate of <b>E[x · Bernoulli(Φ(x))]</b> as the number of draws grows from 1 to 512. The scatter collapses onto the exact GELU curve; ReLU's hard gate is dashed for reference. GELU is not a smoothed ReLU that someone drew — it is the mean of an adaptive dropout mask.</figcaption>
       </figure>
 
-      <p>Swish arrived from the other direction. <a href="https://arxiv.org/abs/1710.05941" target="_blank" rel="noopener">Ramachandran, Zoph &amp; Le (2017)</a> ran a reinforcement-learning architecture search over compositions of unary and binary primitives and the search returned <b>x · σ(βx)</b>. With β = 1 this is exactly the SiLU that <a href="https://arxiv.org/abs/1702.03118" target="_blank" rel="noopener">Elfwing, Uchibe &amp; Doya</a> had proposed in 2017 as the derivative of a softplus-like unit in a reinforcement learning context, and it is also almost exactly GELU — the two curves differ by under 0.02 everywhere. β is sometimes learned; at β → ∞ Swish becomes ReLU, at β → 0 it becomes the identity scaled by a half, so β interpolates between linear and rectified.</p>
+      <p>Swish arrived from the other direction. <a href="https://arxiv.org/abs/1710.05941" target="_blank" rel="noopener">Ramachandran, Zoph &amp; Le (2017)</a> ran a reinforcement-learning architecture search over compositions of unary and binary primitives and the search returned <b>x · σ(βx)</b>. With β = 1 this is exactly the SiLU that <a href="https://arxiv.org/abs/1702.03118" target="_blank" rel="noopener">Elfwing, Uchibe &amp; Doya</a> had proposed in 2017 as the derivative of a softplus-like unit in a reinforcement learning context, and it is also close to GELU — the two curves never differ by more than about 0.19. β is sometimes learned; at β → ∞ Swish becomes ReLU, at β → 0 it becomes the identity scaled by a half, so β interpolates between linear and rectified.</p>
 
       <p>Mish (<a href="https://arxiv.org/abs/1908.08681" target="_blank" rel="noopener">Misra, 2019</a>) is <b>x · tanh(softplus(x))</b>, slightly smoother and with a slightly deeper negative dip. It shows up in the YOLO detection line and not much else, mostly because it costs more and the gains are within noise on most benchmarks.</p>
 
       <p>Hard-swish, from <a href="https://arxiv.org/abs/1905.02244" target="_blank" rel="noopener">MobileNetV3</a>, replaces the sigmoid with a piecewise-linear ramp: <b>x · ReLU6(x + 3)/6</b>. Same shape, no exponential, quantizes cleanly. This is the recurring mobile-vision pattern — take the good curve, approximate it with clamps.</p>
 
-      <p>All of these share a property that ReLU lacks and that turns out to matter: they are <b>non-monotone</b>. There is a small negative dip near x ≈ −1.28 for GELU (minimum value ≈ −0.17). A unit can be slightly negative and still contribute a small negative signal, and crucially the derivative there is negative rather than zero, so the unit can be pushed back toward the active region. There is no absorbing state.</p>
+      <p>All of these share a property that ReLU lacks and that turns out to matter: they are <b>non-monotone</b>. There is a small negative dip near x ≈ −0.75 for GELU (minimum value ≈ −0.17). A unit can be slightly negative and still contribute a small negative signal, and crucially the derivative there is negative rather than zero, so the unit can be pushed back toward the active region. There is no absorbing state.</p>
 
       <figure class="fig" data-fig="tracker" role="group" aria-label="Animated tangent line sweeping along activation curves with a synchronised derivative plot">
         <div class="fig-head"><span class="fig-num">FIG 05</span><h3 class="fig-title">The derivative is what the optimizer feels</h3></div>
@@ -437,7 +437,7 @@ Derivative: 2·max(0, x)   — unbounded, so it needs careful init and often qk-
 
       <p><b>The 2020 dividing line.</b> Anything designed before roughly 2021 uses GELU; anything designed after uses a gated variant. BERT, GPT-2, GPT-3, ViT, BLOOM, OPT, Falcon, GPT-NeoX — all elementwise. PaLM, Llama, Mistral, Qwen, Gemma, DeepSeek, OLMo — all gated. PaLM is the paper that made SwiGLU the default.</p>
 
-      <p><b>SwiGLU versus GeGLU is a coin flip.</b> Google's line (T5 v1.1, Flan-T5, Gemma 1/2/3) uses GeGLU; nearly everyone else uses SwiGLU. Given that SiLU and GELU differ by less than 0.02 pointwise, this is almost certainly a lineage artefact rather than a measured decision.</p>
+      <p><b>SwiGLU versus GeGLU is a coin flip.</b> Google's line (T5 v1.1, Flan-T5, Gemma 1/2/3) uses GeGLU; nearly everyone else uses SwiGLU. Given that SiLU and GELU differ by at most about 0.19 pointwise, this is almost certainly a lineage artefact rather than a measured decision.</p>
 
       <p><b>Vision-language models are chimeras.</b> A typical VLM runs QuickGELU inside the vision tower, plain GELU in the connector MLP, and SwiGLU in the language model — three different activation functions in one forward pass. LLaVA-1.5 and the original Molmo release are exactly this. Qwen2.5-VL is notable for breaking the pattern by rebuilding its ViT with SwiGLU and RMSNorm to match its language model.</p>
 
@@ -468,7 +468,7 @@ Derivative: 2·max(0, x)   — unbounded, so it needs careful init and often qk-
 tanh / sigmoid  →  Xavier/Glorot, gain 1        Var(W) = 2/(fan_in + fan_out)
 ReLU family     →  He/Kaiming, gain √2          Var(W) = 2/fan_in
 SELU            →  LeCun normal + AlphaDropout  Var(W) = 1/fan_in   (required, not advisory)
-GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather than √2 ≈ 1.41
+GELU / SiLU     →  He is close enough           effective gain ≈ 1.4–1.9, set by input scale (√2 ≈ 1.41)
       </div>
 
       <p>The √2 in He initialisation exists precisely because ReLU discards half the variance. Use Xavier with ReLU and your forward activations shrink by √2 per layer; use He with tanh and they grow. In a pre-norm transformer the normalisation layers hide most of this, which is why people get away with mismatches, but it still shows up as a worse first thousand steps.</p>
@@ -503,6 +503,11 @@ GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather 
       </ul>
 
       <p>The meta-lesson: activation functions stopped being about expressivity a long time ago, and stopped being about trainability once normalisation and residuals arrived. What remains is a systems question — sparsity, memory, quantization tails, kernel fusion — and that is why the answer keeps moving. It will move again when the hardware does.</p>
+
+      <div class="callout run-the-code">
+        <span class="tag">Run the code</span>
+        <p>A companion lab builds every activation in this post from its formula and runs the experiments on a CPU. You can watch a deep linear net fail on two spirals, measure the gradient dying through 18 sigmoid layers, and see a dead ReLU unit's weights stop moving for good. It also trains seven FFN variants, from ReLU to SwiGLU, inside a small byte-level language model, and swaps the activation in pretrained GPT-2 and CLIP to show what a mismatch costs. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/why-neural-networks-need-nonlinearity" target="_blank" rel="noopener">Open the lab on GitHub</a>.</p>
+      </div>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../the-geometry-of-normalization/">The Geometry of Normalization</a></li><li><a href="../what-an-optimizer-actually-does/">What an Optimizer Actually Does</a></li><li><a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a></li></ul></nav>
       <h2 id="sec-11"><span class="section-index">11</span><br />References</h2>
@@ -652,7 +657,7 @@ GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather 
   month        = {Jun},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/why-neural-networks-need-nonlinearity/},
-  note         = {Published June 16, 2024; updated January 11, 2026}
+  note         = {Published June 16, 2024; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -725,7 +730,7 @@ GELU / SiLU     →  He is close enough           effective gain ≈ 1.7 rather 
                     tags: ["C^∞ smooth", "strictly positive", "no sparsity", "f′ = σ(x)"] },
         gelu:     { n: "GELU", yr: "2016", c: C.violet,    eq: "x·Φ(x) = x·½[1 + erf(x/√2)]",
                     f: gelu, d: x => Phi(x) + x * phi(x), cam: [-1.3, -0.15, 2.2],
-                    tags: ["self-gating", "non-monotone dip at x ≈ −1.28", "smooth", "transformer default 2018–21"] },
+                    tags: ["self-gating", "non-monotone dip at x ≈ −0.75", "smooth", "transformer default 2018–21"] },
         silu:     { n: "SiLU / Swish", yr: "2017", c: C.violet, eq: "x·σ(βx),  β = 1",
                     f: silu, d: x => { const s = sig(x); return s * (1 + x * (1 - s)); }, cam: [-1.3, -0.2, 2.2],
                     tags: ["self-gating", "β → ∞ recovers ReLU", "the gate inside SwiGLU"] },
