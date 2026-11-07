@@ -27,7 +27,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="An animated field guide to neural network architectures — from the perceptron to Mamba and vision state-space models — comparing how each one mixes information, what it costs to train, what it carries at inference, how the gradient flows back through every block, and how to count the parameters, bytes and FLOPs a design implies." />
     <meta property="article:published_time" content="2025-01-19" />
-    <meta property="article:modified_time" content="2026-05-03" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <title>Evolution of ML Architectures: From Perceptrons to State-Space Models | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/" />
@@ -43,7 +43,7 @@
     <meta name="twitter:description" content="An animated guide to how neural architectures evolved, what each design computes, and what it costs." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/"},"headline":"Evolution of ML Architectures: From Perceptrons to State-Space Models","description":"An animated guide to how neural architectures evolved, what each design computes, and what it costs.","image":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/preview.png","datePublished":"2025-01-19","dateModified":"2026-05-03","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["machine learning architectures","perceptron","transformers","state-space models","Mamba","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/"},"headline":"Evolution of ML Architectures: From Perceptrons to State-Space Models","description":"An animated guide to how neural architectures evolved, what each design computes, and what it costs.","image":"https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/preview.png","datePublished":"2025-01-19","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["machine learning architectures","perceptron","transformers","state-space models","Mamba","deep learning"],"isPartOf":{"@id":"https://srini-anirudh.github.io/blogs/#blog"}}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -230,7 +230,7 @@
           <span>Architectures</span><span>Complexity</span><span>Attention</span><span>State space models</span><span>Backpropagation</span><span>Model sizing</span><span>Interactive</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-01-19">January 19, 2025</time></span><span>Last modified <time datetime="2026-05-03">May 3, 2026</time></span><span>64 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-01-19">January 19, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>64 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -387,7 +387,7 @@ receptive field after L layers (k, stride 1, dilation 1) = 1 + L·(k−1)</div>
         <p>Training is where it falls apart, in two separate ways. Run the figure: stages 1–5 unroll the forward pass, stage 6 sends the gradient back through time, and stages 7–8 show why it arrives as noise.</p>
         <div class="fig" data-fig="rnn"></div>
         <h3>Failure one: the gradient is a matrix power</h3>
-        <p>Backpropagation through time multiplies the same Jacobian once per step. Over <code>k</code> steps the gradient carries a factor <code>∏ W_hᵀ diag(σ′)</code>, whose magnitude behaves like <code>λ^k</code> where <code>λ</code> is roughly the largest singular value of that product. If <code>λ &lt; 1</code> the signal vanishes geometrically — at <code>λ = 0.9</code>, a dependency 100 steps back arrives at 0.0027 of its strength. If <code>λ &gt; 1</code> it explodes, which is at least easy to see and easy to patch with gradient clipping. Vanishing is the dangerous one because training looks fine; the model simply never learns anything long-range.</p>
+        <p>Backpropagation through time multiplies the same Jacobian once per step. Over <code>k</code> steps the gradient carries a factor <code>∏ W_hᵀ diag(σ′)</code>, whose magnitude behaves like <code>λ^k</code> where <code>λ</code> is roughly the largest singular value of that product. If <code>λ &lt; 1</code> the signal vanishes geometrically — at <code>λ = 0.9</code>, a dependency 100 steps back arrives at about <code>2.7×10⁻⁵</code> of its strength. If <code>λ &gt; 1</code> it explodes, which is at least easy to see and easy to patch with gradient clipping. Vanishing is the dangerous one because training looks fine; the model simply never learns anything long-range.</p>
         <div class="math">∂L_T/∂h_t = (∏_{s=t+1..T} W_hᵀ diag(σ′(a_s))) · ∂L_T/∂h_T
 ‖∂L_T/∂h_t‖ ≲ λ^{T−t}      λ &lt; 1 → vanish,  λ &gt; 1 → explode</div>
         <h3>Failure two: the sequential wall</h3>
@@ -655,7 +655,7 @@ attention = 2d² + 2·d·n_kv·d_h   (= 4d² when n_kv = n_h, i.e. MHA)</div>
 SwiGLU MLP = 3·d·d_ff ≈ 8d²       with d_ff = (8/3)d, rounded to a multiple of 128
 per layer  ≈ 12d²                 the number worth memorising
 total      = V·d (input embed) + V·d (output head, if untied) + L·(attn + mlp + 4d for norms)</div>
-        <p>So the rule of thumb is <code>N ≈ 12·L·d²</code> plus embeddings — and the "plus embeddings" is not a rounding error at small scale. GPT-2 small is 124M parameters of which 39M are the token embedding: nearly a third of the model is a lookup table. At 70B the same table is under 1%. This is why tying input and output embeddings was standard practice for years and then quietly stopped mattering.</p>
+        <p>So the rule of thumb is <code>N ≈ 12·L·d²</code> plus embeddings — and the "plus embeddings" is not a rounding error at small scale. GPT-2 small is 124M parameters of which 39M are the token embedding: nearly a third of the model is a lookup table. At 70B the same table is about 1.5%, or 3% with an untied output head. This is why tying input and output embeddings was standard practice for years and then quietly stopped mattering.</p>
 
         <h3>A worked example that lands on a real number</h3>
         <p>Take the published Llama-3-8B configuration: <code>L = 32</code>, <code>d = 4096</code>, <code>d_ff = 14336</code>, <code>n_h = 32</code>, <code>d_h = 128</code>, <code>n_kv = 8</code>, <code>V = 128256</code>, untied head.</p>
@@ -664,7 +664,7 @@ attention    2·4096² + 2·4096·(8·128) = 41.94 M   per layer
 mlp          3 × 4096 × 14336         = 176.2 M   per layer
 per layer    218.1 M                  × 32 layers = 6.979 B
 total                                             = 8.030 B  ✓</div>
-        <p>That is the shipped parameter count, from six numbers and no measurement. The same exercise for a Mamba block gives roughly <code>6d²</code> — the input projection to <code>2Ed</code> and the output projection back cost <code>3Ed²</code>, which is <code>6d²</code> at the standard expansion <code>E = 2</code>, with the convolution, <code>Δ</code> and <code>B, C</code> projections contributing a few percent. That is exactly half a Transformer layer, which is why Mamba stacks two blocks where a Transformer has one: it is a deliberate choice to make parameter-matched comparisons meaningful. A convolution, for the record, is <code>k²·C_in·C_out</code> per layer and is almost always the smallest term in anything modern.</p>
+        <p>That is the shipped parameter count, from six numbers and no measurement. The same exercise for a Mamba block gives roughly <code>6d²</code> — the input projection to <code>2Ed</code> and the output projection back cost <code>3Ed²</code>, which is <code>6d²</code> at the standard expansion <code>E = 2</code>, with the convolution, <code>Δ</code> and <code>B, C</code> projections contributing about 6% more, so the block comes to about <code>6.4d²</code>. That is about half a Transformer layer, which is why Mamba stacks two blocks where a Transformer has one: it is a deliberate choice to make parameter-matched comparisons meaningful. A convolution, for the record, is <code>k²·C_in·C_out</code> per layer and is almost always the smallest term in anything modern.</p>
 
         <h3>Every other family, the same arithmetic</h3>
         <p>Nothing about the counting is Transformer-specific. Every layer is a set of matrices, and the only question is which ones and how many times they are reused. Writing them all out with a common width <code>d</code> makes the families directly comparable for the first time:</p>
@@ -691,7 +691,7 @@ Mamba block    in_proj 2Ed² + out_proj Ed² (E = 2)       ≈ 6d²</div>
               <tr><td>GRU</td><td>6d²</td><td>6.29 M</td><td>12d²</td><td class="good">d</td><td>weights</td></tr>
               <tr><td>LSTM</td><td>8d²</td><td>8.39 M</td><td>16d²</td><td class="good">2d</td><td>weights</td></tr>
               <tr><td>Transformer</td><td class="bad">12d²</td><td class="bad">12.58 M</td><td>24d² + 4Nd</td><td class="bad">2·n_kv·d_h per token</td><td class="bad">KV cache</td></tr>
-              <tr><td>Mamba (E = 2)</td><td>6d²</td><td>6.29 M</td><td>12d² + 9ds</td><td class="good">2·d·s</td><td>weights</td></tr>
+              <tr><td>Mamba (E = 2)</td><td>6.4d²</td><td>6.67 M</td><td>12d² + 9ds</td><td class="good">2·d·s</td><td>weights</td></tr>
             </tbody>
           </table>
         </div>
@@ -717,7 +717,7 @@ attention / parameter FLOPs  ≈  N_ctx / (6d)</div>
         <h3>Play with it</h3>
         <p>The playground below implements the arithmetic above with nothing hidden. Move the width, depth, vocabulary and context sliders, switch the architecture between multi-head attention, grouped-query attention, a Mamba stack and a sparse mixture of experts, and step through the five views: where the parameters live, what the weights weigh, what training costs, how the cache grows, and how long the run takes. The read-outs are the same formulas printed above, so anything surprising is a fact about the design, not about the widget.</p>
         <div class="lab" data-lab="sizer"></div>
-        <p>A few things are worth finding by hand. Doubling <code>d</code> quadruples the parameters but only doubles the KV cache. Doubling <code>L</code> doubles both. Raising the vocabulary from 32k to 256k adds 1.7B parameters at <code>d = 4096</code> — more than a third of a small model — while changing FLOPs per token barely at all, because the output head is one matmul against a very wide matrix. Switching to MoE multiplies total parameters by the expert count while leaving active parameters and therefore FLOPs almost unchanged, which is precisely the trade it exists to make: memory is cheap and bandwidth-bound serving is not, so you buy capacity in the dimension that does not cost you compute.</p>
+        <p>A few things are worth finding by hand. Doubling <code>d</code> quadruples the parameters but only doubles the KV cache. Doubling <code>L</code> doubles both. Raising the vocabulary from 32k to 256k adds 0.92B parameters at <code>d = 4096</code> with tied embeddings, or 1.84B untied, — more than a third of a small model — while changing FLOPs per token barely at all, because the output head is one matmul against a very wide matrix. Switching to MoE multiplies total parameters by the expert count while leaving active parameters and therefore FLOPs almost unchanged, which is precisely the trade it exists to make: memory is cheap and bandwidth-bound serving is not, so you buy capacity in the dimension that does not cost you compute.</p>
       </section>
 
 
@@ -904,7 +904,7 @@ FlashAttention        store O and logsumexp only    memory O(N·d)       compute
         <h2 id="image-lab">Lab: the same image through three architectures</h2>
         <p>Descriptions of inductive bias stay abstract until you watch the same pixels being consumed three different ways. The lab below takes one 16×16 image and pushes it through a dense layer, a convolution stack, and a vision Transformer. Switch architecture with the buttons, step with Previous/Next, and use <b>Shift the object</b> to translate the input by a few pixels — then watch which representations move with it and which ones fall apart.</p>
         <div class="lab" data-lab="image"></div>
-        <p>The takeaways are visible rather than argued. The MLP's first layer needs 32,768 weights to the same hidden width that the convolution reaches with 9 shared ones, and when you shift the object every one of those weights is now looking at the wrong thing. The CNN's feature map simply translates with the input — the representation is equivariant, so the classifier above it barely notices. The ViT keeps position only through an added embedding, so a shift changes the tokens' positional codes but not their content; it recovers translation robustness from data and augmentation instead of from the operator, which is precisely why ViTs need far more images (or distillation, or heavy augmentation) to match a CNN at small scale, and why they overtake it once data is abundant.</p>
+        <p>The takeaways are visible rather than argued. The MLP's first layer needs 32,768 weights to the same hidden width that the convolution reaches with 9 shared ones, and when you shift the object every one of those weights is now looking at the wrong thing. The CNN's feature map simply translates with the input — the representation is equivariant, so the classifier above it barely notices. The ViT keeps position only through an added embedding, so a shift changes the tokens' positional codes but not their content; it recovers translation robustness from data and augmentation instead of from the operator, which is precisely why ViTs need far more images (or distillation, or heavy augmentation) to match a CNN at small scale, and why they overtake it once data is abundant. A small companion lab did not show this at toy scale: a tiny ViT with one shared patch embedding and small position embeddings scored 0.993 on unseen object positions, against 1.000 for the CNN and 0.277 for the MLP.</p>
       </section>
 
       <section>
@@ -978,6 +978,11 @@ FlashAttention        store O and logsumexp only    memory O(N·d)       compute
         <div class="keyidea">
           <b>The one-sentence version</b>
           <p>Pick your mixing operator by asking how much of your context needs exact recall: if it is all of it, pay for attention; if it is almost none of it, take the constant state; and if it is a small, unpredictable fraction — which is the usual case — build a hybrid and spend the quadratic budget only where it earns its keep.</p>
+        </div>
+
+        <div class="keyidea run-the-code">
+          <b>Run the code</b>
+          <p>The companion lab rebuilds this article's arithmetic and mechanisms in small PyTorch files that run on a CPU. It counts parameters, bytes and FLOPs for every family and checks each formula against a real module, including Llama-3-8B from six numbers. It also measures the products of Jacobians behind vanishing gradients, checks the backward-pass formulas above against autograd, and trains an RNN, an LSTM, attention, a time-invariant SSM and a selective SSM on the same long-range recall task. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/evolution-of-ml-architectures">labs/evolution-of-ml-architectures on GitHub</a></p>
         </div>
       </section>
 
@@ -1166,7 +1171,7 @@ FlashAttention        store O and logsumexp only    memory O(N·d)       compute
   month        = {Jan},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/evolution-of-ml-architectures/},
-  note         = {Published January 19, 2025; updated May 3, 2026}
+  note         = {Published January 19, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
@@ -2901,7 +2906,7 @@ FlashAttention        store O and logsumexp only    memory O(N·d)       compute
             D.meter(470, 268, 340, 12, (MC_EMB / MC_TOT) * a1, { fill: P.rose });
             D.text(470, 300, fmtP(MC_EMB) + "  ·  " + (100 * MC_EMB / MC_TOT).toFixed(1) + "% of the model", { size: 11.5, fill: P.dim });
             D.text(470, 340, "At 124M parameters this table would be a third", { size: 10.5, fill: P.faint });
-            D.text(470, 358, "of the whole model. At 70B it is under 1%.", { size: 10.5, fill: P.faint });
+            D.text(470, 358, "of the whole model. At 70B it is about 1.5%.", { size: 10.5, fill: P.faint });
           }
 
           /* ---- stage 2: attention projections ---- */

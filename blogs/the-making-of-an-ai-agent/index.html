@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/the-making-of-an-ai-agent/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/the-making-of-an-ai-agent/preview.png" />
     <meta property="article:published_time" content="2026-06-21" />
-    <meta property="article:modified_time" content="2026-06-21" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Making of an AI Agent" />
     <meta name="twitter:description" content="A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem." />
@@ -37,7 +37,7 @@
         "description": "A first-principles account of what changes when a language model stops answering and starts acting: the loop, the policy, trajectory data, credit assignment, and why post-training becomes an environment problem.",
         "image": "https://srini-anirudh.github.io/blogs/the-making-of-an-ai-agent/preview.png",
         "datePublished": "2026-06-21",
-        "dateModified": "2026-06-21",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["LLM agents", "tool use", "agentic reinforcement learning", "credit assignment", "post-training"],
@@ -181,7 +181,7 @@
           <span>Agents</span><span>Tool use</span><span>Reinforcement learning</span><span>Post-training</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-21">June 21, 2026</time></span><span>34 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-06-21">June 21, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>34 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -642,6 +642,12 @@
         <p>What I am confident about is the frame. Once a model's output loops back through a world that remembers, you are doing reinforcement learning whether or not you use the words, and the quality of your agent is bounded by the quality of the world you can afford to let it fail in.</p>
       </section>
 
+      <aside class="keyline run-the-code">
+        <span class="keyline-label">Run the code</span>
+        <p>The companion lab rebuilds this post's central claims as small Python experiments that run on a CPU. You can train a tiny model with and without the observation mask, watch behaviour cloning's cost grow with the square of the horizon while DAgger's grows linearly, and compare GRPO with GiGPO's anchor-state advantages.</p>
+        <p>It also counts duplicate writes after a context compaction, measures how tool-retrieval recall caps task success, and measures a plan's half-life in a folder another writer edits. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/the-making-of-an-ai-agent">labs/the-making-of-an-ai-agent on GitHub</a>.</p>
+      </aside>
+
       <section id="references">
         <h2>References</h2>
         <p class="references-intro">Grouped by topic. Every entry links to its primary source.</p>
@@ -708,7 +714,7 @@
   month        = {Jun},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-making-of-an-ai-agent/},
-  note         = {Published June 21, 2026}
+  note         = {Published June 21, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

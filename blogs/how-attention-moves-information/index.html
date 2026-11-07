@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-attention-moves-information/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-attention-moves-information/preview.png" />
     <meta property="article:published_time" content="2024-08-18" />
-    <meta property="article:modified_time" content="2026-02-08" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How Attention Moves Information" />
     <meta name="twitter:description" content="A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule." />
@@ -37,7 +37,7 @@
         "description": "A first-principles derivation of attention: from the weighted-average problem to QKV, masks, MHA, MQA, GQA, sliding windows, sparsity, linear attention, MLA, and why FlashAttention is not a new attention rule.",
         "image": "https://srini-anirudh.github.io/blogs/how-attention-moves-information/preview.png",
         "datePublished": "2024-08-18",
-        "dateModified": "2026-02-08",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Attention", "Transformers", "Vision-Language Models"],
@@ -183,7 +183,7 @@
           <span>Attention</span><span>Transformers</span><span>LLMs</span><span>VLMs</span><span>Architecture</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-08-18">August 18, 2024</time></span><span>Last modified <time datetime="2026-02-08">February 8, 2026</time></span><span>52 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2024-08-18">August 18, 2024</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>52 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -492,6 +492,8 @@
         </table>
         <p>The last row is the one to internalise. Seven of these eight rows are model changes that need to be trained and evaluated. One of them is free.</p>
         <p>When a new attention paper appears, the fastest way to place it is to ask which row it belongs to, and then to ask what it gave up — because every row above the last one gives up something, and a paper that claims otherwise has usually chosen a baseline carefully.</p>
+
+        <div class="keypoint run-the-code"><p><strong>Run the code.</strong> The companion lab turns this post's claims into small experiments you can run on a laptop CPU. You can train one attention layer to see why separate query and key projections are needed, watch softmax entropy collapse without the square-root scale, check that stacked sliding windows reach exactly L(w&nbsp;&minus;&nbsp;1) tokens back, and see linear attention lose recall that softmax keeps. It also counts the memory traffic of a tiled FlashAttention-style kernel against the textbook one, and compares PyTorch's math and flash kernels on an H100. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-attention-moves-information">labs/how-attention-moves-information on GitHub</a></p></div>
       </section>
 
       <section id="references">
@@ -595,7 +597,7 @@
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-attention-moves-information/},
-  note         = {Published August 18, 2024; updated February 8, 2026}
+  note         = {Published August 18, 2024; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/preview.png" />
     <meta property="article:published_time" content="2026-10-04" />
-    <meta property="article:modified_time" content="2026-10-25" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="What Happens Inside a VLM: Interpretability of Vision-Language Models" />
     <meta name="twitter:description" content="How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image." />
@@ -37,7 +37,7 @@
         "description": "How to look inside a vision-language model: which visual tokens it uses, where image information flows into the answer, and when it ignores the image.",
         "image": "https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/preview.png",
         "datePublished": "2026-10-04",
-        "dateModified": "2026-10-25",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["interpretability", "vision-language models", "mechanistic interpretability", "attention analysis", "hallucination", "logit lens", "activation patching"],
@@ -213,7 +213,7 @@
           <span>Interpretability</span><span>Vision-language models</span><span>Hallucination</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-10-04">October 4, 2026</time></span><span>Last modified <time datetime="2026-10-25">October 25, 2026</time></span><span>44 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-10-04">October 4, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>44 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -437,7 +437,7 @@
 
         <h3>Attention to the image collapses after the first layers</h3>
         <p>Chen et al. (2024) measured how much attention the generated tokens give to image tokens in LLaVA-1.5. Image tokens made up about 64 percent of the input. In the first two layers they received a substantial share of attention. After that, the share collapsed. In deep layers, the system prompt at the start of the sequence took about 85 percent of all attention. Per token, an image token received a tiny fraction of what a system-prompt token received.</p>
-        <p>This led to FastV. After layer 2, drop the half of the image tokens that receive the least attention. On LLaVA-1.5-13B, this cut compute by about 45 percent with an unchanged average score across their benchmarks. Visual Tokens Withdrawal (Lin et al., 2024) went further. It observed that visual information migrates into text tokens within the first few layers, then removed all visual tokens at a chosen depth.</p>
+        <p>This led to FastV. After layer 2, drop the half of the image tokens that receive the least attention. On LLaVA-1.5-13B, this cut compute by about 45 percent with an unchanged average score across their benchmarks. Visual Tokens Withdrawal (Lin et al., 2024) went further. It observed that visual information migrates into text tokens within the first few layers, then removed all visual tokens at a chosen depth. A small companion lab did not see pruning by attention help on SmolVLM-256M, which has only 64 image tokens per image. Dropping the 50 percent least-attended tokens after layer 2 left 56.7 percent accuracy, against 70.0 percent for a random drop and 91.7 percent with no drop.</p>
 
         <figure class="fig wide" id="fig-attn" data-fig="attn">
           <div class="fig-head"><span class="fig-num">Figure 4</span><span class="fig-title">Where the answer position looks, layer by layer (illustrative)</span></div>
@@ -469,6 +469,7 @@
           <li><strong>Question tokens to the last position.</strong> Blocking in the middle layers caused clear drops, up to about 30 percent.</li>
           <li><strong>Image to the last position, directly.</strong> Blocking had a negligible effect.</li>
         </ul>
+        <p>The route is not the same in every model. In a small companion lab on SmolVLM-256M, blocking the direct image-to-last route at layers 18 to 24 cut the probability of the correct colour by 58 percent, the largest image route there. Patching showed the colour moving from image positions straight to the last position, with no restoration through the question tokens.</p>
         <p>The logit lens added the final step. The correct answer, in lowercase, rose sharply in the middle layers. The capitalised form that the model actually outputs rose only in the upper layers. Meaning is settled first, and formatting comes later.</p>
 
         <figure class="fig wide" id="fig-knock" data-fig="knock">
@@ -557,7 +558,7 @@
         </figure>
 
         <h3>Measuring reliance inside the model</h3>
-        <p>Blind baselines work at the level of a benchmark. Internal measures work per example. Favero et al. (2024) showed that reliance on the image falls as a VLM generates more tokens, and that this decline tracks the appearance of hallucinations. Liu et al. (2024) describe "text inertia": some models give the same description with or without the image. A simple per-example check follows from these papers. Compare the answer distribution with the image and with a blank or mean image. A small difference means the answer came mostly from language.</p>
+        <p>Blind baselines work at the level of a benchmark. Internal measures work per example. Favero et al. (2024) showed that reliance on the image falls as a VLM generates more tokens, and that this decline tracks the appearance of hallucinations. Liu et al. (2024) describe "text inertia": some models give the same description with or without the image. A simple per-example check follows from these papers. Compare the answer distribution with the image and with a blank or mean image. A small difference means the answer came mostly from language. The choice of baseline matters. In a small companion lab on SmolVLM-256M, a blank grey image and a removed image gave opposite results on "Is there a dog in the image?" (always no): 100 percent correct with the blank image and 0 percent with the image removed.</p>
         <p>Priors can also beat the image when both point the same way most of the time. Vo et al. (2025) showed VLMs counterfactual versions of familiar things, such as an Adidas-like logo with four stripes instead of three. Average counting accuracy was about 17 percent. Removing the background, which held the cues that triggered the prior, raised accuracy by about 21 points.</p>
 
         <aside class="callout callout-insight">
@@ -624,6 +625,7 @@
         <h2>The connector as a bottleneck</h2>
         <p>The connector sits between the two places where most failures were traced. It is small, often a two-layer MLP. It is easy to assume it is a neutral translator. The evidence says it is not.</p>
         <p>Li et al. (2025) measured two things. First, how much the neighbourhood structure of image features changes after projection. Between 40 and 60 percent of nearest-neighbour relations changed, and the change correlated with worse retrieval. Second, how well the original patch features can be reconstructed from the projected ones. Patches with high reconstruction loss predicted where the model failed on grounded questions. Loss is local. A model can keep the gist of an image and lose the patch that holds the answer.</p>
+        <p>A small companion lab on SmolVLM-256M found the loss to be local but not predictive for colour questions. The Spearman correlation between an object's reconstruction error and the probability of the correct colour was +0.25. Colour is easy to keep under a linear map, so a test of the claim needs questions about fine detail.</p>
         <p>Compressing connectors make this sharper. A Q-Former reduces any image to 32 query tokens. That is efficient, but it decides what to keep before the question is known, because the queries do not see the question in most designs. Pooling and pixel-shuffle connectors make similar trade-offs. <a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a> compares connector designs, and <a href="../the-cost-of-a-picture/">The Cost of a Picture</a> covers the efficiency side.</p>
         <p>The connector also explains a safety finding. Xu et al. (2024) found that a language model's text safety mechanism did not transfer to images. Harmful content shown as an image produced hidden states that were semantically shifted from the same content written as text. The layers where safety normally activates did not recognise it. Liu et al. (2024) describe the same gap as "safety alignment degradation," because multimodal inputs move representations away from the text distribution the base model was aligned on.</p>
 
@@ -812,6 +814,8 @@
           <li><strong>Text directions steer vision, but SAE features are dictionary-dependent.</strong> Check that a feature survives retraining before acting on it. (<a href="#features">Features</a>)</li>
         </ul>
         <p>With these tools, you should be able to look at a VLM's wrong answer and say which stage lost the information, and which experiment would prove it. The next post, <a href="../models-that-see-and-draw/">Models That See and Draw</a>, turns to models that both read and generate images, where the narrow-gate finding above becomes a design question.</p>
+
+        <aside class="callout callout-insight run-the-code"><p class="callout-label">Run the code</p><p>A companion lab runs the tools from this article on a real small VLM, SmolVLM-256M, using synthetic images of coloured shapes, so every object's image tokens are known exactly. It runs a blind baseline with multimodal gain and leakage, the logit lens on image positions, attention shares, visual sinks, mean ablation and FastV pruning.</p><p>It also runs attention knockout of the image, question and last-position routes, activation patching on image minimal pairs, encoder probes compared with the model's own answers, and a connector reconstruction test. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/what-happens-inside-a-vlm">labs/what-happens-inside-a-vlm on GitHub</a></p></aside>
       </section>
 
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-attention-moves-information/">How Attention Moves Information</a></li><li><a href="../one-transformer-two-modalities/">One Transformer, Two Modalities</a></li><li><a href="../the-cost-of-a-picture/">The Cost of a Picture</a></li><li><a href="../aligning-vision-language-models/">Aligning Vision-Language Models</a></li><li><a href="../how-models-know-where-they-are/">How Models Know Where They Are</a></li></ul></nav>
@@ -992,7 +996,7 @@
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/what-happens-inside-a-vlm/},
-  note         = {Published October 4, 2026; updated October 25, 2026}
+  note         = {Published October 4, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/preview.png" />
     <meta property="article:published_time" content="2025-11-23" />
-    <meta property="article:modified_time" content="2025-11-23" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How Models Improve Without Changing Their Weights" />
     <meta name="twitter:description" content="A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth." />
@@ -37,7 +37,7 @@
         "description": "A first-principles field guide to test-time scaling: how coverage, verification, budget forcing and adaptive allocation decide what extra inference compute is actually worth.",
         "image": "https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/preview.png",
         "datePublished": "2025-11-23",
-        "dateModified": "2025-11-23",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["test-time scaling", "inference compute", "best-of-n", "verifiers", "budget forcing", "adaptive compute allocation", "scaling laws"],
@@ -176,7 +176,7 @@
           <span>Test-time scaling</span><span>Verification</span><span>Compute allocation</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-23">November 23, 2025</time></span><span>48 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-23">November 23, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>48 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -483,7 +483,7 @@
         <h2>Budget forcing</h2>
         <p>Everything so far has treated <span class="eq-inline">C<sub>test</sub></span> as a dial you set from outside. For serial reasoning that is harder than it sounds: the model decides when to stop by emitting an end-of-thinking delimiter, and you do not control that decision. <a href="https://arxiv.org/abs/2501.19393" target="_blank" rel="noopener noreferrer">Muennighoff et al.</a> proposed the most stripped-down possible fix, and it is my favourite result in this literature because it is so nearly trivial.</p>
         <p><b>Budget forcing</b> has two halves. To spend <em>less</em>: if the model exceeds a token limit, force-append the end-of-thinking delimiter, which makes it transition to producing an answer. To spend <em>more</em>: suppress that delimiter when the model tries to emit it, and append the word "Wait" instead. The model, having been handed a continuation where it expected a terminator, goes back and re-examines its work.</p>
-        <p>That is the entire mechanism. No new training objective, no verifier, no search. Applied to a 32B model supervise-finetuned on just 1,000 curated questions and reasoning traces, it produced a model that exceeded o1-preview on competition maths by up to 27%, and extending thinking with budget forcing moved AIME24 from 50% to 57% — <em>past</em> what the same model achieved without the intervention.</p>
+        <p>That is the entire mechanism. No new training objective, no verifier, no search. Applied to a 32B model supervise-finetuned on just 1,000 curated questions and reasoning traces, it produced a model that exceeded o1-preview on competition maths by up to 27%, and extending thinking with budget forcing moved AIME24 from 50% to 57% — <em>past</em> what the same model achieved without the intervention. A small companion lab did not reproduce the gain on an untuned Qwen2.5-0.5B-Instruct: appending &ldquo;Wait&rdquo; never beat the natural stop (0.48 to 0.50 against 0.500 on 96 arithmetic problems), and the trace looped. The paper's setup depends on a model fine-tuned on reasoning traces; see the code.</p>
         <p>The word choice is not incidental. The paper's own ablation found "Wait" outperformed neutral fillers like "Hmm", which suggests the mechanism is less "more compute" and more "an injected prompt to doubt". That is a meaningfully different claim, and one the community has not fully digested: budget forcing may be a lightweight <em>semantic</em> intervention wearing a compute-scaling costume.</p>
       </section>
 
@@ -611,6 +611,12 @@
         <p><b>Five.</b> More thinking can hurt, for reasons that are mechanistic rather than accidental: distractor capture, framing overfit, drift away from a correct conclusion already reached, and amplification of procedures the training data never properly installed. The inverted U is real, and its peak is <em>earlier</em> for easier problems.</p>
         <p><b>Six.</b> The interesting frontier is allocation, not extension. The optimal budget is per-prompt, it goes to zero for problems the model cannot solve, and it peaks just above that give-up threshold. Every system that does this well is really solving a difficulty-estimation problem in disguise.</p>
         <p>And one open question I do not think anyone has answered. All the allocation theory above assumes accuracy is concave in compute, which is what makes water-filling correct. The inverse-scaling results say accuracy is sometimes <em>not</em> monotone, let alone concave. A genuinely correct allocation theory for the regime where extra compute can subtract value has not, as far as I can tell, been written down. That gap is where I would look next.</p>
+
+        <div class="nuance run-the-code">
+          <h4>Run the code</h4>
+          <p>The companion lab rebuilds this post's main results in small, plain Python. You can watch per-problem sigmoids add up to a coverage power law, check the false-positive ceiling against simulation, and see water-filling put the most samples on problems just above the give-up threshold.</p>
+          <p>It also samples a frozen Qwen2.5-0.5B-Instruct 64 times per problem on a graded arithmetic set, then measures coverage, majority voting and imperfect verifiers on those samples. It runs s1-style budget forcing (&ldquo;Wait&rdquo; and forced caps) on the same model. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-models-improve-without-changing-their-weights" target="_blank" rel="noopener noreferrer">Open the lab on GitHub</a>.</p>
+        </div>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -699,7 +705,7 @@
   month        = {Nov},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-models-improve-without-changing-their-weights/},
-  note         = {Published November 23, 2025}
+  note         = {Published November 23, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

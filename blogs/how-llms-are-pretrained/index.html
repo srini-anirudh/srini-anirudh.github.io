@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-llms-are-pretrained/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-llms-are-pretrained/preview.png" />
     <meta property="article:published_time" content="2025-08-03" />
-    <meta property="article:modified_time" content="2026-05-03" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How LLMs Are Pretrained" />
     <meta name="twitter:description" content="&quot;Train on 15 trillion tokens&quot; sounds simple. What does that actually mean?" />
@@ -37,7 +37,7 @@
         "description": "What makes a good pretraining recipe beyond next-token prediction: corpus construction, filtering, deduplication, quality proxies, data selection, mixture optimisation, tokenization, sequence packing, curriculum and annealing, epochs under repetition, and evaluation of base models.",
         "image": "https://srini-anirudh.github.io/blogs/how-llms-are-pretrained/preview.png",
         "datePublished": "2025-08-03",
-        "dateModified": "2026-05-03",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Pretraining", "Data curation", "Deduplication", "Data mixtures", "Tokenization", "Scaling laws", "Language models", "Evaluation"],
@@ -273,7 +273,7 @@
         <div class="article-meta-bar">
           <span><strong>Anirudh Srinivasan</strong></span>
           <span>Published <strong>3 Aug 2025</strong></span>
-          <span>Updated <strong>3 May 2026</strong></span>
+          <span>Updated <strong>7 November 2026</strong></span>
           <span><strong>52 min</strong> read</span>
           <button class="article-share" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
@@ -642,7 +642,7 @@
           <em>L</em><span class="sub">target</span>(<strong>w</strong>) &nbsp;&asymp;&nbsp; <em>c</em> &nbsp;+&nbsp; <em>k</em> &middot; exp( &sum;<span class="sub">i</span> <em>t</em><span class="sub">i</span> <em>w</em><span class="sub">i</span> )
         </div>
 
-        <p>Fit the parameters on a handful of small runs at sampled mixtures, then <em>predict</em> the loss of unseen mixtures and optimise analytically. And because you also have scaling laws in model size and training steps, you can nest them: fit the mixing law at small scale, extrapolate along the size and step axes, and predict which mixture will be best for the run you can only afford to do once.</p>
+        <p>Fit the parameters on a handful of small runs at sampled mixtures, then <em>predict</em> the loss of unseen mixtures and optimise analytically. And because you also have scaling laws in model size and training steps, you can nest them: fit the mixing law at small scale, extrapolate along the size and step axes, and predict which mixture will be best for the run you can only afford to do once. A small companion lab tried the first half on three domains and two tiny byte-level models. A fitted law predicted held-out mixtures to about 0.1 bit per byte, but its optimum did not clearly beat the best of 16 random mixtures.</p>
 
         <h3>Strategy 3: treat it as regression (RegMix)</h3>
 
@@ -839,7 +839,7 @@
           <em>D</em>&prime; &nbsp;=&nbsp; <em>U</em> &nbsp;+&nbsp; <em>U</em> &middot; <em>R</em>*<span class="sub">D</span> &middot; ( 1 &minus; <em>e</em><span class="sup">&minus;(<em>E</em>&minus;1)/<em>R</em>*<span class="sub">D</span></span> )
         </div>
 
-        <p>and this <em>D</em>&prime; substitutes for <em>D</em> in the usual Chinchilla-style law. The parameter <em>R</em>*<span class="sub">D</span> is the half-life of repetition &mdash; the number of repeats after which a token has lost 1/<em>e</em> of its value. Fitted on runs up to 9B parameters and 900B tokens, it came out around 15.</p>
+        <p>and this <em>D</em>&prime; substitutes for <em>D</em> in the usual Chinchilla-style law. The parameter <em>R</em>*<span class="sub">D</span> is the half-life of repetition &mdash; the number of repeats after which a token has lost 1/<em>e</em> of its value. Fitted on runs up to 9B parameters and 900B tokens, it came out around 15. A small companion lab fitted about 2.5 on a 0.67M-parameter byte model, so the shape held at that size but the numbers did not.</p>
 
         <p>The practical numbers that fall out of that fit are the ones worth memorising:</p>
 
@@ -968,6 +968,12 @@
         <p><strong>7. Measure your noise floor.</strong> Most published data-recipe comparisons cannot support the conclusions drawn from them, for the entirely fixable reason that nobody reported the standard deviation across the last thirty checkpoints of a single run.</p>
 
         <p>The next article picks up where the base model stops: a network that has learned the shape of the corpus, and has never once been told whether any particular continuation was <em>good</em>.</p>
+
+        <div class="nuance run-the-code">
+          <h4>Run the code</h4>
+          <p>The companion lab builds the pipeline steps of this article in small Python: Gopher and C4 quality rules, MinHash with LSH banding, byte-level BPE, and packed rows with document masks, all checked on real text and real models. It also trains a few dozen tiny byte-level models to search a three-domain mixture, measure what repeated data is worth, and test whether small evaluations can rank data recipes.</p>
+          <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-llms-are-pretrained">labs/how-llms-are-pretrained on GitHub</a></p>
+        </div>
       </section>
 
       <section id="references">
@@ -1082,7 +1088,7 @@
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-llms-are-pretrained/},
-  note         = {Published August 3, 2025; updated May 3, 2026}
+  note         = {Published August 3, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

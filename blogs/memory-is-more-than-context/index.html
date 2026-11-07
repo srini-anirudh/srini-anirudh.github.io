@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/memory-is-more-than-context/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/memory-is-more-than-context/preview.png" />
     <meta property="article:published_time" content="2026-08-09" />
-    <meta property="article:modified_time" content="2026-08-09" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Memory Is More Than Context" />
     <meta name="twitter:description" content="Why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window." />
@@ -37,7 +37,7 @@
         "description": "A first-principles guide to memory and context engineering for LLM agents: why context is not memory, why the write problem is harder than retrieval, and how to decide what an agent should remember, update, forget, and put in the next context window.",
         "image": "https://srini-anirudh.github.io/blogs/memory-is-more-than-context/preview.png",
         "datePublished": "2026-08-09",
-        "dateModified": "2026-08-09",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Agent memory", "Context engineering", "Retrieval", "LLM agents", "Long-term memory", "Forgetting"],
@@ -177,7 +177,7 @@
           <span>Agent memory</span><span>Context engineering</span><span>Retrieval</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-09">August 9, 2026</time></span><span>58 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-09">August 9, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>58 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -999,7 +999,7 @@ m₂  lives_in(user, Bangalore)   valid [2026-09-01 &rarr; ∞      ]</pre>
         <p>with \(e^\star = \varepsilon_0\) exactly at \(\rho = 1\).</p>
         <p>Three readings fall out, and they are the whole design lesson:</p>
         <ul>
-          <li><strong>No gate is neutral, not safe.</strong> At \(\rho = 1\) the error rate is unchanged at \(\varepsilon_0\), no matter how large \(\phi\) is. Storing everything buys you nothing on accuracy &mdash; you pay the storage and dilution cost for a wash.</li>
+          <li><strong>No gate is neutral, not safe.</strong> At \(\rho = 1\) the error rate is unchanged at \(\varepsilon_0\), no matter how large \(\phi\) is. Storing everything buys you nothing on accuracy &mdash; you pay the storage and dilution cost for a wash. This holds on average. A small simulation with a real store (\(\phi = 0.9\), 20 seeds) had mean error 0.17 at \(\rho = 1\), but single runs ended anywhere from 0.06 to 0.57.</li>
           <li><strong>A discriminating gate compounds downward.</strong> With \(\varepsilon_0 = 0.15\), \(\phi = 0.9\), a gate at \(\rho = 0.25\) drives \(e^\star\) to roughly 0.02. The agent gets substantially better than its own base rate, because it is following a store that is cleaner than its own outputs.</li>
           <li><strong>Following amplifies whatever it is fed.</strong> The same \(\phi = 0.9\) with an inverted gate at \(\rho = 4\) drives \(e^\star\) to roughly 0.89. High experience-following is not a virtue or a vice; it is a gain term. It multiplies the quality of your write policy in both directions.</li>
         </ul>
@@ -1223,6 +1223,11 @@ m₂  lives_in(user, Bangalore)   valid [2026-09-01 &rarr; ∞      ]</pre>
         <div class="boxed-claim">Good agent memory &nbsp;&ne;&nbsp; store everything</div>
         <div class="boxed-claim">remember selectively &middot; organise &middot; update &middot; forget<br />retrieve appropriately &middot; construct the right context</div>
         <p>The context window is a channel with a fixed width and a non-uniform response. The history is unbounded. Everything interesting is the codec in between &mdash; and the hardest part of the codec is not the decoder that fetches, but the encoder that decides, without knowing what will be asked, what is worth keeping.</p>
+
+        <div class="callout callout--key run-the-code">
+          <p class="callout-kicker">Run the code</p>
+          <p>The companion lab builds seven of this article's mechanisms in small Python and runs them: the three budget-filling rules against the exact optimum, the 1/&lambda;t law and the poisoning fixed point against simulation, the retrieval score fitted as a log-odds, and a two-clock store that supersedes, invalidates and really deletes. Two experiments use a real small model, Qwen2.5-0.5B-Instruct, to move a fact through the context and to run the five-condition ablation ladder. They are small runs on one model. Everything runs on a CPU: <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/memory-is-more-than-context">labs/memory-is-more-than-context</a>.</p>
+        </div>
       </section>
 
       <section id="references">
@@ -1303,7 +1308,7 @@ m₂  lives_in(user, Bangalore)   valid [2026-09-01 &rarr; ∞      ]</pre>
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/memory-is-more-than-context/},
-  note         = {Published August 9, 2026}
+  note         = {Published August 9, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

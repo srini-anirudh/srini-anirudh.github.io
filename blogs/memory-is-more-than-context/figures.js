@@ -634,7 +634,7 @@
       params: { B: 2300, mode: 'marginal' },
       stages: [
         { t: 'Nine candidates', c: 'Everything retrieval put on the table. Each has a token cost and a utility for the current decision — and some of them interact.' },
-        { t: 'Cost against utility', c: 'Plotted, the runbook is obviously the most useful single item and obviously the worst buy: 1,400 tokens for one fact you could state in 30.' },
+        { t: 'Cost against utility', c: 'Plotted, the runbook is obviously the most useful single item and obviously the worst buy: 2,200 tokens for one fact you could state in 30.' },
         { t: 'Pick 1', c: function (st) { return 'Greedy selection under the ' + st.params.mode + ' rule begins. Watch which items get taken and which get passed over.'; } },
         { t: 'Pick 2', c: 'Each pick is scored against what is already in the set, not in isolation.' },
         { t: 'Pick 3', c: 'The complement pair is the interesting case: the fix is worth more once the failure episode is in.' },

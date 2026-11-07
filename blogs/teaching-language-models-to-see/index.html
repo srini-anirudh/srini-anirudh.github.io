@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/teaching-language-models-to-see/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/teaching-language-models-to-see/preview.png" />
     <meta property="article:published_time" content="2025-12-21" />
-    <meta property="article:modified_time" content="2026-01-11" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Teaching Language Models to See: How Vision-Language Models Are Pretrained" />
     <meta name="twitter:description" content="Why a good vision encoder plus a good LLM is not yet a VLM: freezing, data mixtures, resolution, objectives and data quality in real pretraining recipes." />
@@ -37,7 +37,7 @@
         "description": "How vision-language models are pretrained: why a good vision encoder plus a good LLM is not yet a VLM, which parts to freeze, what data to mix, how resolution sets the cost, and which objectives teach the model to see.",
         "image": "https://srini-anirudh.github.io/blogs/teaching-language-models-to-see/preview.png",
         "datePublished": "2025-12-21",
-        "dateModified": "2026-01-11",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["vision-language models", "multimodal pretraining", "training data", "CLIP", "SigLIP", "LLaVA", "visual tokens"],
@@ -230,7 +230,7 @@
           <span>Vision-language models</span><span>Pretraining</span><span>Training data</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-21">December 21, 2025</time></span><span>Last modified <time datetime="2026-01-11">January 11, 2026</time></span><span>39 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-21">December 21, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>39 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -356,7 +356,7 @@
           <div class="fig-svg"><svg viewBox="0 0 880 440" role="img" aria-label="A two-dimensional sketch of the language model's word embeddings with projected image patch vectors that start far away and move toward related words as the connector trains."></svg></div>
           <p class="fig-note" aria-live="polite"></p>
           <div class="fig-controls"></div>
-          <figcaption><strong>Figure 2.</strong> A two-dimensional sketch, not a measured projection. Orange points are text embeddings. Blue points are projected image patches. With a random connector the patches sit outside the region the language model knows, with the wrong scale. As connector training proceeds they move next to related words. The readout on the right shows the nearest word to one tracked patch at each stage. Aligned image tokens stay near related words without landing exactly on them.</figcaption>
+          <figcaption><strong>Figure 2.</strong> A two-dimensional sketch, not a measured projection. Orange points are text embeddings. Blue points are projected image patches. With a random connector the patches sit outside the region the language model knows, with the wrong scale. As connector training proceeds they move next to related words. The readout on the right shows the nearest word to one tracked patch at each stage. Aligned image tokens stay near related words without landing exactly on them. A small companion lab, which trained a connector between SigLIP and SmolLM2, did not see this movement: the image tokens stayed far from every word (best cosine 0.15 to 0.17, against 0.78 between real words) and grew to about 31 times a word's norm, yet the model learned to read them. See the code.</figcaption>
         </figure>
 
         <p>Aligning the connector is necessary but rarely sufficient. A connector-only model can name objects. It usually cannot read dense text, count reliably or follow a complex question. Those skills need the language model, and often the vision encoder, to change too. How much to change each part, and with what data, is where the main recipes differ.</p>
@@ -651,7 +651,7 @@
           <div class="fig-svg"><svg viewBox="0 30 880 410" role="img" aria-label="A portrait document page shown at fixed 224 pixels, at 336 pixels, as tiles with a thumbnail, and at native resolution with packing, with the visual token count for each."></svg></div>
           <p class="fig-note" aria-live="polite"></p>
           <div class="fig-controls"></div>
-          <figcaption><strong>Figure 8.</strong> A portrait page of about 1,000 &times; 1,300 pixels. A fixed 224-pixel square squashes it into 256 tokens and makes the text unreadable. A larger square at 336 pixels gives 576 tokens and is still distorted. Six 448-pixel tiles plus a thumbnail, with a 2 &times; 2 merge, give 1,792 tokens at the right aspect ratio. Native resolution with patch size 14 and a 2 &times; 2 merge gives 36 &times; 46 = 1,656 tokens. Packing then puts images of different sizes into one sequence.</figcaption>
+          <figcaption><strong>Figure 8.</strong> A portrait page of about 1,000 &times; 1,300 pixels. A fixed 224-pixel square squashes it into 256 tokens and makes the text unreadable. A larger square at 336 pixels gives 576 tokens and is still distorted. Six 448-pixel tiles plus a thumbnail, with a 2 &times; 2 merge, give 1,792 tokens at the right aspect ratio. Native resolution with patch size 14 and a 2 &times; 2 merge gives 36 &times; 46 = 1,656 tokens. Packing then puts images of different sizes into one sequence. The tile count assumes at most six tiles; InternVL's default of up to 12 tiles gives 3,328 tokens for this page. Qwen2-VL rounds each side to the nearest multiple of 28, while Figure 7's formula rounds the grid up and would give 36 &times; 47 = 1,692.</figcaption>
         </figure>
 
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Resolution schedules partly extrapolate beyond what was trained. InternVL 1.5 trained with 1 to 12 tiles, and its paper reports that the model "can be zero-shot scaled up to 40 tiles (i.e., 4K resolution)" at test time. So the maximum resolution in a model card is not always a training resolution. If your application depends on very large inputs, evaluate at that size directly rather than trusting the stated maximum, and if possible include some training examples at that size.</p></aside>
@@ -684,7 +684,7 @@
           <div class="fig-svg"><svg viewBox="0 64 880 336" role="img" aria-label="An image grid, a connector and a language model token sequence, showing how the contrastive loss, the next-token loss, grounding tokens and an auxiliary patch loss each send gradient to different parts of the model."></svg></div>
           <p class="fig-note" aria-live="polite"></p>
           <div class="fig-controls"></div>
-          <figcaption><strong>Figure 9.</strong> The contrastive loss compares one pooled vector per image, so every patch receives the same coarse signal. The next-token loss scores each caption word, and the gradient reaches only the patches those words attended to. Grounding tokens add signal at specific locations. An auxiliary patch loss gives every patch a target of its own. Shading on the patch grid shows how much signal each patch receives in each case; the pattern is illustrative.</figcaption>
+          <figcaption><strong>Figure 9.</strong> The contrastive loss compares one pooled vector per image, so every patch receives the same coarse signal. The next-token loss scores each caption word, and the gradient reaches only the patches those words attended to. Grounding tokens add signal at specific locations. An auxiliary patch loss gives every patch a target of its own. Shading on the patch grid shows how much signal each patch receives in each case; the pattern is illustrative. In a small companion lab with SigLIP and a SmolLM2 connector, the next-token gradient did not follow this picture: 95% of it landed on background patches, which cover 86% of the image.</figcaption>
         </figure>
 
         <h3>Does the vision encoder need a visual signal of its own?</h3>
@@ -804,6 +804,12 @@
         </ul>
       </section>
 
+      <aside class="callout callout-insight run-the-code">
+        <p class="callout-label">Run the code</p>
+        <p>The companion lab joins a real SigLIP encoder to a real SmolLM2 language model and measures the gap between them while a connector learns to bridge it. It checks that a zero-initialised Flamingo gate leaves the language model exactly unchanged, times the four freezing patterns against the rule of thumb, and shows where the contrastive, next-token and per-patch losses send their gradient on the patch grid. It also recomputes the post's visual-token counts and checks the native-resolution ones against Qwen2-VL's real image processor.</p>
+        <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/teaching-language-models-to-see">labs/teaching-language-models-to-see on GitHub</a></p>
+      </aside>
+
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../how-llms-are-pretrained/">How LLMs Are Pretrained</a></li><li><a href="../mixing-data-without-losing-capabilities/">Mixing Data Without Losing Capabilities</a></li><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li></ul></nav>
 
       <section id="references">
@@ -916,7 +922,7 @@
   month        = {Dec},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/teaching-language-models-to-see/},
-  note         = {Published December 21, 2025; updated January 11, 2026}
+  note         = {Published December 21, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

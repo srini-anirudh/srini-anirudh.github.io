@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/preview.png" />
     <meta property="article:published_time" content="2026-08-30" />
-    <meta property="article:modified_time" content="2026-08-30" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Reinforcement Learning for Agents From First Principles" />
     <meta name="twitter:description" content="What changes when RL moves from one generated answer to a multi-step environment interaction: POMDPs, action granularity, compounding error, environment scaling, credit assignment, and the group-signal collapse that makes long-horizon agent RL hard." />
@@ -37,7 +37,7 @@
         "description": "A first-principles guide to reinforcement learning for LLM agents: what changes when RL moves from one generated answer to a multi-step environment interaction.",
         "image": "https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/preview.png",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-08-30",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["agentic reinforcement learning", "LLM agents", "credit assignment", "environment scaling", "POMDP", "long-horizon RL"],
@@ -168,7 +168,7 @@
           <span>Agentic RL</span><span>Credit assignment</span><span>Environment design</span><span>Long horizons</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-30">August 30, 2026</time></span><span>62 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-08-30">August 30, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>62 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -429,6 +429,7 @@
         <p>There is a classical result that deserves to be better known among people writing agent rewards. If you add a shaping term of the form</p>
         <p>\[ F(s, a, s') \;=\; \gamma\,\Phi(s') - \Phi(s) \]</p>
         <p>for any potential function \(\Phi\) over states, then the set of optimal policies is unchanged. The intuition is that such a term telescopes: along any trajectory, the shaping contributions collapse to \(\gamma^T\Phi(s_T) - \Phi(s_0)\), which depends only on the endpoints. Cycles therefore accumulate exactly zero shaping reward, which is precisely why the loop in Figure 6 becomes unprofitable.</p>
+        <p>One condition is easy to miss. If an episode can be cut off by a time limit, \(\Phi\) must be zero at the cut-off states as well as at the goal. Otherwise a leftover term \(\gamma^{H}\Phi(s_H)\) becomes a new objective. In the companion lab, 200 of 200 random potentials kept the optimal action when \(\Phi\) was zero at both, and only 17 of 200 when it was zero at the goal alone.</p>
         <p>Any shaping term <em>not</em> of that form is a new objective, not a hint. That is a useful test to run on your own reward function: if an agent can gain reward by returning to a state it has already been in, you have written a different task than the one you meant.</p>
 
         <h3>Verifiable outcomes</h3>
@@ -513,7 +514,7 @@
         <p>which collapses geometrically. At \(q = 0.93\) &mdash; a policy that is right ninety-three percent of the time, which is not bad &mdash; a ten-step task succeeds about half the time, a thirty-step task about eleven percent of the time, and a fifty-step task about three percent.</p>
         <p>Substitute into the group formula. In the small-\(p\) regime, \(1 - (1-p)^G \approx Gp\), so</p>
         <p>\[ P_{\text{informative}} \;\approx\; G \, q^{H} . \]</p>
-        <p>The fraction of your batch that carries gradient decays <em>exponentially in the horizon</em>. With \(G = 8\) and \(q = 0.93\), a ten-step task gives you informative groups nearly always; a fifty-step task gives you roughly one useful group in four; a hundred-step task gives you one in forty. You are still paying full rollout cost for all of them.</p>
+        <p>The fraction of your batch that carries gradient decays <em>exponentially in the horizon</em>. With \(G = 8\) and \(q = 0.93\), a ten-step task gives you informative groups nearly always; a fifty-step task gives you roughly one useful group in five; a hundred-step task gives you about one in 180. You are still paying full rollout cost for all of them.</p>
         <div class="keybox">
           <p><strong>The uncomfortable consequence.</strong> As the horizon grows, long-horizon agent RL does not become noisier. It becomes <em>empty</em>. Most of the compute is spent generating rollouts whose only contribution to the update is a zero. This is not a flaw in any particular algorithm; it is what group-relative comparison does when the thing being compared stops varying.</p>
         </div>
@@ -860,6 +861,10 @@
         <div class="keybox">
           <p>The short version of the whole article: the moment the environment gets state, the policy stops being a function of its own output and becomes a controller. Everything difficult about agent RL &mdash; the empty batches, the collapsed variance, the credit that lands on the wrong action, the straggler that idles a cluster, the reward that turns out to be farmable, the action that cannot be undone &mdash; follows from that one structural change. It is worth knowing which of your problems are consequences of it, because those cannot be fixed by a better optimiser.</p>
         </div>
+        <aside class="keybox run-the-code">
+          <p><strong>Run the code.</strong> The companion lab turns this article's arithmetic into small experiments that run on a laptop CPU in about a minute. It measures behaviour cloning's regret growing faster with the horizon than DAgger's, and shows a milestone reward being farmed by a loop that potential-based shaping closes. It trains group-relative RL on a combination lock whose batches go empty until graded reward or a horizon curriculum refills them. It also compares trajectory-level and anchor-state credit, and simulates a synchronous straggler tax against an asynchronous queue. Nothing in it is a language model.</p>
+          <p><a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/reinforcement-learning-for-agents-from-first-principles">labs/reinforcement-learning-for-agents-from-first-principles on GitHub</a></p>
+        </aside>
       </section>
       <section id="references">
         <h2>References</h2>
@@ -966,7 +971,7 @@
   month        = {Aug},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/reinforcement-learning-for-agents-from-first-principles/},
-  note         = {Published August 30, 2026}
+  note         = {Published August 30, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

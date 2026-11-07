@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/how-lora-changes-a-model-without-rewriting-it/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/how-lora-changes-a-model-without-rewriting-it/preview.png" />
     <meta property="article:published_time" content="2025-10-12" />
-    <meta property="article:modified_time" content="2025-10-12" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="How LoRA Changes a Model Without Rewriting It" />
     <meta name="twitter:description" content="A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them." />
@@ -37,7 +37,7 @@
         "description": "A first-principles derivation of parameter-efficient fine-tuning: why the adaptation delta might be low-dimensional, how LoRA, QLoRA and DoRA actually work, and when not to use them.",
         "image": "https://srini-anirudh.github.io/blogs/how-lora-changes-a-model-without-rewriting-it/preview.png",
         "datePublished": "2025-10-12",
-        "dateModified": "2025-10-12",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Parameter-efficient fine-tuning", "LoRA", "QLoRA", "DoRA", "Low-rank adaptation", "Quantization", "Adapters", "Vision-language models"],
@@ -176,7 +176,7 @@
           <span>LoRA</span><span>QLoRA</span><span>DoRA</span><span>Quantization</span><span>Adapters</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-12">October 12, 2025</time></span><span>46 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-12">October 12, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>46 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -638,7 +638,7 @@
 
         <div class="eq"><span class="v">W</span> <span class="op">=</span> <span class="v">m</span> <span class="frac"><span><span class="v">V</span></span><span>&#8214;<span class="v">V</span>&#8214;<sub class="sm">c</sub></span></span>,<span class="op">&nbsp;&nbsp;</span> <span class="v">m</span> &isin; <span class="sm">&#8477;</span><sup>1&times;<span class="v">k</span></sup><span class="note">‖·‖_c is the column-wise norm; every column of V/‖V‖_c is a unit vector</span></div>
 
-        <p>Every column of a weight matrix is now "a direction, times a loudness." Track how much each changes over a fine-tuning run — call them &Delta;<span class="v">D</span> and &Delta;<span class="v">M</span> — and plot one against the other. The paper's finding is a difference in <em>sign</em>: across checkpoints, full fine-tuning shows a negative relationship between magnitude change and direction change, while LoRA shows a positive one. LoRA turns the two knobs together; full fine-tuning trades them off, and in particular can make substantial direction changes with only slight magnitude changes.</p>
+        <p>Every column of a weight matrix is now "a direction, times a loudness." Track how much each changes over a fine-tuning run — call them &Delta;<span class="v">D</span> and &Delta;<span class="v">M</span> — and plot one against the other. The paper's finding is a difference in <em>sign</em>: across checkpoints, full fine-tuning shows a negative relationship between magnitude change and direction change, while LoRA shows a positive one. LoRA turns the two knobs together; full fine-tuning trades them off, and in particular can make substantial direction changes with only slight magnitude changes. A small companion lab did not reproduce the negative sign for full fine-tuning on SmolLM2-135M (the correlation was +0.31 in a short run on a new task); see the code.</p>
 
         <p>Why would that be? Because in <span class="v">W</span>&nbsp;+&nbsp;<span class="v">B</span><span class="v">A</span>, magnitude and direction are not separate parameters. Adding a vector to a column changes both, coupled by geometry. To rotate a column without lengthening it, the low-rank update must produce a component almost perpendicular to the existing column of exactly the right size — and it has only <span class="v">r</span> degrees of freedom to arrange that for every column simultaneously. Full fine-tuning has <span class="v">d</span><sub>out</sub> free numbers per column and no such constraint.</p>
 
@@ -781,7 +781,7 @@
 
         <div class="callout callout--open">
           <h4>Left open</h4>
-          <p>Subsequent work has argued that the learning–forgetting comparison is sensitive to the learning rate chosen for each method, and that some of the gap narrows when both are swept properly rather than fixed at their individually optimal values. The direction of the effect is robust across studies; the magnitude is not. Treat "LoRA forgets less" as a well-supported tendency, not a constant of nature.</p>
+          <p>Subsequent work has argued that the learning–forgetting comparison is sensitive to the learning rate chosen for each method, and that some of the gap narrows when both are swept properly rather than fixed at their individually optimal values. The direction of the effect is robust across studies; the magnitude is not. Treat "LoRA forgets less" as a well-supported tendency, not a constant of nature. A small companion lab saw the opposite on SmolLM2-135M, with one seed and learning rates that were not swept (5e-5 for full fine-tuning, 5e-4 for LoRA): at about the same target loss, LoRA at rank 64 forgot 1.21 nats of source-domain loss and full fine-tuning 0.08. That run does not settle the question either; see the code.</p>
         </div>
 
         <h3>The rule that actually predicts</h3>
@@ -839,6 +839,12 @@
         <h3>A default that works</h3>
 
         <p>If you want one configuration to start from and adjust only when something forces you to: <strong>LoRA on all linear layers, rank 16, &alpha;&nbsp;=&nbsp;32, rank-stabilized scaling on, dropout 0.05, learning rate 2e-4 with a warmup, and the base in bf16 if it fits and NF4 if it does not.</strong> Then sweep rank, and only rank, and watch both the target metric and one held-out source-domain benchmark. If the target metric is still climbing at rank 128, you have learned something important — probably that you should not be using LoRA for this.</p>
+
+        <div class="callout run-the-code">
+          <h4>Run the code</h4>
+          <p>The companion lab builds LoRA, rsLoRA, DoRA and an NF4 quantizer from scratch in small PyTorch files, and checks each one against Hugging Face PEFT or the published NF4 codebook. Its scripts check the memory ledger, Eckart&ndash;Young truncation, the four ways to initialise B and A, the &alpha;/r scaling trap, merge and hot-swap drift, and blockwise quantization, all on a CPU.</p>
+          <p>A last script, best run on a GPU, fine-tunes SmolLM2-135M with full fine-tuning, LoRA at three ranks, DoRA and QLoRA, on a task the model has never seen, and measures how much each one learns and forgets: <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/how-lora-changes-a-model-without-rewriting-it" target="_blank" rel="noopener noreferrer">labs/how-lora-changes-a-model-without-rewriting-it</a>.</p>
+        </div>
       </section>
 
       <section id="references">
@@ -942,7 +948,7 @@
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/how-lora-changes-a-model-without-rewriting-it/},
-  note         = {Published October 12, 2025}
+  note         = {Published October 12, 2025; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

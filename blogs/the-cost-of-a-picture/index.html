@@ -56,7 +56,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/the-cost-of-a-picture/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/the-cost-of-a-picture/preview.png" />
     <meta property="article:published_time" content="2026-07-19" />
-    <meta property="article:modified_time" content="2026-08-09" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Cost of a Picture: Efficient Vision-Language Models, from Token Compression to Serving" />
     <meta name="twitter:description" content="Where the inference cost of an image goes in a vision-language model, and how token compression, pruning, small models, efficient encoders, quantization and serving cut it without losing what matters." />
@@ -79,7 +79,7 @@
         "description": "Where the inference cost of an image goes in a vision-language model, and how token compression, pruning, small models, efficient encoders, quantization and serving cut it without losing what matters.",
         "image": "https://srini-anirudh.github.io/blogs/the-cost-of-a-picture/preview.png",
         "datePublished": "2026-07-19",
-        "dateModified": "2026-08-09",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Vision-language models", "Inference efficiency", "Visual token compression"],
@@ -268,7 +268,7 @@
           <span>Vision-language models</span><span>Inference efficiency</span><span>Token compression</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-07-19">July 19, 2026</time></span><span>Last modified <time datetime="2026-08-09">August 9, 2026</time></span><span>42 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-07-19">July 19, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>42 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -341,7 +341,7 @@
           <span class="an">the second term is attention scores plus the weighted sum of values; it is why high resolution hurts the encoder</span></div>
         <p>The language model pays the same shape of cost over the full prompt of <i>V</i> visual tokens and <i>T</i> text tokens:</p>
         <div class="eq center">FLOPs<sub>prefill</sub> ≈ 2 · P<sub>LLM</sub> · (V + T) + 4 · L<sub>LLM</sub> · (V + T)<sup>2</sup> · d<sub>LLM</sub></div>
-        <p>Prefill is compute-bound on modern accelerators. Its time is roughly FLOPs divided by the achieved throughput. The derivation of why lives in <a href="../why-fast-gpus-still-wait-for-memory/">Why Fast GPUs Still Wait for Memory</a>. The time until the first answer token, called TTFT, is preprocessing plus encoding plus prefill.</p>
+        <p>Prefill is compute-bound on modern accelerators. Its time is roughly FLOPs divided by the achieved throughput. A small model on a few hundred tokens can be launch-bound instead: a companion lab measured Qwen2-VL-2B prefill at about 24 ms on an H100 for 64, 144 and 576 visual tokens alike. The derivation of why lives in <a href="../why-fast-gpus-still-wait-for-memory/">Why Fast GPUs Still Wait for Memory</a>. The time until the first answer token, called TTFT, is preprocessing plus encoding plus prefill.</p>
 
         <h3>Memory for the KV cache</h3>
         <p>Every prompt token leaves a key and a value vector in every layer. With <i>L</i> layers, <i>n</i><sub>kv</sub> key-value heads of dimension <i>d</i><sub>h</sub>, and <i>b</i> bytes per number:</p>
@@ -476,7 +476,7 @@
         <p>The headline numbers above are averages over benchmarks like MME, POPE, GQA and ScienceQA. Most of their questions are about large objects and the overall scene. A careful look at what pruning removes tells a less comfortable story.</p>
 
         <h3>Attention-based selection is biased by position</h3>
-        <p>Two independent studies found the same flaw in FastV-style pruning. In decoder-only language models, tokens that come later in the sequence tend to receive more attention. Visual tokens are laid out in raster order, top row first. So the tokens near the bottom of the image are kept, and the tokens near the top are dropped. The paper <em>Feather the Throttle</em> showed that early-layer pruning removes most tokens towards the top of the image. Strong scores on many benchmarks hid this. On localization tasks, its fix (an ensemble of criteria plus early uniform sampling) gave more than a 5× improvement over the original approach at similar savings.</p>
+        <p>Two independent studies found the same flaw in FastV-style pruning. In decoder-only language models, tokens that come later in the sequence tend to receive more attention. Visual tokens are laid out in raster order, top row first. So the tokens near the bottom of the image are kept, and the tokens near the top are dropped. The paper <em>Feather the Throttle</em> showed that early-layer pruning removes most tokens towards the top of the image. Strong scores on many benchmarks hid this. On localization tasks, its fix (an ensemble of criteria plus early uniform sampling) gave more than a 5× improvement over the original approach at similar savings. A small companion lab did not reproduce the bottom-heavy bias on Qwen2-VL-2B: with FastV's attention score applied at the input and 64 of 576 tokens kept, attention selection did not beat random selection (number accuracy 0.44 against 0.42). See the code.</p>
         <p>The study <em>Token Pruning in Multimodal Large Language Models: Are We Solving the Right Problem?</em> measured the same bias and then compared against two baselines that every method should have reported. On LLaVA-1.5-7B with 75% of tokens removed, random selection kept 95.0% of the original average score and plain pooling kept 96.4%. FastV kept 89.8% and SparseVLM 93.5%. A variant of FastV that forces spatially uniform selection recovered much of the gap. With 88.9% removed, random selection kept 89.1% and FastV 78.2%.</p>
 
         <h3>Grounding and reading suffer first</h3>
@@ -776,6 +776,12 @@
         </ul>
       </section>
 
+      <aside class="callout callout-insight run-the-code">
+        <p class="callout-label">Run the code</p>
+        <p>The companion lab recomputes the worked example in this post from its formulas. It then measures the same stages (preprocessing, encoder, prefill and decode) on Qwen2-VL-2B, which uses the same 14-pixel patches and 2 &times; 2 merge.</p>
+        <p>You can also run six token-reduction policies on synthetic pictures, from attention ranking and random choice to pooling, diversity and token merging. Each one answers a colour question and a small-printed-number question at the same budget. A last demo shows a prefix cache that keys only on token ids answering about the wrong image, and the image-hash fix. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/the-cost-of-a-picture">labs/the-cost-of-a-picture on GitHub</a>.</p>
+      </aside>
+
       <nav class="related-articles" aria-labelledby="related-articles-title"><h2 id="related-articles-title">Continue reading</h2><ul><li><a href="../inside-a-modern-vision-encoder/">Inside a Modern Vision Encoder</a></li><li><a href="../the-mechanics-of-llm-inference/">The Mechanics of LLM Inference</a></li><li><a href="../the-serving-playbook/">The Serving Playbook</a></li></ul></nav>
 
       <section id="references">
@@ -928,7 +934,7 @@
   month        = {Jul},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-cost-of-a-picture/},
-  note         = {Published July 19, 2026; updated August 9, 2026}
+  note         = {Published July 19, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

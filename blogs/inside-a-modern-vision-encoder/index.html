@@ -24,7 +24,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="A field guide to the vision encoder inside a VLM: intake geometry, resolution strategies, training objectives, connectors, and the encoder every major model actually ships." />
     <meta property="article:published_time" content="2025-10-19" />
-    <meta property="article:modified_time" content="2026-01-18" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <title>Inside a Modern Vision Encoder | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <link rel="canonical" href="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/" />
@@ -40,7 +40,7 @@
     <meta name="twitter:description" content="A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use." />
     <meta name="twitter:image" content="https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png" />
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/"},"headline":"Inside a Modern Vision Encoder","description":"A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use.","image":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png","datePublished":"2025-10-19","dateModified":"2026-01-18","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["vision encoders","vision-language models","VLM","CLIP","SigLIP","visual tokens"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@id":"https://srini-anirudh.github.io/blogs/#vlms"}]}
+      {"@context":"https://schema.org","@type":"BlogPosting","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/#article","mainEntityOfPage":{"@type":"WebPage","@id":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/"},"headline":"Inside a Modern Vision Encoder","description":"A field guide to vision encoders in VLMs: resolution strategies, training objectives, connectors, and the encoders major models use.","image":"https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/preview.png","datePublished":"2025-10-19","dateModified":"2026-11-07","author":{"@type":"Person","@id":"https://srini-anirudh.github.io/#person","name":"Anirudh Srinivasan","url":"https://srini-anirudh.github.io/about.html"},"publisher":{"@id":"https://srini-anirudh.github.io/#person"},"keywords":["vision encoders","vision-language models","VLM","CLIP","SigLIP","visual tokens"],"isPartOf":[{"@id":"https://srini-anirudh.github.io/blogs/#blog"},{"@id":"https://srini-anirudh.github.io/blogs/#vlms"}]}
     </script>
     <link rel="icon" href="../../assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -319,7 +319,7 @@ svg .hit:focus{outline:none}
           <span>Vision encoders</span><span>VLMs</span><span>Multimodal</span><span>Interactive</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-19">October 19, 2025</time></span><span>Last modified <time datetime="2026-01-18">January 18, 2026</time></span><span>42 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-10-19">October 19, 2025</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>42 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -579,7 +579,9 @@ table.data .num{text-align:right;font-variant-numeric:tabular-nums}
     <p class="lede">
       Papers describe the architecture. Config files describe the preprocessing. The gap between them is
       where most reproduction failures live — a wrong normalisation constant or a resize without
-      antialiasing costs more accuracy than a 10× parameter increase buys.
+      antialiasing costs more accuracy than a 10× parameter increase buys. A small companion lab did not
+      reproduce this on DINOv2 kNN accuracy over 1,000 ImageNet images, where each such error moved accuracy
+      by at most 0.3 points; see the code.
     </p>
 
     <ol class="stack">
@@ -813,7 +815,7 @@ input[type=range]{width:100%;accent-color:#4BC8E8;background:transparent}
       takes an r×r block of spatial positions and stacks them along the channel dimension: sequence length
       drops by r², channel width grows by r², and no information is thrown away — it is <em>rearranged</em>.
       A 448px tile is 1024 patches at p=14; with r=2 that becomes 256 tokens. SmolVLM pushes r=3 for 9×
-      compression. Qwen does the same job with a learned 2×2 merge in the MLP connector instead.
+      compression (the SmolVLM-256M config uses r=4). Qwen does the same job with a learned 2×2 merge in the MLP connector instead.
     </p>
 
     <div class="figbox">
@@ -1320,7 +1322,8 @@ input[type=range]{width:100%;accent-color:#4BC8E8;background:transparent}
         low-information background patches, roughly 10× the norm of their neighbours. The model repurposes
         redundant patches as scratch memory. Adding 4 dedicated <em>register</em> tokens gives it somewhere
         else to write, removes the artifacts and improves dense tasks. If your attention maps look speckled,
-        this is why.</p>
+        this is why. The fraction and the ratio depend on model size: a companion lab found 0.4% to 1.7% of
+        tokens were outliers in DINOv2 large and base, the largest at 28× to 53× its neighbours' norm, and far fewer in small.</p>
       </div>
       <div class="nt">
         <span class="k">feature depth</span>
@@ -2294,6 +2297,15 @@ table.mx td.dt{color:var(--dim);white-space:nowrap}
       complementarity between differently-supervised features. Those three have explained every real gain
       since 2021, and none of them is a parameter count.
     </p>
+
+    <div class="note">
+      <b>Run the code.</b> A companion lab rebuilds this post's seven intake strategies, counts the tokens each
+      one produces for any image size, and measures which bars of a resolution target survive. It also measures what
+      antialiasing, normalisation constants, pixel shuffle, a missing pad mask and the CLIP and SigLIP losses do, and
+      counts the high-norm outlier tokens in real DINOv2 checkpoints with and without registers. Everything runs on
+      a CPU; two scripts download DINOv2 checkpoints and a small ImageNet slice:
+      <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/inside-a-modern-vision-encoder">labs/inside-a-modern-vision-encoder</a>.
+    </div>
   </div>
 </section>
 
@@ -2405,7 +2417,7 @@ table.mx td.dt{color:var(--dim);white-space:nowrap}
   month        = {Oct},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/inside-a-modern-vision-encoder/},
-  note         = {Published October 19, 2025; updated January 18, 2026}
+  note         = {Published October 19, 2025; updated November 7, 2026}
 }</code></pre>
     <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
     <span class="citation-status" aria-live="polite"></span>

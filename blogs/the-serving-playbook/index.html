@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/the-serving-playbook/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/the-serving-playbook/preview.png" />
     <meta property="article:published_time" content="2026-05-10" />
-    <meta property="article:modified_time" content="2026-05-10" />
+    <meta property="article:modified_time" content="2026-11-07" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Serving Playbook: How Modern LLM and VLM Serving Systems Keep GPUs Busy" />
     <meta name="twitter:description" content="A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs." />
@@ -37,7 +37,7 @@
         "description": "A first-principles derivation of modern LLM and VLM serving: from one idle GPU to continuous batching, paged KV, prefix caching, chunked prefill, disaggregation, speculation and goodput under SLOs.",
         "image": "https://srini-anirudh.github.io/blogs/the-serving-playbook/preview.png",
         "datePublished": "2026-05-10",
-        "dateModified": "2026-05-10",
+        "dateModified": "2026-11-07",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["LLM inference", "GPU scheduling", "PagedAttention", "continuous batching", "VLM serving", "goodput"],
@@ -158,7 +158,7 @@
           <span>Inference</span><span>Scheduling</span><span>Multimodal</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-10">May 10, 2026</time></span><span>62 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-10">May 10, 2026</time></span><span>Last modified <time datetime="2026-11-07">November 7, 2026</time></span><span>62 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -443,7 +443,7 @@
           <b>choose C so that one iteration is comfortably above the<br />
           balance point and comfortably under the TPOT budget</b>
         </div>
-        <p>Sarathi-Serve calls the second half of this <em>stall-free batching</em>: the scheduler never admits a unit of work that would push an iteration past the latency target, so decodes are never stalled by an admission decision.</p>
+        <p>Sarathi-Serve calls the second half of this <em>stall-free batching</em>: the scheduler never admits a unit of work that would push an iteration past the latency target, so decodes are never stalled by an admission decision. A companion lab with an eager PyTorch engine cut the worst decode stall from 294 ms to between 188 and 220 ms. It did not reach this clean picture, because each iteration cost at least 100 ms whatever its size, so small chunks made the prompt and the tail latency worse.</p>
       </section>
 
       <section id="interference">
@@ -872,7 +872,7 @@
           <b>recompute</b> = 2&Psi;L / achieved FLOPs = 131 TFLOP / 400 TFLOP/s = <b>327 ms</b><br />
           <b>swap</b> &nbsp;&nbsp;&nbsp;&nbsp;= 2 &times; 1 GiB / 50 GB/s &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <b>43 ms</b>
         </div>
-        <p>A KV byte moves across PCIe far faster than a FLOP regenerates it, and grouped-query attention makes the KV small relative to the model's arithmetic, so on raw time the swap wins by roughly eight times. The ratio narrows for full multi-head models, where KV per token is four times larger, but it does not usually invert.</p>
+        <p>A KV byte moves across PCIe far faster than a FLOP regenerates it, and grouped-query attention makes the KV small relative to the model's arithmetic, so on raw time the swap wins by roughly eight times. The ratio narrows for full multi-head models, where KV per token is four times larger, but it does not usually invert. This assumes a fast host link. A companion lab on one shared H100 host measured device-to-host copies at only 1.9 GB/s, and there recomputing an 8,000-token sequence took 253 ms while swapping it took 637 ms. So the order can flip with the link speed.</p>
         <p>Recompute is nonetheless the default, and every reason is about timing rather than magnitude. It frees the blocks <em>now</em>, whereas a swap only relieves pressure after the copy lands &mdash; and pressure is why you are preempting. It needs no reserved host buffer, so it cannot itself run out. It does not contend for a PCIe link that disaggregated deployments may already be using for KV transfer. And with prefix caching on, the re-prefill frequently hits the cache and costs almost nothing, which collapses the 327 ms to a rounding error. Swapping earns its place in the narrow band where prompts are long, the prefix cache cannot help, and preemption is frequent enough that the recompute bill compounds.</p>
 
         <h3>Why the scheduler ends up thin</h3>
@@ -1000,6 +1000,8 @@
         <p>Reading the article backwards through this lens makes it much shorter. Continuous batching raises the ceiling of the goodput curve. Paged KV and prefix caching move the knee to the right by making concurrency cheaper. Chunked prefill flattens the TPOT tail so the constraint binds later. Disaggregation decouples the two constraints so they stop trading against each other. Speculation buys TTFT and TPOT headroom at low load and must be switched off at high load. Quantization relaxes the memory constraint. Routing prevents one replica from setting the fleet's percentile. Admission control is what keeps you on the left side of the cliff when the knobs run out.</p>
         <p>None of it is about making the model faster. All of it is about keeping expensive silicon doing work that someone is still waiting for.</p>
         <p>Once the system is assembled, the final question is diagnostic: <a href="../how-to-find-what-is-slowing-your-model/">how do we find what it is actually waiting for?</a></p>
+
+        <div class="aside-note run-the-code"><b>Run the code.</b> The companion lab builds a small serving engine from scratch: a paged KV block manager with copy-on-write and chained-hash prefix caching, an iteration-level scheduler with a token budget, chunked prefill and preemption, and a CUDA-graph decode path. It runs a real SmolLM2 checkpoint on one GPU and checks the output against plain greedy decoding. You can rerun the post's main claims at small scale: static versus continuous batching, KV waste under three allocators, the stall a long prompt causes, recompute versus swap, and a load sweep where throughput keeps rising while goodput collapses. <a href="https://github.com/srini-anirudh/blog-coding-tutorials/tree/main/labs/the-serving-playbook">labs/the-serving-playbook on GitHub</a>.</div>
       </section>
 
       <section id="references">
@@ -1092,7 +1094,7 @@
   month        = {May},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/the-serving-playbook/},
-  note         = {Published May 10, 2026}
+  note         = {Published May 10, 2026; updated November 7, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
