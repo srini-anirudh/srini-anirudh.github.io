@@ -2626,9 +2626,10 @@ $ .venv/bin/python -m pytest c12-agent-rl -m "slow or gpu"
       const l = pts[pts.length - 1];
       P.dot.setAttribute("cx", l[0]); P.dot.setAttribute("cy", l[1]);
       const idx = Math.min(N - 1, Math.round(upto) - 1);
-      P.val.setAttribute("x", Math.min(l[0] + 8, P.x + P.w - 40));
+      P.val.setAttribute("x", Math.min(l[0] + 8, P.x + P.w - 118));
       P.val.setAttribute("y", Math.max(l[1] - 8, P.y + 8));
-      P.val.textContent = P.percent ? pct(ys[idx]) : ys[idx].toFixed(2);
+      const win = ys.slice(Math.max(0, idx - 9), idx + 1), avg = win.reduce((x, y) => x + y, 0) / win.length;
+      P.val.textContent = (P.percent ? pct(avg) : avg.toFixed(2)) + " (10-iter avg)";
     }
     B(root, 20, 300, 920, boxH, { fill: "#fff" });
     const tx = hack.traces.map(() => svg("g", { opacity: 0 }, root));
