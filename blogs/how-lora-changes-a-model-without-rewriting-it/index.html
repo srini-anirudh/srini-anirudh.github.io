@@ -27,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-narrow" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -408,7 +408,7 @@
 
         <h3>What this buys, in numbers</h3>
 
-        <p>On GPT-3 175B the original paper reports the two savings separately, and they are different sizes. Training VRAM went from 1.2&nbsp;TB to 350&nbsp;GB — a factor of about 3.4, because the frozen weights are still there and still 350&nbsp;GB. The checkpoint went from 350&nbsp;GB to 35&nbsp;MB — a factor of 10,000 — because the frozen weights are not <em>part of</em> the checkpoint at all. Throughput improved by about 25%. That is a modest speedup, and it is the honest one: you have removed the optimizer update for 99.99% of parameters, not the matrix multiplies.</p>
+        <p>On GPT-3 175B the original paper reports the two savings separately, and they are different sizes. Training VRAM went from 1.2&nbsp;TB to 350&nbsp;GB — a factor of about 3.4, because the frozen weights are still there and still 350&nbsp;GB. The checkpoint went from 350&nbsp;GB to about 38&nbsp;MB (18.9 million adapter parameters in fp16) — a factor of roughly 9,300 — because the frozen weights are not <em>part of</em> the checkpoint at all. Throughput improved by about 25%. That is a modest speedup, and it is the honest one: you have removed the optimizer update for 99.99% of parameters, not the matrix multiplies.</p>
 
         <p>Figure 4 lets you turn the dials yourself on a Llama-2-7B-shaped model.</p>
 

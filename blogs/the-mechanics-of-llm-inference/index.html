@@ -27,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-narrow" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -3096,11 +3096,11 @@
         <h3>Where the time goes</h3>
         <p>Three costs stack before the LLM has done anything.</p>
         <div class="eq">
-          <span class="lead">TTFT budget, one image, 7B backbone (7.3 × 10<sup>9</sup> parameters), H100</span>
+          <span class="lead">TTFT budget, one image, 7B backbone (6.74 × 10<sup>9</sup> parameters), H100</span>
           preprocess (JPEG decode, resize, 13 crops) &nbsp;&nbsp;&nbsp;≈ 15 ms &nbsp;<em>on CPU</em><br />
           ViT: 2·P<sub>vit</sub>·9477 + 4·L<sub>vit</sub>·729²·d<sub>vit</sub>·13 ≈ 8.4 TFLOP &nbsp;&nbsp;≈ 21 ms<br />
-          LLM prefill over 2,400 tokens ≈ 36.6 TFLOP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;≈ 82 ms<br />
-          <b>TTFT ≈ 118 ms</b> &nbsp;&nbsp;versus ≈ 1 ms for the same question with no image
+          LLM prefill over 2,400 tokens ≈ 34 TFLOP &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;≈ 76 ms<br />
+          <b>TTFT ≈ 112 ms</b> &nbsp;&nbsp;versus ≈ 1 ms for the same question with no image
         </div>
         <p>The preprocessing line is the one that surprises people. It is pure CPU work — image decode, resize, normalisation, thirteen crops — it does not appear in any GPU profile, and in a poorly pipelined server it is serial with everything else. On a busy node with many concurrent image requests it can become the actual bottleneck while every GPU dashboard shows headroom.</p>
         <h3>Where the memory goes</h3>

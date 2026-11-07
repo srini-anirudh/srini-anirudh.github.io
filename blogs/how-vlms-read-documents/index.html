@@ -27,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-narrow" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -392,7 +392,7 @@
         <p>Take an A4 page, 8.27 by 11.69 inches, rendered at <i>d</i> dots per inch. Its pixel size is 8.27<i>d</i> by 11.69<i>d</i>. In a native-resolution encoder like Qwen2.5-VL's, each 14-pixel patch is one feature, and 2-by-2 groups of features are merged into one token. So one token covers a 28-by-28 pixel square.</p>
         <div class="eq">tokens ≈ (8.27<i>d</i> / 28) × (11.69<i>d</i> / 28) ≈ 0.123 <i>d</i><sup>2</sup><span class="note">72 dpi ≈ 640 tokens · 150 dpi ≈ 2,780 · 200 dpi ≈ 4,930 · 300 dpi ≈ 11,100</span></div>
         <p>The cost grows with the square of the resolution. Doubling the dpi quadruples the tokens. Now compare the text. A dense page of prose holds several hundred words, which is on the order of a thousand text tokens. At 200 dpi, the page costs about five vision tokens for every text token it contains. The image is a far less compact way to carry the text than the text itself.</p>
-        <p>Why not just lower the resolution? Look at the glyphs. Ten-point text at <i>d</i> dpi is 10<i>d</i>/72 pixels per em. At 72 dpi that is 10 pixels, so a single 14-pixel patch spans more than a full letter height and the letters blur together. At 150 dpi it is about 21 pixels, and small text becomes legible. Footnotes, subscripts and superscripts in formulas, and table digits are usually the first to go. Figure 4 lets you move the resolution and watch both effects at once.</p>
+        <p>Why not just lower the resolution? Look at the glyphs. Ten-point text at <i>d</i> dpi is 10<i>d</i>/72 pixels per em. At 72 dpi that is 10 pixels, so a single 14-pixel patch spans more than a full letter height and a patch-based encoder has little room to separate neighbouring letters. The pixels still hold them: in the companion lab, a small CRNN trained on this font read 99.5% of 10-point lines exactly at 72 dpi (91.5% of 6.5-point footnote lines), so the limit is the encoder's patch size, not the page. At 150 dpi it is about 21 pixels, and small text becomes legible. Footnotes, subscripts and superscripts in formulas, and table digits are usually the first to go. Figure 4 lets you move the resolution and watch both effects at once.</p>
 
         <figure class="fig fig--wide" id="fig4">
           <p class="fig-kicker">Figure 4 · Small text dissolves as the token count falls</p>

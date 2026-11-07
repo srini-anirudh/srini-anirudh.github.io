@@ -2958,3 +2958,17 @@ body.vision-article {
     padding: 26px 0 30px;
   }
 }
+
+/* Narrow screens: wide tables and display equations scroll inside the article instead of widening the page. */
+@media (max-width: 720px) {
+  .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+  section > table, .article-body > table { display: block; max-width: 100%; overflow-x: auto; }
+  .article-panel { max-width: 100%; box-sizing: border-box; }
+  main.article-content, .article-wrap { min-width: 0; max-width: 100%; }
+  main.article-content > *, .article-wrap > * { min-width: 0; max-width: 100%; }
+  h1.article-title { overflow-wrap: anywhere; }
+  main.article-content code, main.article-content p, main.article-content li { overflow-wrap: anywhere; }
+  main.article-content a.ref .ref-m { white-space: normal; }
+}
+
+.tablewrap { contain: paint; max-width: 100%; }

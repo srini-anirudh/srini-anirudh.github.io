@@ -27,7 +27,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-narrow" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -811,7 +811,7 @@
           <p class="fig-detail" aria-live="polite"></p>
           <figcaption><b>Figure 7.</b> Parameter split for models whose reports give the parts separately. Blue is the vision encoder, orange the connector or adapter, and grey the language model. The share view shows the vision encoder's fraction of the total. For mixture-of-experts models, the bar shows total parameters; the detail line gives active parameters. Select a bar for the exact numbers and source notes.</figcaption>
         </figure>
-        <p>Two patterns stand out. Most families settled on a vision encoder of 0.3B to 0.7B parameters while their language models grew from 7B to 235B. The vision share of total parameters fell from about 20% for Qwen-VL in 2023 to between 1% and 3% for the largest recent models, and under 1% for Qwen2-VL-72B, Molmo-72B and Pixtral Large. InternVL is the exception among large models: it keeps a 6B encoder for its largest ones. Small models go the other way. SmolVLM-256M spends 41% of its parameters on vision by the report's component sizes (34% when counted from the released checkpoint), and its report warns that a larger encoder on a tiny language model wastes parameters.</p>
+        <p>Two patterns stand out. Most families settled on a vision encoder of 0.3B to 0.7B parameters while their language models grew from 7B to 235B. The vision share of total parameters fell from about 20% for Qwen-VL in 2023 to between 1% and 3% for the largest recent models, and under 1% for Qwen2-VL-72B, Molmo-72B and Pixtral Large. InternVL is the exception among large models: it keeps a 6B encoder for its largest ones. Small models go the other way. SmolVLM-256M spends 34% of its parameters on vision when counted from the released checkpoint (41% by the report's component sizes), and its report warns that a larger encoder on a tiny language model wastes parameters.</p>
         <p>The encoders themselves converged too. SigLIP So400m, or a model initialised from it, appears in LLaVA-OneVision, Idefics2 and 3, PaliGemma, Gemma 3, DeepSeek-VL2, MiniCPM-V, Eagle 2, Aria, Kimi-VL, Phi-4-multimodal and Qwen3-VL. The usual reasons given are strong results for its size (LLaVA-NeXT, Idefics2, Cambrian-1) and a convenient 384 px input. Teams that trained their own encoder from scratch (Qwen2.5-VL, Pixtral) did it for native resolution.</p>
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Does a bigger encoder help? The evidence splits. Idefics2 found the language model mattered more than the encoder at fixed size. MM1 found doubling encoder size usually gave under 1%. LLaVA-NeXT found language-model scaling more useful. SmolVLM found a big encoder wasteful on a tiny language model. On the other side, InternVL 2.5 argues its 6B encoder let the 78B model beat Qwen2-VL-72B with a tenth of the training tokens. That comparison changes the data and the language model too, so it does not isolate the encoder. And InternVL3.5 itself uses the 300M encoder for every model up to 30B-A3B. In practice: spend parameters on the language model and on resolution first.</p></aside>
 
@@ -1732,13 +1732,13 @@ const VLM_FAMS = [["llava", "LLaVA"], ["qwen", "Qwen-VL"], ["internvl", "InternV
       ['LLaVA-NeXT 34B', '2024', 0.3035, 0.0587, 34.39, 'CLIP-L 303.5M · MLP 58.7M · Yi-34B 34.39B (model card).'],
       ['DeepSeek-VL 7B', '2024', 0.4, 0, 6.9, 'Vision 0.4B · LLM 6.9B (as listed in the DeepSeek-VL2 report). Connector size not reported.'],
       ['MiniCPM-Llama3-V 2.5', '2024', 0.4, 0, 8, 'SigLIP SoViT-400m · Llama3-8B; total reported as 8.5B. Resampler size not reported.'],
-      ['Qwen2-VL 2B', '2024', 0.675, 0, 1.5, 'ViT 675M · Qwen2-1.5B. Merger size not reported separately. The released checkpoint has a 631M ViT and a 34M merger, so its vision share is 29%, not 31%.'],
-      ['Qwen2-VL 72B', '2024', 0.675, 0, 72, 'Same 675M ViT for every size, so encoder cost stays constant.'],
+      ['Qwen2-VL 2B', '2024', 0.631, 0.034, 1.544, 'Counted from the released checkpoint: 631M ViT · 34M merger · 1.544B language model. The report lists a 675M encoder and a 1.5B language model, which would give 31%.'],
+      ['Qwen2-VL 72B', '2024', 0.631, 0.068, 72.7, 'Counted from the released checkpoint: the same 631M ViT as the 2B model, with a 68M merger, so encoder cost stays nearly constant.'],
       ['Molmo-7B-D', '2024', 0.29, 0.11, 7.6, 'CLIP ViT-L 290M · connector 110M · Qwen2-7B 7.6B (Table 6).'],
       ['Molmo-72B', '2024', 0.29, 0.31, 72, 'CLIP ViT-L 290M · connector 310M · Qwen2-72B (Table 6).'],
       ['Pixtral 12B', '2024', 0.4, 0, 12, 'Pixtral-ViT about 400M · Mistral NeMo 12B. MLP size not reported.'],
       ['Pixtral Large', '2024', 1, 0, 123, 'Vision encoder 1B · multimodal decoder 123B (model card).'],
-      ['SmolVLM 256M', '2025', 0.093, 0, 0.135, 'SigLIP-B/16 93M · SmolLM2-135M. The encoder is 41% of the model by these sizes. Counted from the released checkpoint it is 34% (86M vision, 7M connector, 163M language).'],
+      ['SmolVLM 256M', '2025', 0.086, 0.007, 0.163, 'Counted from the released checkpoint: 86M vision · 7M connector · 163M language, which includes an untied 28M output head. The report\'s component sizes (93M + 135M) would give 41%.'],
       ['SmolVLM 2.2B', '2025', 0.4, 0, 1.7, 'SigLIP-SO400M (400M; one section of the report says 428M) · SmolLM2-1.7B.'],
       ['Phi-4-multimodal', '2025', 0.44, 0.37, 3.8, 'Encoder + projector 440M · vision LoRA 370M (orange) · frozen Phi-4-Mini 3.8B.'],
       ['Gemma 3 27B', '2025', 0.417, 0, 25.6, 'SigLIP 417M (frozen) · 25.6B non-embedding LLM parameters (Table 1).'],

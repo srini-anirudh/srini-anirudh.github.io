@@ -30,7 +30,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link rel="stylesheet" href="../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-codebar" />
+    <link rel="stylesheet" href="../../assets/css/blog-shell.css?v=20261107-narrow" />
     <style>
       :root {
         --paper: #e4e2dc;
@@ -844,7 +844,7 @@ Grid search on the B0 baseline gives α=1.2, β=1.1, γ=1.15.</span></div>
 <span class="c">Activation term scales with batch size; the others do not.
 Activation checkpointing trades ~30% extra compute for O(sqrt(L)) memory.</span></div>
 
-      <p>The reversal is total. At inference the weights dominate; at training with any reasonable batch size the stored activations dominate, often by 3–5×. Every layer's output must be retained from the moment it is computed until its gradient is consumed, because the backward pass needs it to compute weight gradients. This is why an architecture with cheap weights and expensive activations — DenseNet, EfficientNet-B7 — can be miserable to train despite looking efficient on paper.</p>
+      <p>The reversal is total. At inference the weights dominate; at training with any reasonable batch size the stored activations dominate, often by 3–5×. Every layer's output must be retained from the moment it is computed until its gradient is consumed, because the backward pass needs it to compute weight gradients. Checkpointing trades some of that memory for recomputation, and the cost is not always the ~30% the rule of thumb gives: in the companion lab, ResNet-50 on one H100 peaked at 2.25 GiB instead of 2.92 GiB with four checkpointed segments, but its step went from 41 ms to 145 ms, 3.6 times slower, which I did not investigate. This is why an architecture with cheap weights and expensive activations — DenseNet, EfficientNet-B7 — can be miserable to train despite looking efficient on paper.</p>
 
       <figure class="fig" id="fig-memory">
         <div class="fig-head">
