@@ -533,7 +533,7 @@
               <li><strong>Understand the science.</strong> Building from scratch lets us learn how LLMs are really built, and discover the recipes for state-of-the-art foundation models.</li>
               <li><strong>Answer open questions.</strong> Public papers, technical reports, blogs and code repos leave many questions unanswered. We go step by step with structured experiments to find what matters when building vision-language models. Each experiment is designed to give an insight into something that affects model quality.</li>
               <li><strong>Build novel capabilities.</strong> We custom-build foundation VLMs with capabilities that are first of their kind: mask-based, multi-span, multi-granular grounded document VQA (<a href="#m3grounder">M3Grounder</a>); step-wise grounded chain-of-thought across text, tables, charts and flowcharts (<a href="#docog">DoCoG</a>); and open-set, hierarchical, promptable layout segmentation (<a href="#doclayoutvl">DocLayout-VL</a>). That makes the architecture and design choices very different.</li>
-              <li><strong>Solve the grand document AI challenge.</strong> It spans 100+ document AI tasks across perception and reasoning, many languages, and 150+ document types across 20+ domains, with the challenges that come with that.</li>
+              <li><strong>Solve the grand document AI challenge.</strong> It spans 100+ document AI tasks across perception and reasoning, many languages, and 150+ document types across 20+ domains, with the challenges that come with that. Benchmarks are supposed to be proxies for the real world, but existing ones do not cover all these complexities or document types. So we move beyond academic benchmarks, and build benchmarks (<a href="#patrambench">PatramBench</a>) that represent the challenge holistically and give us a real-world-grounded way to measure progress.</li>
             </ol>
           </div>
         </section>
@@ -593,21 +593,6 @@
           </details>
         </div>
       </section>
-
-        <section class="research-card thesis-card" id="benchmark-thesis">
-          <div class="research-card-content">
-            <span class="papertitle">Why build benchmarks again</span>
-            <br />
-            <em>Thesis</em> &middot; why <a href="#patrambench">PatramBench</a>
-            <p class="research-thesis">
-              <strong>Thesis.</strong> Benchmarks are supposed to be proxies for the real world. For document intelligence,
-              existing benchmarks do not do justice to it. They do not cover all the complexities of the task, and they are
-              not comprehensive in terms of document types. So we want to move beyond academic benchmarks. We build
-              benchmarks that represent the challenge in a holistic way, and give us a real-world-grounded way to measure
-              progress on it.
-            </p>
-          </div>
-        </section>
 
         <section class="research-card" id="patrambench">
         <div class="research-card-image">
