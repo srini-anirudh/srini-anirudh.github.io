@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/replica-visually-faithful-document-reconstruction/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/replica-visually-faithful-document-reconstruction/preview.png" />
     <meta property="article:published_time" content="2026-04-19" />
-    <meta property="article:modified_time" content="2026-05-10" />
+    <meta property="article:modified_time" content="2026-11-08" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="REPLICA: visually faithful document reconstruction with agents, FID-HTML and VFDR-Bench" />
     <meta name="twitter:description" content="Why converting a document to text loses information, and how REPLICA rebuilds a page as visually faithful HTML (FID-HTML) with agents and tools, measured on VFDR-Bench, and used as a data engine for grounding models." />
@@ -37,7 +37,7 @@
         "description": "Why converting a document to text loses information, and how REPLICA rebuilds a page as visually faithful HTML (FID-HTML) with agents and tools, measured on VFDR-Bench, and used as a data engine for grounding models.",
         "image": "https://srini-anirudh.github.io/blogs/replica-visually-faithful-document-reconstruction/preview.png",
         "datePublished": "2026-04-19", "dateCreated": "2026-11-06",
-        "dateModified": "2026-05-10",
+        "dateModified": "2026-11-08",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Document AI", "Document reconstruction", "Agentic systems", "FID-HTML", "VFDR-Bench", "document parsing", "visual fidelity"],
@@ -300,7 +300,7 @@
           <span>Document AI</span><span>Document reconstruction</span><span>Agentic systems</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-04-19">April 19, 2026</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-05-10">May 10, 2026</time></span><span>38 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-04-19">April 19, 2026</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-08">November 8, 2026</time></span><span>38 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -344,6 +344,13 @@
         <p class="lede">Can a text version of a page keep everything that is on the page? This post is about why the answer is usually no, and how we built a system for which it is yes.</p>
         <p>Almost everything we do with documents at scale runs on text, not on pixels. Search indexes text. Retrieval chunks text. Translation rewrites text. Most importantly for our work, generating training data for document models means writing questions and answers about text. So the first step of nearly every document workflow is the same: convert the page to text.</p>
         <p>That step is where information disappears. A page holds words, but it also holds a structure (headings, tables, lists), a geometry (where each block sits), and an appearance (size, weight, colour, a strikethrough, a stamp). Common conversions keep the words. Many keep some structure. Almost none keep geometry and appearance. Whatever the conversion drops, every system built on top of it has lost too.</p>
+        <p>The one-line version of this work: we turn a document into HTML that does not just read like the original. It looks like it. The argument has four steps, and the rest of the post follows them in order.</p>
+        <ul>
+          <li><strong>A page carries four things.</strong> Words, structure, position and appearance. Meaning can live in any of them.</li>
+          <li><strong>Common formats lose two of them.</strong> Almost every format keeps the words and some structure. Position and appearance are dropped.</li>
+          <li><strong>The cause is the target, not the model.</strong> A format that has no place for a coordinate or a colour cannot receive one, however good the model is.</li>
+          <li><strong>So change the target, then build what fills it and what scores it.</strong> That gives a format, a system and a benchmark.</li>
+        </ul>
         <p>REPLICA (ICDAR 2026, oral) is our answer. It has three parts, and this post follows them in order:</p>
         <ul>
           <li><strong>FID-HTML</strong>, a representation. It is ordinary HTML with one rule: every element carries its position and its style. The paper writes it as Fid-HTML; this series writes FID-HTML.</li>
@@ -363,6 +370,7 @@
           <li><strong>Appearance.</strong> The total is bold. One line item is struck through. A red stamp says OVERDUE.</li>
         </ul>
         <p>The REPLICA paper names these four axes Text Extraction, Logical Structure, Physical Structure and Visual Fidelity. They are the spine of everything that follows: the format must carry all four, the system must produce all four, and the benchmark must score all four.</p>
+        <p>The talk adds two requirements on the format itself. It must be web-native, so it opens anywhere without a special viewer. It must be machine-readable, so a downstream model can read the structure directly. Four axes and two requirements make a six-item checklist. Everything that follows is measured against it.</p>
         <p>Now convert the invoice, adding one axis at a time. Figure 1 does this live. The left side is the original. The right side starts as the text a typical OCR system returns and gains one layer per step.</p>
 
         <figure class="fx fx--wide" data-fig="ladder" id="fig-ladder">
@@ -374,12 +382,14 @@
           <figcaption><b>Figure 1</b> Left: the source invoice. Right: a reconstruction that gains one axis per step. Text only gives a wall of words, and nothing separates the total from the fine print. Adding logical structure recovers headings and the table, but there is still no page. Adding physical position puts every block where it belongs. Only visual fidelity brings back the strikethrough and the stamp, and with them the meaning: the cancelled licence is not owed, and the invoice is overdue.</figcaption>
         </figure>
 
+        <p>Read Figure 1 as four fixes, each answering what the previous level left broken. Text only has the right words but no page. You cannot tell the heading from the body, the table is a run of numbers, and the total looks like fine print. Logical structure says which part is the heading and which is the table, with rows and columns. That is a large gain for a machine, but there is still no page shape. Physical position gives the page its dimensions back, and now you can tell which number belongs to which item. Appearance brings back the typography, the weight and the colour. Only at this level does the cancelled line read as cancelled, and only here does the overdue notice exist at all.</p>
         <p>The last step is the one most systems skip, and it changes what the document says. With the strikethrough lost, the four line items add up to 6,420.00. The page's own subtotal is 4,020.00, because the licence line was cancelled. A downstream model that reads the flattened text would compute the wrong amount, and nothing in its input would tell it so.</p>
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Appearance is not decoration; on many documents it is content. A strikethrough cancels a line, a stamp changes a status, and a bold cell marks the total. These marks are short and easy for a text conversion to drop, but they can reverse the meaning of the page. So a conversion that is judged only on text accuracy can score near perfect while changing what the document says. Evaluate appearance as its own axis whenever the documents carry legal or financial meaning.</p></aside>
 
         <h3>Which uses need which axes</h3>
         <p>Different downstream uses need different subsets of the four axes. Keyword search needs the words. Retrieval that chunks by section also needs the hierarchy. Retrieval by position ("the figure to the right of the table") needs geometry. Translating a form so it still looks like the same form needs all four. Generating grounded training data needs to know exactly where each element sits, so it needs geometry at least.</p>
         <p>A team rarely knows in advance every use its converted documents will serve. So the useful target is a single conversion that keeps all four axes. Then search, retrieval, translation, archiving, accessibility and data generation can all start from the same file. The REPLICA paper lists six such applications: layout-preserving translation, document preservation, indexing and search, grounded document intelligence, semantic chunking for retrieval-augmented generation, and position-aware retrieval.</p>
+        <p>Two of these uses follow directly from the shape of the format. Chunking for retrieval can follow the logical structure instead of cutting at a fixed character count, because the structure is in the file. Grounded document intelligence gets pixel-level grounding almost for free, because the nested DOM already says which phrase sits inside which line inside which block. That is the same phrase, line and block nesting that M3Grounder predicts as masks.</p>
       </section>
 
       <section id="why-formats-lose">
@@ -408,6 +418,7 @@
           <figcaption><b>Figure 2</b> Outputs written by hand to show what each format can carry; they are illustrative, not the output of a specific system. The panel on the right shows what a reader of that output would see. Click an aspect to highlight where it is written in the code. Plain text and Markdown have no syntax for a coordinate or a colour. DocTags can write boxes but carries little styling. Generic HTML can express position and style, but nothing requires them, so they are usually left out. FID-HTML requires both on every element.</figcaption>
         </figure>
 
+        <p>Picture the four axes of the page as four things that must all pass through one narrow place: the output format. Whatever the format has no slot for is dropped before it reaches the output. Text and hierarchy pass through almost every format. Geometry and style get stuck. The bottleneck is the target, not the model.</p>
         <p>The pattern has three causes, not one.</p>
         <ul>
           <li><strong>No syntax at all.</strong> Plain text and Markdown cannot write down a coordinate or a font colour. However good the model, that information cannot reach the output.</li>
@@ -465,6 +476,7 @@
       <section id="fid-html">
         <h2>FID-HTML: position and style are required</h2>
         <p>So we changed the target. FID-HTML is HTML that a browser renders and a language model can read. It differs from generic HTML in one rule: position and style are required, inline, on every element. Fidelity stops being something the format permits and becomes something it guarantees.</p>
+        <p>FID-HTML carries the first two axes the way every other format does. What is new is the other two. Geometry and style are not merely allowed. They are required: an absolute position on every block, and font size, weight and colour inline on every text run. Fidelity becomes a property of the format, not a hope.</p>
         <p>The paper defines six dimensions that FID-HTML encodes. One serves text, two serve logical structure, one serves physical position and two serve appearance:</p>
         <ol>
           <li><strong>Textual content</strong>, kept at both word and block level, with line breaks and indents.</li>
@@ -485,7 +497,7 @@
         </figure>
 
         <p>Three design choices in FID-HTML are worth spelling out, because each has a reason.</p>
-        <p><strong>Why HTML and not a new format.</strong> HTML is web-native: any browser renders it with no special viewer. It is also what language models have read most of, so a model can consume FID-HTML directly. A custom format would need its own renderer and would be unfamiliar to every model.</p>
+        <p><strong>Why HTML and not a new format.</strong> HTML is web-native: any browser renders it with no special viewer. It is also what language models have read most of, so a model can consume FID-HTML directly. A custom format would need its own renderer and would be unfamiliar to every model. The alt-text on figures, written by a vision-language model, also makes the output readable by a screen reader.</p>
         <p><strong>Why inline styles.</strong> Inline styles keep each element self-contained. An element can be cut out of the page with its position and appearance attached, which is exactly what the data engine later needs.</p>
         <p><strong>Why absolute positions.</strong> A browser's flow layout decides where text lands from the text itself, the fonts and the container widths. Small differences in any of them move every block below. Absolute positions pin each block to where it was on the source page, so the render cannot drift far. Relative containers inside each block keep local alignment simple.</p>
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>Absolute positioning buys fidelity at a cost in reflow. A page that pins every block cannot reflow cleanly to a phone screen the way a plain HTML article can. FID-HTML keeps the semantic tags and the hierarchy alongside the positions, so a consumer can drop the positions and reflow from the structure. Treat FID-HTML as the complete record, and derive lighter views from it, not the other way round.</p></aside>
@@ -521,6 +533,13 @@
           <li><strong>Assemble.</strong> How do we put the components back into a coherent structure?</li>
           <li><strong>Refine.</strong> How do we make the result look like the source?</li>
         </ol>
+        <p>Each question exists to protect particular axes, and each answers a failure of the single pass described above. In the talk deck's terms:</p>
+        <ul>
+          <li><strong>Segment</strong> protects hierarchy and geometry. It finds the regions and the tree that holds them.</li>
+          <li><strong>Localize</strong> protects text and style. It gives each region to the specialist that writes it best.</li>
+          <li><strong>Assemble</strong> protects hierarchy and geometry again. It puts the pieces back where they were and in the order a person reads.</li>
+          <li><strong>Refine</strong> protects style. It is the only stage that sees the rendered page.</li>
+        </ul>
         <p>Figure 5 runs the whole pipeline on one page. Tools are drawn as blue squares and agents as orange circles, so you can see at each step which kind of component is doing the work.</p>
 
         <figure class="fx fx--wide" data-fig="pipeline" id="fig-pipeline">
@@ -551,6 +570,7 @@
         <p>The third stage turns many fragments into one document. It separates two questions that are easy to conflate: where things go, and in what order they are read.</p>
         <p><strong>A position-aware merge tool places the fragments.</strong> It composes bottom-up over the layout tree, so children go into their parents, while preserving containment, nesting and spatial alignment.</p>
         <p><strong>A reading-order agent decides the order.</strong> Sorting top to bottom and left to right fails on multi-column pages and floating elements. A newspaper page is the extreme case: articles are laid out in a grid, and a person reads one story at a time, not one row at a time. The agent judges textual continuity and contextual coherence across nodes, and the final HTML is linearised in that order. Reading-order accuracy, measured with Kendall's τ against the annotated order, is 0.98.</p>
+        <p>The project page and talk run the whole pipeline on a Telugu newspaper, the layout that argues hardest for agents. The grouping agent closes an outline around each article: headline, deck, figure and body columns. The reading-order agent rejects raster order in favour of story-by-story order, because a newspaper has no fixed reading order.</p>
 
         <h3>Refine: make it look right</h3>
         <p>Even when the first three stages are structurally correct, the rendered HTML can diverge from the source. The paper names the reason: a browser lays out text with the CSS box model, which differs from how the PDF placed it. Fonts render at different widths, lines wrap at different points, and text can overflow its box. The fourth stage is therefore the only one that looks at the render.</p>
@@ -625,6 +645,7 @@
           </table>
         </div>
         <p class="table-note">How to read this table: the last two columns are the ones the field had not measured. Among the benchmarks compared here, VFDR-Bench is the only one that scores physical structure and visual fidelity, and its annotation format is the only one that can hold them.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Systems ignore what no benchmark measures. Every other benchmark in Table 2 is marked ✗ on both physical structure and visual fidelity, so no earlier system was ever pushed to get position and appearance right. The talk's reading is that prior work optimised the first two axes because the last two were never measured. And you cannot score position or style against a Markdown reference, which is why VFDR-Bench is annotated in FID-HTML. When a quality matters, build the metric before you expect the models to improve on it.</p></aside>
 
         <h3>One metric family per axis</h3>
         <p>Each axis gets its own metrics. Two axes already had standard ones:</p>
@@ -697,12 +718,13 @@
 
         <p>Read Figure 8 one axis at a time.</p>
         <ul>
-          <li><strong>Text extraction</strong> is passable for most strong systems: Marker reaches 0.68 WRR, Gemini-2.5-Pro 0.67, Qwen3-VL 0.66 and GPT-5 0.65. REPLICA reaches 0.88 WRR and 0.93 CRR.</li>
-          <li><strong>Logical structure</strong> separates the field. The OCR-style models sit near 0.9 NTED (lower is better) because they emit a flat stream with almost no tree. GPT-5 is the best baseline at 0.49. REPLICA reaches 0.20.</li>
+          <li><strong>Text extraction</strong> is passable for most strong systems: Marker reaches 0.68 WRR, Gemini-2.5-Pro 0.67, Qwen3-VL 0.66 and GPT-5 0.65. REPLICA reaches 0.88 WRR and 0.93 CRR. This axis is largely solved, which is why the field can look finished.</li>
+          <li><strong>Logical structure</strong> separates the field. The OCR-style models sit near 0.9 NTED (lower is better) because they emit a flat stream with almost no tree. GPT-5 is the best baseline at 0.49. REPLICA reaches 0.20. Even a good tree says nothing about where anything sits.</li>
           <li><strong>Physical structure</strong> is where every baseline fails. The best baseline GPS is GPT-5's 0.43, and the best baseline LPS is Qwen3-VL's 0.22. REPLICA reaches 0.86 GPS and 0.73 LPS.</li>
           <li><strong>Visual fidelity</strong> is high for the strongest general models: GPT-5 reaches 0.86 VFS and Gemini-2.5-Pro 0.82. REPLICA reaches 0.93.</li>
         </ul>
         <p>Overall, REPLICA scores 0.86, against 0.58 for GPT-5, the best baseline. On the English subset it scores 0.93 and on Chinese 0.89. The claim is not that it wins one column. It is that it has no weak column.</p>
+        <p>The numbers are easier to trust after seeing the output. The talk shows the source scan beside REPLICA's FID-HTML, rendered live by the browser: real selectable text and real inline CSS, not an image of the output. Both sides are forced into the same rectangle, so any size difference would be a real layout error. The examples are a Gujarati government notice with a table, a dense receipt with small type and a faint scan, a multi-column magazine spread, and a scientific paper with equations and figures. In each, the column boundaries, typography and spatial layout survive.</p>
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>A page can look right without being the page. GPT-5's 0.86 visual fidelity sits next to 0.43 global position: its pages are well styled, but the blocks are not where the source put them. Gemini-2.5-Pro shows the same split (0.82 VFS, 0.31 GPS). A judge that looks only at overall appearance can be satisfied by a plausible page. Score geometry with a geometric metric, separately from appearance, or plausible rewrites will pass as faithful reconstructions.</p></aside>
 
         <h3>An 8B agentic system against larger single models</h3>
@@ -851,8 +873,9 @@
         <h2>Closing the loop with DocLayout-VL</h2>
         <p>Return to the ablation. The Segment stage set the ceiling for geometry, and its first component is an ensemble of three off-the-shelf detectors, followed by two agents that repair what the detectors get wrong. Every later stage inherits the ensemble's mistakes.</p>
         <p>Now look at what DocLayout-VL produces: a hierarchical, open-set layout tree for any page, with a mask for every region, and regions that can be asked for in words. That is the job REPLICA's Segment stage does with three detectors and two agents. DocLayout-VL was trained on data that REPLICA generated, about 80M masks on 2.5M pages. It now takes the place of the detector ensemble in REPLICA's Segment stage.</p>
-        <p>The two halves of the series now feed each other. REPLICA's reconstructions generate the training data. The data trains grounding models. The layout model among them improves the first stage of REPLICA, which produces better reconstructions, which produce better data.</p>
+        <p>The two halves of the series now feed each other. In one line: the representation makes the supervision, the supervision makes the models, and the models make the representation better. REPLICA's reconstructions generate the training data. The data trains grounding models. The layout model among them improves the first stage of REPLICA, which produces better reconstructions, which produce better data.</p>
         <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>The sources for this post report DocLayout-VL's own results (for example, zero-shot 96.5 mAP on PubLayNet and 77.5 on IndicDLP, and 79.4 overall on HOPLay-Docs-Bench), but no VFDR-Bench numbers for REPLICA with DocLayout-VL in place of the ensemble. The expected benefit follows from the ablation, where Segment carried most of the geometry gain, but it has not been measured in the published REPLICA paper.</p></aside>
+        <p>The talk closes on three claims. First, FID-HTML makes fidelity a property of the format: position and style are required, not optional. Second, VFDR-Bench with GPS, LPS and VFS scores physical structure and rendered appearance, which earlier benchmarks did not. Third, REPLICA uses agents where judgment is needed and tools where determinism is needed, and reaches 0.93 visual fidelity and 0.86 overall. With an 8B backbone it beats Qwen3-VL-30B by 39% overall at 3.75 times fewer parameters. Structured decomposition beat brute-force scale on this task.</p>
         <p>What should you be able to reason about now? Why a text form of a page loses information, and that the loss is mostly decided by the target format. Why a format must require position and style rather than permit them. Why a decomposed system with checks can beat a larger single model, and why the strongest check is on the render. How to score geometry separately from appearance. And how a complete reconstruction turns into grounded training data. The <a href="../m3grounder-mask-based-document-grounding/">next post</a> picks up that data and asks what kind of model should learn from it.</p>
       </section>
 
@@ -989,7 +1012,7 @@
   month        = {Apr},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/replica-visually-faithful-document-reconstruction/},
-  note         = {Published April 19, 2026; updated May 10, 2026}
+  note         = {Published April 19, 2026; updated November 8, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

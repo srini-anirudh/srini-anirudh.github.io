@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/docog-grounded-chain-of-thought/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/docog-grounded-chain-of-thought/preview.png" />
     <meta property="article:published_time" content="2025-11-30" />
-    <meta property="article:modified_time" content="2026-01-11" />
+    <meta property="article:modified_time" content="2026-11-08" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="DoCoG: grounding every step of a document chain of thought with masks" />
     <meta name="twitter:description" content="DoCoG grounds every step of a document chain of thought with pixel masks. Why final-answer grounding is not enough, why a Grounding Interaction Module beats a bigger language model, and how preference training avoids breaking the masks." />
@@ -37,7 +37,7 @@
         "description": "DoCoG grounds every step of a document chain of thought with pixel masks. Why final-answer grounding is not enough, why a Grounding Interaction Module beats a bigger language model, and how preference training avoids breaking the masks.",
         "image": "https://srini-anirudh.github.io/blogs/docog-grounded-chain-of-thought/preview.png",
         "datePublished": "2025-11-30", "dateCreated": "2026-11-06",
-        "dateModified": "2026-01-11",
+        "dateModified": "2026-11-08",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Document AI", "Grounded reasoning", "Vision-language models"],
@@ -261,7 +261,7 @@
           <span>Document AI</span><span>Grounded reasoning</span><span>Vision-language models</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-30">November 30, 2025</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-01-11">January 11, 2026</time></span><span>38 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-11-30">November 30, 2025</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-08">November 8, 2026</time></span><span>38 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -294,6 +294,7 @@
           <li><a href="#results">Results</a></li>
           <li><a href="#ablations">What the ablations teach</a></li>
           <li><a href="#comparison">How DoCoG compares with prior work</a></li>
+          <li><a href="#what-where">What and where</a></li>
           <li><a href="#limits">Limitations and open problems</a></li>
           <li><a href="#series">Where DoCoG sits in the series</a></li>
           <li><a href="#key-insights">Key insights and nuances</a></li>
@@ -330,7 +331,15 @@
           <figcaption>DoCoG's output on a photographed bill, shown on the project page. <b>[GND]</b> chips are grounding tokens; each one becomes a mask on the page. Steps S4 and S7 are arithmetic and emit no mask. Step S5 points again at the $50 it read in S1. The highlighted outlines are polygon traces of the evidence regions, redrawn for this figure.</figcaption>
         </figure>
 
-        <p>The rest of the post builds this up from first principles. First, why grounding the final answer is not enough. Then what &ldquo;multi-type&rdquo; evidence means on a document. Then the architecture, and in particular the Grounding Interaction Module (GIM) that sits between the language model and the segmenter. Then the data, the two training stages, and the anchor loss that lets preference training improve the reasoning without breaking the masks. The results and ablations come last, along with what I think the work teaches beyond this paper.</p>
+        <p>The post follows the order of the talk behind it. Each step answers the question the step before it raises.</p>
+        <ol>
+          <li><strong>The problem.</strong> A harder question is answered in steps, and a right answer can rest on a wrong read (<a href="#verification">Why grounding the answer is not enough</a>).</li>
+          <li><strong>The idea.</strong> Make every step that reads the page point at the page, with a pixel mask (<a href="#multi-type">What a step can point at</a>).</li>
+          <li><strong>Why both.</strong> Grounding alone has nothing to point at for a computed answer. Chain of thought alone cannot be checked. Each fills the other's gap.</li>
+          <li><strong>What is new.</strong> The pointers of one chain depend on each other, so a Grounding Interaction Module (GIM) sits between the language model and the segmenter (<a href="#architecture">The architecture</a> and <a href="#why-gim">Why a separate module</a>).</li>
+          <li><strong>How it is taught.</strong> Supervised training on 1.5M grounded chains teaches the format. Preference training then teaches the model to prefer a chain whose evidence is right, with an anchor loss so the masks survive (<a href="#data">data</a>, <a href="#sft">stage 1</a>, <a href="#preference">stage 2</a>, <a href="#anchor">the anchor</a>).</li>
+          <li><strong>What it buys.</strong> Results and ablations come last, along with what I think the work teaches beyond this paper (<a href="#results">Results</a>, <a href="#ablations">ablations</a>).</li>
+        </ol>
         <aside class="firstbox">
           <p class="fb-k">First of its kind</p>
           <p class="fb-cap">Step-wise, multi-type grounded chain-of-thought document VQA: the intermediate reasoning steps and the final answer are grounded with pixel masks, over textual and graphical evidence (table cells, legends, chart lines, pie wedges, flowchart nodes and arrows), across charts, tables, flowcharts and general documents.</p>
@@ -348,7 +357,17 @@
           <li><strong>The answer may be a judgement.</strong> &ldquo;Is the Net Sales total correct?&rdquo; has the answer &ldquo;no&rdquo;. You can ground the printed total. But the reason it is wrong is six other cells that sum to something else.</li>
           <li><strong>A correct answer can rest on wrong reads.</strong> A model can read the X-Ray cost instead of the blood test cost, make a second mistake that cancels it, and land on the right number. An answer check passes. Only a check of each step catches it.</li>
         </ul>
+        <p>Take the second break as a small example. The question is &ldquo;Is the Net Sales total in this image correct?&rdquo; A system cannot answer it by reading one place, so it answers in steps.</p>
+        <ul>
+          <li><span class="m">S<sub>1</sub></span> Look at the Net Sales column.</li>
+          <li><span class="m">S<sub>2</sub></span> Read the values: 20, 20, 20, 50, 30, 20.</li>
+          <li><span class="m">S<sub>3</sub></span> They sum to 160.</li>
+          <li><span class="m">S<sub>f</sub></span> The printed total is 150, so no, it is wrong.</li>
+        </ul>
+        <p>This chain is shortened from the real output in Figure 2. It is a good chain, but every line is a claim about the page that the reader must take on trust.</p>
         <p>The natural next step is chain-of-thought: let the model write its reasoning before the answer (see <a href="../thinking-in-tokens/">Thinking in Tokens</a> for why this helps). That gives the reviewer the steps. But it does not give them the evidence for each step. &ldquo;The values are 20, 20, 20, 50, 30 and 20&rdquo; is a claim about six cells. To check it, the reviewer has to find those six cells again. On a scanned statement with dozens of numbers, that is most of the work.</p>
+        <p>So each half fails alone, and the two failures are opposite. Grounding alone has nothing to point at for $27.50. Chain of thought alone says &ldquo;the cost is $50&rdquo; and gives no way to tell which cell it read. Chain of thought says what the model concluded. Masks say where it read. Each covers the gap in the other.</p>
+        <p>This suggests one question. What if every step pointed at the image? In the Net Sales chain, S<sub>2</sub> would mark the six cells it read and S<sub>f</sub> would mark the printed total. The chain is the same. Now every value points home.</p>
         <p>What we want is the combination: a chain of reasoning in which every step that reads the page shows what it read. Then each read can be checked by looking, each arithmetic step can be checked by computing, and the answer follows from checked parts. Figure 2 compares the three options on one table. Switch between them and watch what a reviewer can verify.</p>
 
         <figure class="fig wide" id="fig-verify">
@@ -434,6 +453,12 @@
           <li><strong>The Grounding Interaction Module (GIM)</strong>, a three-layer transformer encoder, takes the final-layer hidden states of all emitted <span class="m">[GND]</span> tokens, written <span class="m">G&#771; = {G&#771;<sub>1</sub>, &hellip;, G&#771;<sub>K</sub>}</span>. It alternates self-attention among them with cross-attention to the segmenter's image features <span class="m">x = F<sub>enc</sub>(I)</span>. It outputs refined grounding embeddings <span class="m">G = GIM(G&#771;, x)</span>.</li>
           <li><strong>A promptable segmenter</strong> (SAM) treats each refined embedding as a prompt. Its prompt encoder and mask decoder turn prompt <span class="m">G<sub>k</sub></span> and the image features into mask <span class="m">M&#770;<sub>k</sub></span>. If no step cites evidence, the set of masks is empty.</li>
         </ul>
+        <p>Each part answers a weakness of how grounding is usually done.</p>
+        <ul>
+          <li><strong>A grounding token, not a written box.</strong> A written box costs many tokens per span. It is only a next-token prediction, so nothing ties it to the page and it can be hallucinated. A <span class="m">[GND]</span> token costs one token and carries its meaning in its hidden state.</li>
+          <li><strong>A mask, not a rectangle.</strong> Rectangles overshoot pie wedges, curved text and diagram parts. Evidence is also plural: one box cannot stand for two places.</li>
+          <li><strong>GIM, between the two.</strong> The pointers of a chain depend on each other, and nothing makes independently projected pointers agree. The next section gives the full argument.</li>
+        </ul>
         <p>Nothing in this path is a coordinate. The language model never writes a number for a position. It writes a token that means &ldquo;evidence here&rdquo;, and the content of &ldquo;here&rdquo; lives in that token's hidden state. Figure 4 follows one forward pass on the example from the talk: a question about stock holdings in a donut chart, where step one points at the label &ldquo;HDFC Bank&rdquo; and at its wedge, and step two points at its value, 8.84%.</p>
 
         <figure class="fig wide" id="fig-gim">
@@ -458,6 +483,11 @@
 
       <section id="why-gim">
         <h2>Why a separate module, and not a bigger language model</h2>
+        <p>The quickest way to see the need is to set DoCoG beside M3Grounder.</p>
+        <ul>
+          <li><strong>M3Grounder: one answer, independent pointers.</strong> The model writes the answer and a grounding token after each cited span. Small heads project each token to SAM on its own. That is fine for one answer span, because its three masks (phrase, line and block) come from one token.</li>
+          <li><strong>DoCoG: a chain of pointers that depend on each other.</strong> Step 1 points at the label &ldquo;HDFC Bank&rdquo; and at its wedge. Step 2 points at its value, 8.84%, which must sit on that same wedge. Projected one by one, nothing makes these pointers agree.</li>
+        </ul>
         <p>The hub post gives the short answer to this. Here is the longer one, with the evidence for each part.</p>
         <p>Start with what the pointers need. In the donut example, three <span class="m">[GND]</span> tokens must land on three regions that belong together: the legend label, the wedge whose colour matches it, and the percentage printed next to that wedge. The paper describes such tokens as &ldquo;related, complementary, or mutually constraining&rdquo;. If each token is turned into a prompt on its own, nothing makes them agree. The wedge pointer can land on the neighbouring wedge, which has a similar colour, while the label pointer is correct.</p>
         <h3>A causal decoder can only look backwards</h3>
@@ -533,12 +563,18 @@
 
       <section id="preference">
         <h2>Stage 2: preferring better chains</h2>
-        <p>Consider two chains for the bill question. Chain A reads the right cells at every step and answers $27.50. Chain B also answers $27.50, but its first mask sits on the X-Ray row, and its third step claims the plan is premium without citing any evidence. Measured by the answer, they are equal. Measured by the evidence, A is clearly better. Supervised fine-tuning cannot express this preference. Preference training can: it compares two whole outputs for the same input and pushes the model toward the better one.</p>
+        <p>Stage 1 teaches the format and the skill. It does not teach the model to prefer a well-supported chain over a lucky one. To see the gap, take two chains for the bill question.</p>
+        <ul>
+          <li><strong>Chain A: every step right.</strong> It reads the blood test cost ($50), the premium discount, the premium badge and the $20 claim, each with a mask on the right place. It answers $27.50.</li>
+          <li><strong>Chain B: right answer, broken trail.</strong> It also answers $27.50. But its first mask sits on the X-Ray row, and its third step claims the plan is premium without citing any evidence.</li>
+        </ul>
+        <p>Measured by the answer, A and B are equal. Measured by the evidence, A is clearly better. Supervised fine-tuning cannot tell them apart. It checks one token at a time against one reference chain, and nothing scores a whole chain. So a right answer reached through wrong evidence is never penalised as a chain. Preference training can: it compares two whole chains for the same question and pushes the model toward the better one.</p>
         <p>DoCoG uses Direct Preference Optimization (DPO). The <a href="../teaching-a-model-what-we-prefer/">preference post</a> derives it from the RLHF objective; here is the result. For a chosen chain <span class="m">y<sup>+</sup></span> and a rejected chain <span class="m">y<sup>&minus;</sup></span> for the same image <span class="m">I</span> and question <span class="m">q</span>:</p>
         <div class="eq">
           L<sub>DPO</sub> = &minus; log &sigma;( &beta; [ log &pi;<sub>&theta;</sub>(y<sup>+</sup> | I, q) &frasl; &pi;<sub>ref</sub>(y<sup>+</sup> | I, q) &minus; log &pi;<sub>&theta;</sub>(y<sup>&minus;</sup> | I, q) &frasl; &pi;<sub>ref</sub>(y<sup>&minus;</sup> | I, q) ] )
           <span class="where">&pi;<sub>&theta;</sub> is the model being trained. &pi;<sub>ref</sub> is a frozen copy of the SFT model. &beta; sets how hard the pair is pushed apart. Every &pi; is a probability of writing a chain as tokens, computed by the language-model head.</span>
         </div>
+        <p>In RLHF, people say which output is better. Here a scorer stands in for them and checks each sampled chain against the reference.</p>
         <p>Building the pairs is the interesting part. For each image and question, the SFT model samples <span class="m">N</span> grounded chains. A reward then ranks them. It has four parts, and they are the same quantities DoCoG-Bench reports at test time.</p>
         <ul>
           <li><strong>Format (FR)</strong> is a gate. The steps, the final answer and the evidence references from <span class="m">[GND]</span> tokens must all parse. If not, FR = 0 and the sample is rejected before scoring.</li>
@@ -546,6 +582,7 @@
           <li><strong>CoT quality (CQ)</strong> first computes a normalised ROSCOE score. Below a threshold, CQ = 0. Otherwise the predicted steps are matched to the reference steps by maximum bipartite matching on semantic similarity and numeric consistency, and CQ is the F1 of that matching.</li>
           <li><strong>Grounding quality (GQ)</strong> matches each predicted mask to the nearest ground-truth mask. A match counts only if IoU &ge; 0.5, the element type matches (text span, table cell, chart wedge) and it appears in the right step. GQ<sub>all</sub> is the F1 over masks from all steps and the answer. GQ<sub>fa</sub> uses only the masks needed for the final answer. GQ is their average.</li>
         </ul>
+        <p>In plain terms, the reward asks three questions of each chain after the format gate. Is the final answer correct? Do the steps match the reference? Are the masks on the right evidence? The best chain by that score is like chain A. The worst is like chain B.</p>
         <p>The highest-reward sample becomes the chosen chain and the lowest-reward sample the rejected one. That yields <strong>DoCoG-PQA</strong>, 20K preference pairs. Figure 7 walks through one pair.</p>
 
         <figure class="fig wide" id="fig-pref">
@@ -563,6 +600,7 @@
 
       <section id="anchor">
         <h2>Preference training without breaking the masks</h2>
+        <p>In short: train the language model, freeze GIM and the segmenter, and hold the hand-off between them in place.</p>
         <p>Look again at the DPO loss. Every term is a likelihood of text. There is no mask in it. That is not an oversight. A preference between two masks needs a likelihood of each mask, and the mask decoder does not give one: it outputs one mask, not a distribution over masks. And several masks can validly cover the same evidence, so &ldquo;mask A is better than mask B&rdquo; is often ill-posed. So DoCoG applies DPO to the text only. Only the language model's weights are updated. GIM and SAM are frozen.</p>
         <p>That sounds safe. It is not, and the reason is subtle. Freezing GIM and SAM freezes their weights, not their inputs. Their input is the <span class="m">[GND]</span> hidden state of the language model, and DPO is changing the language model. As its weights move, its hidden states move with them. The frozen GIM and SAM now receive inputs unlike anything they were trained on, and they produce worse masks. DPO's reference term does not help: <span class="m">&pi;<sub>ref</sub></span> keeps the <em>text</em> distribution near the SFT model, but places no constraint on the hidden states that the mask path reads.</p>
         <p>The ablation shows how bad this gets. Without a fix, mask IoU on MMDocBench falls from 70.5 to 40.3 and final-answer grounding on DoCoG-Bench from 81.9 to 41.7. The masks collapse into blobs.</p>
@@ -589,7 +627,7 @@
       <section id="results">
         <h2>Results</h2>
         <p>DoCoG-Bench reports the reward components as metrics: answer quality (AQ), a G-Eval score from an LLM judge, CoT quality (CQ), and grounding (GQ<sub>all</sub> over all steps, GQ<sub>fa</sub> for the final answer). For models that output boxes, each box is converted to a mask before computing IoU. For benchmarks with box annotations, DoCoG's masks are converted to their tightest enclosing box.</p>
-        <p>The headline is a pattern, not a number. Commercial models answer well and ground badly. Figure 9 plots answer quality against final-answer grounding for every model in the paper's main table, per document type.</p>
+        <p>The headline is a pattern, not a number. Commercial models answer well and ground badly. In the talk, the corner they occupy is labelled &ldquo;fluent but unverifiable&rdquo;: high answer quality, almost no grounding. Figure 9 plots answer quality against final-answer grounding for every model in the paper's main table, per document type.</p>
 
         <figure class="fig wide" id="fig-results">
           <p class="fig-label">Figure 9 &middot; Answer quality against grounding on DoCoG-Bench</p>
@@ -685,6 +723,13 @@
           </table>
         </div>
         <p class="tbl-note">How to read this table: go column by column and look for the first row that fills each cell the way DoCoG does. Step grounding appears with ChartPoint and GRIT, masks with LISA and M3Grounder, multiple document types with Visual CoT and DOGR. DoCoG is the first row where all of them meet, and the only one where pointers interact before they are drawn. &ldquo;Not reported&rdquo; means the post did not find such a stage in the method's paper.</p>
+      </section>
+
+      <section id="what-where">
+        <h2>What and where</h2>
+        <p>The talk ends this paper on one question: where or what, pick one? A reader checking a document answer wants both. The <em>what</em> is the claim itself, such as &ldquo;the cost is $50&rdquo; or &ldquo;x = 5&rdquo;. The <em>where</em> is the pixels that the claim was read from.</p>
+        <p>Earlier systems gave one of the two. A chain of thought states the what and leaves the where to the reader. A grounded answer gives a where, but only for the final answer, and a computed answer has no place to point. DoCoG gives both. Every value in the chain points to its pixels, and the chain says what was concluded and computed from them.</p>
+        <p>The ablations earlier support this pairing. Reasoning first improves where the final answer points, and grounding each step improves the reasoning. The one gap is the arithmetic between the reads, which carries a what and no where. That is the first open problem below.</p>
       </section>
 
       <section id="limits">
@@ -808,7 +853,7 @@
   month        = {Nov},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/docog-grounded-chain-of-thought/},
-  note         = {Published November 30, 2025; updated January 11, 2026}
+  note         = {Published November 30, 2025; updated November 8, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

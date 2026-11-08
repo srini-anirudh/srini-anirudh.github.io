@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/doclayout-vl-promptable-layout-segmentation/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/doclayout-vl-promptable-layout-segmentation/preview.png" />
     <meta property="article:published_time" content="2025-12-28" />
-    <meta property="article:modified_time" content="2026-04-12" />
+    <meta property="article:modified_time" content="2026-11-08" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="DocLayout-VL: Hierarchical, Open-Set, Promptable Document Layout Segmentation" />
     <meta name="twitter:description" content="DocLayout-VL treats document layout as promptable, open-set, hierarchical segmentation: a VLM writes the layout tree, HGC attends along it, and SAM draws a mask per region." />
@@ -37,7 +37,7 @@
         "description": "DocLayout-VL treats document layout as promptable, open-set, hierarchical segmentation: a VLM writes the layout tree, HGC attends along it, and SAM draws a mask per region.",
         "image": "https://srini-anirudh.github.io/blogs/doclayout-vl-promptable-layout-segmentation/preview.png",
         "datePublished": "2025-12-28", "dateCreated": "2026-11-06",
-        "dateModified": "2026-04-12",
+        "dateModified": "2026-11-08",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Document AI", "Layout analysis", "Segmentation"],
@@ -206,7 +206,7 @@
           <span>Document AI</span><span>Layout analysis</span><span>Segmentation</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-28">December 28, 2025</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-04-12">April 12, 2026</time></span><span>34 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2025-12-28">December 28, 2025</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-08">November 8, 2026</time></span><span>34 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -230,6 +230,7 @@
           <li><a href="#today">How layout analysis is done today</a></li>
           <li><a href="#shortfalls">Where closed-set boxes fall short</a></li>
           <li><a href="#task">The task in one formulation</a></li>
+          <li><a href="#sam">SAM for documents</a></li>
           <li><a href="#tree">The page as a tree</a></li>
           <li><a href="#prompts">Asking for regions in words</a></li>
           <li><a href="#model">The model</a></li>
@@ -254,6 +255,8 @@
         <p>Here is the concrete question. You are building the first stage of a document pipeline. It will feed a reconstruction system, a question-answering model, a redaction tool and a retrieval index. What should that first stage output, so that every later stage gets what it needs?</p>
         <p>The usual answer is a layout detector. It draws a rectangle around each region and gives it one of a few labels, such as text, title, figure or table. That answer has served the field well on scientific papers. It breaks on real documents. A seal is round. A pie wedge is a wedge. An insurance policy has a "premium breakdown", not a "text block". A newspaper is a masthead and a grid of articles, each with its own headline and captions, not a flat list of boxes.</p>
         <p>DocLayout-VL (ECCV 2026) answers the question differently. It treats layout as <strong>promptable, open-set, hierarchical segmentation</strong>. A vision-language model writes the layout tree. Each node of the tree carries a special <span class="m">[LAY]</span> token. A small module refines those tokens along the tree, and a segmentation model turns each one into a mask. The prompt decides the vocabulary and which regions to return.</p>
+        <p>A short way to say it is "Segment Anything for documents". SAM takes a prompt and returns the mask of the thing you asked for. DocLayout-VL takes a prompt and returns the masks of the regions you asked for, with names, and with the way they nest. The section <a href="#sam">SAM for documents</a> says which parts of that comparison hold and which do not.</p>
+        <p>The route is the one the thesis talk takes. First, why today's layout tools fall short. Second, what a layout model would need. Third, the SAM comparison. Then the model, why attention should follow the tree, the losses, the data and the three-stage curriculum, the benchmark and the results, and last the question people kept asking: does architecture or scale of data matter more?</p>
         <aside class="callout callout-first"><p class="callout-label">First of its kind</p><p>Open-set, hierarchical and promptable document layout understanding in one model: labels from any vocabulary the prompt names, the full layout tree, and any region asked for in words, each region returned as a pixel mask. In the paper's survey of layout datasets, none before HOPLay-Docs-80M combined open-set labels, hierarchy, nesting and prompts, and none paired them with masks.</p></aside>
         <p>This is the fifth and last post in a series on grounded document intelligence. The hub post, <a href="../building-grounded-document-intelligence/">Building Grounded Document Intelligence</a>, sets out the thesis. <a href="../replica-visually-faithful-document-reconstruction/">REPLICA</a> builds a text form of the page that loses nothing. <a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a> and <a href="../docog-grounded-chain-of-thought/">DoCoG</a> join a vision-language model (VLM) with SAM so that a model grounds its answers with masks instead of typed coordinates. DocLayout-VL applies the same recipe to the page itself. It also closes the loop: it replaces the ensemble of layout detectors in REPLICA's first stage.</p>
       </section>
@@ -286,12 +289,14 @@
           <li><strong>Control.</strong> The output is the same for every request. If you need only the Hindi text, only the personal details on a passport, or the figure to the left of a table, you have to filter the boxes after the fact, and the labels usually do not carry the information you need to filter on.</li>
         </ol>
         <p>General VLMs fix the vocabulary and the control problems, because they read prompts. They do not fix the other two. On the paper's open-set flat benchmark, small open VLMs reach a reasonable Open mIoU of 50 to 64, but very low instance scores: Qwen3-VL-8B gets 24.3 Open RQ and 5.8 Open AP. On the hierarchical benchmark, Gemini 3 Pro scores 6.9 Open mIoU.</p>
+        <p>So each family of tools gets part of the way. A detector has the geometry of a box. A VLM has the words. A structure parser has the tree. A better layout model has to have all of them at once.</p>
         <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>VLMs can find where layout is but not where one region ends and the next begins. Gemini 3 Pro reaches 72.2 Open mIoU on the flat track, close to a good detector, yet only 15.4 Open AP. Open mIoU rewards covering the right pixels with the right label; Open AP and Open RQ reward separating instances. In practice: when you evaluate a VLM as a layout model, look at the instance metrics, not mIoU alone.</p></aside>
       </section>
 
       <section id="task">
         <h2>The task in one formulation</h2>
-        <p>The four failures suggest four requirements. DocLayout-VL states them as four tasks of one formulation. Given a document image <span class="m">d</span> and a prompt <span class="m">P</span>, the model returns three things:</p>
+        <p>The four failures suggest four requirements. A layout model needs <strong>masks</strong>, so a region can have any shape. It needs <strong>open-set labels</strong>, so the prompt names the classes. It needs <strong>the page as a tree</strong>, so every region is kept together with how it nests. And it needs to be <strong>promptable</strong>, so you can ask for any region in words. All in one model.</p>
+        <p>DocLayout-VL states these as four tasks of one formulation. Given a document image <span class="m">d</span> and a prompt <span class="m">P</span>, the model returns three things:</p>
         <div class="eq">
           f<sub>θ</sub>(d, P) → ( T̂, M̂, X̂ ),&nbsp;&nbsp; T̂ = ( V̂, Ê ),&nbsp;&nbsp; M̂ = { M̂<sub>i</sub> }<sub>i=1…N</sub>,&nbsp;&nbsp; M̂<sub>i</sub> ∈ {0,1}<sup>H×W</sup>
           <span class="where">T̂ is the layout tree: nodes V̂ are regions with open-set labels, edges Ê are parent–child links. M̂<sub>i</sub> is the pixel mask of node i. X̂ is an optional explanation in text.</span>
@@ -303,7 +308,35 @@
           <li><strong>D · Promptable layout.</strong> The prompt can ask for a targeted extraction ("mask all personally identifiable information of the passport holder") or a spatial question ("find the figure to the left of a table"). The model can explain its choice in X̂.</li>
         </ul>
         <p>One property of this formulation is easy to miss. Standard closed-set detection is a special case of it. If the prompt lists PubLayNet's five classes and asks for a flat layout, the model is doing PubLayNet's task. That is why the paper can evaluate DocLayout-VL zero-shot on ten classic benchmarks.</p>
-        <p>The four requirements also point at a design. Open-set labels and prompts need a language model. A tree of variable size and depth needs a generator that can write structure. Masks of any shape need a segmenter. That is the recipe of the earlier papers in this series: a VLM decides <em>what</em> to ground and at what granularity, and SAM decides <em>where</em>. The deck slide that introduced DocLayout-VL ended with two words: "Sound familiar?"</p>
+        <p>The four requirements also point at a design. Open-set labels and prompts need a language model. A tree of variable size and depth needs a generator that can write structure. Masks of any shape need a segmenter. That is the recipe of the earlier papers in this series: a VLM decides <em>what</em> to ground and at what granularity, and SAM decides <em>where</em>. In the thesis talk, the slide that lists the four requirements ends with "all in one model. Sound familiar?" It should. A promptable model that returns masks is what SAM does for photographs. The next section takes that comparison seriously.</p>
+      </section>
+
+      <section id="sam">
+        <h2>SAM for documents</h2>
+        <p>Start with what SAM, the Segment Anything Model, does for photographs. It is a promptable segmentation model. You give it a prompt, such as a click on an object, and it returns the mask of that object. It does not say what the object is. It is class-free. The talk's slide on SAM lists three properties: promptable, class-free and 1B masks of training data.</p>
+        <p>Now picture the same interface on a page. You write "parse this page" and get back a mask for every region. You write "mask all personally identifiable information of the passport holder" and get back only those regions. The slide in the talk draws it as one click on the left and one prompt on the right: SAM returns that one object; the document model returns every region, and the tree that holds them.</p>
+        <p>Some of SAM's properties carry over and some do not. Table 1 sorts them.</p>
+        <div class="comparison-table-wrap">
+          <table class="comparison-table" style="min-width: 760px">
+            <caption>Table 1 · What carries over from SAM to documents</caption>
+            <thead>
+              <tr><th>Property</th><th>SAM on natural images</th><th>DocLayout-VL on pages</th><th>Carries over?</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Interface</strong></td><td>Promptable: a prompt picks what to segment. A click is the standard example.</td><td>Promptable: a request in words picks what to return, from "parse this page" to "find the figure to the left of a table".</td><td>Yes. The prompt changes from a click to language.</td></tr>
+              <tr><td><strong>Output</strong></td><td>A mask for the prompted object</td><td>A mask for every region the prompt selects, one per [LAY] token</td><td>Yes. Masks, not boxes.</td></tr>
+              <tr><td><strong>Names</strong></td><td>Class-free: the mask carries no label</td><td>Open-set: each region carries a label from the vocabulary the prompt defines</td><td>No. A page needs to say "premium breakdown", so names are added.</td></tr>
+              <tr><td><strong>Relations</strong></td><td>None: the objects in a photo are a pile</td><td>A tree: every region has a parent, children and siblings</td><td>No. This is the new part.</td></tr>
+              <tr><td><strong>Recipe</strong></td><td>A promptable task, one model and a data engine</td><td>The same three: promptable layout, one model, and a data engine that reconstructs pages first</td><td>Yes.</td></tr>
+              <tr><td><strong>Training masks</strong></td><td>1B masks (the talk's SAM slide)</td><td>80M masks on 2.5M pages</td><td>Different scale and domain.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="tbl-note">How to read this table: the first and last rows are what makes the comparison fair. The middle rows are where documents ask for more. Names and relations are the two things a page needs that a photograph does not.</p>
+        <p>The analogy breaks in one place, and that place is the point of the paper. The objects in a photo are a pile. A dog and a bench do not contain each other. The regions of a page do. A headline belongs to an article, the article to a grid, the grid to the page. Segmenting every region is not enough. The model has to keep how they nest.</p>
+        <p>There is also a literal side to the name. SAM is a part of the model. DocLayout-VL uses SAM's image encoder, prompt encoder and mask decoder to draw each mask. The change is what drives them. A click would be the prompt for SAM alone. Here the prompt is the hidden state of a <span class="m">[LAY]</span> token, written by a language model that has read the page and your request. The language model supplies the words and the tree. SAM supplies the pixels.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>Masks and prompts get you most of the way to "SAM for documents", but not to the tree. Keeping the VLM and SAM and removing only HGC gives 58.3 hierarchical Open mIoU. The full model gives 77.5. A box-writing VLM on the same data gives 32.5. In practice: the part of the analogy that does not carry over, the tree, is also the part that needs its own module. Copying SAM's interface is the first half of the work.</p></aside>
+        <aside class="callout callout-nuance"><p class="callout-label">Nuance</p><p>"SAM for documents" describes the interface and the recipe. It does not claim SAM's scale or SAM's domain. The talk's slide lists 1B masks for SAM and 80M masks for this work, and the 80M are masks of document pages, not of photographs. Read the name as a short description of what you can do with the model, not as a statement about what it was trained on.</p></aside>
       </section>
 
       <section id="tree">
@@ -365,6 +398,7 @@
 
       <section id="model">
         <h2>The model</h2>
+        <p>The architecture is the same recipe as <a href="../m3grounder-mask-based-document-grounding/">M3Grounder</a> and <a href="../docog-grounded-chain-of-thought/">DoCoG</a>, with one change. A VLM writes special tokens. Their hidden states become prompts for SAM. What is new is that the <span class="m">[LAY]</span> hidden states first go through HGC, the Hierarchical Grounding Contextualizer, which attends along the tree. Then they reach the segmenter.</p>
         <p>DocLayout-VL has three parts, and each does one job.</p>
         <div class="roles">
           <p class="roles-h">Who does what in DocLayout-VL</p>
@@ -395,6 +429,7 @@
 
       <section id="hgc">
         <h2>Why HGC: attention that follows the tree</h2>
+        <p>Start with the intuition. In a feature article, a headline should stay with its article. On a restaurant menu, an item should stay with its menu section. So each <span class="m">[LAY]</span> token attends only to its parent, its children and its siblings. Regions of different branches never merge.</p>
         <p>Why not send each h̃<sub>i</sub> straight to SAM, as M3Grounder does? Because the raw states do not know enough about each other, and what they do know is not organised by the tree.</p>
         <h3>Two problems with raw token states</h3>
         <p>The first problem is causality. The VLM is a causal decoder. When it writes the <span class="m">[LAY]</span> for the first caption, it cannot see anything written after it: not the next section, not the footer. So each state has seen only the part of the page layout that came before it in the string.</p>
@@ -446,6 +481,7 @@
           L<sub>total</sub> = 1 · L<sub>lm</sub> + 2 · L<sub>seg</sub> + 0.5 · L<sub>bg</sub> + 0.5 · L<sub>struct</sub>,&nbsp;&nbsp; L<sub>struct</sub> = 1 · L<sub>contain</sub> + 1 · L<sub>overlap</sub>
           <span class="where">L<sub>lm</sub>: cross-entropy on the tagged layout text. L<sub>seg</sub>: Dice plus binary cross-entropy on each mask. L<sub>bg</sub> and L<sub>struct</sub> are new; the weights are the paper's.</span>
         </div>
+        <p>In plain words, L<sub>struct</sub> says the masks must respect the tree. Containment penalises a child's mask that falls outside its parent. Overlap penalises two siblings that claim the same pixels. L<sub>bg</sub> says masks stay off the background: every predicted pixel outside the page's ground-truth foreground, such as whitespace, is penalised. The talk's one-line summary is that these are M3Grounder's two priors, now on a tree.</p>
         <p>Why add anything to Dice and cross-entropy? Because those losses score each mask on its own. A pixel wrongly added to a mask costs the same wherever it lands: in empty margin, in a sibling region, or outside the parent. But those errors are not equally bad for a layout. A child that spills outside its parent breaks the tree. Two siblings that claim the same pixels break the partition of the page. The new losses charge for exactly these errors.</p>
         <h3>Containment, overlap and background</h3>
         <p>All three new terms have the same shape: the fraction of a predicted mask that lies where it should not. Training uses teacher forcing, so each predicted mask M̂<sub>v</sub> is paired with ground-truth masks for its node, its parent and its siblings.</p>
@@ -579,7 +615,7 @@
 
       <section id="ablations">
         <h2>Architecture, data and order</h2>
-        <p>Two questions came up again and again when this work was presented. Is the gain from the data or from the architecture? And which parts of the architecture matter? The paper answers both with one controlled experiment: the same Qwen3-VL-8B backbone, trained at 25%, 50% and 100% of the data, with one component added at a time. Figure 10 plots it.</p>
+        <p>One question came up again and again when this work was presented: what matters more, architecture or scale of data? The short answer from the talk is both, but architecture wins. The rest of this section shows why. A second question follows: which parts of the architecture matter? The paper answers both with one controlled experiment: the same Qwen3-VL-8B backbone, trained at 25%, 50% and 100% of the data, with one component added at a time. Figure 10 plots it.</p>
         <figure class="fig wide" id="fig-scale">
           <p class="fig-label">Figure 10 · Architecture versus data scale</p>
           <div class="fig-stage"></div>
@@ -587,6 +623,7 @@
           <div class="anim-controls" role="group" aria-label="Figure 10 animation controls"></div>
           <figcaption><b>Figure 10.</b> Table 5 of the paper, hierarchical track Open mIoU. "VLM only" writes boxes as text after fine-tuning on the same data. Each line adds one component. The dashed line is the full model trained with one joint pass instead of the three-stage curriculum. Hover a point for its value.</figcaption>
         </figure>
+        <p>Data does real work. For the same Qwen3-VL-8B backbone, the Overall Score goes from 31.6 zero-shot, to 45.8 after fine-tuning with boxes on the same data, to 79.4 for the full model. Data brings the backbone into the task. The architecture closes the rest. The talk shows the same two steps, data and then model, for M3Grounder and DoCoG.</p>
         <p>Three patterns stand out, and the paper names them.</p>
         <ol>
           <li><strong>At every data scale, adding HGC helps the tree more than doubling the data.</strong> VLM+SAM gains 5.5 points of hierarchical Open mIoU from 25% to 50% data. Adding HGC at 25% gains 12.2. HGC at 25% of the data (59.8) beats VLM+SAM at 100% (58.3).</li>
@@ -655,6 +692,7 @@
       <section id="key-insights">
         <h2>Key insights and nuances</h2>
         <ul class="key-list">
+          <li><strong>"SAM for documents" holds for the interface, not for the structure.</strong> Prompts and masks carry over from SAM; names and the tree do not. Removing only HGC from the VLM+SAM model costs 19.2 points on the tree. (<a href="#sam">SAM for documents</a>)</li>
           <li><strong>VLMs find layout but do not separate it.</strong> Gemini 3 Pro reaches 72.2 flat Open mIoU but 15.4 Open AP. Read instance metrics, not mIoU alone. (<a href="#shortfalls">Shortfalls</a>)</li>
           <li><strong>Writing the tree is easy; grounding it is hard.</strong> Only 0.01% of trees are malformed at full data, yet a box-writing VLM on the same data reaches 32.5 hierarchical Open mIoU. (<a href="#tree">The page as a tree</a>)</li>
           <li><strong>Good explanations can point at the wrong pixels.</strong> Gemini 3 Pro scores 77.6 G-Eval but 28.9 cumulative IoU on prompts. Score both. (<a href="#prompts">Prompts</a>)</li>
@@ -766,7 +804,7 @@
   month        = {Dec},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/doclayout-vl-promptable-layout-segmentation/},
-  note         = {Published December 28, 2025; updated April 12, 2026}
+  note         = {Published December 28, 2025; updated November 8, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>

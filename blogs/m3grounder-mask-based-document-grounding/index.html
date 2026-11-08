@@ -365,6 +365,7 @@
           <p>Prior document QA grounding benchmarks annotate evidence with boxes only. GroundingDocQA (200K documents, 2M QA pairs) and GroundingDocQA-Bench (2.5K documents, 5K QA pairs) annotate it with masks at three granularities.</p>
         </aside>
         <p>This is the third post in the <a href="../building-grounded-document-intelligence/">Grounded Document Intelligence</a> series. The hub post gives the whole thesis in one place. The <a href="../replica-visually-faithful-document-reconstruction/">REPLICA post</a> explains how we rebuild a page as FID-HTML, the text form that supplies most of M3Grounder's training data. Here we go deep on M3Grounder: the problem from first principles, every design decision and its reason, the results and ablations, and what we learnt that applies beyond this one paper.</p>
+        <p>The post follows the order of the thesis talk. First, how a typed box <a href="#boxes-as-text">cracks on one pie chart question</a>. Next, <a href="#document-evidence">what better evidence looks like</a>: any shape, one span or many. Then the <a href="#chain-two-tools">obvious two-tool chain</a> and why it fails, the <a href="#architecture">model</a>, the <a href="#losses">two losses</a> that encode what documents look like, and the <a href="#data-engine">data engine</a> that supplies the training data. The <a href="#results">results</a> and ablations come last.</p>
       </section>
 
       <section id="why-grounding">
@@ -380,6 +381,7 @@
         <h2>How grounding works today</h2>
         <p>The dominant approach treats a location as more text. Pix2Seq (2021) showed that object detection can be cast as language modelling: quantise each box coordinate into a discrete token and predict the tokens one after another. VLMs adopted the same trick. Kosmos-2 divides the image into 32 bins per side and writes a box as location tokens linked to a text span. Shikra writes normalised coordinates as plain numbers. Florence-2 writes quantised coordinates for detection and grounding in one sequence format. Qwen2.5-VL writes absolute pixel coordinates in JSON. Ferret mixes discrete coordinates with continuous region features, which lets it accept free-form regions as input, but its grounded outputs are still coordinates.</p>
         <p>Document models followed. mPLUG-DocOwl 1.5 trains on multi-grained text localisation, pairing text with boxes at several levels. TextMonkey adds text spotting and grounding with positions in its answers. DOGR, the strongest prior document grounding model, builds a data engine for grounded document QA and predicts answers together with boxes. BoundingDocs and MMDocBench evaluate document QA with the answer location given as boxes. General VLMs such as Qwen3-VL and InternVL3.5 also output boxes, but they are not optimised for grounding accuracy on documents.</p>
+        <p>Take a pie chart of city shares and ask: &ldquo;What share does Mumbai hold?&rdquo; The answer is 7.7%. Now show the evidence. A box around Mumbai's wedge also grabs the neighbouring wedges, such as Paris and Sydney, because a rectangle cannot follow a wedge. A mask covers Mumbai's wedge and nothing else. A box that hugs a curved shape closely would need a polygon, and a polygon is hundreds more coordinates, each one a token to predict.</p>
         <p>In all of these, the evidence is a rectangle, and the rectangle is typed. That breaks in four ways.</p>
         <ul>
           <li><strong>Typed coordinates are unanchored.</strong> The numbers are next-token predictions like any other text. Nothing ties them to the pixels, so they can be hallucinated.</li>
@@ -431,6 +433,8 @@
           <li><strong>It is multi-granular.</strong> Documents have a natural hierarchy: words form lines, and lines form blocks. Different questions, and different uses of the answer, need different levels of it.</li>
         </ul>
         <p>A point is not enough here. It says which thing, but not how much of it. A paragraph, a table row or a curved street name has an extent, and that extent is the evidence. This is why we model grounding as masks. The VLM decides what to highlight and how much. SAM does the highlighting.</p>
+
+        <p>Two answers from the paper's teaser show the range. In the first, the answer is &ldquo;River Thames&rdquo;, and the evidence is the curved lettering that follows the river. No box could cover those letters without covering the map around them. In the second, one answer cites a logo and three city rows. Each piece gets its own mask, in the same answer. So the output has to allow any shape, and it has to allow one span or many. Figure 2 shows both.</p>
 
         <figure class="fx fx--wide" id="fig-teaser">
           <div class="img-pair">
@@ -544,6 +548,7 @@
           <span class="note">&lambda;<sub>lm</sub> = 1, &lambda;<sub>seg</sub> = 2, &lambda;<sub>bleed</sub> = 0.5, &lambda;<sub>hier</sub> = 0.5, fixed and set empirically.</span>
         </div>
         <p><strong>&#8466;<sub>lm</sub></strong> is the usual cross-entropy over all output tokens, including the span tags and the <code>[GROUND]</code> tokens. <strong>&#8466;<sub>seg</sub></strong> supervises every predicted mask against its ground truth with Dice loss plus binary cross-entropy (BCE). Its weights fall with granularity. For BCE they are 2.0 for phrases, 1.0 for lines and 0.5 for blocks. For Dice they are 1.0, 0.5 and 0.25.</p>
+        <p>Each of the two new losses fixes one failure, and each can be said in one sentence. Bleed suppression stops SAM from spilling onto icons and graphics. Hierarchical enclosure keeps a finer mask inside its coarser one: phrase inside line, line inside block.</p>
         <h3>Bleed suppression</h3>
         <p>SAM is a general segmenter. Prompted near text, it tends to spill onto nearby icons, bars and graphics, because in natural images those would be part of the same object. Bleed suppression penalises every predicted pixel that falls outside text:</p>
         <div class="eq-block">
@@ -584,6 +589,7 @@
         <p>The obvious generator is a strong VLM: show it the page and ask for a grounded question and answer. That puts every job in one coupled step. The model must read the text, infer the layout, recover the structure, reason, write the question and then type a box. If any step is wrong, nothing shows it. The box is a guess like any other output.</p>
         <h3>Perception first, reasoning second</h3>
         <p>For the 140K text-rich documents in GroundingDocQA, we split the jobs. REPLICA first rebuilds each page as FID-HTML (see the <a href="../replica-visually-faithful-document-reconstruction/">REPLICA post</a>). In FID-HTML every element has an ID, its exact text, its place in the tree, its position and its style. A language model (gpt-oss-120b) then reads the HTML, which is the kind of text it reads best, and writes a question and answer. It cites the line-level element IDs that hold the answer, and the key phrases within them. It never sees a pixel, so it cannot invent a coordinate.</p>
+        <p>Here is the idea on a small case. A rebuilt government circular has a table row &ldquo;Last date | 15 March 2024&rdquo;, and the date cell has the ID <code>e47</code>. The language model asks &ldquo;What is the last date for application?&rdquo; and answers &ldquo;15 March 2024&rdquo;, citing <code>e47</code>. It writes the ID, not a coordinate. The ID leads to the box, and the box leads to the mask.</p>
         <p>The masks then come out of the structure, not out of a model's guess:</p>
         <ul>
           <li>The <strong>line</strong> box is the box of the cited element, looked up from its ID.</li>
@@ -591,7 +597,12 @@
           <li>The <strong>block</strong> box is the element's parent in the HTML hierarchy. For tables, the cell is the phrase, the row is the line and the table is the block.</li>
           <li>Hi-SAM, a SAM-based hierarchical text segmenter, turns each box into a pixel mask that follows the actual text.</li>
         </ul>
-        <p>Two kinds of pages need different routes, because a rebuilt page is not the natural representation for them. For the 10K documents with <strong>curved and skewed text</strong>, a curved-text segmentation module first produces pixel masks. Each mask is overlaid on the image as a highlight, a visual prompt in the style of Set-of-Mark, and a VLM (Qwen2.5-VL) writes questions only about the highlighted text. The mask exists before the question, so no box-to-mask step is needed. For the 50K <strong>charts</strong>, we start from public chart datasets that come with plotting scripts. Running each script with the plotting libraries' renderer functions intercepted logs every bar, tick, legend and title with its box and an ID. A VLM sees the chart and this ID-tagged record, and writes QA pairs that cite element IDs. The IDs map back to boxes, and Hi-SAM turns them into masks. Figure 7 walks through all three pipelines.</p>
+        <p>Two kinds of pages need different routes, because a rebuilt page is not the natural representation for them. In both, the location is known before any model writes a question.</p>
+        <h3>Curved text: the mask comes first</h3>
+        <p>For the 10K documents with <strong>curved and skewed text</strong>, a curved-text segmentation module first produces pixel masks. Each mask is overlaid on the image as a highlight, a visual prompt in the style of Set-of-Mark. A VLM (Qwen2.5-VL) then writes questions only about the highlighted text. The mask exists before the question, so no box-to-mask step is needed.</p>
+        <h3>Charts: the renderer already knows the boxes</h3>
+        <p>For the 50K <strong>charts</strong>, we start from public chart datasets that come with plotting scripts. Running each script with the plotting libraries' renderer functions intercepted logs every bar, tick, legend and title with its box and an ID. A VLM sees the chart and this ID-tagged record, and writes QA pairs that cite element IDs. The IDs map back to boxes, and Hi-SAM turns them into masks. Figure 7 walks through all three pipelines.</p>
+        <aside class="callout callout-insight"><p class="callout-label">Insight</p><p>All three pipelines make the location a given instead of a guess. For text pages, the HTML supplies it. For curved text, the mask exists before the question. For charts, the renderer logs the box before anyone writes a question. The question writer cannot misplace evidence, because it never places any. What remains are the errors of the components that produce the structure, the segmenter and the renderer log, and the Nuance below covers those.</p></aside>
 
         <figure class="fx fx--wide" id="fig-engine" data-fig="engine">
           <div class="fx-stage min640"></div>
@@ -616,7 +627,7 @@
 
       <section id="results">
         <h2>Results</h2>
-        <p>Both variants of M3Grounder set the state of the art on all four grounding benchmarks. On GroundingDocQA-Bench, M3Grounder-Q reaches 79.0 grounding F1. The strongest zero-shot model, Gemini-2.5-Pro, reaches 43.4. Qwen3-VL-8B, the same backbone, reaches 12.8 zero-shot and 60.6 after fine-tuning on our data with box outputs. GPT-5 reaches 4.5. On the external benchmarks, M3Grounder-Q moves the best prior result from 70.0 to 81.4 on BoundingDocs (prior best: Gemini-2.5-Pro), from 66.4 to 73.3 on DOGR-Bench (prior best: DOGR at the same 8B scale), and from 49.4 to 68.2 IoU on MMDocBench (prior best: Gemini-2.5-Pro). Figure 8 shows every model on every metric.</p>
+        <p>Both variants of M3Grounder set the state of the art on all four grounding benchmarks. On GroundingDocQA-Bench, M3Grounder-Q reaches 79.0 grounding F1. The strongest zero-shot model, Gemini-2.5-Pro, reaches 43.4. GPT-5 reaches 4.5. Qwen3-VL-8B, the same backbone, climbs in two steps: 12.8 zero-shot, then 60.6 after fine-tuning on our data with box outputs. The M3Grounder architecture takes it to 79.0. On the external benchmarks, M3Grounder-Q moves the best prior result from 70.0 to 81.4 on BoundingDocs (prior best: Gemini-2.5-Pro), from 66.4 to 73.3 on DOGR-Bench (prior best: DOGR at the same 8B scale), and from 49.4 to 68.2 IoU on MMDocBench (prior best: Gemini-2.5-Pro). Figure 8 shows every model on every metric.</p>
 
         <figure class="fx fx--wide" id="fig-results" data-fig="results">
           <div class="fx-tabs" role="group" aria-label="Metric">

@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/" />
     <meta property="og:image" content="https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png" />
     <meta property="article:published_time" content="2026-05-17" />
-    <meta property="article:modified_time" content="2026-06-07" />
+    <meta property="article:modified_time" content="2026-11-08" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Building grounded document intelligence: REPLICA, M3Grounder, DoCoG and DocLayout-VL" />
     <meta name="twitter:description" content="A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop." />
@@ -37,7 +37,7 @@
         "description": "A lossless text representation of documents (REPLICA and FID-HTML), and state-of-the-art grounding with masks by joining a VLM and SAM end to end (M3Grounder, DoCoG, DocLayout-VL), connected in a closed loop.",
         "image": "https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/preview.png",
         "datePublished": "2026-05-17", "dateCreated": "2026-11-06",
-        "dateModified": "2026-06-07",
+        "dateModified": "2026-11-08",
         "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["Document AI", "Visual grounding", "Vision-language models"],
@@ -520,7 +520,7 @@
           <span>Document AI</span><span>Grounding</span><span>VLMs</span>
         </div>
         <div class="article-meta-bar">
-          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-17">May 17, 2026</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-06-07">June 7, 2026</time></span><span>24 min read</span>
+          <span>Anirudh Srinivasan</span><span>Published <time datetime="2026-05-17">May 17, 2026</time></span><span>First online <time datetime="2026-11-06">November 6, 2026</time></span><span>Last modified <time datetime="2026-11-08">November 8, 2026</time></span><span>24 min read</span>
           <button class="article-share" type="button" aria-label="Share this article">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"></path></svg>
             Share
@@ -1080,6 +1080,7 @@
       <section id="doclayoutvl">
         <h2>DocLayout-VL: layout understanding</h2>
         <p>The first two models ground answers to questions. The last one grounds the page itself. Layout tools today predict a flat list of rectangles from a fixed set of labels. Real pages break all three assumptions: seals are round and wedges are wedges, every domain has its own vocabulary (&ldquo;premium breakdown&rdquo;, &ldquo;authorization signature&rdquo;), and a page is a tree, not a list: a newspaper is a masthead and a grid of articles, each with a headline, images and captions.</p>
+        <p>What would a layout model need? Masks, so a region can have any shape. Open-set labels, so the prompt names the classes. The page as a tree, so every region is kept with how it nests. And promptability, so you can ask for any region in words, all in one model. That list sounds familiar: it is what SAM does for photographs, a promptable model that returns masks. DocLayout-VL is SAM for documents, with two additions a page needs and a photo does not: names for the regions, and the tree.</p>
         <p>So DocLayout-VL (ECCV 2026) emits a layout token per node of the tree, and SAM turns each into a mask. The prompt defines the vocabulary, so the labels are open-set, and you can ask for any region in words. Try a few:</p>
 
         <aside class="firstbox">
@@ -1276,7 +1277,7 @@
   month        = {May},
   howpublished = {Blog post},
   url          = {https://srini-anirudh.github.io/blogs/building-grounded-document-intelligence/},
-  note         = {Published May 17, 2026; updated June 7, 2026}
+  note         = {Published May 17, 2026; updated November 8, 2026}
 }</code></pre>
         <button class="citation-copy" type="button" data-copy-citation><i class="fas fa-copy" aria-hidden="true"></i>Copy BibTeX</button>
         <span class="citation-status" aria-live="polite"></span>
