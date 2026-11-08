@@ -1052,6 +1052,16 @@ a.interest-card:hover {
   border-radius: 50%;
 }
 
+.community-blog { flex-direction: row; align-items: center; gap: 18px; min-height: 0; margin-top: 18px; padding: 18px 20px; }
+.community-blog > i { margin-bottom: 0; }
+.community-blog > div { flex: 1; min-width: 0; }
+.community-blog strong { display: block; margin-bottom: 4px; }
+.community-blog span { display: block; max-width: 680px; }
+.community-blog em { margin-top: 0; padding-top: 0; white-space: nowrap; }
+@media (max-width: 768px) { .community-blog { flex-direction: column; align-items: flex-start; gap: 6px; } .community-blog > i { margin-bottom: 14px; } .community-blog em { padding-top: 10px; } }
+.beyond-block .interest-card:last-child:nth-child(3n + 2) { grid-column: span 2; }
+@media (max-width: 900px) { .beyond-block .interest-card:last-child:nth-child(odd) { grid-column: 1 / -1; } }
+
 .backward-pass-card em {
   margin-top: auto;
   padding-top: 15px;
