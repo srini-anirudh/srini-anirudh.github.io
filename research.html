@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=12" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=13" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -444,13 +444,30 @@
           <p>The whole stack that builds sovereign vision foundation models, from storage to evaluation.</p>
         </header>
 
+        <section class="research-card thesis-card" id="infra-thesis">
+          <div class="research-card-content">
+            <span class="papertitle">Infrastructure is the runway</span>
+            <br />
+            <em>Thesis</em> &middot; the systems behind Patram
+            <p class="research-thesis">
+              <strong>Thesis.</strong> Investment in infrastructure builds runway. When everything is a config change,
+              we experiment faster and run many experiments in parallel. Flexible, customisable infrastructure makes novel
+              experiments and scaling easy, where experiment-specific code would make each one a new project.
+              A sovereign AI company is not only sovereign models. It also builds sovereign infrastructure and the
+              ecosystem around it. This is the piece with the fewest papers and the least open-source material, because
+              it stays with frontier model companies as a trade secret. So we build systems that scale and keep every GPU busy.
+            </p>
+          </div>
+        </section>
+
         <figure class="infra-stack" aria-label="The Patram stack, read from the bottom up">
           <ol>
             <li><span>Evaluation</span><strong>PatramBench &middot; Patram-Eval</strong></li>
+            <li><span>Serving infrastructure</span><strong>Patram-Serve</strong></li>
             <li><span>Models</span><strong>Patram Suite</strong></li>
             <li><span>Training infrastructure</span><strong>Patram-Core</strong></li>
             <li class="is-focus"><span>Training data generation</span><strong>Patram-Ingest</strong></li>
-            <li class="is-split"><div><span>Raw data collection</span><strong>Patram-Scraper &middot; Synthetic docs</strong></div><div><span>Annotation &amp; visualization</span><strong>DarshinAI</strong></div></li>
+            <li class="is-split"><div><span>Raw data collection</span><strong>Patram-Scraper &middot; Patram-Syn</strong></div><div><span>Annotation &amp; visualization</span><strong>DarshinAI</strong></div></li>
             <li><span>Storage</span><strong>Patram-FS &middot; Patram-DB</strong></li>
           </ol>
         </figure>
