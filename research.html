@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=14" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=16" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -128,13 +128,13 @@
           <br />
           <em>Thesis</em> &middot; talk and blog &middot; REPLICA, M3Grounder, DoCoG and DocLayout-VL
           <p class="research-thesis">
-            <strong>Thesis.</strong> Converting a document to text loses information, so we built a text
-            representation that keeps everything on the page (text, hierarchy, position and style) for downstream
-            workflows and large-scale data generation. And asking a model to type out coordinates is a brittle way to
-            ground an answer: people do not recite coordinates, they mark the page. And a single point is not enough
-            for documents, where evidence is a paragraph, a table row or a curved line, so we give the VLM a smart
-            highlighter. It decides <em>what</em> to ground and at what granularity, and SAM highlights <em>where</em>
-            on the page as a mask, trained end to end.
+            <strong>Thesis.</strong> Two ideas, and the second depends on the first.
+          </p>
+          <ol class="thesis-why">
+            <li><strong>A document needs a text representation that loses nothing.</strong> Converting a page to text loses information, so we built a text representation that keeps everything on the page (text, hierarchy, position and style) for downstream workflows and large-scale data generation.</li>
+            <li><strong>Grounding should be a mask, not a string of coordinates.</strong> The job of grounding can stay with the VLM itself. But predicting coordinates as text, one token at a time, is brittle and needs far more data. People do not recite coordinates, they mark the page. So we decouple the intelligence from the grounding. The VLM decides <em>what</em> to ground and at what granularity, and SAM highlights <em>where</em> on the page as a mask. Each model has the role it is good at, and the two are trained end to end. It is like giving the VLM a hand to draw the highlights. Evidence in documents is a paragraph, a table row or a curved line, so one point is not enough: the masks are multi-span and multi-granular.</li>
+          </ol>
+          <p class="research-thesis">
             The first idea generates the data for the second, and DocLayout-VL feeds back into REPLICA to close the loop.
           </p>
           <button onclick="window.open('research/docai-talk/', '_blank')" class="arxiv-button">
@@ -531,7 +531,7 @@
             <ol class="thesis-why">
               <li><strong>Understand the science.</strong> Building from scratch lets us learn how LLMs are really built, and discover the recipes for state-of-the-art foundation models.</li>
               <li><strong>Answer open questions.</strong> Public papers, technical reports, blogs and code repos leave many questions unanswered. We go step by step with structured experiments to find what matters when building vision-language models. Each experiment is designed to give an insight into something that affects model quality.</li>
-              <li><strong>Build what does not exist.</strong> We custom-build foundation VLMs to bring first-of-their-kind capabilities to the world: mask-based, multi-span, multi-granular grounded document VQA (M3Grounder); step-wise grounded chain-of-thought across text, tables, charts and flowcharts (DoCoG); and open-set, hierarchical, promptable layout segmentation (DocLayout-VL). No off-the-shelf VLM offers these, so the architecture and design choices are very different.</li>
+              <li><strong>Build novel capabilities.</strong> We custom-build foundation VLMs with capabilities that are first of their kind: mask-based, multi-span, multi-granular grounded document VQA (<a href="#m3grounder">M3Grounder</a>); step-wise grounded chain-of-thought across text, tables, charts and flowcharts (<a href="#docog">DoCoG</a>); and open-set, hierarchical, promptable layout segmentation (<a href="#doclayoutvl">DocLayout-VL</a>). That makes the architecture and design choices very different.</li>
               <li><strong>Solve the grand document AI challenge.</strong> It spans 100+ document AI tasks across perception and reasoning, many languages, and 150+ document types across 20+ domains, with the challenges that come with that.</li>
             </ol>
           </div>
