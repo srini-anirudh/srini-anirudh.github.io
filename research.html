@@ -128,14 +128,15 @@
           <br />
           <em>Thesis</em> &middot; talk and blog &middot; REPLICA, M3Grounder, DoCoG and DocLayout-VL
           <p class="research-thesis">
-            <strong>Thesis.</strong> Two ideas, and the second depends on the first.
+            <strong>Thesis.</strong> Grounding should not be coordinates. Keep the intelligence in the VLM, and hand the
+            exact localization to models that are good at it.
           </p>
           <ol class="thesis-why">
-            <li><strong>A document needs a text representation that loses nothing.</strong> Converting a page to text loses information, so we built a text representation that keeps everything on the page (text, hierarchy, position and style) for downstream workflows and large-scale data generation.</li>
-            <li><strong>Grounding should be a mask, not a string of coordinates.</strong> The job of grounding can stay with the VLM itself. But predicting coordinates as text, one token at a time, is brittle and needs far more data. People do not recite coordinates, they mark the page. So we decouple the intelligence from the grounding. The VLM decides <em>what</em> to ground and at what granularity, and SAM highlights <em>where</em> on the page as a mask. Each model has the role it is good at, and the two are trained end to end. It is like giving the VLM a hand to draw the highlights. Evidence in documents is a paragraph, a table row or a curved line, so one point is not enough: the masks are multi-span and multi-granular.</li>
+            <li><strong>The idea: ground with masks, not coordinates.</strong> The job of grounding can stay with the VLM itself. But predicting coordinates as text, one token at a time, is brittle and needs far more data. People do not recite coordinates, they mark the page. So we decouple the intelligence from the grounding. The VLM decides <em>what</em> to ground and at what granularity, and SAM highlights <em>where</em> on the page as a mask. Each model has the role it is good at, and the two are trained end to end. It is like giving the VLM a hand to draw the highlights. Evidence in documents is a paragraph, a table row or a curved line, so one point is not enough: the masks are multi-span and multi-granular.</li>
+            <li><strong>The means: REPLICA applies the same split to the data.</strong> To train grounding models at scale, we need pages where every element has its text, structure and exact position, without anyone drawing boxes. REPLICA produces them. The VLM is free to write flexible HTML and structure, and the exact positions come from specialist models that are good at localization. The result is a text form that loses nothing: text, hierarchy, position and style.</li>
           </ol>
           <p class="research-thesis">
-            The first idea generates the data for the second, and DocLayout-VL feeds back into REPLICA to close the loop.
+            REPLICA generates the data for the grounding models, and DocLayout-VL feeds back into REPLICA to close the loop.
           </p>
           <button onclick="window.open('research/docai-talk/', '_blank')" class="arxiv-button">
             <i class="fas fa-file-powerpoint"></i>
