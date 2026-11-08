@@ -5,9 +5,9 @@ page and a hub blog post) and one blog post per publication or system under it.
 
 | # | Interest | Research page anchor | Thesis post | Members |
 |---|---|---|---|---|
-| 01 | Grounded document intelligence | `research.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
-| 02 | VLM infrastructure | `research.html#vlm-infrastructure` | to be written by the author | The whole Patram stack (storage to evaluation, from guest lecture slide 2); one card: Patram-Ingest, linking the guest lecture slides |
-| 03 | Sovereign foundation models | `research.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
+| 01 | Grounded document intelligence | `research/index.html#grounded-document-intelligence` | `building-grounded-document-intelligence` (published) | REPLICA, M3Grounder, DoCoG, DocLayout-VL |
+| 02 | VLM infrastructure | `research/index.html#vlm-infrastructure` | to be written by the author | The whole Patram stack (storage to evaluation, from guest lecture slide 2); one card: Patram-Ingest, linking the guest lecture slides |
+| 03 | Sovereign foundation models | `research/index.html#sovereign-foundation-models` | to be written by the author | Patram, Patram-Bench |
 
 The theses for sovereign foundation models and VLM infrastructure will be written by the author; do not draft them.
 New publications go under the interest they test. Patram-Bench belongs to sovereign foundation models.
@@ -44,5 +44,5 @@ thesis post. Writing rules: `docs/blog-writing-guide.md`. Page rules: `docs/styl
   to the thesis post; JSON-LD `isPartOf` includes `https://srini-anirudh.github.io/blogs/#docai-research`.
 - Every post states what is first of its kind precisely, uses only numbers from the paper, project site or talk
   deck, and centres on Insight and Nuance callouts about what the work teaches.
-- When a post ships: add a Blog button on its `research.html` card, link it from the thesis post, add the blog
+- When a post ships: add a Blog button on its `research/index.html` card, link it from the thesis post, add the blog
   index card, a Research learning path, sitemap, feed and IndexNow entries. Commit and push each post on its own.

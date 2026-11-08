@@ -39,7 +39,7 @@
         "image": "https://srini-anirudh.github.io/blogs/thinking-in-tokens/preview.png",
         "datePublished": "2025-11-09", "dateCreated": "2026-09-04",
         "dateModified": "2026-11-07",
-        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/about.html" },
+        "author": { "@type": "Person", "@id": "https://srini-anirudh.github.io/#person", "name": "Anirudh Srinivasan", "url": "https://srini-anirudh.github.io/" },
         "publisher": { "@id": "https://srini-anirudh.github.io/#person" },
         "keywords": ["reasoning models", "chain of thought", "test-time compute", "thinking budget", "latent reasoning", "serial depth"],
         "isPartOf": { "@id": "https://srini-anirudh.github.io/blogs/#blog" }
@@ -173,13 +173,13 @@
   <body class="blog-article thinking-in-tokens-article">
     <nav class="navbar" aria-label="Main navigation">
       <div class="nav-container">
-        <a href="../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <a href="/" class="nav-logo" target="_self">Anirudh Srinivasan</a>
         <div class="nav-empty-div"></div>
         <ul class="nav-links">
-          <li><a href="../../index.html" target="_self">Home</a></li>
-          <li><a href="../../research.html" target="_self">Research</a></li>
-          <li><a href="../index.html" class="active" target="_self">Blogs</a></li>
-          <li><a href="../../talks.html" target="_self">Talks</a></li>
+          <li><a href="/" target="_self">Home</a></li>
+          <li><a href="/research/" target="_self">Research</a></li>
+          <li><a href="/blogs/" class="active" target="_self">Blogs</a></li>
+          <li><a href="/talks/" target="_self">Talks</a></li>
           <li><a href="../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
           <li><button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode"><div class="sun"></div><div class="moon"></div></button></li>
         </ul>
@@ -209,7 +209,7 @@
     </header>
 
     <nav class="ml-series-nav" aria-label="Understanding LLMs">
-      <a class="ml-series-nav__identity" href="../index.html#understanding-llms">Understanding LLMs</a>
+      <a class="ml-series-nav__identity" href="/blogs/#understanding-llms">Understanding LLMs</a>
       <span class="ml-series-nav__position">08 of 09 &middot; What the computation is</span>
       <div class="ml-series-nav__links">
         <a class="ml-series-nav__link" href="../how-reinforcement-learning-teaches-models-to-reason/"><span>Previous &middot; 07</span><strong>RL for Reasoning</strong></a>
@@ -388,7 +388,7 @@
 
         <p>which for a 64-layer model with 8 KV heads of width 128 in bfloat16 works out to 256&nbsp;KiB per token — so a ten-thousand-token deliberation costs about 2.6&nbsp;GB of HBM, per concurrent request, before you have served anyone else.</p>
 
-        <p>The third is latency, and it is the one users feel. Decoding is memory-bandwidth-bound, not compute-bound: at small batch sizes each step streams the entire weight matrix from HBM to produce a single token. Thirty-two billion parameters in bfloat16 is 64&nbsp;GB; at roughly 3.3&nbsp;TB/s that is about 19&nbsp;ms per token before you account for anything else. Ten thousand thinking tokens is three minutes of wall clock. Batching amortises the weight streaming across requests, which is why serving economics and reasoning length are the same conversation — the <a href="../index.html">Serving Playbook</a> and <a href="../index.html">The Mechanics of LLM Inference</a> posts in the systems series are the long version.</p>
+        <p>The third is latency, and it is the one users feel. Decoding is memory-bandwidth-bound, not compute-bound: at small batch sizes each step streams the entire weight matrix from HBM to produce a single token. Thirty-two billion parameters in bfloat16 is 64&nbsp;GB; at roughly 3.3&nbsp;TB/s that is about 19&nbsp;ms per token before you account for anything else. Ten thousand thinking tokens is three minutes of wall clock. Batching amortises the weight streaming across requests, which is why serving economics and reasoning length are the same conversation — the <a href="/blogs/">Serving Playbook</a> and <a href="/blogs/">The Mechanics of LLM Inference</a> posts in the systems series are the long version.</p>
 
         <p>Put together: <strong>a thinking budget is a purchase order for serial depth, denominated in memory bandwidth.</strong> Drag the slider below and watch what you are actually buying.</p>
 

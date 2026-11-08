@@ -2,11 +2,10 @@
 
 This is a static GitHub Pages site. Keep root-level HTML files for clean URLs on the user site:
 
-- `index.html` - landing page and news
 - `index.html` - home: intro, news, work, projects, and community (`about.html` redirects here)
-- `research.html` - publications and paper resources
-- `projects.html` - IIT Hyderabad project write-ups, linked from the home page; not in the nav
-- `talks.html` - talks and guest lectures; slide decks live in `talks/<name>/index.html` (self-contained builds copied from the sriharib128 repos)
+- `research/index.html` (served at `/research/`; `research.html` is a redirect stub) - publications and paper resources
+- `projects/index.html` - IIT Hyderabad project write-ups, linked from the home page; not in the nav
+- `talks/index.html` - talks and guest lectures; slide decks live in `talks/<name>/index.html` (self-contained builds copied from the sriharib128 repos)
 - `blogs/` - blog index and one folder per self-contained blog article
 - `robots.txt` - crawler permissions and sitemap discovery
 - `sitemap.xml` - the complete canonical, indexable URL set
