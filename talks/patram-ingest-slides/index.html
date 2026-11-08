@@ -1629,7 +1629,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 
 /* what we do: the Patram stack as a pyramid (bottom-up), the Patram Suite beside it */
 .py{position:absolute}
-.py-t{position:absolute;height:105px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;background:#EEF2F9}
+.py-t{position:absolute;height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;background:#EEF2F9}
 .py-t h3{font-size:25px;line-height:1.1;color:var(--ink)}
 .py-t h3 small{display:block;font-family:'IBM Plex Mono',monospace;font-size:15px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-top:4px}
 .py-t p{font-size:20px;color:var(--body);font-weight:600;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -1643,6 +1643,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .py-t.an{background:#DCEFF4}.py-t.an p{color:#13708A}
 .py-t.raw h3,.py-t.an h3{font-size:22px;max-width:340px}
 .py-t.st{background:#F5EDD6}.py-t.st p{color:#7A5C12}
+.py-t.sv{background:#F2E4F3}.py-t.sv h3{font-size:22px;color:#7B3A86}.py-t.sv p{color:#8E4B99}
 .py-t p{font-size:17px}.py-t p b{font-size:18px;padding:4px 12px}
 .ps{padding:24px 26px;border-radius:10px;background:#F5F8FD;border:2px dashed #9DB3DC;display:flex;flex-direction:column;gap:14px}
 .ps>h3{font-size:30px;color:#1F4FA8}
@@ -1919,7 +1920,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
 .st1-c span{display:block;font-size:24px;line-height:1.4;color:var(--body)}
 /* the bigger picture: the pyramid again, lit up layer by layer */
 #eco2 .py-t{opacity:.22;transition:opacity .5s}
-#eco2 .py-t.me,#eco2[data-st="1"] .py-t:is(.st,.raw,.an),#eco2[data-st="2"] .py-t:is(.st,.raw,.an,.tr,.md,.ev),#eco2[data-st="3"] .py-t{opacity:1}
+#eco2 .py-t.me,#eco2[data-st="1"] .py-t:is(.st,.raw,.an),#eco2[data-st="2"] .py-t:is(.st,.raw,.an,.tr,.md,.ev,.sv),#eco2[data-st="3"] .py-t{opacity:1}
 .eco2-col{display:flex;flex-direction:column;gap:22px;transition:opacity .4s}
 #eco2[data-st="3"] .eco2-col{opacity:0}
 .eco2-c{padding:24px 28px;border-left:6px solid var(--line)}
@@ -2113,15 +2114,16 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
     <div class="sub">Patram: vision-language models for Indian documents, and the whole stack that builds them.</div>
   </div>
   <div class="abs py" style="left:120px;top:300px;width:1000px;height:690px">
-    <div class="py-t ev" style="top:0px;left:305px;width:390px;clip-path:polygon(55px 0,335px 0,100% 100%,0 100%)"><h3>Evaluation</h3><p>PatramBench · Patram-Eval</p></div>
-    <div class="py-t md" style="top:117px;left:244px;width:512px;clip-path:polygon(55px 0,457px 0,100% 100%,0 100%)"><h3>Models</h3><p><b>Patram Suite</b></p></div>
-    <div class="py-t tr" style="top:234px;left:183px;width:634px;clip-path:polygon(55px 0,579px 0,100% 100%,0 100%)"><h3>Training infrastructure</h3><p>Patram-Core</p></div>
-    <div class="py-t me" style="top:351px;left:122px;width:756px;clip-path:polygon(55px 0,701px 0,100% 100%,0 100%)"><h3>Training data generation</h3><p><b class="me">Patram-Ingest · this talk</b></p></div>
-    <div class="py-t raw" style="top:468px;left:61px;width:433px;clip-path:polygon(55px 0,100% 0,100% 100%,0 100%)"><h3>Raw data collection</h3><p>Patram-Scraper · Synthetic docs</p></div>
-    <div class="py-t an" style="top:468px;left:506px;width:433px;clip-path:polygon(0 0,378px 0,100% 100%,0 100%)"><h3>Annotation &amp; visualization</h3><p>DarshinAI</p></div>
-    <div class="py-t st" style="top:585px;left:0px;width:1000px;clip-path:polygon(55px 0,945px 0,100% 100%,0 100%)"><h3>Storage</h3><p>Patram-FS · Patram-DB</p></div>
+    <div class="py-t ev" style="top:0px;left:313px;width:374px;clip-path:polygon(47px 0,327px 0,100% 100%,0 100%)"><h3>Evaluation</h3><p>PatramBench · Patram-Eval</p></div>
+    <div class="py-t sv" style="top:100px;left:261px;width:478px;clip-path:polygon(47px 0,431px 0,100% 100%,0 100%)"><h3>Serving infrastructure</h3><p>Patram-Serve</p></div>
+    <div class="py-t md" style="top:200px;left:209px;width:582px;clip-path:polygon(47px 0,535px 0,100% 100%,0 100%)"><h3>Models</h3><p><b>Patram Suite</b></p></div>
+    <div class="py-t tr" style="top:300px;left:157px;width:686px;clip-path:polygon(47px 0,639px 0,100% 100%,0 100%)"><h3>Training infrastructure</h3><p>Patram-Core</p></div>
+    <div class="py-t me" style="top:400px;left:105px;width:790px;clip-path:polygon(47px 0,743px 0,100% 100%,0 100%)"><h3>Training data generation</h3><p><b class="me">Patram-Ingest · this talk</b></p></div>
+    <div class="py-t raw" style="top:500px;left:53px;width:441px;clip-path:polygon(47px 0,100% 0,100% 100%,0 100%)"><h3>Raw data collection</h3><p>Patram-Scraper · Patram-Syn</p></div>
+    <div class="py-t an" style="top:500px;left:506px;width:441px;clip-path:polygon(0 0,394px 0,100% 100%,0 100%)"><h3>Annotation &amp; visualization</h3><p>DarshinAI</p></div>
+    <div class="py-t st" style="top:600px;left:0px;width:1000px;clip-path:polygon(47px 0,953px 0,100% 100%,0 100%)"><h3>Storage</h3><p>Patram-FS · Patram-DB</p></div>
   </div>
-  <svg class="abs" style="left:0;top:0;width:1920px;height:1080px;pointer-events:none" viewBox="0 0 1920 1080"><g stroke="#7C9BD6" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round" fill="none"><path d="M823 417 L1300 300"/><path d="M878 522 L1300 990"/></g></svg>
+  <svg class="abs" style="left:0;top:0;width:1920px;height:1080px;pointer-events:none" viewBox="0 0 1920 1080"><g stroke="#7C9BD6" stroke-width="2.5" stroke-dasharray="3 9" stroke-linecap="round" fill="none"><path d="M864 500 L1300 300"/><path d="M911 590 L1300 990"/></g></svg>
   <div class="abs ps" style="left:1300px;top:300px;width:500px;height:690px">
     <h3>Patram Suite</h3>
     <div class="ps-g"><small>Multi-task foundation models</small><p><b class="big">Patram series</b></p></div>
@@ -2130,7 +2132,7 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
   </div>
   <aside class="notes">
     <p>What we do: the Vision team at BharatGen builds sovereign vision foundation models for Indian documents. The model reads the page image directly, so layout, tables and stamps are not lost on the way.</p>
-    <p>This is our stack as a pyramid, read from the bottom up. At the base is storage: our own file system and database. On it, we collect raw data, scraped and synthetic documents, and beside that sits our annotation and visualization tool, DarshinAI. Above that is training data generation: that is Patram-Ingest, what this talk is about, which turns raw pages into training data. Then the training infrastructure. Then the models, the Patram Suite, shown on the right: multi-task foundation models, the Patram series, the current one covering 34 tasks and the next adding more than 22 Indian languages; task-specific models for grounding, layout and grounded reasoning; and agents such as PatramParse. At the top, evaluation measures all of it. Everything above the ETL layer is trained or measured on data Patram-Ingest produced.</p>
+    <p>This is our stack as a pyramid, read from the bottom up. At the base is storage: our own file system and database. On it, we collect raw data, scraped and synthetic documents, and beside that sits our annotation and visualization tool, DarshinAI. Above that is training data generation: that is Patram-Ingest, what this talk is about, which turns raw pages into training data. Then the training infrastructure. Then the models, the Patram Suite, shown on the right: multi-task foundation models, the Patram series, the current one covering 34 tasks and the next adding more than 22 Indian languages; task-specific models for grounding, layout and grounded reasoning; and agents such as PatramParse. Above the models sits our serving infrastructure, Patram-Serve. At the top, evaluation measures all of it. Everything above the ETL layer is trained or measured on data Patram-Ingest produced.</p>
   </aside>
 </section>
 
@@ -3265,23 +3267,24 @@ input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;bac
     <h2>Where Patram-Ingest sits in the stack</h2>
   </div>
   <div class="abs py" style="left:120px;top:300px;width:1000px;height:690px">
-    <div class="py-t ev" style="top:0px;left:305px;width:390px;clip-path:polygon(55px 0,335px 0,100% 100%,0 100%)"><h3>Evaluation</h3><p>PatramBench · Patram-Eval</p></div>
-    <div class="py-t md" style="top:117px;left:244px;width:512px;clip-path:polygon(55px 0,457px 0,100% 100%,0 100%)"><h3>Models</h3><p><b>Patram Suite</b></p></div>
-    <div class="py-t tr" style="top:234px;left:183px;width:634px;clip-path:polygon(55px 0,579px 0,100% 100%,0 100%)"><h3>Training infrastructure</h3><p>Patram-Core</p></div>
-    <div class="py-t me" style="top:351px;left:122px;width:756px;clip-path:polygon(55px 0,701px 0,100% 100%,0 100%)"><h3>Training data generation</h3><p><b class="me">Patram-Ingest · this talk</b></p></div>
-    <div class="py-t raw" style="top:468px;left:61px;width:433px;clip-path:polygon(55px 0,100% 0,100% 100%,0 100%)"><h3>Raw data collection</h3><p>Patram-Scraper · Synthetic docs</p></div>
-    <div class="py-t an" style="top:468px;left:506px;width:433px;clip-path:polygon(0 0,378px 0,100% 100%,0 100%)"><h3>Annotation &amp; visualization</h3><p>DarshinAI</p></div>
-    <div class="py-t st" style="top:585px;left:0px;width:1000px;clip-path:polygon(55px 0,945px 0,100% 100%,0 100%)"><h3>Storage</h3><p>Patram-FS · Patram-DB</p></div>
+    <div class="py-t ev" style="top:0px;left:313px;width:374px;clip-path:polygon(47px 0,327px 0,100% 100%,0 100%)"><h3>Evaluation</h3><p>PatramBench · Patram-Eval</p></div>
+    <div class="py-t sv" style="top:100px;left:261px;width:478px;clip-path:polygon(47px 0,431px 0,100% 100%,0 100%)"><h3>Serving infrastructure</h3><p>Patram-Serve</p></div>
+    <div class="py-t md" style="top:200px;left:209px;width:582px;clip-path:polygon(47px 0,535px 0,100% 100%,0 100%)"><h3>Models</h3><p><b>Patram Suite</b></p></div>
+    <div class="py-t tr" style="top:300px;left:157px;width:686px;clip-path:polygon(47px 0,639px 0,100% 100%,0 100%)"><h3>Training infrastructure</h3><p>Patram-Core</p></div>
+    <div class="py-t me" style="top:400px;left:105px;width:790px;clip-path:polygon(47px 0,743px 0,100% 100%,0 100%)"><h3>Training data generation</h3><p><b class="me">Patram-Ingest · this talk</b></p></div>
+    <div class="py-t raw" style="top:500px;left:53px;width:441px;clip-path:polygon(47px 0,100% 0,100% 100%,0 100%)"><h3>Raw data collection</h3><p>Patram-Scraper · Patram-Syn</p></div>
+    <div class="py-t an" style="top:500px;left:506px;width:441px;clip-path:polygon(0 0,394px 0,100% 100%,0 100%)"><h3>Annotation &amp; visualization</h3><p>DarshinAI</p></div>
+    <div class="py-t st" style="top:600px;left:0px;width:1000px;clip-path:polygon(47px 0,953px 0,100% 100%,0 100%)"><h3>Storage</h3><p>Patram-FS · Patram-DB</p></div>
   </div>
   <div class="abs eco2-col" style="left:1220px;top:300px;width:580px">
     <div class="card eco2-c me"><small>This talk</small><b>Patram-Ingest</b><span>turns raw pages into training data, on a shared cluster, for weeks at a time.</span></div>
-    <div class="card eco2-c" data-s="1"><small>Below it</small><b>Storage and raw data</b><span>Patram-FS and Patram-DB hold everything. The scraper and synthetic docs feed it; DarshinAI lets us annotate and look at it.</span></div>
-    <div class="card eco2-c" data-s="2"><small>Above it</small><b>From corpus to models</b><span>Patram-Core turns that data into our training corpus, and trains the Patram Suite of foundation models.</span></div>
+    <div class="card eco2-c" data-s="1"><small>Below it</small><b>Storage and raw data</b><span>Patram-FS and Patram-DB hold everything. The scraper and Patram-Syn feed it; DarshinAI lets us annotate and look at it.</span></div>
+    <div class="card eco2-c" data-s="2"><small>Above it</small><b>From corpus to models</b><span>Patram-Core turns that data into our training corpus, and trains the Patram Suite of foundation models. Patram-Serve, our serving infrastructure, sits above the models.</span></div>
   </div>
   <aside class="notes">
     <p>To step back: Patram-Ingest, everything we talked about today, is just one part of the infrastructure we have.</p>
-    <p data-step="1">There is a lot supporting it from below: our storage layer, Patram-FS and Patram-DB, the scraper and our synthetic documents that bring raw data in, and DarshinAI for annotation and visualization.</p>
-    <p data-step="2">And above it, Patram-Core takes this data, our training corpus, and makes it possible to train models. Using all of this, we have trained many foundation models, the Patram Suite, and evaluated them on our own benchmarks. These are internal models as of now; we plan to release the Patram series soon, and the sign-up form is on the next slide.</p>
+    <p data-step="1">There is a lot supporting it from below: our storage layer, Patram-FS and Patram-DB, the scraper and Patram-Syn, our synthetic documents, that bring raw data in, and DarshinAI for annotation and visualization.</p>
+    <p data-step="2">And above it, Patram-Core takes this data, our training corpus, and makes it possible to train models. Using all of this, we have trained many foundation models, the Patram Suite, and evaluated them on our own benchmarks, with our serving infrastructure, Patram-Serve, above the models. These are internal models as of now; we plan to release the Patram series soon, and the sign-up form is on the next slide.</p>
   </aside>
 </section>
 
