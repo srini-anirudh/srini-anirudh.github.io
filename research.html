@@ -22,7 +22,7 @@
     <link rel="icon" href="assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="assets/css/stylesheet.css" />
     <link rel="stylesheet" href="assets/css/stars.css" />
-    <link rel="stylesheet" href="assets/css/talks.css?v=13" />
+    <link rel="stylesheet" href="assets/css/talks.css?v=14" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -457,20 +457,20 @@
               ecosystem around it. This is the piece with the fewest papers and the least open-source material, because
               it stays with frontier model companies as a trade secret. So we build systems that scale and make the GPUs go brrrrr.
             </p>
+            <figure class="infra-stack" aria-label="The Patram stack, read from the bottom up">
+              <ol>
+                <li><span>Evaluation</span><strong>PatramBench &middot; Patram-Eval</strong></li>
+                <li><span>Serving infrastructure</span><strong>Patram-Serve</strong></li>
+                <li><span>Models</span><strong>Patram Suite</strong></li>
+                <li><span>Training infrastructure</span><strong>Patram-Core</strong></li>
+                <li class="is-focus"><span>Training data generation</span><strong>Patram-Ingest</strong></li>
+                <li class="is-split"><div><span>Raw data collection</span><strong>Patram-Scraper &middot; Patram-Syn</strong></div><div><span>Annotation &amp; visualization</span><strong>DarshinAI</strong></div></li>
+                <li><span>Storage</span><strong>Patram-FS &middot; Patram-DB</strong></li>
+              </ol>
+            </figure>
           </div>
         </section>
 
-        <figure class="infra-stack" aria-label="The Patram stack, read from the bottom up">
-          <ol>
-            <li><span>Evaluation</span><strong>PatramBench &middot; Patram-Eval</strong></li>
-            <li><span>Serving infrastructure</span><strong>Patram-Serve</strong></li>
-            <li><span>Models</span><strong>Patram Suite</strong></li>
-            <li><span>Training infrastructure</span><strong>Patram-Core</strong></li>
-            <li class="is-focus"><span>Training data generation</span><strong>Patram-Ingest</strong></li>
-            <li class="is-split"><div><span>Raw data collection</span><strong>Patram-Scraper &middot; Patram-Syn</strong></div><div><span>Annotation &amp; visualization</span><strong>DarshinAI</strong></div></li>
-            <li><span>Storage</span><strong>Patram-FS &middot; Patram-DB</strong></li>
-          </ol>
-        </figure>
 
         <section class="research-card" id="patram-ingest">
           <div class="research-card-image">
@@ -516,7 +516,26 @@
           <h2 id="sovereign-foundation-models-title">Sovereign foundation models</h2>
           <p>The Patram series: Patram, India&rsquo;s first VLM for document understanding, and Patram-Bench, its benchmark. Also e-vikrAI, Indic VLMs for e-commerce.</p>
         </header>
-        
+
+        <section class="research-card thesis-card" id="sovereign-thesis">
+          <div class="research-card-content">
+            <span class="papertitle">Why build from scratch</span>
+            <br />
+            <em>Thesis</em> &middot; why Patram is its own foundation model
+            <p class="research-thesis">
+              <strong>Thesis.</strong> There are two ways to handle a document. We can run OCR and then treat the page as an
+              LLM or text-RAG problem. Or we can treat the document as an image. We believe in the second. OCR loses
+              information on the way from image to text: structure, positions, layout, styling. Handling the page end to end
+              is always better.
+            </p>
+            <ol class="thesis-why">
+              <li><strong>Understand the science.</strong> Building from scratch lets us learn how LLMs are really built, and discover the recipes for state-of-the-art foundation models.</li>
+              <li><strong>Answer open questions.</strong> Public papers, technical reports, blogs and code repos leave many questions unanswered. We go step by step with structured experiments to find what matters when building vision-language models. Each experiment is designed to give an insight into something that affects model quality.</li>
+              <li><strong>Build what does not exist.</strong> We custom-build foundation VLMs to bring first-of-their-kind capabilities to the world. That makes the architecture and design choices very different.</li>
+              <li><strong>Solve the grand document AI challenge.</strong> It spans 100+ document AI tasks across perception and reasoning, many languages, and 150+ document types across 20+ domains, with the challenges that come with that.</li>
+            </ol>
+          </div>
+        </section>
 
         <section class="research-card" id="patram">
         <div class="research-card-image">
