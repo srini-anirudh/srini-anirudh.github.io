@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_self" />
+    <title>Introduction to ML Models | Epoch, IIT Hyderabad | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="description" content="Introduction to ML Models: a session by Epoch, the AI-ML and Data Science Club at IIT Hyderabad (Aug 28, 2022). Browse all 57 slides online." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/talks/epoch/introduction-to-ml-models/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Introduction to ML Models | Epoch, IIT Hyderabad" />
+    <meta property="og:description" content="Slides from an Epoch session at IIT Hyderabad, Aug 28, 2022." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/talks/epoch/introduction-to-ml-models/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/thumbnails/epoch-introduction-to-ml-models-thumb.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="../../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="../../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../../assets/css/stars.css" />
+    <link rel="stylesheet" href="../../../assets/css/talks.css?v=17" />
+    <link rel="stylesheet" href="../../../assets/css/epoch-viewer.css?v=2" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  </head>
+
+  <body class="research-page talks-page epoch-page">
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="../../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../../index.html" target="_self">Home</a></li>
+          <li><a href="../../../research.html" target="_self">Research</a></li>
+          <li><a href="../../../blogs/index.html" target="_self">Blogs</a></li>
+          <li><a href="../../../talks.html" class="active" target="_self">Talks</a></li>
+          <li><a href="../../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <a class="epoch-back" href="../../../talks.html#epoch" target="_self">&larr; All Epoch sessions</a>
+      <header class="epoch-head">
+        <h1>Introduction to ML Models</h1>
+        <p class="epoch-meta"><em>Community session</em> &middot; Epoch, IIT Hyderabad &middot; Aug 28, 2022</p>
+        <p class="epoch-blurb">A brief introduction to modeling, a few basic terms and linear regression models, with a hands-on exercise on data collected from the audience.</p>
+      </header>
+
+      <div id="slide-viewer" data-count="57" data-base="slides/">
+        <div class="sv-stage">
+          <img class="sv-img" src="slides/001.webp" alt="Slide 1 of 57" />
+        </div>
+        <div class="sv-bar" aria-hidden="true"><i></i></div>
+        <div class="sv-controls">
+          <button type="button" class="sv-btn sv-prev" aria-label="Previous slide"><i class="fas fa-arrow-left"></i><span>Prev</span></button>
+          <span class="sv-count" aria-live="polite"><span class="sv-cur">1</span> / 57</span>
+          <button type="button" class="sv-btn sv-full" aria-label="Full screen"><i class="fas fa-expand"></i></button>
+          <button type="button" class="sv-btn sv-next" aria-label="Next slide"><span>Next</span><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <p class="sv-hint">Arrow keys, space or a swipe move between slides. F for full screen.</p>
+      </div>
+      <noscript><p>These slides need JavaScript to page through. The slide text is listed below.</p></noscript>
+
+      <div class="epoch-actions">
+        <a href="../../../assets/slides/epoch/epoch-s2-introduction-to-ml-models.pptx" download><i class="fas fa-download"></i> Download the original PPTX</a>
+        <a href="../../../talks.html#epoch" target="_self">More Epoch sessions</a>
+      </div>
+
+      <details class="sv-text-wrap">
+        <summary>Slide text</summary>
+        <ol class="sv-text">
+        <li>Introduction to ML Models By Epoch Team, IIT Hyderabad</li>
+        <li>Let’s start with an example… Given: Data of salary of some persons with their years of experience Goal: Predict the salary of a person with 8 years of experience.</li>
+        <li>Recap time!!! Supervised Learning vs Unsupervised Learning 1. Supervised learning trains a model on known input and output data so that it can predict future outputs whereas unsupervised learning finds hidden patterns or intrinsic structures in input data. 2. Or in other words, supervised learning make predictions based on labeled training data &amp; unsupervised learning itself identifies relationships between the unlabeled training data.</li>
+        <li>1. It is a supervised learning algorithm that assumes a linear relationship between the dependent variable and the independent variable. 2. We will try to fit a line (hyperplane in case of multidimensional features) that will best map the training data to its label. Linear Regression!!? What is it?</li>
+        <li>1 2 3 Which line do you think is the best fit line?</li>
+        <li>Finding the best-fit line or Hyperplane</li>
+        <li>In case of multiple number of features, it can be written as: Multiple features =&gt; More Math :/</li>
+        <li>Matrix Multiplication - The Real Dad!! :)</li>
+        <li>Loss function - Meet our old friend!! 1. Loss function predicts the deviation of the predicted outcome from the actual result. It measures how well the machine learning algorithm models the training dataset. 2. We convert the machine learning problem into an optimization problem, by defining the loss function and then gradually optimizing the algorithm so that the loss function is minimized. 3. One of the common loss functions is mean squared error (MSE).</li>
+        <li>Loss function in Linear Regression More or less… This is the difference between predicted values by the line/hyperplane and actual values. Goal: Find which minimizes the loss function 𝚹</li>
+        <li>Gradient Descent 1. It is an optimization algorithm/technique commonly used to train machine learning models. 2. Key Idea: Take the fastest route towards the minimum of the function from current point to converge fast. 3. We take repeated steps in the opposite direction of the gradient of the function as that is the steepest descent possible</li>
+        <li>Audience be like:</li>
+        <li>Get this clear! What do we do in Gradient Descent?? 1. Initialize to any value. 𝚹 2. Compute the loss function at that value of . 𝚹 3. Update until the loss function reaches very close to its minimum. 𝚹</li>
+        <li>How to update ??? 𝚹 α decides the length of the steps. It is called learning rate. This determines the direction of the step. To update , 𝚹move in the opposite direction of the slope.</li>
+        <li>More about the Learning Rate - ⍺ 1. Parameter you have to choose on your own. 2. Parameter tuning: Process of choosing optimal ⍺, which will: a. Reduce computing time b. Increase accuracy of model</li>
+        <li>How does the value of matter? ⍺</li>
+        <li>(image slide)</li>
+        <li>(The Chain Rule :3) Let’s get into the Math! Courtesy: CS229 lecture notes</li>
+        <li>So, now we can update the parameters as: We get this as the Final Algorithm: Courtesy: CS229 lecture notes</li>
+        <li>Back to the example… (8.0,93. 9)</li>
+        <li>❖We update the parameters after looking at every example in the entire training set on every step. This method is called batch gradient descent ❖Even though gradient descent can be susceptible to local minima in general, the optimization problem we have posed here for linear regression has only one global, and no other local, optima; thus gradient descent always converges (assuming the learning rate α is not too large) to the global minimum. Points to Remember…</li>
+        <li>So, we have the csv file….. Now what? ❖Pandas is a software library written for the Python programming language for data manipulation and analysis Well, now we use pandas to read and analyse the data and perform preprocessing.</li>
+        <li>Commonly used functions from pandas ●read_csv() : read_csv() function helps read a comma-separated values (csv) file into a Pandas DataFrame. All you need to do is mention the path of the file you want it to read.</li>
+        <li>●head(): head() is used to return the first n rows of a dataset. By default, df.head() will return the first 5 rows of the DataFrame. If you want more/less number of rows, you can pass an integer to the function.</li>
+        <li>●describe(): describe() is used to generate descriptive statistics of the data in a Pandas DataFrame or Series. It summarizes central tendency and dispersion of the dataset.</li>
+        <li>●info(): This method prints information about a DataFrame including the index dtype and columns, non-null values and memory usage.</li>
+        <li>●sample(): This method returns a random sample from the dataset. frac specifies the % of dataset to used. Random_state specifies the seed for random number generator. We generally give this seed so that we don’t get different samples everytime we run the code.</li>
+        <li>●drop(): This method drops the specified column. Pass the parameter inplace=True if you want the changes to be applied on the actual dataset. axis=1 declares to look for the value to be dropped in columns.</li>
+        <li>●mean(): This method return the mean of the specified column in dataset. ●median(): This method return the median of the specified column in dataset.</li>
+        <li>●fillna(): This method fills the null values with the the user defined value.</li>
+        <li>●to_numpy(): This method converts the data frame into a numpy array. (numpy? o_0)</li>
+        <li>❖NumPy is a library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays. Adding to your armoury - The NumPy Library!!</li>
+        <li>(image slide)</li>
+        <li>Commonly used functions from NumPy ●array(): It is used to create one-dimensional or multidimensional arrays from scratch. ●reshape(): It is used to reshape arrays. It returns a new array and doesn’t modify the actual array.</li>
+        <li>(image slide)</li>
+        <li>●zeros: This method returns a matrix of user defined size with all elements equal to zero. ●ones: This method returns a matrix of user defined size with all elements equal to one.</li>
+        <li>●mean(): This method returns the mean of the specified array. ●median(): This method return the median of the specified array.</li>
+        <li>●c_[]: This method adds a given column to the beginning of a given array. ●r_[]: This method adds a given row to the beginning of a given array.</li>
+        <li>●append(): This method adds given column(s) or row(s) to the end of a given array. The parameter ‘axis’ defines if the array is appended as column(s) or row(s).</li>
+        <li>●dot(): This method performs dot product of two matrices. We also can use ‘@’ operator to do the same.</li>
+        <li>●linalg.inv(): This method returns inverse of a matrix. ●T(): This method returns the transpose of a matrix.</li>
+        <li>Yes! You can do such cool stuff with matplotlib! ;p Time for some colourful plots :D</li>
+        <li>A few commonly used functions from matplotlib: ●plot() :</li>
+        <li>●scatter():</li>
+        <li>●bar():</li>
+        <li>●xlabel(), ylabel():</li>
+        <li>●legend():</li>
+        <li>What if some feature is not a number? Gender Male Female Female Male Remarks Nice Good Nice Great Nationality India USA UK India</li>
+        <li>Encoding Ordinal Encoding Encoding is a technique of converting categorical variables into numerical values so that it could be easily fitted to a machine learning model. For example, ASCII table is character encoding. Gender Male Female Gender 0 1 Color Red Green Blue Color 1 2 3 Each unique category value is assigned an integer value</li>
+        <li>One-Hot Encoding Remarks Nice Good Great Great_rem Nice_rem Good_rem 0 1 0 0 0 1 1 0 0 The categorical parameters will prepare separate columns for each label</li>
+        <li>Time to train our model :3</li>
+        <li>(image slide)</li>
+        <li>The Holy “Normal Equation” No iterations! :D</li>
+        <li>Time for just a tiny bit more maths :3 Note that is a vector, and so is y. So, when we multiply one by another, it doesn&#x27;t matter what the order is (as long as the dimensions work out). So, we can further simplify: It’s derivative:</li>
+        <li>To minimize J, we set its derivative to be zero and obtain the normal equation. Dimensions of is (n x n). Time complexity for inverting it will be O( ). Hence, it is not advised to use the normal equation if no. of features is too high. Note: Normal equation works only when m &gt; n.</li>
+        <li>Thanks for coming!</li>
+        <li>Social Media Follow our social media handles for regular updates Instagra m Twitter YouTube WhatsAp p</li>
+        </ol>
+      </details>
+    </main>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email"><i class="fas fa-envelope"></i> anirudhsrinivasan.tms@gmail.com</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i> GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i> X</a>
+    </footer>
+    <script src="../../../assets/js/scripts.js"></script>
+    <script src="../../../assets/js/stars.js"></script>
+    <script src="../../../assets/js/epoch-viewer.js?v=1"></script>
+  </body>
+</html>

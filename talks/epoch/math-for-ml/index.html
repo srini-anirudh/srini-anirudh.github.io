@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_self" />
+    <title>Math for ML | Epoch, IIT Hyderabad | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="description" content="Math for ML: a session by Epoch, the AI-ML and Data Science Club at IIT Hyderabad (2022-23). Browse all 55 slides online." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/talks/epoch/math-for-ml/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Math for ML | Epoch, IIT Hyderabad" />
+    <meta property="og:description" content="Slides from an Epoch session at IIT Hyderabad, 2022-23." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/talks/epoch/math-for-ml/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/thumbnails/epoch-math-for-ml-thumb.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="../../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="../../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../../assets/css/stars.css" />
+    <link rel="stylesheet" href="../../../assets/css/talks.css?v=17" />
+    <link rel="stylesheet" href="../../../assets/css/epoch-viewer.css?v=2" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  </head>
+
+  <body class="research-page talks-page epoch-page">
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="../../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../../index.html" target="_self">Home</a></li>
+          <li><a href="../../../research.html" target="_self">Research</a></li>
+          <li><a href="../../../blogs/index.html" target="_self">Blogs</a></li>
+          <li><a href="../../../talks.html" class="active" target="_self">Talks</a></li>
+          <li><a href="../../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <a class="epoch-back" href="../../../talks.html#epoch" target="_self">&larr; All Epoch sessions</a>
+      <header class="epoch-head">
+        <h1>Math for ML</h1>
+        <p class="epoch-meta"><em>Two-day workshop, with GDSC</em> &middot; Epoch, IIT Hyderabad &middot; 2022&ndash;23</p>
+        <p class="epoch-blurb">A hands-on workshop on the most important mathematical concepts: probability, statistics, linear algebra and calculus, with hands-on and theory exercises.</p>
+      </header>
+
+      <div id="slide-viewer" data-count="55" data-base="slides/">
+        <div class="sv-stage">
+          <img class="sv-img" src="slides/001.webp" alt="Slide 1 of 55" />
+        </div>
+        <div class="sv-bar" aria-hidden="true"><i></i></div>
+        <div class="sv-controls">
+          <button type="button" class="sv-btn sv-prev" aria-label="Previous slide"><i class="fas fa-arrow-left"></i><span>Prev</span></button>
+          <span class="sv-count" aria-live="polite"><span class="sv-cur">1</span> / 55</span>
+          <button type="button" class="sv-btn sv-full" aria-label="Full screen"><i class="fas fa-expand"></i></button>
+          <button type="button" class="sv-btn sv-next" aria-label="Next slide"><span>Next</span><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <p class="sv-hint">Arrow keys, space or a swipe move between slides. F for full screen.</p>
+      </div>
+      <noscript><p>These slides need JavaScript to page through. The slide text is listed below.</p></noscript>
+
+      <div class="epoch-actions">
+        <a href="../../../assets/slides/epoch/epoch-w2-math-for-ml.pptx" download><i class="fas fa-download"></i> Download the original PPTX</a>
+        <a href="../../../talks.html#epoch" target="_self">More Epoch sessions</a>
+      </div>
+
+      <details class="sv-text-wrap">
+        <summary>Slide text</summary>
+        <ol class="sv-text">
+        <li>Math for ML An Epoch-GDSC Collaboration</li>
+        <li>Probability Distributions</li>
+        <li>Probability Distributions: Gaussian Distribution Gaussian/Normal distribution - The probability density for the Gaussian distribution is - The function has its peak at the mean, and its “spread” increases with the standard deviation. This implies that normal is more likely to return samples lying close to the mean, rather than those far away. Saw this in Modern Physics right? It’s not that scary as it looks!</li>
+        <li>Random Sampling from Distributions - np.random.normal(loc = 0.0, scale = 1.0, size = None) - It generates random numbers from a normal distribution. - Here, loc is the mean of the distribution and scale = variance of the distribution. - Confusing?? Let’s plot it !!</li>
+        <li>Other Distributions! There are still a lot of distributions that NumPy offers like: 1. np.random.weibull() 2. np.random.poisson() 3. np.random.binomial() 4. np.random.uniform() 5. etc., These are left for you to explore ! And stay tuned for the Math for ML session!</li>
+        <li>Intro to</li>
+        <li>Plotting - Let’s get started! - We use matplotlib for plotting figures in python. - Matplotlib is a comprehensive library for creating static, animated, and interactive visualizations in Python. - plt.hist(x,bins, density) : Plot the histogram of the data - plt.plot() : Plot the curve in the figure - We will see this in more details in the upcoming slides</li>
+        <li>Gaussian Distribution - The Bell Curve!</li>
+        <li>Cricketing Analyst - Tutorials! - Let’s plot some interesting data. - I extracted out the scores of Virat Kohli in the last 6 ODI innings. Let begin our journey to Cricket Analyst and plot the data. - plt.bar(x, height, width = 0.8, align = “center”) : Plots the bar graph of the data x - We generate the x using np.linspace and Virat score is the height of our bars.</li>
+        <li>Plotting - Important Functions - plt.title() - gives a title to the graph - plt.xlabel() - gives a label to the x-axis - plt.ylabel() - gives a label to the y-axis</li>
+        <li>The plt.plot() function! - plt.plot(x, y, color, marker, linestyle, linewidth, label) - Plot y versus x as lines - Color - To specify a colour to our line plot - Linestyle - To customize our line - Linewidth - To customize our line width - Label - To label our line</li>
+        <li>plt.grid() - plt.grid() - Plots the gridlines in the graph</li>
+        <li>Can we plot multiple plots in a single figure? Yes! - Multiple plots in a single figure</li>
+        <li>plt.legend(): Yeah Virat is a legend, but this is different! - plt.legend() - Plots the legend box in the figure</li>
+        <li>Upcoming Legend? Tendulkar?? Sara Shubman Gill - Exercise Time! Plot the bar graph of Shubman Gill’s scores</li>
+        <li>Scatter Plots! - plt.scatter(x, y, marker, color) - Plots the scatter plot of x v/s y with varying markers.</li>
+        <li>The Final Plot!</li>
+        <li>Functions and Gradients</li>
+        <li>Mathematical Functions - Wait, we gonna see Cal - 1? Absolutely not! Mathematical functions in numpy are special because they can be used to perform operations element-wise on either python lists or numpy arrays.</li>
+        <li>Trig Functions! .sin(), .cos(), .tan() .arcsin(), .arccos(), .arctan()</li>
+        <li>Trigonometric functions .sinh(), .cosh(), .tanh() .degree(), .radian()</li>
+        <li>Logarithmic functions .log(), .log2(), .log10() .exp(), .exp2()</li>
+        <li>Additional functions .around(), .floor(), .ceil() .mod(a,b) Modulo function, prints remainder of elements in a with those in b element wise.</li>
+        <li>.max(), .min() The maximum/minimum element in an array. .add(), .subtract(), .multiply(), .divide() Add, subtract, multiply, or divide two numpy arrays element wise.</li>
+        <li>.conj(), .isreal() .maximum, .minimum</li>
+        <li>A few interesting functions .cbrt() - returns the cube root of a number. It is one of the few ways in python that allows you to take the real cube root of a negative number - Most functions return the complex root instead.</li>
+        <li>.where() Allows you to set your own conditions and returns result from the first array if true, else returns the value from the second array.</li>
+        <li>Gradients np.gradient(fx,x) will output the approximate gradient calculated using numpy arrays of f(x) and x.</li>
+        <li>Since gradients are calculated mathematically, they do have inaccuracies - but thankfully, they are rather low.</li>
+        <li>Matrix Operations and Transformations</li>
+        <li>Matrices or Multi-Dimensional Arrays Let&#x27;s cover some basic functions to create numpy matrices 1. Matrices from 2D or 3D or ND Lists. 2. Ones, Zeros,and Identity.</li>
+        <li>array() Method: It takes a 2D or 3D or ND List and returns a Numpy Multidimensional Array or Matrix. Creating Matrices using NumPy array method</li>
+        <li>zeros(): Returns a Numpy Array of all zeros of given shape. Creating Matrices using NumPy Functions ones(): Returns a Numpy Array of all ones of given shape. identity(): Returns a 2D Identity Square Matrix of given Rows, Columns.</li>
+        <li>Shape of np array shape: Returns the number of elements in each dimension of the np array. ndim: Returns the Number of Dimensions of the np array.</li>
+        <li>Reshaping np arrays reshape(): Returns the reshaped np array if possible.</li>
+        <li>Matrix Transformations : Addition Now we will look at a function to add two matrices: add() method : Takes Two numpy matrices of same size and adds them.</li>
+        <li>C vs NumPy for matrix multiplication</li>
+        <li>Matrix Transformations : Multiplication Now we will look at a function to multiply two matrices: element wise matrix multiplication : Multiplies matrices element by element just as add() does</li>
+        <li>Matrix Multiplication - 1 matmul() method : Multiplies matrices just like you did in your JEE !</li>
+        <li>Matrix Multiplication - 2 Another way of multiplying : :::;matrices: @ operator</li>
+        <li>Matrix Transformations : Trace trace() method takes np array as input and outputs its trace.</li>
+        <li>linalg.det() method takes np array as input and returns its determinant Matrix Transformations : Determinant</li>
+        <li>Matrix Transformations : Transpose T attribute returns a matrix which is the transpose of the given Matrix.</li>
+        <li>Numpy’s Reaction when you calculate inverse of a matrix on your own</li>
+        <li>Matrix Transformations : Inverse linalg.inv() method takes matrix as input and return a matrix which is its inverse</li>
+        <li>Matrix Transformation : Matrix Power linalg.matrix_power() takes a matrix and an integer as input and returns matrix raised to the power integer.</li>
+        <li>Solving Linear Equation Quick Exercise! Given matrices A and B, can you calculate X such that AX = B using functions used so far ?</li>
+        <li>Solving A linear equation Solving a linear equation can be cumbersome when the number of equations increases, numpy gets it done efficiently!</li>
+        <li>Matrix Transformations : Stacking Stacking matrices in a new dimension has many uses. This can be implemented with the numpy stack() method</li>
+        <li>Other Functions There are still a lot functionalities that NumPy offers like: Important Statistical Functions: mean(), median(), var()[For variance] ,std() [Standard Deviation] Functions for expanding and squeezing dimensions: squeeze(), expand_dims() These are left for you to explore !!!</li>
+        <li>Resources! 1. Python Documentation 2. NumPy Documentation 3. Matplotlib Documentation</li>
+        <li>Social Media - Epoch Follow our social media handles for regular updates Instagra m Twitter YouTube WhatsAp p</li>
+        <li>Social Media - GDSC Follow our social media handles for regular updates Instagra m Twitter</li>
+        <li>Any Questions or Suggestions?</li>
+        <li>Thank You!</li>
+        </ol>
+      </details>
+    </main>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email"><i class="fas fa-envelope"></i> anirudhsrinivasan.tms@gmail.com</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i> GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i> X</a>
+    </footer>
+    <script src="../../../assets/js/scripts.js"></script>
+    <script src="../../../assets/js/stars.js"></script>
+    <script src="../../../assets/js/epoch-viewer.js?v=1"></script>
+  </body>
+</html>

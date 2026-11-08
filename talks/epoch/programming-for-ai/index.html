@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_self" />
+    <title>Programming for AI | Epoch, IIT Hyderabad | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="description" content="Programming for AI: a session by Epoch, the AI-ML and Data Science Club at IIT Hyderabad (Mar 18-19, 2023). Browse all 217 slides online." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/talks/epoch/programming-for-ai/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="Programming for AI | Epoch, IIT Hyderabad" />
+    <meta property="og:description" content="Slides from an Epoch session at IIT Hyderabad, Mar 18-19, 2023." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/talks/epoch/programming-for-ai/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/thumbnails/epoch-programming-for-ai-thumb.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="../../../assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="../../../assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="../../../assets/css/stars.css" />
+    <link rel="stylesheet" href="../../../assets/css/talks.css?v=17" />
+    <link rel="stylesheet" href="../../../assets/css/epoch-viewer.css?v=2" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  </head>
+
+  <body class="research-page talks-page epoch-page">
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="../../../index.html" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="../../../index.html" target="_self">Home</a></li>
+          <li><a href="../../../research.html" target="_self">Research</a></li>
+          <li><a href="../../../blogs/index.html" target="_self">Blogs</a></li>
+          <li><a href="../../../talks.html" class="active" target="_self">Talks</a></li>
+          <li><a href="../../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="page-shell">
+      <a class="epoch-back" href="../../../talks.html#epoch" target="_self">&larr; All Epoch sessions</a>
+      <header class="epoch-head">
+        <h1>Programming for AI</h1>
+        <p class="epoch-meta"><em>Two-day workshop, with GDSC</em> &middot; Epoch, IIT Hyderabad &middot; Mar 18&ndash;19, 2023</p>
+        <p class="epoch-blurb">A hands-on workshop on the most important libraries: NumPy, Pandas, Matplotlib, Seaborn, SciPy and scikit-learn, with many exercises.</p>
+      </header>
+
+      <div id="slide-viewer" data-count="217" data-base="slides/">
+        <div class="sv-stage">
+          <img class="sv-img" src="slides/001.webp" alt="Slide 1 of 217" />
+        </div>
+        <div class="sv-bar" aria-hidden="true"><i></i></div>
+        <div class="sv-controls">
+          <button type="button" class="sv-btn sv-prev" aria-label="Previous slide"><i class="fas fa-arrow-left"></i><span>Prev</span></button>
+          <span class="sv-count" aria-live="polite"><span class="sv-cur">1</span> / 217</span>
+          <button type="button" class="sv-btn sv-full" aria-label="Full screen"><i class="fas fa-expand"></i></button>
+          <button type="button" class="sv-btn sv-next" aria-label="Next slide"><span>Next</span><i class="fas fa-arrow-right"></i></button>
+        </div>
+        <p class="sv-hint">Arrow keys, space or a swipe move between slides. F for full screen.</p>
+      </div>
+      <noscript><p>These slides need JavaScript to page through. The slide text is listed below.</p></noscript>
+
+      <div class="epoch-actions">
+        <a href="../../../assets/slides/epoch/epoch-w1-programming-for-ai.pptx" download><i class="fas fa-download"></i> Download the original PPTX</a>
+        <a href="../../../talks.html#epoch" target="_self">More Epoch sessions</a>
+      </div>
+
+      <details class="sv-text-wrap">
+        <summary>Slide text</summary>
+        <ol class="sv-text">
+        <li>Programming for AI An Epoch-GDSC Collaboration</li>
+        <li>Revisited! This time a bit faster :)</li>
+        <li>Python Basics - Revisited! ❖Data Types: - Strings - Lists - Dictionary - Tuples - Sets ❖Membership : The in and not in operator ❖Functions ❖Lambda Expressions</li>
+        <li>Variables and Datatypes - Python has no command for declaring a variable. - A variable is created the moment you first assign a value to it.</li>
+        <li>Python Vs C/C++? Well, who is better?</li>
+        <li>Python wins??? Wait, not yet!</li>
+        <li>No strings attached! Strings in python are surrounded by either single quotation marks, or double quotation marks. Slicing: Return a range of characters by using the slice syntax.</li>
+        <li>Lists = Arrays? Lists are used to store multiple items in a single variable. Can include any datatype Lists are created using square brackets: Can you predict the output ?</li>
+        <li>Ready for Binge Watching? The output :-</li>
+        <li>Lists in Python vs Arrays in C - Code for reversing an array - Lot of inbuilt methods in Python - Easy and concise compared to C</li>
+        <li>A simple task for counting the number of of occurrence of a particular element in an array is so much longer in C than in Python ! Look it for yourself ! Python wins??? Wait, not yet! - Now, yes - Maybe?</li>
+        <li>Inbuilt Functions in Lists Due to the popularity of lists, it has a lot of in-built methods (which you can explore ) listed as append() Adds an element at the end of the list copy() Returns a copy of the list count() Returns the number of elements with the specified value index() Returns the index of the first element with the specified value insert() Adds an element at the specified position pop() Removes the element at the specified position remove() Removes the item with the specified value reverse() Reverses the order of the list sort() Sorts</li>
+        <li>List Comprehension Use list comprehension when you want to create a new list based on the values of an existing list. It offers shorter syntax compared to using for loops to create a new list</li>
+        <li>Tuples A tuple is a collection which is ordered and immutable(unchangeable) Tuples are fixed size in nature whereas lists are dynamic. In other words, a tuple is immutable whereas a list is mutable.</li>
+        <li>More on Tuples You can&#x27;t add elements to a tuple. Tuples have no append method. You can&#x27;t remove elements from a tuple. You can find elements in a tuple, since this doesn’t change the tuple. Why tuples when there is lists ? Or when to use tuples? - Faster than lists. If you&#x27;re defining a constant set of values and all you would do with it is iterate through it, use a tuple instead of a list. - Makes your code safer if you “write-protect” data that does not need to be changed. Using a tuple is like having an implied assert statement that this data is constant. Tuples are like Jee Advanced Ranks, you can&#x27;t change them !</li>
+        <li>Dictionaries - Not the Oxford one! - used to store data values in {key:value} pairs. - is ordered , changeable and do not allow duplicates in the sense that you can not repeat keys.</li>
+        <li>Dictionaries &gt;&gt; Two Lists - You can also access items of a dictionary using its key name e.g d[‘Raj’] - Dictionaries can have any data type in the value - Each key must be immutable. Values maybe mutable. - This allows lists to be the values of a key. Lists cannot be keys. Why not two lists but a dict? Easier and faster because it uses key - value mapping format, something 2 lists being used parallely can’t.</li>
+        <li>The ‘in’ and &quot;not in&quot; Operator in Python The in keyword can also be used to check if a value is present in a sequence (list, range, string etc.).</li>
+        <li>Functions in Python vs C - A simple code for adding 2 numbers - Lots of line in C - Simplified in Python</li>
+        <li>Lists as argument to function! - Note that multiplying a list with a number k will repeat the items of the list as the size of the number k</li>
+        <li>- expressions! λ Syntax: lambda arguments : expression</li>
+        <li>Intro to</li>
+        <li>Numpy Vs Lists What is numpy? NumPy is a Python library used for working with arrays. Various functions of linear algebra, fourier transform, and matrices make numpy arrays a powerful tool. Example: my_numpy_array = [1,2,3] What is a list? A Python list is a collection that is ordered and changeable. Example: Var = [&quot;Epoch&quot;, &quot;IIT&quot;, &quot;Hyderabad&quot;]</li>
+        <li>NumPy Arrays vs Normal Arrays - Is comparison even needed?</li>
+        <li>NumPy Operations = Superset of List Operations Initialization: Accessing the items through index:</li>
+        <li>Broadcasting - The term broadcasting refers to the ability of NumPy to treat arrays of different shapes during arithmetic operations. - Arithmetic operations on arrays are usually done on corresponding elements. If two arrays are of exactly the same shape, then these operations are smoothly performed.</li>
+        <li>Example</li>
+        <li>Slicing and Dicing ● To slice means to cut and to dice means to cut into very small uniform sections and the two actions are often performed sequentially. ● For example, a chef may first cut an onion into slices and then cut the slices up into dices. ● In data analysis, the term generally implies a systematic reduction of a body of data into smaller parts or views that will yield more information. ● The term is also used to mean the presentation of information in a variety of different and useful ways.</li>
+        <li>Slicing again…you ready now?</li>
+        <li>NumPy Arrays vs Lists: How are they represented internally?</li>
+        <li>NumPy Arrays are faster and memory efficient - Explained! 1. NumPy arrays, unlike lists, are kept in a single continuous location in memory, allowing programs to access and manipulate them quickly. Having them in contiguous memory locations helps reduce latencies in finding the next element and traversal is made faster this way! 2. Lists are internally implemented using the Linked List Data Structure. In order to store the pointers for addresses of the previous and next elements in the list, some extra memory is taken. In NumPy, since they are allocated memory continuously, there is no need to have their pointers to point us to the address of the next locations.</li>
+        <li>The Vectorization Hack! Vectorization is the process of converting an algorithm from operating on a single value at a time to operating on a set of values at one time. Advantages of Vectorized Implementation 1. Our code runs efficiently 2. Our code becomes simpler and easy to debug</li>
+        <li>(image slide)</li>
+        <li>And that’s a wrap - Lists vs NumPy Arrays!</li>
+        <li>Random Number Generation</li>
+        <li>(image slide)</li>
+        <li>Random Numbers - Python defines a set of functions that are used to generate or manipulate random numbers through the random module. - np.random rand(shape) - It produce random values in a given shape from a uniform distribution.</li>
+        <li>Random Arrays and Matrices - Let’s create NumPy array with random numbers</li>
+        <li>Can we generate negative random numbers too? Yes! What if we want random negative numbers too? - np.random.randn(shape) - Returns random numbers sample from a “standard normal” distribution.</li>
+        <li>Random Integers - All the above method generates random floating point numbers, but what if you want random integers. - np.random.randint(low, high=None, size=None, dtype=int) - Low = 0 (default)</li>
+        <li>np.random.choice np.random.choice(a, size=None, replace=True, p=None) - The parameter p defines the probabilities associated with each entry in a. If not given, the sample assumes a uniform distribution over all entries in a.</li>
+        <li>np.arange - Let’s generate some organized numbers now - np.arange(start, stop, step): - allows you to define the step size and infers the number of steps(the number of values you get)</li>
+        <li>np.linspace - np.linspace(start, stop, num) - It allows you to define how many values you get including the specified min and max value - How it is different from np.arange()? - You do not need to specify the step size in np.linspace. It calculates the step size according to the number of points you want.</li>
+        <li>- np.shuffle(x) - Modify a sequence in-place by shuffling its contents. ● From shuffling our spotify playlist to shuffling our arrays, we have came a long way. np.shuffle: Nah, not the Dance Club :-|</li>
+        <li>Probability Distributions</li>
+        <li>Probability Distributions: Gaussian Distribution Gaussian/Normal distribution - The probability density for the Gaussian distribution is - The function has its peak at the mean, and its “spread” increases with the standard deviation. This implies that normal is more likely to return samples lying close to the mean, rather than those far away. Saw this in Modern Physics right? It’s not that scary as it looks!</li>
+        <li>Gaussian Distribution - The Bell Curve!</li>
+        <li>Random Sampling from Distributions - np.random.normal(loc = 0.0, scale = 1.0, size = None) - It generates random numbers from a normal distribution. - Here, loc is the mean of the distribution and scale = variance of the distribution.</li>
+        <li>Other Distributions! There are still a lot of distributions that NumPy offers like: 1. np.random.weibull() 2. np.random.poisson() 3. np.random.binomial() 4. np.random.uniform() 5. etc., These are left for you to explore ! And stay tuned for the Math for ML Workshop!</li>
+        <li>Functions and Gradients</li>
+        <li>Mathematical Functions - Wait, we gonna see Cal - 1? Absolutely not! Mathematical functions in numpy are special because they can be used to perform operations element-wise on either python lists or numpy arrays.</li>
+        <li>Trig Functions! .sin(), .cos(), .tan() .arcsin(), .arccos(), .arctan()</li>
+        <li>Trigonometric functions .sinh(), .cosh(), .tanh() .degree(), .radian()</li>
+        <li>Logarithmic functions .log(), .log2(), .log10() .exp(), .exp2()</li>
+        <li>Additional functions .around(), .floor(), .ceil() .mod(a,b) Modulo function, prints remainder of elements in a with those in b element wise.</li>
+        <li>.max(), .min() The maximum/minimum element in an array. .add(), .subtract(), .multiply(), .divide() Add, subtract, multiply, or divide two numpy arrays element wise.</li>
+        <li>.conj(), .isreal() .maximum(), .minimum()</li>
+        <li>A few interesting functions .cbrt() - returns the cube root of a number. It is one of the few ways in python that allows you to take the real cube root of a negative number - Most functions return the complex root instead.</li>
+        <li>- .where() - Allows you to set your own conditions and returns result from the first array if true, else returns the value from the second array.</li>
+        <li>Gradients - np.gradient(fx,x) - This will output the approximate gradient calculated using numpy arrays of f(x) and x.</li>
+        <li>Since gradients are calculated mathematically, they do have inaccuracies - but thankfully, they are rather low.</li>
+        <li>Matrix Operations and Transformations</li>
+        <li>Matrices or Multi-Dimensional Arrays Let&#x27;s cover some basic functions to create numpy matrices 1. Matrices from 2D or 3D or ND Lists. 2. Ones, Zeros,and Identity.</li>
+        <li>array() Method: It takes a 2D or 3D or ND List and returns a Numpy Multidimensional Array or Matrix. Creating Matrices using NumPy array method</li>
+        <li>zeros(): Returns a Numpy Array of all zeros of given shape. Creating Matrices using NumPy Functions ones(): Returns a Numpy Array of all ones of given shape. identity(): Returns a 2D Identity Square Matrix of given Rows, Columns.</li>
+        <li>Shape of np array shape: Returns the number of elements in each dimension of the np array. ndim: Returns the Number of Dimensions of the np array.</li>
+        <li>Reshaping np arrays reshape(): Returns the reshaped np array if possible.</li>
+        <li>Matrix Transformations : Addition Now we will look at a function to add two matrices: add() method : Takes Two numpy matrices of same size and adds them.</li>
+        <li>C vs NumPy for matrix multiplication</li>
+        <li>Matrix Transformations : Multiplication Now we will look at a function to multiply two matrices: element wise matrix multiplication : Multiplies matrices element by element just as add() does</li>
+        <li>Matrix Multiplication - 1 matmul() method : Multiplies matrices just like you did in your JEE !</li>
+        <li>Matrix Multiplication - 2 Another way of multiplying : :::;matrices: @ operator</li>
+        <li>Matrix Transformations : Trace trace() method takes np array as input and outputs its trace.</li>
+        <li>linalg.det() method takes np array as input and returns its determinant Matrix Transformations : Determinant</li>
+        <li>Matrix Transformations : Transpose T attribute returns a matrix which is the transpose of the given Matrix.</li>
+        <li>Matrix Transformations : Inverse linalg.inv() method takes matrix as input and return a matrix which is its inverse</li>
+        <li>Matrix Transformation : Matrix Power linalg.matrix_power() takes a matrix and an integer as input and returns matrix raised to the power integer.</li>
+        <li>Solving Linear Equation Quick Exercise! Given matrices A and B, can you calculate X such that AX = B using functions used so far ?</li>
+        <li>Solving A linear equation Solving a linear equation can be cumbersome when the number of equations increases, numpy gets it done efficiently!</li>
+        <li>Matrix Transformations : Stacking Stacking matrices in a new dimension has many uses. This can be implemented with the numpy stack() method</li>
+        <li>Other Functions There are still a lot functionalities that NumPy offers like: Important Statistical Functions: mean(), median(), var()[For variance] ,std() [Standard Deviation] Functions for expanding and squeezing dimensions: squeeze(), expand_dims() These are left for you to explore !!!</li>
+        <li>Everything about</li>
+        <li>(image slide)</li>
+        <li>Pandas is a Powerful, Flexible, Fast and easy to use open source library which consists of Data Analysis and Manipulation Tools built on top of Python. It is used for working with Data sets and has many functions for exploring, cleaning, analyzing and manipulating data. What is Pandas? Its name has references to “Real Life Panda”, “Python Data Analysis” and “Panel Data” and was created in 2008.</li>
+        <li>Pandas Series is a One Dimensional Array which can store data of different types like integers, floats, strings, python objects etc. It supports both integer-based and label- based indexing through which we access the elements. What are Pandas Series?</li>
+        <li>Creating Pandas Series from np arrays, dictionaries With the index argument, we can name our own labels. Series Labels are the keys and the elements are values of the Dictionary.</li>
+        <li>Accessing Elements of the Pandas Series We can access the Elements using the integral- index or label of the element and the [] operator. There are other ways also to access the elements of the Series which we will discuss later.</li>
+        <li>Slicing the Pandas Series Accessing the Element of Pandas Series using its Label Accessing Elements of the Pandas Series</li>
+        <li>What are Dataframes? Pandas Dataframe is a like 2D array or can be thought of as a table with rows and columns. In a Dataframe we can store various types of data ranging from integers, strings to datetime objects etc. Dataframe Table contains Series as its columns. We can perform Arithmetic operations, modifying the rows and columns of Dataframe etc.</li>
+        <li>Creating Dataframe from Series Creating a Pandas Series ser1 from roll_name Dictionary Creating a Pandas Series ser2 from roll_marks Dictionary</li>
+        <li>Creating Dataframe from Series Merging Series 1 and Series 2 into a DataFrame df</li>
+        <li>loc(): loc() gets rows (and columns) with particular labels. Accessing Elements of Dataframe iloc(): iloc() gets rows (and columns) with integer locations</li>
+        <li>df.shape Returns the dimensions of the Dataframe. df.dtypes Returns the Data types of each column of the Dataframe. df.index Returns the Index of the Dataframe. Attributes of DataFrame df.columns Returns the Column Labels of the Dataframe.</li>
+        <li>df.values Returns the Dataframe in the form of numpy array. Attributes of DataFrame - Contd df.info Returns the summary of the Dataframe.</li>
+        <li>Reading a Dataframe from CSV File or Excel File pd.read_csv(fileName) Reads a CSV File into a Dataframe.</li>
+        <li>(image slide)</li>
+        <li>Reading a Dataframe from CSV File or Excel File pd.read_excel(fileName) Reads an Excel File into a Dataframe.</li>
+        <li>(image slide)</li>
+        <li>Writing a Dataframe into a CSV File or Excel File df.to_excel(fileName) Writes the DataFrame into an Excel File with name as fileName. df.to_csv(fileName) Writes the DataFrame into a CSV File with name as fileName.</li>
+        <li>Viewing the Data Frame df.tail(n) Returns the Last n rows of the Dataframe. df.head(n) Returns the First n rows of the Dataframe.</li>
+        <li>df.loc() We can access using the Labels of the Rows or also using a Boolean array. Accessing Rows of a Data Frame</li>
+        <li>Accessing Rows of a Data Frame - Contd df.iloc() We can access the Rows using its integer index.</li>
+        <li>Dataframe General Functions df.describe() Returns the Statistical Description of the Numerical Columns in the DataFrame. Gives the Mean, Standard Deviation, Quartiles of Columns excluding Null Values.</li>
+        <li>Dataframe General Functions df.info() Returns a Concise Summary of the DataFrame. Prints the dtypes of the Columns, index, Non Null Values in each Column and also memory used by the dataframe.</li>
+        <li>Dataframe General Functions df.sample(n) Returns a Random Sample of n Rows(or Columns) from the Dataframe. random_state is the seed for the Random Number Generator and using this prevents from getting different samples for every run.</li>
+        <li>Dataframe General Functions df.drop() Drops the Specified Row Labels or Column Labels from the Dataframe. inplace=True modifies the original dataframe by dropping the rows and columns.</li>
+        <li>df.isna() Returns a Boolean Object of same size indicating whether the element is a Null Value (NaN) or Not. Detects missing values in the DataFrame. Using df.isna().sum() gives us the Number of Null Values in Each Column of the DataFrame. Dataframe General Functions</li>
+        <li>(image slide)</li>
+        <li>Dataframe General Functions df.dropna() Drops the Rows (or Columns) where there is a Null Value in the Dataframe. axis=’rows’ drops the rows having at least 1 NaN. inplace=True modifies the Original Dataframe.</li>
+        <li>df.reset_index() Resets the Index of the Dataframe to the Default Index(0 to Rows-1). drop=True avoids adding the Old Index as a Column to the Dataframe. Dataframe General Functions</li>
+        <li>Dataframe General Functions df[column].mean() Returns the Mean of a Numerical Column of the Dataframe. df[column].median() Returns the Median of a Numerical Column of the Dataframe. df[column].mode() Returns the Mode of a Column of the Dataframe.</li>
+        <li>Dataframe General Functions df.fillna() Fills the NaN Values in the Dataframe using the given value. Generally NaN Values are filled using Mean, Median, Mode depending on the Column. inplace=True modifies the Original Dataframe.</li>
+        <li>df.group_by() Groups the Dataframe by a column or series of columns and returns it. This is used to group large amounts of data and perform operations like mean, sum, max on them. Dataframe General Functions</li>
+        <li>df.value_counts() Returns the Counts of Unique Rows in a Data Frame. For a Column, it gives the counts of unique elements. Dataframe General Functions</li>
+        <li>df[col].unique() Returns all the Unique Elements of a Column as an array. df.nunique() Returns counts of unique elements in each column of Dataframe. Dataframe General Functions</li>
+        <li>df.nlargest(n,columns) Returns the First n Rows ordered by columns values in descending order. Dataframe General Functions df.nsmallest(n,columns) Returns the First n Rows ordered by columns values in descending order.</li>
+        <li>(image slide)</li>
+        <li>Intro to</li>
+        <li>Matplotlib? What is it? Matplotlib is one of the most popular data visualization libraries in Python and is widely used in scientific computing, data analysis, and machine learning. Matplotlib is a Python library used for creating static, interactive, and animated visualizations in Python. It provides a wide variety of customizable 2D and 3D plots, including line plots, scatter plots, bar plots, histograms, and more. Matplotlib is compatible with many libraries like numpy,pandas,seaborn,scipy</li>
+        <li>(image slide)</li>
+        <li>Functional plots - Plot is created by calling a function and the resulting plot is displayed</li>
+        <li>(image slide)</li>
+        <li>Multiple plots</li>
+        <li>(image slide)</li>
+        <li>Figure objects</li>
+        <li>(image slide)</li>
+        <li>Sub plots</li>
+        <li>(image slide)</li>
+        <li>Appearance options</li>
+        <li>TeX Markup</li>
+        <li>Histogram</li>
+        <li>(image slide)</li>
+        <li>Bar Charts</li>
+        <li>(image slide)</li>
+        <li>Scatterplots</li>
+        <li>3D - Surface</li>
+        <li>(image slide)</li>
+        <li>Heat-map</li>
+        <li>(image slide)</li>
+        <li>A Deep Dive into</li>
+        <li>SEABORN ● Seaborn is a data visualization library built on top of Matplotlib. ● often used as it makes attractive visualizations and works easily with Pandas. Why Seaborn when Matplotlib ? Seaborn helps you explore and understand your data and internally performs the necessary statistical aggregation to produce informative plots. While in Matplotlib you often had to write multiple lines of code to create a plot, Seaborn makes assumptions on what you want which often translates into getting the same plot with 1 line of code. NOTE : Seaborn was built on top of Matplotlib, meaning it can be further powered up with Matplotlib functionalities.</li>
+        <li>Matplotlib, Seaborn or both ??</li>
+        <li>Matplotlib V/S Seaborn Harder Syntax : can be personalized but it’s difficult to figure out what settings are required to make plots more attractive. Simplicity and Aesthetics : It comes with numerous customized themes and high-level interfaces, intuitive syntax Matplotlib does not provide options for advanced parameters such as hue and palettes. Hue is used to specify the third dimension in the chart, and palettes are used to define beautiful colors to the charts. USE Matplotlib for the most basic exploratory analysis that only you will probably see USE this when you want your exploratory analysis to look pretty for other people, offers a great balance between effort and beauty</li>
+        <li>(image slide)</li>
+        <li>A simple scatter plot in Matplotlib ● Code for simple scatter plot in matplotlib. The Output :- As you can see, this scatter plot is pretty basic. So let’s improve it by adding labeling and a title, and changing the plot’s color.</li>
+        <li>Seaborn, better than Matplotlib ? We can achieve the same plot in Seaborn with just one line of code</li>
+        <li>Matplotlib Seaborn Observe that we used (hue = species) in seaborn, hence using the column ‘species’ for color encoding</li>
+        <li>Distribution plot - displot ● Provides a way to look at a univariate distribution. ● A univariate distribution provides a distribution for one variable ● Kernel Density Estimation with a Histogram is provided ● kde=False removes the KDE (more on this later) ● Bins define how many buckets to divide the data up into between intervals</li>
+        <li>Syntax and plot tips = sns.load_dataset(&#x27;tips&#x27;) # Seaborn comes with built in data sets! sns.displot(tips[&#x27;total_bill&#x27;], stat = &#x27;density&#x27;, kde = True) It can be seen that the total bill is approximately normally distributed, symmetric about the mean showing that total bills near the mean (~20) are more frequent than extreme high or low bills.</li>
+        <li>Exercise Time?</li>
+        <li>Let’s see how to do this!</li>
+        <li>KDE Plot ● A kernel density estimate (KDE) plot is a method for visualizing the distribution of observations in a dataset, analogous to a histogram ● KDE represents the data using a continuous probability density curve ● A histogram aims to approximate the underlying probability density function that generated the data by binning and counting observations ● While a KDE plot smooths the observations, producing a continuous density estimate.</li>
+        <li>Syntax and an example plot</li>
+        <li>Joint plot ● Draw a plot of two variables with bivariate and univariate graphs. ● A way of understanding the relationship between two variables and the distribution of individuals of each variable ● Jointplot compares 2 distributions and plots a scatter plot by default ● With kind you can create a regression line with kind=&#x27;reg&#x27;</li>
+        <li>Syntax and example plot sns.jointplot(x=&#x27;speeding&#x27;, y=&#x27;alcohol&#x27;, data=crash_df, kind=&#x27;reg&#x27;) Observe the linear relationship :- As people tend to speed they also tend to drink &amp; drive or vice-versa</li>
+        <li>Pairplots ● Plot pairwise relationships in a dataset across an entire dataframe (for the numerical columns) and supports a color hue argument (for categorical columns). ● By default, this function will create a grid of Axes such that each numeric variable in data will by shared across the y-axes across a single row and the x-axes across a single column. ● The diagonal plots are treated differently: a univariate distribution plot is drawn to show the marginal distribution of the data in each column. ● With hue you can pass in a categorical column and the charts will be colorized</li>
+        <li>Syntax: sns.pairplot(tips_df, hue=&#x27;sex&#x27;, diag_kind=&#x27;kde&#x27;) Plot :</li>
+        <li>Categorical Data Plots ● Count plot - allow you to get aggregate data off a categorical feature in your data, the estimator is counting the number of occurrences ● Bar plot - A general plot that allows you to aggregate the categorical data based off some function, by default the mean (of a quantitative variable.) More for you to explore - Boxplot etc.</li>
+        <li>Count plots sns.countplot(x=&#x27;sex&#x27;, data=tips_df) In the dataset ‘tips’, we see that number of males who gave tips are more than females</li>
+        <li>Bar Plots Look similar to count plots, but instead of the count of observations in each category, they show the mean of a quantitative variable among observations in each category. # x - categorical, y = numerical sns.barplot(x=&#x27;sex&#x27;,y=&#x27;total_bill&#x27;,data=tips) Recall, mean is the default estimator Estimate total bill amount based on sex</li>
+        <li>Ready for another exercise ?</li>
+        <li>The Nation wants to know!!</li>
+        <li>Matrix Plots Heatmaps ● Plot rectangular data as a color-encoded matrix. ● In order for a heatmap to work properly, your data should already be in a matrix form, the sns.heatmap function basically just colors it in for you ● Example :</li>
+        <li>Example Heatmap, cool isn’t it ? ● (annot = True) ensures that the value of correlation is reflected in the box</li>
+        <li>Time to get your hands dirty one last time …</li>
+        <li>The Reveal ..</li>
+        <li>Regression Plots ● The two functions that can be used to visualize a linear fit are regplot() and lmplot(). ● In the simplest invocation, both functions draw a scatterplot of 2 variables, x and y ● Then, it fits the regression model y ~ x and plot the resulting regression line and a 95% confidence interval for that regression. ● lmplot() has data as a required parameter and the x and y variables must be specified as strings. lmplot() has hue as a parameter.</li>
+        <li>An example regression plot We can plot a regression plot studying whether total bill effects the tip. “Hue” is used to show separation based off of categorical data (here, ‘sex’) We see that males tend to tip slightly more Code : - -</li>
+        <li>Scientific Python</li>
+        <li>Background ●Scipy is basically the same as numpy except that it has a variety of scientific functions, probability distributions and optimization methods. ●We will majorly cover these topics.</li>
+        <li>Gaussian distribution - Meet our old friend! In statistics, a normal distribution or Gaussian distribution is a type of continuous probability distribution for a real-valued random variable. The probability density function for the gaussian distribution is given by Here, 𝜇 is the mean of the distribution and is the standard 𝛔 deviation of the distribution.</li>
+        <li>Skewness Its a measure of skewness of a distribution Formula for calculating skewness is given by This will give you a number. The value of skewness for gaussian distribution is 0, but if we sample data points from the distribution then it may not be 0.</li>
+        <li>Kurtosis Kurtosis is a measure of whether the distribution is too peaked. A positive value for the kurtosis indicates a distribution more peaked than normal. In contrast, a negative kurtosis indicates a shape flatter than normal.</li>
+        <li>Sampling A certain number of samples are drawn from the distribution. Statistics like mean, variance, skewness and kurtosis can be calculated for these samples. Note - these numbers won’t be the same for samples and population!</li>
+        <li>Finding roots of functions Let’s find the roots of the function f(x) = x² - 5x + 6</li>
+        <li>Optimizing functions We’ll find the minima of this function f(x) = x² + 2cos(x) + 4x</li>
+        <li>Optimizing functions f(x,y) = x² + y² + 6</li>
+        <li>A Brief Introduction to</li>
+        <li>Types of problems in ML</li>
+        <li>Some Jargon!</li>
+        <li>Flow of training a model in scikit-learn ● Importing the datasets ● Splitting the datasets in train and test datasets ● Importing the machine learning model using scikit-learn ● Fitting the training dataset into the model (training phase) ● Predicting using the test dataset (testing phase) ● Validating the accuracy of the model using scikit-metrics.</li>
+        <li>Importing the Datasets ● We use the iris dataset for our classification. It has four features -&gt; sepal length in cm, sepal width in cm, petal length in cm and petal width in cm. ● It outputs has 3 classes -&gt; Iris Setosa, Iris Versicolour and Iris Virginica</li>
+        <li>Train-Test Split Split arrays or matrices into random train and test subsets.</li>
+        <li>Logistic Regression</li>
+        <li>Logistic Regression</li>
+        <li>Training Data Score and Prediction</li>
+        <li>Accuracy of the Model</li>
+        <li>Confusion Matrix for evaluating the performance of Binary classification ● A confusion matrix is a table that tells us how many actual values and predicted values exist for different classes predicted by the model.</li>
+        <li>What’s a Confusion Matrix?? True Positive: When a female is pregnant, and we predicted that she is pregnant True Negative: When a male is not pregnant, and we predicted that he is not pregnant False Negative: When a female is pregnant, but we predict that she is not pregnant. Also called Type 2 error. False Positive: A male cannot be pregnant, but we predict he is pregnant. Also called Type 1 error</li>
+        <li>Confusion Matrix</li>
+        <li>K-Nearest Neighbours</li>
+        <li>Working of kNN model</li>
+        <li>Coding kNN</li>
+        <li>Confusion Matrix</li>
+        <li>Decision Tree</li>
+        <li>Working of Decision Tree</li>
+        <li>Coding Decision Tree</li>
+        <li>(image slide)</li>
+        <li>Accuracy and Confusion Matrix</li>
+        <li>Random Forest</li>
+        <li>Coding Random Forest</li>
+        <li>Coding Random Forest</li>
+        <li>AdaBoost</li>
+        <li>Coding AdaBoost</li>
+        <li>Coding AdaBoost</li>
+        <li>The Final Exercise!</li>
+        <li>Now, what’s your problem @ Epoch? ● First, we will create a dataset by defining our own condition. ● Then, we will run a Logistic Regression algorithm to try and find the condition. ● Finally, we will compare the condition that we set with the condition that the computer returned.</li>
+        <li>Index &lt;choice&gt; must be replaced with any integer of your own choice. &lt;fill&gt; represents a variable, and you have to replace it with the correct variable that would complete the code.</li>
+        <li>Unravelling the Mystery! We are creating a dataset with a linear classifier, which is the linear equation that we defined as part of generating the dataset. Logistic regression is a linear classifier, and it is capable of approximating this equation, given enough data as input.</li>
+        <li>The Solution - Demystified! We can compare the coefficients of our predefined equation and the coefficients generated by the algorithm, and we will find that they are approximately in the same ratio. This shows that the model was able to learn the classification.</li>
+        <li>Coding the Exercise</li>
+        <li>(image slide)</li>
+        <li>Resources! 1. Python Documentation 2. NumPy Documentation 3. Pandas Documentation 4. Matplotlib Documentation 5. Seaborn Documentation 6. SciPy Documentation 7. Scikit-learn Documentation</li>
+        <li>Social Media - Epoch Follow our social media handles for regular updates Instagra m Twitter YouTube WhatsAp p</li>
+        <li>Social Media - GDSC Follow our social media handles for regular updates Instagra m Twitter</li>
+        <li>Any Questions or Suggestions?</li>
+        <li>Thank You!</li>
+        </ol>
+      </details>
+    </main>
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email"><i class="fas fa-envelope"></i> anirudhsrinivasan.tms@gmail.com</a>
+      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i> GitHub</a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i> X</a>
+    </footer>
+    <script src="../../../assets/js/scripts.js"></script>
+    <script src="../../../assets/js/stars.js"></script>
+    <script src="../../../assets/js/epoch-viewer.js?v=1"></script>
+  </body>
+</html>
