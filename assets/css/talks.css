@@ -117,3 +117,11 @@ a.arxiv-button { display: inline-block; text-decoration: none; }
 .epoch-fold > .research-card { margin-left: 22px; margin-right: 22px; }
 .epoch-fold > .research-card:last-child { margin-bottom: 22px; }
 @media (max-width: 768px) { .epoch-fold > summary { grid-template-columns: minmax(0, 1fr) auto; padding: 16px; } .epoch-count { display: none; } .epoch-fold > .research-card { margin-left: 14px; margin-right: 14px; } }
+
+.talk-photos { margin: 10px 0 0; }
+.talk-photos summary { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; color: var(--blue-dark, #0b5ea8); border: 1px solid currentColor; border-radius: 6px; cursor: pointer; list-style: none; font: 600 12px/1 "IBM Plex Mono", monospace; }
+.talk-photos summary::-webkit-details-marker { display: none; }
+.talk-photos img { display: block; width: 100%; max-width: 620px; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; }
+.talk-hack { margin: 10px 0 0; padding-left: 20px; color: var(--text-soft); font-size: 15.5px; line-height: 1.55; }
+.talk-hack li { margin: 4px 0; }
+body.dark-mode .talk-photos summary { color: #7fc1ff; }

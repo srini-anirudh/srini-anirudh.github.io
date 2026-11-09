@@ -19,7 +19,7 @@
     <link rel="stylesheet" type="text/css" href="/assets/css/stylesheet.css" />
     <link rel="stylesheet" href="/assets/css/stars.css" />
     <link rel="stylesheet" href="/assets/css/talks.css?v=17" />
-    <link rel="stylesheet" href="/assets/css/iith-pages.css?v=4" />
+    <link rel="stylesheet" href="/assets/css/iith-pages.css?v=6" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
@@ -124,6 +124,15 @@
     <a class="iv-sess" href="/talks/epoch/ml-in-astronomy/" target="_self"><img src="/assets/images/thumbnails/epoch-ml-in-astronomy-thumb.jpg" alt="ML in Astronomy" loading="lazy" /><strong>ML in Astronomy</strong><span>Mar 22, 2023</span></a>
     <a class="iv-sess" href="/talks/epoch/math-for-ml/" target="_self"><img src="/assets/images/thumbnails/epoch-math-for-ml-thumb.jpg" alt="Math for ML" loading="lazy" /><strong>Math for ML</strong><span>Apr 1 and 4, 2023</span></a>
   </div>
+
+  <h5 class="iv-sub">In the room</h5>
+  <div class="iv-photos">
+    <figure class="iv-photo"><img src="/assets/images/epoch/collage-a-glimpse-into-the-world-of-ai.webp" alt="Photos from A Glimpse into the World of AI" loading="lazy" /><figcaption>A Glimpse into the World of AI</figcaption></figure>
+    <figure class="iv-photo"><img src="/assets/images/epoch/collage-introduction-to-ml-models.webp" alt="Photos from Introduction to ML Models" loading="lazy" /><figcaption>Introduction to ML Models</figcaption></figure>
+    <figure class="iv-photo"><img src="/assets/images/epoch/collage-hello-world-the-ai-chapter.webp" alt="Photos from Hello World: The AI Chapter" loading="lazy" /><figcaption>Hello World: The AI Chapter</figcaption></figure>
+    <figure class="iv-photo"><img src="/assets/images/epoch/collage-python-for-ml.webp" alt="Photos from Python for ML" loading="lazy" /><figcaption>Python for ML</figcaption></figure>
+    <figure class="iv-photo"><img src="/assets/images/epoch/collage-ml-in-astronomy.webp" alt="Photos from ML in Astronomy" loading="lazy" /><figcaption>ML in Astronomy, with Cepheid</figcaption></figure>
+  </div>
   <div class="iv-chips"><span class="iv-chip ">6 research-paper sessions for the core team</span><span class="iv-chip ">6 members-only sessions</span><span class="iv-chip ">Cepheid &middot; GDSC &middot; Lambda</span></div>
 </div><div class="iv-two">
 <div class="iv-card">
@@ -132,7 +141,13 @@
     <a class="iv-proj" href="https://github.com/Robotix-IITH/GestureWave"><i class="fas fa-hand"></i><strong>GesturesPro</strong><span>Smartwatch motion data to real-time gesture recognition. With Robotix and Lambda.</span></a>
     <div class="iv-proj"><i class="fas fa-chess"></i><strong>Chess Bot</strong><span>A Pi-camera chess player that moves pieces with a robotic arm. With Elektronika.</span></div>
   </div>
-  <div class="iv-chips"><span class="iv-chip ">Vision Quest &middot; Tinkerers Lab</span><span class="iv-chip ">Dev-Datathon &middot; Lambda &middot; Milan</span><span class="iv-chip ">Machina Doctrina &middot; Elan</span><span class="iv-chip ">DeepN &middot; &eta;Vision</span></div>
+  <h5 class="iv-sub">3 hackathons and an ideathon, for the community</h5>
+  <ul class="iv-hack">
+    <li><b>Vision Quest</b><span>With Tinkerers Lab. Build an inventory management system that identifies components from a camera feed.</span></li>
+    <li><b>Dev-Datathon</b><span>With Lambda, during Milan.</span></li>
+    <li><b>Machina Doctrina</b><span>For Elan &amp; &eta;Vision. A machine-learning hackathon on classification algorithms.</span></li>
+    <li><b>DeepN</b><span>For Elan &amp; &eta;Vision. A deep-learning ideathon: propose a solution to an everyday problem, with a working prototype.</span></li>
+  </ul>
 </div>
 <div class="iv-card">
   <div class="iv-card-h"><i class="fas fa-pen-nib"></i><div><h4>Share</h4><p>Writing and handouts, so the work outlived the sessions.</p></div></div>
@@ -174,5 +189,6 @@
     </footer>
     <script src="/assets/js/scripts.js"></script>
     <script src="/assets/js/stars.js"></script>
-  </body>
+  <script>(function(){var o;function close(){if(o){o.remove();o=null;}}document.addEventListener("click",function(e){var im=e.target.closest(".iv-photo img");if(!im){if(o)close();return;}o=document.createElement("div");o.className="iv-lightbox";o.innerHTML='<img src="'+im.src+'" alt="'+im.alt+'" />';document.body.appendChild(o);});document.addEventListener("keydown",function(e){if(e.key==="Escape")close();});})();</script>
+</body>
 </html>
