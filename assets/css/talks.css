@@ -29,6 +29,8 @@ body.dark-mode .pc-root, body.dark-mode .pc-row a { background: transparent; }
 
 /* Talks reuse the research-card layout; label each card by its kind. */
 body.talks-page .research-card::before { content: "Talk"; }
+body.talks-page #epoch-s1::before, body.talks-page #epoch-s2::before, body.talks-page #epoch-s3::before, body.talks-page #epoch-s4::before, body.talks-page #epoch-s5::before { content: "Session"; }
+body.talks-page #epoch-w1::before, body.talks-page #epoch-w2::before { content: "Workshop"; }
 body.talks-page #programming-ai-accelerators::before { content: "Guest lecture"; }
 body.talks-page #vllm-meetup-mumbai::before { content: "Invited talk"; }
 body.talks-page #docai-research::before { content: "Thesis talk"; }
