@@ -136,3 +136,96 @@ body.dark-mode .ev-topics span { background: rgba(111, 180, 240, 0.14); color: #
 @media (max-width: 860px) { .ev-card { grid-template-columns: 1fr; } .ev-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .ev-bar { grid-template-columns: 84px minmax(0, 1fr) auto; font-size: 13px; } .ev-card-body h2 { font-size: 24px; } }
 @media (prefers-reduced-motion: reduce) { .ev-bar i { animation: none; } }
+
+/* ---- v3: details fold, code, Q&A, tables, learner kit ---- */
+.ev-more summary { flex-wrap: wrap; }
+.ev-more summary span { font-weight: 700; }
+.ev-more summary small { flex: 1 1 auto; color: var(--text-soft); font: 400 12px/1.3 "IBM Plex Mono", ui-monospace, monospace; }
+.ev-more[open] { background: rgba(255, 255, 255, 0.5); }
+.ev-more-body h4 { margin: 18px 0 8px; }
+.ev-more-body p { margin: 8px 0; }
+
+.ev-code { margin: 10px 0 14px; padding: 12px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #14181d; color: #e6edf3; font: 12.5px/1.55 "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 4; }
+.ev-code code { background: none !important; padding: 0 !important; color: inherit; font: inherit; white-space: pre; }
+
+.ev-table-wrap { overflow-x: auto; margin: 12px 0; }
+.ev-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.ev-table th, .ev-table td { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); line-height: 1.45; }
+.ev-table thead th { font: 700 11.5px/1.3 "IBM Plex Mono", ui-monospace, monospace; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-soft); }
+.ev-table tbody th { font-weight: 700; white-space: nowrap; color: var(--blue-dark, #0b5ea8); }
+
+/* Questions, answered */
+.ev-qa { margin-top: 40px; scroll-margin-top: 84px; }
+.ev-qa h3 { margin: 0 0 6px; font-size: 28px; }
+.ev-qa-intro { margin: 0 0 14px; color: var(--text-soft); }
+.ev-q { margin: 10px 0; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.45); }
+.ev-q[open] { border-color: var(--orange); background: rgba(255, 255, 255, 0.65); }
+.ev-q summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; cursor: pointer; list-style: none; font: 700 17px/1.35 "Bricolage Grotesque", system-ui, sans-serif; }
+.ev-q summary::-webkit-details-marker { display: none; }
+.ev-q summary::before { content: "Q"; flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; margin-right: 2px; border-radius: 6px; background: var(--orange); color: #fff; font: 700 13px/1 "IBM Plex Mono", monospace; }
+.ev-q summary span { flex: 1; }
+.ev-q summary i { color: var(--blue-dark, #0b5ea8); transition: transform 180ms ease; }
+.ev-q[open] summary i { transform: rotate(180deg); }
+.ev-q-body { padding: 0 18px 16px 18px; }
+.ev-q-body h4 { margin: 16px 0 6px; }
+.ev-q-body ul, .ev-q-body ol { margin: 6px 0 10px; padding-left: 22px; }
+.ev-q-body li { margin-bottom: 6px; line-height: 1.55; }
+.ev-short { margin: 2px 0 10px; padding: 10px 12px; border-left: 3px solid var(--orange); background: rgba(242, 140, 24, 0.08); border-radius: 0 6px 6px 0; }
+.ev-src { margin: 14px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 13.5px; color: var(--text-soft); }
+
+/* learner kit banner + pills */
+.ev-kitbanner { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 34px 0 10px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(135deg, rgba(11, 94, 168, 0.10), rgba(242, 140, 24, 0.12)); scroll-margin-top: 84px; }
+.ev-kitbanner h3 { margin: 6px 0 4px; font-size: 24px; }
+.ev-kitbanner p { margin: 0; max-width: 56ch; }
+.ev-kit-tag { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--orange); color: #fff; font: 700 11.5px/1.5 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.03em; text-transform: uppercase; }
+.ev-btn-solid { flex: none; background: var(--blue-dark, #0b5ea8); color: #fff !important; border-color: transparent; }
+.ev-btn-solid:hover { background: var(--orange-dark); color: #fff; }
+.ev-kit-pill { background: rgba(242, 140, 24, 0.16) !important; color: var(--orange-dark) !important; }
+
+/* learner kit page */
+.kit-shell { max-width: 940px; }
+.kit-head h1 { margin: 12px 0 8px; text-align: left; }
+.kit-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.kit-actions .ev-btn { cursor: pointer; font-family: inherit; }
+.kit-sec { margin-top: 34px; }
+.kit-sec h2 { margin: 0 0 8px; font-size: 28px; }
+.kit-mod { margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.5); }
+.kit-mod[open] { border-color: var(--blue-dark, #0b5ea8); background: rgba(255, 255, 255, 0.7); }
+.kit-mod > summary { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; list-style: none; }
+.kit-mod > summary::-webkit-details-marker { display: none; }
+.kit-n { flex: none; display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; background: var(--blue-dark, #0b5ea8); color: #fff; font: 800 18px/1 "Bricolage Grotesque", system-ui, sans-serif; }
+.kit-t { flex: 1; display: grid; gap: 2px; }
+.kit-t strong { font: 700 19px/1.25 "Bricolage Grotesque", system-ui, sans-serif; }
+.kit-t em { font: 400 12px/1.3 "IBM Plex Mono", ui-monospace, monospace; color: var(--text-soft); font-style: normal; }
+.kit-mod > summary > i { color: var(--blue-dark, #0b5ea8); transition: transform 180ms ease; }
+.kit-mod[open] > summary > i { transform: rotate(180deg); }
+.kit-body { padding: 0 20px 18px; }
+.kit-why { margin: 0 0 6px; padding: 10px 12px; border-left: 3px solid var(--orange); background: rgba(242, 140, 24, 0.08); border-radius: 0 6px 6px 0; }
+.kit-body h4 { margin: 20px 0 8px; font-size: 17px; }
+.kit-body ul, .kit-body ol { margin: 6px 0; padding-left: 22px; }
+.kit-body li { margin-bottom: 7px; line-height: 1.55; }
+.kit-refs li span { color: var(--text-soft); font-size: 14px; }
+.kit-refs li span::before { content: "— "; }
+.kit-check { list-style: none; padding-left: 0 !important; }
+.kit-check li { position: relative; padding-left: 26px; }
+.kit-check li::before { content: "\f059"; font-family: "Font Awesome 5 Free", "Font Awesome 6 Free"; font-weight: 900; position: absolute; left: 0; top: 1px; color: var(--orange); }
+.kit-gloss th { width: 220px; }
+.kit-refs-plain li { margin-bottom: 8px; }
+
+body.dark-mode .ev-q, body.dark-mode .kit-mod { background: rgba(255, 255, 255, 0.04); }
+body.dark-mode .ev-q[open], body.dark-mode .kit-mod[open] { background: rgba(255, 255, 255, 0.07); }
+body.dark-mode .ev-more[open] { background: rgba(255, 255, 255, 0.05); }
+body.dark-mode .ev-kitbanner { background: linear-gradient(135deg, rgba(111, 180, 240, 0.12), rgba(242, 140, 24, 0.10)); }
+body.dark-mode .ev-short, body.dark-mode .kit-why { background: rgba(242, 140, 24, 0.12); }
+
+@media (max-width: 700px) {
+  .ev-kitbanner { flex-direction: column; align-items: flex-start; }
+  .kit-body { padding: 0 14px 16px; }
+  .kit-gloss th { width: 120px; white-space: normal; }
+  .ev-q summary { font-size: 16px; }
+  .ev-code { font-size: 11.5px; }
+}
+.ev-more summary { flex-wrap: nowrap; }
+.ev-more summary small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-more summary i { margin-left: auto; flex: none; }
+@media (max-width: 700px) { .ev-more summary small { display: none; } }
