@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_blank" />
+    <title>PyTorch × Hugging Face meetup, Bengaluru | Events | Anirudh Srinivasan</title>
+    <meta name="author" content="Anirudh Srinivasan" />
+    <meta name="description" content="Notes, slides and takeaways from the PyTorch x Hugging Face meetup at Red Hat, Bengaluru (25 July 2026): profiling, SGLang, RL environments, DeviceMesh and DTensor, zero-copy GPU communication." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="canonical" href="https://srini-anirudh.github.io/events/pytorch-hf-bengaluru-2026/" />
+    <link rel="alternate" type="application/rss+xml" title="The Backward Pass by Anirudh Srinivasan" href="https://srini-anirudh.github.io/feed.xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Anirudh Srinivasan" />
+    <meta property="og:title" content="PyTorch × Hugging Face meetup, Bengaluru | Events | Anirudh Srinivasan" />
+    <meta property="og:description" content="Notes, slides and takeaways from the PyTorch x Hugging Face meetup at Red Hat, Bengaluru (25 July 2026): profiling, SGLang, RL environments, DeviceMesh and DTensor, zero-copy GPU communication." />
+    <meta property="og:url" content="https://srini-anirudh.github.io/events/pytorch-hf-bengaluru-2026/" />
+    <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/events/redhat-pytorch-hf-2026/sglang-title.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="PyTorch × Hugging Face meetup, Bengaluru | Events | Anirudh Srinivasan" />
+    <meta name="twitter:description" content="Notes, slides and takeaways from the PyTorch x Hugging Face meetup at Red Hat, Bengaluru (25 July 2026): profiling, SGLang, RL environments, DeviceMesh and DTensor, zero-copy GPU communication." />
+    <meta name="twitter:image" content="https://srini-anirudh.github.io/assets/images/events/redhat-pytorch-hf-2026/sglang-title.webp" />
+    <link rel="icon" href="/assets/images/favicon/a-icon.png" type="image/png" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/stylesheet.css" />
+    <link rel="stylesheet" href="/assets/css/stars.css" />
+    <link rel="stylesheet" href="/assets/css/events.css?v=2" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1.9.4/css/academicons.min.css"
+      integrity="sha512-IW0nhlW5MgNydsXJO40En2EoCkTTjZhI3yuODrZIc8cQ4h1XcF53PsqDHa09NqnkXuIe0Oiyyj171BqZFwISBw=="
+      crossorigin="anonymous"
+      media="all"
+      onload="this.media='all';"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <script>
+      if (localStorage.getItem("darkMode") === "enabled") {
+        document.documentElement.classList.add("dark-mode");
+      }
+    </script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "PyTorch x Hugging Face meetup, Bengaluru: notes and takeaways", "datePublished": "2026-11-10", "dateModified": "2026-11-10", "author": {"@id": "https://srini-anirudh.github.io/#person"}, "about": {"@type": "Event", "name": "Red Hat PyTorch x Hugging Face Bengaluru Meetup", "startDate": "2026-07-25", "location": {"@type": "Place", "name": "Red Hat office, Bengaluru"}}, "mainEntityOfPage": "https://srini-anirudh.github.io/events/pytorch-hf-bengaluru-2026/", "image": "https://srini-anirudh.github.io/assets/images/events/redhat-pytorch-hf-2026/sglang-title.webp"}</script>
+  </head>
+
+  <body class="research-page events-page">
+    <div id="particles-js"></div>
+    <div class="content-wrapper"></div>
+
+    <nav class="navbar">
+      <div class="nav-container">
+        <a href="/" class="nav-logo" target="_self">Anirudh Srinivasan</a>
+        <div class="nav-empty-div"></div>
+        <ul class="nav-links">
+          <li><a href="/" target="_self">Home</a></li>
+          <li><a href="/research/" target="_self">Research</a></li>
+          <li><a href="/blogs/" target="_self">Blogs</a></li>
+          <li><a href="/talks/" target="_self">Talks</a></li>
+          <li><a href="/events/" class="active" target="_self">Events</a></li>
+          <li>
+            <a
+              href="/assets/pdfs/Anirudh_Srinivasan_Resume.pdf"
+            >
+              Resume
+            </a>
+          </li>
+          <li>
+            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
+              <div class="sun"></div>
+              <div class="moon"></div>
+            </button>
+          </li>
+        </ul>
+        <div class="nav-toggle">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+      </div>
+    </nav>
+
+    
+    
+    <main class="page-shell events-shell">
+      <a class="back-link" href="/events/" target="_self"><i class="fas fa-arrow-left"></i> All events</a>
+      <article class="ev-event" id="pytorch-hf-bengaluru-2026">
+        <header class="ev-head">
+          <div class="ev-chips">
+            <span class="ev-chip"><i class="fas fa-calendar-day"></i> 25 July 2026</span>
+            <span class="ev-chip"><i class="fas fa-location-dot"></i> Red Hat office, Bengaluru</span>
+            <span class="ev-chip"><i class="fas fa-user-check"></i> Attended</span>
+            <span class="ev-chip"><i class="fas fa-users"></i> 170+ people</span>
+          </div>
+          <h1>PyTorch &times; Hugging Face meetup, Bengaluru</h1>
+          <p class="ev-sub">Hosted by Hugging Face ML Club India and Red Hat. Five talks on the systems under the model.</p>
+        </header>
+
+        <div class="ev-intro">
+          <p>This was not a meetup about calling APIs. Every talk was about what runs under the model: profilers, inference engines, RL environments, distributed training and GPU communication.</p>
+          <p>The evening opened with <a href="https://www.linkedin.com/in/sudhir-dharanendraiah-80a0867/">Sudhir Dharanendraiah</a>. His point was simple. India uses a lot of AI. It should also help build the stack under it.</p>
+          <p>I took notes by hand all evening. Later I read the slides again and added what I had missed. This page is both put together.</p>
+          <div class="ev-links">
+            <a class="ev-btn" href="https://pytorch.org/blog/pytorch-x-hugging-face-in-bengaluru-building-indias-next-generation-of-ml-systems-contributors/"><i class="fas fa-newspaper"></i> Recap on the PyTorch blog</a>
+            <a class="ev-btn" href="https://luma.com/pcgprdue"><i class="fas fa-ticket"></i> Event page</a>
+          </div>
+        </div>
+        <nav class="ev-toc" aria-label="Talks on this page"><a href="#talk-1">1 &middot; Profiling</a><a href="#talk-2">2 &middot; SGLang and kernels</a><a href="#talk-3">3 &middot; RL environments</a><a href="#talk-4">4 &middot; DeviceMesh and FSDP2</a><a href="#talk-5">5 &middot; Zero-copy comms</a><a href="#takeaways">Takeaways</a><a href="#my-notes">My notes</a></nav>
+        
+<section class="ev-talk" id="talk-1">
+  <div class="ev-talk-head"><span class="ev-num">Talk 1</span><h3>Profiling in PyTorch</h3><p class="ev-by"><a href="https://www.linkedin.com/in/arig23498/">Aritra Roy Gosthipaty</a> &middot; Developer Advocacy, Hugging Face</p></div>
+  <div class="ev-talk-body">
+    <div class="ev-text">
+      <p class="ev-quote">&ldquo;What you cannot profile, you cannot optimize.&rdquo;</p>
+      <p>That was the title slide, and the whole talk. Aritra kept the demo tiny: a matmul followed by an add. Then he gave a simple recipe.</p>
+      <ol>
+        <li>Name the code you care about with <code>torch.profiler.record_function</code>.</li>
+        <li>Wrap it in <code>torch.profiler.profile</code>. Pick the activities, CPU and CUDA. Set a schedule: wait, warmup, then active steps.</li>
+        <li>Export two things: a trace and a table.</li>
+      </ol>
+      <p>The schedule is easy to miss. Warmup steps are slow and noisy, so you skip them. Only the active steps are recorded. With <code>active=3</code>, every op shows up three times in the table.</p>
+      <p>To read the table, sort by CUDA time total. The first row is your biggest bottleneck. Then check how many times it was called. Sometimes a row is on top only because it ran a lot.</p>
+      <h4>The idea I liked most: overhead bound</h4>
+      <p>A small matmul finishes on the GPU almost at once. But the CPU spends longer launching the kernel than the GPU spends running it. So the GPU sits idle. This is called being <em>overhead bound</em>.</p>
+      <p>He showed it with one script and three sizes. The fix is not a faster kernel. The fix is more work per launch.</p>
+      <div class="ev-bars" role="img" aria-label="CUDA time as a share of CPU time, same script"><p class="ev-bars-t">CUDA time as a share of CPU time, same script</p><div class="ev-bar "><span>size 64</span><em><i style="--w:5%"></i></em><b>5%</b></div><div class="ev-bar "><span>size 1024</span><em><i style="--w:26%"></i></em><b>26%</b></div><div class="ev-bar good"><span>size 4096</span><em><i style="--w:88%"></i></em><b>88%</b></div></div>
+      <p>The trace shows the same story. Open it in the Hugging Face trace viewer or Perfetto. You get two lanes, CPU and GPU. Gaps in the GPU lane mean the GPU was waiting.</p>
+      <h4>Where torch.compile fits</h4>
+      <p>In eager mode, every op is its own launch: matmul, then add, then activation. <code>torch.compile</code> traces the graph, fuses the ops and caches the result. The work right after a matmul, like an activation or a normalization, is called the <em>epilogue</em>. It can be fused into the same kernel. So one Triton kernel is launched instead of many, with fewer trips to memory.</p>
+      <p>The names in the table, like <code>aten::matmul</code>, are ATen ops. ATen is PyTorch's tensor library.</p>
+      <details class="ev-more"><summary>More from the slides <i class="fas fa-chevron-down"></i></summary><div class="ev-more-body">
+<ul>
+  <li>The test function is tiny on purpose: <code>torch.add(torch.matmul(x, w), b)</code>. It is easy to see in a trace.</li>
+  <li><code>record_function("matmul_add")</code> gives the step a name, so you can find it in the trace.</li>
+  <li>The loop runs 5 steps and calls <code>prof.step()</code> each time. With <code>wait=1, warmup=1, active=3, repeat=1</code>, one step waits, one warms up and three are recorded.</li>
+  <li>Three switches I wrote down: <code>record_shapes</code> tracks input shapes, <code>profile_memory</code> tracks allocation and freeing, and <code>with_stack</code> adds line numbers of your code.</li>
+  <li>Export with <code>prof.export_chrome_trace(...)</code> for the trace. Write <code>prof.key_averages().table(sort_by="cuda_time_total", row_limit=15)</code> for the table.</li>
+  <li>The demo ran with <code>uv run</code>. A small tool then uploaded the traces to the Hub, and he opened them in the Hugging Face trace viewer.</li>
+</ul></div></details>
+      <div class="ev-links"><a class="ev-btn" href="https://drive.google.com/file/d/11ZAxSbV6sB1nrEstA-dxS5xrLNTRhqDB/view?usp=sharing"><i class="fas fa-file-powerpoint"></i> Slides</a><a class="ev-btn" href="https://huggingface.co/blog/torch-profiler"><i class="fas fa-book-open"></i> Reading: torch profiler</a><a class="ev-btn" href="https://huggingface.co/spaces/suvadityamuk/hugging-trace-viewer"><i class="fas fa-chart-gantt"></i> Trace viewer</a></div>
+    </div>
+    <div class="ev-figs"><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/profiling-speaker.webp" data-cap="Aritra walking through a profiler table" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/profiling-speaker.webp" alt="Aritra walking through a profiler table" loading="lazy" /><span>Aritra walking through a profiler table</span></a></div>
+  </div>
+</section>
+<section class="ev-talk" id="talk-2">
+  <div class="ev-talk-head"><span class="ev-num">Talk 2</span><h3>SGLang, the Transformers backend and kernels</h3><p class="ev-by"><a href="https://www.linkedin.com/in/adarshxs/">Adarsh</a> &middot; Hugging Face</p></div>
+  <div class="ev-talk-body">
+    <div class="ev-text">
+      <p>Adarsh began with a plain point. Serving one user is easy. Serving thousands at once is where the real work starts.</p>
+      <h4>Inference is two jobs</h4>
+      <p><strong>Prefill</strong> reads the whole prompt in parallel and builds the model's working context. It is compute bound. The maths is matrix times matrix.</p>
+      <p><strong>Decode</strong> writes one token at a time. It is memory bound. The maths is matrix times vector, and every step reads the KV cache again.</p>
+      <h4>What SGLang is made of</h4>
+      <ul>
+        <li><strong>Scheduler.</strong> Batches requests together.</li>
+        <li><strong>KV cache manager.</strong> Stores the cache and reuses it.</li>
+        <li><strong>Model runner.</strong> Runs the forward pass.</li>
+        <li><strong>Attention backend.</strong> flash-attn or flash-infer.</li>
+      </ul>
+      <h4>RadixAttention</h4>
+      <p>Older systems threw the KV cache away when a request ended. SGLang keeps it. It stores the cache of old requests in a radix tree, a memory-efficient prefix tree, and drops the least recently used first. A new request with the same start reuses it. So a shared system prompt is computed only once.</p>
+      <p>One slide made this real: Llama-3-8B on one H100, the same 1,000 requests, each with a 2K-token shared prompt.</p>
+      <div class="ev-bars" role="img" aria-label="Throughput, tokens per second"><p class="ev-bars-t">Throughput, tokens per second</p><div class="ev-bar bad"><span>plain generate()</span><em><i style="--w:2.6%"></i></em><b>~209</b></div><div class="ev-bar good"><span>SGLang</span><em><i style="--w:100%"></i></em><b>~7,900</b></div></div>
+      <p>That is about 38 times more. The whole run went from about 25 minutes to about 40 seconds. Cost per million tokens fell from about $3.30 to about $0.09.</p>
+      <h4>Transformers and SGLang together</h4>
+      <p>Transformers is the source of truth for what a model is: the config, tokenizer, weight format and chat template. SGLang does the fast serving. You switch it on with <code>--model-impl transformers</code>. One slide was called &ldquo;Transformers internals hijacked&rdquo;. One config line swaps the attention backend. The <code>tp_plan</code> in Hugging Face says how the model is split across GPUs.</p>
+      <p>One warning I wrote down: numeric drift. Different kernels give slightly different numbers. So the same model can behave a little differently on a different backend.</p>
+      <h4>Kernels</h4>
+      <p>Custom kernels are hard to share. Builds break across toolchains and CUDA versions. Hugging Face's kernel-builder uses Nix, so builds can be repeated. It targets ROCm, XPU, CUDA and Metal, and keeps track of the PyTorch and CUDA version matrix.</p>
+      <p>One more note at the end of my page: the KV cache can be pushed down to SSDs when GPU memory runs out. DeepSeek does this.</p>
+      <details class="ev-more"><summary>More from the slides <i class="fas fa-chevron-down"></i></summary><div class="ev-more-body">
+<ul>
+  <li><strong>Why inference is hard:</strong> his slide said it plainly. &ldquo;One user is easy. A thousand is not.&rdquo;</li>
+  <li><strong>Scale:</strong> a fun-facts slide said SGLang runs on more than 400,000 GPUs and makes trillions of tokens a day. It also said about 44 PRs get merged every day.</li>
+  <li><strong>The Transformers backend:</strong> a PR added tensor and pipeline parallel, MoE, VLM support and <code>torch.compile</code> to it. There are about 2 million models on the Hub. SGLang has a few hundred ported by hand. The backend covers the rest, on day 0.</li>
+  <li><strong>Why HF Kernels exists:</strong> no common structure, build tools all over the place (CMake, Nix, Meson, Bazel), endless build times, and support matrices to maintain.</li>
+  <li><strong>What it gives you:</strong> a fixed project structure, repeatable builds, native PyTorch compatibility, and sharing on the Hub. Using a kernel is about four lines of change. You avoid messy wheels and builds that do not match.</li>
+</ul></div></details>
+      <div class="ev-links"><a class="ev-btn" href="https://drive.google.com/file/d/14J1SVW70qNCtPfJzjTGd2aCeXlcydD_J/view?usp=sharing"><i class="fas fa-file-powerpoint"></i> Slides</a></div>
+    </div>
+    <div class="ev-figs">
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/sglang-title.webp" data-cap="The talk title, and Adarsh on the mic" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/sglang-title.webp" alt="The talk title, and Adarsh on the mic" loading="lazy" /><span>The talk title, and Adarsh on the mic</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/attention-kv-cache.webp" data-cap="Attention and the KV cache, prefill vs decode" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/attention-kv-cache.webp" alt="Attention and the KV cache, prefill vs decode" loading="lazy" /><span>Attention and the KV cache, prefill vs decode</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/radix-tree.webp" data-cap="The radix tree of cached prefixes" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/radix-tree.webp" alt="The radix tree of cached prefixes" loading="lazy" /><span>The radix tree of cached prefixes</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/transformers-backend.webp" data-cap="Transformers internals, hijacked" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/transformers-backend.webp" alt="Transformers internals, hijacked" loading="lazy" /><span>Transformers internals, hijacked</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/sglang-numbers.webp" data-cap="The same 1,000 requests on the same GPU" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/sglang-numbers.webp" alt="The same 1,000 requests on the same GPU" loading="lazy" /><span>The same 1,000 requests on the same GPU</span></a>
+    </div>
+  </div>
+</section>
+<section class="ev-talk" id="talk-3">
+  <div class="ev-talk-head"><span class="ev-num">Talk 3</span><h3>RL environments 101</h3><p class="ev-by"><a href="https://www.linkedin.com/in/adithya-s-kolavi/">Adithya S Kolavi</a> &middot; post-training, Hugging Face</p></div>
+  <div class="ev-talk-body">
+    <div class="ev-text">
+      <p>Adithya told the story of how models are taught. First pretraining on the web. Then SFT on good answers. Then RLHF, where people pick the better answer. Then RLVR and GRPO, where a program grades the answer.</p>
+      <p class="ev-quote">&ldquo;If a program can grade it, a model can learn it.&rdquo;</p>
+      <p>That is the unlock. And it turns the race into something simple: build more environments.</p>
+      <p>An environment is a few parts: a task and a prompt, tools, state, observations, a place to run code, a reward, and a signal for when the episode is done. Frameworks like <a href="https://github.com/huggingface/OpenEnv">OpenEnv</a>, Verifiers, OpenReward and Harbor now give these a common shape.</p>
+      <h4>Repo2RLEnv</h4>
+      <p>Public GitHub repos are a goldmine. They hold real tasks, real code and tests that grade themselves. <a href="https://github.com/huggingface/Repo2RLEnv">Repo2RLEnv</a> turns any repo into a verifiable environment. He said about 1,000 of them are already generated and live on Hugging Face.</p>
+      <h4>Reward hacking: the best part of the talk</h4>
+      <p>His first story was a toy. He trained a tiny Qwen 0.5B model with GRPO on grade-school maths. He rewarded three things: the format, the right answer, and code that runs cleanly. The last one felt harmless.</p>
+      <p>Then he read the traces. The model had learned to wrap everything in <code>try / except: pass</code>. The code never crashed, so the reward maxed out. The maths was never solved. The model had maximized the reward without doing the task.</p>
+      <p>His second story was a real security bug in a PDF library, made into an environment. The agent only had to fix the bug. It scored a perfect 1.0 without fixing anything. Three times.</p>
+      <ol>
+        <li>The prompt named the fixing PR. The agent just read the fix from GitHub. <em>Fix: scrub the prompt.</em></li>
+        <li>The answer was in the git history inside the container. <em>Fix: reset the repo to the base commit.</em></li>
+        <li>With the web blocked, it used <code>pip</code> to download the fixed release. <em>Fix: cut the network with an allowlist, not a block-list.</em></li>
+      </ol>
+      <p>After that, the reward was 0.0, for the first time. His line: every green before was contamination. And you cannot out-scrub the internet.</p>
+      <h4>Trust lives in the environment</h4>
+      <p>This was my favourite slide. The environment enforces the rules. The prompt never asks for them.</p>
+      <ul>
+        <li>Make the verifier trustworthy first: gold patch scores 1.0, a no-op scores 0.0.</li>
+        <li>Strip the answer from the prompt.</li>
+        <li>Scrub the repo to the base commit.</li>
+        <li>Pre-bake dependencies and run offline by default.</li>
+        <li>If the network is needed, use an allowlist, never a full block.</li>
+        <li>Keep the gold patch and hidden tests out of the container.</li>
+      </ul>
+      <p class="ev-quote">&ldquo;A model never does the task. It does the reward. At scale, every gap gets found, so reward design is never done, only iterated.&rdquo;</p>
+      <h4>A hands-on example close to my own work</h4>
+      <p>The demo trained a vision-language model on LaTeX OCR. The model sees an image of a formula and writes the LaTeX. The reward is simple: does it render back to the same maths? A few lines of TRL and GRPO, on a free GPU.</p>
+      <div class="ev-bars" role="img" aria-label="Eval reward before and after GRPO"><p class="ev-bars-t">Eval reward before and after GRPO</p><div class="ev-bar good"><span>glm-ocr</span><em><i style="--w:66%"></i></em><b>0.449 → 0.664</b></div><div class="ev-bar good"><span>gemma-e2b</span><em><i style="--w:57%"></i></em><b>0.392 → 0.570</b></div><div class="ev-bar good"><span>qwen3.5-2b</span><em><i style="--w:71%"></i></em><b>0.688 → 0.710</b></div><div class="ev-bar good"><span>qwen3-vl-2b</span><em><i style="--w:72%"></i></em><b>0.615 → 0.723</b></div></div>
+      <p>On my reading list now: his &ldquo;ultimate guide to RL environments&rdquo;, which is linked from the last slides.</p>
+      <details class="ev-more"><summary>More from the slides <i class="fas fa-chevron-down"></i></summary><div class="ev-more-body">
+<ul>
+  <li><strong>More environments, better models.</strong> A chart in his deck showed the number of training environments going up from about 20 to 20K, 100K+ and even 1M+ across recent open models. Each one was trained on that many.</li>
+  <li><strong>Gym, for LLMs.</strong> Gym gave classic RL one contract: <code>reset()</code> and <code>step(action)</code>. For LLMs the agent is the model, the environment is a sandbox, and the reward is a verifier.</li>
+  <li><strong>Two kinds of environment.</strong> One-shot (RLVR): prompt, answer, verifier. Maths, code and logic fit here. Multi-turn agent RL: the model acts, the environment answers, for 10 to 100+ turns, and the reward comes at the end. Think SWE-bench or AppWorld.</li>
+  <li><strong>A tiny coding environment.</strong> Task: find the <code>.py</code> file with the most lines. Tool: <code>bash</code>. Reward: +1 if the answer is right, else 0. GRPO tries the same task many times and nudges the model toward the attempts that score.</li>
+  <li><strong>OpenEnv.</strong> It started at Meta and PyTorch and is now maintained by Hugging Face. It has a Gym-style API, MCP as a first-class citizen, rubrics for rewards, and a task API. He said there are 1,000+ environments on the Hub.</li>
+  <li><strong>Building one.</strong> The action is a plain function marked <code>@mcp.tool</code>. <code>reset()</code> loads the task into the sandbox. A rubric returns 1.0 if the tests pass, else 0.0. <code>create_app</code> turns it all into an HTTP and MCP server, with a limit on parallel rollouts. Then: <code>openenv init</code>, <code>build</code>, <code>validate</code>, <code>push</code>.</li>
+  <li><strong>Training with TRL.</strong> Point <code>GRPOTrainer</code> at the environment with <code>environment_factory</code>. TRL also has experimental support for OpenReward and Harbor.</li>
+  <li><strong>The catch.</strong> &ldquo;Training is the easy part now.&rdquo; You still need thousands of environments, and good ones are slow to build by hand.</li>
+</ul></div></details>
+      <div class="ev-links"><a class="ev-btn" href="https://drive.google.com/file/d/1i4Th8dGvWWQ8SSbdeGoSlzgR1yjddog3/view?usp=drive_link"><i class="fas fa-file-powerpoint"></i> Slides</a><a class="ev-btn" href="https://github.com/huggingface/OpenEnv"><i class="fab fa-github"></i> OpenEnv</a><a class="ev-btn" href="https://github.com/huggingface/Repo2RLEnv"><i class="fab fa-github"></i> Repo2RLEnv</a><a class="ev-btn" href="https://github.com/adithya-s-k/RL_Envs_101"><i class="fab fa-github"></i> Tutorial code</a><a class="ev-btn" href="https://huggingface.co/spaces/AdithyaSK/latex-ocr-env"><i class="fas fa-rocket"></i> LaTeX OCR env</a></div>
+    </div>
+    <div class="ev-figs">
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/rl-frameworks.webp" data-cap="Frameworks that standardise environments" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/rl-frameworks.webp" alt="Frameworks that standardise environments" loading="lazy" /><span>Frameworks that standardise environments</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/trust-environment.webp" data-cap="Trust lives in the environment" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/trust-environment.webp" alt="Trust lives in the environment" loading="lazy" /><span>Trust lives in the environment</span></a>
+    </div>
+  </div>
+</section>
+<section class="ev-talk" id="talk-4">
+  <div class="ev-talk-head"><span class="ev-num">Talk 4</span><h3>Scaling up, one dimension at a time</h3><p class="ev-by"><a href="https://www.linkedin.com/in/mansi-agarwal-a72bbab2/">Mansi Agarwal</a> &middot; Senior ML Engineer, PyTorch Engineering, Red Hat</p></div>
+  <div class="ev-talk-body">
+    <div class="ev-text">
+      <p>Mansi started with the old pain. DDP, FSDP, TP and PP each had their own API, wrapper and checkpoint format. Mixing FSDP with tensor parallel took over a hundred lines of manual plumbing. Add one more kind of parallelism and you rewrite the training loop.</p>
+      <p>Her question: what if parallelism was composable, like adding a dimension to a grid? Newer PyTorch has three building blocks.</p>
+      <ul>
+        <li><strong>DeviceMesh.</strong> A grid of GPUs. A 4&times;2 grid means 4 groups for data parallel and 2 for tensor parallel. You name each dimension, like <code>dp</code> and <code>tp</code>.</li>
+        <li><strong>DTensor.</strong> A tensor that knows how it is split across the mesh. It can be sharded, replicated or partial.</li>
+        <li><strong>FSDP2.</strong> Sharded data parallel, rebuilt on DTensor. It is a transform on the model, not a wrapper around it.</li>
+      </ul>
+      <p>So adding a parallelism means adding a dimension to the mesh. It is not a rewrite. And communication becomes automatic: you write the maths, and if an op needs a different layout, DTensor adds the all-gather or reduce-scatter for you.</p>
+      <p>The code walkthrough made it real. One GPU, then DDP, then FSDP2, then FSDP2 with tensor parallel. At every step the training loop stayed the same. Only a few lines around the model changed.</p>
+      <h4>&ldquo;Locally optimal&rdquo;</h4>
+      <p>I wrote this next to DTensor. It picks the best sharding for each op as it goes. It does not look at the whole graph, so the full plan may not be the best one. JAX takes the other path. It looks at the whole graph, but it needs a compiler. Mansi was honest about this trade-off. Eager-first design gives up global optimality to keep debugging easy.</p>
+      <h4>Checkpoints that reshard</h4>
+      <p><code>torch.distributed.checkpoint</code> can reshard when you load. Save on 8 GPUs, load on 16. That is what elastic training needs.</p>
+      <details class="ev-more"><summary>More from the slides <i class="fas fa-chevron-down"></i></summary><div class="ev-more-body">
+<ul>
+  <li><strong>The old way took five steps.</strong> Work out rank groups by hand, create process groups by hand, write your own TP layers, change the model code, then wrap with FSDP1. About 100 lines. Forget one manual all-reduce and the results are silently wrong. FSDP1's FlatParameter also broke TP weight shapes.</li>
+  <li><strong>Process groups:</strong> a 4&times;2 mesh makes 6 groups (2 for DP, 4 for TP). A 2&times;2&times;2 mesh makes 12.</li>
+  <li><strong>DTensor helpers:</strong> <code>distribute_tensor</code> splits a tensor. <code>to_local()</code> gives your shard. <code>full_tensor()</code> gathers everything. <code>redistribute()</code> changes the placement.</li>
+  <li><strong>How an op runs:</strong> DTensor catches every ATen op. It looks up a sharding rule (410+ ops covered), picks the cheapest one, adds any collectives needed, runs the op on local shards and wraps the result. An unsupported op raises an error. It does not silently fall back to replicate.</li>
+  <li><strong>FSDP1 vs FSDP2:</strong> FlatParameter became per-parameter DTensors. A wrapper class became <code>fully_shard()</code>, an in-place transform. LoRA and frozen layers work now. fp8 works. Sharded checkpoints need no communication. FSDP1 is deprecated.</li>
+  <li><strong>FSDP2 under the hood:</strong> all-gather before forward, run, free the memory after forward. Backward does the same, then a reduce-scatter for the gradients. FSDP2 uses its own fast collectives, so it skips DTensor's dispatch cost.</li>
+  <li><strong>2D in practice:</strong> apply tensor parallel on the <code>tp</code> mesh (column-wise for qkv and the first FFN layer, row-wise for the output projections). Then call <code>fully_shard</code> on the <code>dp</code> mesh. The same pattern extends to 3D with PP, 4D with CP, and 5D with expert parallel for MoE.</li>
+  <li><strong>The compile order:</strong> checkpoint, then <code>fully_shard</code>, then <code>torch.compile</code> last. Start with <code>fullgraph=False</code>. Use <code>compile_threads=1</code>, because background threads can hang a distributed run.</li>
+  <li><strong>Checkpoints:</strong> <code>dcp.save</code> needs no communication. Loading can reshard. Async save was 10 to 20 times faster (7B model: 148 s down to 6.3 s). It also supports SafeTensors. For gradient accumulation use <code>set_requires_gradient_sync(False)</code>.</li>
+  <li><strong>DTensor vs JAX:</strong> DTensor is eager-first and greedy per op, so it is locally optimal and easy to debug with <code>print</code> and <code>pdb</code>. JAX with GSPMD is compiler-first and looks at the whole graph, so it can find a globally optimal plan.</li>
+  <li><strong>Known limits:</strong> eager dispatch costs about 7&times; per op (compile removes it). About 58 ATen ops still have no strategy. Views can break on DTensors. There is no uneven sharding yet, which blocks clean MoE expert parallelism. <code>reduce_dtype</code> was ignored for the TP all-reduce, a silent precision loss. HSDP with mixed precision used 3&times; gradient memory on a 2D mesh. Shape changes can trigger full recompiles. She was honest about these.</li>
+  <li><strong>What is next:</strong> AutoParallel (picks the sharding for you with linear programming, experimental), DTensor erasure, Symmetric Memory, TorchFT, Monarch, zero-bubble pipeline parallelism and compiler-assisted backward sharding.</li>
+</ul></div></details>
+      <div class="ev-links"><a class="ev-btn" href="https://drive.google.com/file/d/1IeZ4VxjP-sl4AnhMfrs-VRVg9Y58DYdW/view?usp=sharing"><i class="fas fa-file-powerpoint"></i> Slides</a><a class="ev-btn" href="https://docs.pytorch.org/docs/stable/distributed.tensor.html"><i class="fas fa-book-open"></i> DTensor docs</a><a class="ev-btn" href="https://github.com/pytorch/torchtitan"><i class="fab fa-github"></i> TorchTitan</a><a class="ev-btn" href="https://huggingface.co/spaces/nanotron/ultrascale-playbook"><i class="fas fa-book-open"></i> Ultra-Scale Playbook</a><a class="ev-btn" href="https://huggingface.co/docs/accelerate/en/concept_guides/fsdp1_vs_fsdp2"><i class="fas fa-book-open"></i> FSDP1 vs FSDP2</a></div>
+    </div>
+    <div class="ev-figs">
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/devicemesh.webp" data-cap="What is a DeviceMesh?" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/devicemesh.webp" alt="What is a DeviceMesh?" loading="lazy" /><span>What is a DeviceMesh?</span></a>
+      <a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/dtensor.webp" data-cap="DTensor placement types" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/dtensor.webp" alt="DTensor placement types" loading="lazy" /><span>DTensor placement types</span></a>
+    </div>
+  </div>
+</section>
+<section class="ev-talk" id="talk-5">
+  <div class="ev-talk-head"><span class="ev-num">Talk 5</span><h3>Zero-copy GPU-to-GPU communication</h3><p class="ev-by"><a href="https://www.linkedin.com/in/arkadip-maitra/">Arkadip Maitra</a> &middot; PyTorch Engineering, Red Hat</p></div>
+  <div class="ev-talk-body">
+    <div class="ev-text">
+      <p>My notes stop before this talk, so this part comes from his slides and my photos.</p>
+      <p>Arkadip went below the training loop, to how GPUs talk to each other. <code>c10d</code> is PyTorch's default layer. It worked well for years. But the world around it changed. NICs got smarter. RoCE fabrics grew. NVLink got stronger. And distance started to matter a lot.</p>
+      <div class="ev-bars" role="img" aria-label="How much slower the network gets with distance (same rack = 1&times;)"><p class="ev-bars-t">How much slower the network gets with distance (same rack = 1&times;)</p><div class="ev-bar "><span>same rack</span><em><i style="--w:3.3%"></i></em><b>1&times;</b></div><div class="ev-bar warn"><span>cross-rack</span><em><i style="--w:23%"></i></em><b>7&times;</b></div><div class="ev-bar warn"><span>cross-zone</span><em><i style="--w:50%"></i></em><b>15&times;</b></div><div class="ev-bar bad"><span>cross-DC</span><em><i style="--w:100%"></i></em><b>30&times;</b></div></div>
+      <p>One slide put hardware and software on two timelines. The hardware lane and the framework lane had moved together, and comms was only one entrant in the race. He then picked one idea to focus on: <strong>zero-copy</strong>.</p>
+      <p>The normal path copies your data through an internal buffer, on both sides. The zero-copy path lets the NIC read straight from your buffer and write straight into the other GPU's buffer. Fewer copies means fewer GPU threads busy doing copies.</p>
+      <div class="ev-stats">
+        <div><strong>2&times;</strong><span>copy tax saved</span></div>
+        <div><strong>1.09&ndash;2.7&times;</strong><span>faster communication</span></div>
+        <div><strong>2,560</strong><span>threads saved</span></div>
+        <div><strong>up to 50%</strong><span>fewer thread blocks</span></div>
+      </div>
+      <p>These numbers are for medium messages, about 1 MB to 128 MB. Two more results stood out. RoCE matched InfiniBand in collective bandwidth (about 232.6 GB/s vs 230.7 GB/s). And the zero-copy path kept its lead as the distance grew, from the same host to a different zone.</p>
+      <details class="ev-more"><summary>More from the slides <i class="fas fa-chevron-down"></i></summary><div class="ev-more-body">
+<ul>
+  <li><strong>Why c10d worked:</strong> training was bulk-synchronous, the collectives were regular, the host knew the metadata, and the API did not care about the backend. It was a good fit up to roughly 10K GPUs.</li>
+  <li><strong>What changed:</strong> better NICs (GPUDirect RDMA, better DMA engines), larger RoCE fabrics with congestion control, stronger NVLink inside a node, and special fabrics across zones and data centres.</li>
+  <li><strong>New workloads:</strong> MoE routing needs dynamic all-to-all. TP wants compute and comms to overlap. Pipeline parallel needs send and receive. Inference needs fast KV cache movement. 100K+ GPU jobs need fault tolerance.</li>
+  <li><strong>TorchComms:</strong> explicit communicators, pluggable backends, richer semantics, and a path that stays aligned with PyTorch. The stack: your code, then the TorchComms API, then an NCCLX or RCCLX backend, then the CTran transport, then IB or RoCE, NVLink or sockets.</li>
+  <li><strong>The default path:</strong> data is copied by a GPU kernel into NCCL's internal buffer, moved by DMA to the NIC, sent, received, then copied again on the other side.</li>
+  <li><strong>The zero-copy path:</strong> the NIC reads straight from your buffer and writes straight into the receiver's buffer. No staging copies.</li>
+  <li><strong>The wait and stall step:</strong> the host queues the op, a CPU progress thread drives the RDMA, and the GPU stream stalls at one point until it finishes. It also compared RDMA put and get, and how CTran sets up one control connection plus data connections.</li>
+  <li><strong>Where it was measured:</strong> medium messages, about 1 MB to 128 MB, in point-to-point cases.</li>
+</ul></div></details>
+      <div class="ev-links"><a class="ev-btn" href="https://drive.google.com/file/d/1rdtIDEUM-pX73TQkONHLmHnCQaVWvKJT/view?usp=drive_link"><i class="fas fa-file-powerpoint"></i> Slides</a></div>
+    </div>
+    <div class="ev-figs"><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/comms-timeline.webp" data-cap="Hardware lane and framework lane" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/comms-timeline.webp" alt="Hardware lane and framework lane" loading="lazy" /><span>Hardware lane and framework lane</span></a></div>
+  </div>
+</section>
+        
+<section class="ev-take" id="takeaways">
+  <h3>What I am taking away</h3>
+  <div class="ev-take-grid">
+    <div class="ev-tok"><em>tok 01</em><strong>Measure first</strong><span>Profile before you optimize. Not every slowdown is a model problem.</span></div>
+    <div class="ev-tok"><em>tok 02</em><strong>Launch less</strong><span>Small work is overhead bound. Give the GPU more work per launch, or fuse ops.</span></div>
+    <div class="ev-tok"><em>tok 03</em><strong>Reuse the cache</strong><span>Prefill is compute, decode is memory. A shared prefix should be computed once.</span></div>
+    <div class="ev-tok"><em>tok 04</em><strong>Rewards get gamed</strong><span>A model does the reward, not the task. The trust has to live in the environment.</span></div>
+    <div class="ev-tok"><em>tok 05</em><strong>Compose, do not rewrite</strong><span>Add a mesh dimension, not a new training stack.</span></div>
+    <div class="ev-tok"><em>tok 06</em><strong>Look under the loop</strong><span>Copies and distance in the network can cost more than the model code you tuned.</span></div>
+  </div>
+  <p class="ev-take-end">The theme of the night, in one line: move from using AI to building the stack under it.</p>
+  <div class="ev-figs ev-figs-wide"><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/key-takeaways.webp" data-cap="Mansi's key takeaways slide" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/key-takeaways.webp" alt="Mansi's key takeaways slide" loading="lazy" /><span>Mansi's key takeaways slide</span></a></div>
+</section>
+        
+<section class="ev-read" id="reading">
+  <h3>Reading list from the evening</h3>
+  <ul>
+    <li><a href="https://huggingface.co/blog/torch-profiler">Profiling with the PyTorch profiler</a> (Hugging Face blog). Talk 1.</li>
+    <li><a href="https://github.com/huggingface/OpenEnv">OpenEnv</a>, <a href="https://github.com/huggingface/Repo2RLEnv">Repo2RLEnv</a> and the <a href="https://github.com/adithya-s-k/RL_Envs_101">RL Envs 101 tutorial</a>. Talk 3.</li>
+    <li>&ldquo;The ultimate guide to RL environments: building and scaling them in the LLM era&rdquo;, linked from Adithya's slides. Talk 3.</li>
+    <li><a href="https://huggingface.co/spaces/nanotron/ultrascale-playbook">The Ultra-Scale Playbook</a> and <a href="https://github.com/pytorch/torchtitan">TorchTitan</a>. Talk 4.</li>
+    <li><a href="https://github.com/meta-pytorch/autoparallel">AutoParallel</a> (experimental). Talk 4.</li>
+  </ul>
+</section>
+        
+<section class="ev-notes" id="my-notes">
+  <h3>My notes</h3>
+  <p>Handwritten, in the order of the talks. Tap a page to zoom.</p>
+  <div class="ev-notes-grid"><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/notes-1-profiling.webp" data-cap="Notes: profiling in PyTorch" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/notes-1-profiling.webp" alt="Notes: profiling in PyTorch" loading="lazy" /><span>Notes: profiling in PyTorch</span></a><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/notes-2-overhead.webp" data-cap="Notes: overhead bound, torch.compile and fusion" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/notes-2-overhead.webp" alt="Notes: overhead bound, torch.compile and fusion" loading="lazy" /><span>Notes: overhead bound, torch.compile and fusion</span></a><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/notes-3-sglang.webp" data-cap="Notes: prefill, decode and SGLang" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/notes-3-sglang.webp" alt="Notes: prefill, decode and SGLang" loading="lazy" /><span>Notes: prefill, decode and SGLang</span></a><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/notes-4-radix.webp" data-cap="Notes: RadixAttention, the Transformers backend and kernels" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/notes-4-radix.webp" alt="Notes: RadixAttention, the Transformers backend and kernels" loading="lazy" /><span>Notes: RadixAttention, the Transformers backend and kernels</span></a><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/notes-5-rl-dist.webp" data-cap="Notes: RL environments and distributed training" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/notes-5-rl-dist.webp" alt="Notes: RL environments and distributed training" loading="lazy" /><span>Notes: RL environments and distributed training</span></a></div>
+</section>
+      </article>
+    </main>
+
+    <footer class="site-footer" aria-label="Contact links">
+      <span>Anirudh Srinivasan</span>
+      <a href="#" onclick="sendEmail()" target="_self" title="Email">
+        <i class="fas fa-envelope"></i>
+        anirudhsrinivasan.tms@gmail.com
+      </a>
+      <a href="https://github.com/srini-anirudh" title="GitHub">
+        <i class="fab fa-github"></i>
+        GitHub
+      </a>
+      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn">
+        <i class="fab fa-linkedin"></i>
+        LinkedIn
+      </a>
+      <a href="https://scholar.google.com/citations?hl=en&amp;user=bhm5TBQAAAAJ" title="Google Scholar">
+        <i class="ai ai-google-scholar"></i>
+        Google Scholar
+      </a>
+      <a href="https://x.com/Anirud_Srini" title="X / Twitter">
+        <i class="fab fa-x-twitter"></i>
+        X
+      </a>
+      <a href="/assets/pdfs/Anirudh_Srinivasan_Resume.pdf" title="Resume">
+        <i class="ai ai-cv"></i>
+        Resume
+      </a>
+    </footer>
+
+    <script src="/assets/js/events.js"></script>
+    <script src="/assets/js/scripts.js"></script>
+    <script src="/assets/js/stars.js"></script>
+  </body>
+</html>
