@@ -44,7 +44,7 @@
   next.addEventListener("click", function () { go(1); });
   if (full) {
     full.addEventListener("click", function () {
-      var el = root.querySelector(".sv-stage");
+      var el = root;
       if (document.fullscreenElement) { document.exitFullscreen(); }
       else if (el.requestFullscreen) { el.requestFullscreen(); }
     });

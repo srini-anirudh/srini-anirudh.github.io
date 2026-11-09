@@ -6,7 +6,8 @@
     <title>ML in Astronomy | Epoch, IIT Hyderabad | Anirudh Srinivasan</title>
     <meta name="author" content="Anirudh Srinivasan" />
     <meta name="description" content="ML in Astronomy: a session by Epoch, the AI-ML and Data Science Club at IIT Hyderabad (Mar 22, 2023). Browse all 262 slides online." />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050a18" />
     <link rel="canonical" href="https://srini-anirudh.github.io/talks/epoch/ml-in-astronomy/" />
     <meta property="og:type" content="article" />
     <meta property="og:site_name" content="Anirudh Srinivasan" />
@@ -16,81 +17,39 @@
     <meta property="og:image" content="https://srini-anirudh.github.io/assets/images/thumbnails/epoch-ml-in-astronomy-thumb.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="../../../assets/images/favicon/a-icon.png" type="image/png" />
-    <link rel="stylesheet" type="text/css" href="../../../assets/css/stylesheet.css" />
-    <link rel="stylesheet" href="../../../assets/css/stars.css" />
-    <link rel="stylesheet" href="../../../assets/css/talks.css?v=17" />
-    <link rel="stylesheet" href="../../../assets/css/epoch-viewer.css?v=2" />
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <link rel="stylesheet" href="../../../assets/css/epoch-viewer.css?v=4" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <script>
-      if (localStorage.getItem("darkMode") === "enabled") {
-        document.documentElement.classList.add("dark-mode");
-      }
-    </script>
   </head>
 
-  <body class="research-page talks-page epoch-page">
-    <div id="particles-js"></div>
-    <div class="content-wrapper"></div>
-
-    <nav class="navbar">
-      <div class="nav-container">
-        <a href="/" class="nav-logo" target="_self">Anirudh Srinivasan</a>
-        <div class="nav-empty-div"></div>
-        <ul class="nav-links">
-          <li><a href="/" target="_self">Home</a></li>
-          <li><a href="/research/" target="_self">Research</a></li>
-          <li><a href="/blogs/" target="_self">Blogs</a></li>
-          <li><a href="/talks/" class="active" target="_self">Talks</a></li>
-          <li><a href="../../../assets/pdfs/Anirudh_Srinivasan_Resume.pdf">Resume</a></li>
-          <li>
-            <button class="color-mode-toggle" aria-label="Toggle color mode" title="Toggle color mode">
-              <div class="sun"></div>
-              <div class="moon"></div>
-            </button>
-          </li>
-        </ul>
-        <div class="nav-toggle">
-          <div class="bar"></div>
-          <div class="bar"></div>
-          <div class="bar"></div>
-        </div>
-      </div>
-    </nav>
-
-    <main class="page-shell">
-      <a class="epoch-back" href="/talks/#epoch" target="_self">&larr; All Epoch sessions</a>
-      <header class="epoch-head">
-        <h1>ML in Astronomy</h1>
-        <p class="epoch-meta"><em>Community session, with Cepheid</em> &middot; Epoch, IIT Hyderabad &middot; Mar 22, 2023</p>
-        <p class="epoch-blurb">A hands-on session on the statistics and ML libraries commonly used for astronomical data analysis, such as AstroML and AstroPy, with a few exercises. The pages below are the lecture notes.</p>
+  <body class="epoch-deck-page">
+    <div id="slide-viewer" class="deck" data-count="262" data-base="slides/">
+      <header class="deck-top">
+        <a class="deck-back" href="/talks/#epoch" target="_self"><i class="fas fa-arrow-left"></i><span>Epoch sessions</span></a>
+        <details class="deck-about">
+          <summary><span class="deck-title">ML in Astronomy</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary>
+          <div class="deck-about-body">
+            <p class="epoch-meta"><em>Community session, with Cepheid</em> &middot; Epoch, IIT Hyderabad &middot; Mar 22, 2023</p>
+            <p class="epoch-blurb">A hands-on session on the statistics and ML libraries commonly used for astronomical data analysis, such as AstroML and AstroPy, with a few exercises. The pages below are the lecture notes.</p>
+          </div>
+        </details>
       </header>
-
-      <div id="slide-viewer" data-count="262" data-base="slides/">
-        <div class="sv-stage">
-          <img class="sv-img" src="slides/001.webp" alt="Slide 1 of 262" />
-        </div>
-        <div class="sv-bar" aria-hidden="true"><i></i></div>
-        <div class="sv-controls">
-          <button type="button" class="sv-btn sv-prev" aria-label="Previous slide"><i class="fas fa-arrow-left"></i><span>Prev</span></button>
-          <span class="sv-count" aria-live="polite"><span class="sv-cur">1</span> / 262</span>
-          <button type="button" class="sv-btn sv-full" aria-label="Full screen"><i class="fas fa-expand"></i></button>
-          <button type="button" class="sv-btn sv-next" aria-label="Next slide"><span>Next</span><i class="fas fa-arrow-right"></i></button>
-        </div>
-        <p class="sv-hint">Arrow keys, space or a swipe move between slides. F for full screen.</p>
+      <div class="sv-stage">
+        <img class="sv-img" src="slides/001.webp" alt="Slide 1 of 262" />
       </div>
-      <noscript><p>These slides need JavaScript to page through. The slide text is listed below.</p></noscript>
-
-      <div class="epoch-actions">
-        <a href="../../../assets/slides/epoch/epoch-s5-ml-in-astronomy-lecture-notes.zip" download><i class="fas fa-download"></i> Download the lecture notes (zip, PDF)</a>
-        <a href="/talks/#epoch" target="_self">More Epoch sessions</a>
+      <div class="sv-bar" aria-hidden="true"><i></i></div>
+      <div class="sv-controls">
+        <button type="button" class="sv-btn sv-prev" aria-label="Previous slide"><i class="fas fa-arrow-left"></i></button>
+        <span class="sv-count" aria-live="polite"><span class="sv-cur">1</span> / 262</span>
+        <button type="button" class="sv-btn sv-full" aria-label="Full screen"><i class="fas fa-expand"></i></button>
+        <button type="button" class="sv-btn sv-next" aria-label="Next slide"><i class="fas fa-arrow-right"></i></button>
       </div>
-
-      <details class="sv-text-wrap">
-        <summary>Slide text</summary>
-        <ol class="sv-text">
+    </div>
+    <section class="deck-sr" aria-label="Slide text">
+      <h1>ML in Astronomy</h1>
+      <p><em>Community session, with Cepheid</em> &middot; Epoch, IIT Hyderabad &middot; Mar 22, 2023</p>
+      <p>A hands-on session on the statistics and ML libraries commonly used for astronomical data analysis, such as AstroML and AstroPy, with a few exercises. The pages below are the lecture notes.</p>
+      <ol class="sv-text">
         <li>Introduction</li>
         <li>Data Mining • Set of techniques for analyzing and describing structured data, for example finding patterns in large datasets. Examples : Density estimation, unsupervised classification, clustering, principal component analysis, locally linear embedding. Often interchanged with knowledge discovery. Traditionally deals with unsupervised learning techniques (referred to by statisticians as exploratory data analysis)</li>
         <li>Machine Learning • Umbrella term for a set of techniques for interpreting data by comparing them to models for data behavior. Examples : regression methods, supervised classification methods, maximum likelihood estimators, Bayesian methods. Also known as inference techniques, data-based statistical inferences or fitting. Emphasis has been on prediction of one variable based on the other variable, also known as supervised learning.</li>
@@ -354,17 +313,7 @@
         <li>Interpretation of Odds Ratio • Jeffreys Scale used as a qualitative guide to decide between model 2 and model 1 K = Bayes Factor wikipedia (note that model M1 is in the numerator in wikipedia definition. of Bayes factor)</li>
         <li>Open Questions/Limitations of Bayesian Analysis • Criticism of Bayesian Model selection by Efsthathiou (for cosmology) (arXiv:0802.3185) and Bob Cousins (particle physics) (arXiv: 0807.1330) , where not enough care is given to selection of models and priors and posterior model probabilities maybe function of unjustified assumptions. • How to deal with Lindley’s paradox (where Bayesian and frequentist hypothesis testing lead to contradictory answers). (See arXiv:1310.3791) • How to assess the completeness of a set of known models? Is there a principled way of constructing an absolute scale for model performance in a Bayesian context? (see arxiv:1511.02363 for some research on this) • Is Bayesian model averaging (model independent estimation of parameters) useful ? • Is there such a thing as a correct prior? • Many posteriors used in astronomical literature are improprer arXiv:1712.03549 • One should also consider fluctations in Bayesian evidence arXiv:2102.09547</li>
         </ol>
-      </details>
-    </main>
-    <footer class="site-footer" aria-label="Contact links">
-      <span>Anirudh Srinivasan</span>
-      <a href="#" onclick="sendEmail()" target="_self" title="Email"><i class="fas fa-envelope"></i> anirudhsrinivasan.tms@gmail.com</a>
-      <a href="https://github.com/srini-anirudh" title="GitHub"><i class="fab fa-github"></i> GitHub</a>
-      <a href="https://www.linkedin.com/in/anirudh-srini/" title="LinkedIn"><i class="fab fa-linkedin"></i> LinkedIn</a>
-      <a href="https://x.com/Anirud_Srini" title="X / Twitter"><i class="fab fa-x-twitter"></i> X</a>
-    </footer>
-    <script src="../../../assets/js/scripts.js"></script>
-    <script src="../../../assets/js/stars.js"></script>
-    <script src="../../../assets/js/epoch-viewer.js?v=1"></script>
+    </section>
+    <script src="/assets/js/epoch-viewer.js?v=2"></script>
   </body>
 </html>

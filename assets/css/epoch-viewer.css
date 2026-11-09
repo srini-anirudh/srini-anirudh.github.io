@@ -1,26 +1,30 @@
-.epoch-page .page-shell { max-width: 1000px; }
-.epoch-back { display: inline-block; margin: 0 0 14px; color: var(--text-soft); font: 600 12px/1 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; }
-.epoch-back:hover { color: var(--orange-dark); }
-.epoch-head h1 { margin: 0 0 6px; font-size: clamp(30px, 4.2vw, 46px); line-height: 1.05; }
-.epoch-meta { margin: 0 0 8px; color: var(--text-soft); font-size: 17px; }
-.epoch-blurb { margin: 0 0 16px; max-width: 720px; color: var(--text-soft); font-size: 17px; line-height: 1.55; }
-#slide-viewer { margin: 0 0 18px; }
-.sv-stage { position: relative; display: flex; align-items: center; justify-content: center; width: min(100%, calc((100vh - 190px) * 1.7778)); min-width: min(100%, 420px); margin: 0 auto; aspect-ratio: 16 / 9; background: #fff; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-.sv-stage:fullscreen { aspect-ratio: auto; height: 100%; background: #000; border: 0; border-radius: 0; }
-.sv-img { display: block; max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; cursor: pointer; user-select: none; -webkit-user-drag: none; }
-.sv-bar { height: 3px; margin-top: 10px; background: var(--line); border-radius: 2px; overflow: hidden; }
-.sv-bar i { display: block; height: 100%; width: 0; background: var(--orange); transition: width .15s ease; }
-.sv-controls { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.sv-btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; color: var(--blue-dark, #0b5ea8); background: transparent; border: 1px solid currentColor; border-radius: 6px; font: 600 12px/1 "IBM Plex Mono", monospace; letter-spacing: .04em; cursor: pointer; }
-.sv-btn:hover:not(:disabled) { background: rgba(11, 94, 168, .08); }
-.sv-btn:disabled { opacity: .35; cursor: default; }
-.sv-count { flex: 1; text-align: center; color: var(--text-soft); font: 600 13px/1 "IBM Plex Mono", monospace; }
-.sv-hint { margin: 10px 0 0; color: var(--text-soft); font: 12px/1.5 "IBM Plex Mono", monospace; }
-.epoch-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 8px; }
-.epoch-actions a { display: inline-block; padding: 8px 14px; color: var(--blue-dark, #0b5ea8); border: 1px solid currentColor; border-radius: 6px; font: 600 12px/1 "IBM Plex Mono", monospace; text-decoration: none; }
-.sv-text-wrap { margin: 20px 0 0; }
-.sv-text-wrap summary { cursor: pointer; color: var(--text-soft); font: 600 12px/1.4 "IBM Plex Mono", monospace; letter-spacing: .04em; text-transform: uppercase; }
-.sv-text { margin: 12px 0 0; padding-left: 26px; color: var(--text-soft); font-size: 14px; line-height: 1.5; columns: 1; }
-.sv-text li { margin: 0 0 6px; }
-body.dark-mode .sv-btn, body.dark-mode .epoch-actions a { color: #7fc1ff; }
-@media (max-width: 640px) { .sv-btn span { display: none; } .sv-btn { padding: 10px 14px; } }
+/* Full-screen Epoch slide decks: same feel as the other talks (dark margins, small counter, no site chrome). */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #050a18; }
+.epoch-deck-page { color: #e8ecf6; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.deck { position: fixed; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; background: #050a18; }
+.deck:fullscreen { background: #000; }
+.deck-top { position: relative; z-index: 3; display: flex; align-items: flex-start; gap: 18px; padding: 10px 18px 6px; }
+.deck-back { display: inline-flex; align-items: center; gap: 8px; padding: 7px 0; color: #9aa6c4; font: 600 11.5px/1 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; text-decoration: none; white-space: nowrap; }
+.deck-back:hover { color: #ffc078; }
+.deck-about { position: static; margin-left: auto; max-width: min(560px, 100%); text-align: right; }
+.deck-about summary { display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; color: #e8ecf6; border: 1px solid #25315a; border-radius: 6px; cursor: pointer; list-style: none; font: 600 12px/1 "IBM Plex Mono", monospace; }
+.deck-about summary::-webkit-details-marker { display: none; }
+.deck-about summary:hover { border-color: #ffc078; }
+.deck-about summary i { color: #9aa6c4; font-size: 10px; transition: transform 160ms ease; }
+.deck-about[open] summary i { transform: rotate(180deg); }
+.deck-about-body { position: absolute; top: calc(100% + 2px); right: 18px; width: min(520px, calc(100vw - 36px)); padding: 16px 18px; text-align: left; background: rgba(14, 22, 48, .96); border: 1px solid #25315a; border-radius: 8px; box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
+.epoch-meta { margin: 0 0 8px; color: #ffc078; font: 600 11.5px/1.5 "IBM Plex Mono", monospace; }
+.epoch-meta em { font-style: normal; }
+.epoch-blurb { margin: 0; color: #cfd6ea; font: 400 15px/1.55 "IBM Plex Mono", monospace; }
+.sv-stage { position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 0 18px; }
+.sv-img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; margin: auto; object-fit: contain; background: #fff; border-radius: 4px; cursor: pointer; user-select: none; -webkit-user-drag: none; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
+.sv-bar { height: 3px; margin: 0 18px; background: #16203f; border-radius: 2px; overflow: hidden; }
+.sv-bar i { display: block; height: 100%; width: 0; background: #f28c28; transition: width .15s ease; }
+.sv-controls { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 6px 18px 10px; }
+.sv-count { min-width: 84px; text-align: center; color: #9aa6c4; font: 600 13px/1 "IBM Plex Mono", monospace; }
+.sv-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 32px; color: #9aa6c4; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; }
+.sv-btn:hover:not(:disabled) { color: #ffc078; border-color: #25315a; }
+.sv-btn:disabled { opacity: .3; cursor: default; }
+.sv-prev { order: 1; } .sv-count { order: 2; } .sv-next { order: 3; } .sv-full { order: 4; margin-left: 10px; }
+.deck-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (max-width: 640px) { .deck-about-body { right: 10px; left: 10px; width: auto; } .deck-top, .sv-controls { padding-left: 10px; padding-right: 10px; } .sv-stage { padding: 0 6px; } .deck-back span { display: none; } .sv-bar { margin: 0 10px; } }
