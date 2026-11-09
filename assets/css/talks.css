@@ -125,3 +125,14 @@ a.arxiv-button { display: inline-block; text-decoration: none; }
 .talk-photos summary::-webkit-details-marker { display: none; }
 .talk-photos img { display: block; width: 100%; max-width: 620px; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; }
 body.dark-mode .talk-photos summary { color: #7fc1ff; }
+
+.research-more { margin: 36px 0 12px; }
+.research-more a { display: flex; align-items: center; gap: 18px; padding: 20px 22px; color: inherit; text-decoration: none; background: linear-gradient(135deg, rgba(11, 94, 168, 0.07), rgba(242, 140, 24, 0.07)); border: 1px solid rgba(120, 120, 120, 0.3); border-radius: 10px; transition: transform 180ms ease, border-color 180ms ease; }
+.research-more a:hover { transform: translateY(-2px); border-color: #f28c18; }
+.research-more i { color: #f28c18; font-size: 26px; }
+.research-more span { flex: 1; min-width: 0; }
+.research-more small { display: block; color: #f28c18; font: 600 11px/1.4 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+.research-more strong { display: block; margin: 2px 0 3px; font: 700 22px/1.2 "Bricolage Grotesque", system-ui, sans-serif; }
+.research-more em { display: block; font-style: normal; opacity: .75; font-size: 14.5px; line-height: 1.45; }
+.research-more b { color: #0b5ea8; font: 600 12px/1 "IBM Plex Mono", monospace; white-space: nowrap; }
+@media (max-width: 640px) { .research-more a { flex-wrap: wrap; gap: 10px; padding: 16px; } .research-more strong { font-size: 18px; } .research-more b { width: 100%; } }
