@@ -2322,3 +2322,28 @@ body.dark-mode .ic-art .frame { fill: rgba(255, 255, 255, 0.08); }
 @keyframes th-dust { 0%, 100% { transform: translate(0, 0); opacity: 0.15; } 50% { transform: translate(6px, -12px); opacity: 0.8; } }
 @keyframes th-sway { 0%, 100% { transform: translateX(-0.6px) rotate(-3deg); } 50% { transform: translateX(0.6px) rotate(3deg); } }
 @media (prefers-reduced-motion: reduce) { .ic-art .head, .ic-art .sky, .ic-art .sun, .ic-art .hill, .ic-art .beam, .ic-art .dust circle { animation: none !important; } }
+
+/* ---------------- CONTEXT-WINDOW METER (Beyond the lab) ---------------- */
+.ctx-meter { margin: 0 0 14px; }
+.ctx-track { display: flex; height: 30px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: transparent; }
+.ctx-track > * { display: block; height: 100%; }
+.ctx-work { flex: 0 0 0; width: 0; display: flex !important; align-items: center; padding: 0; overflow: hidden; white-space: nowrap; font: 600 11px/1 "IBM Plex Mono", ui-monospace, monospace; font-style: normal; color: var(--text-soft); background: repeating-linear-gradient(135deg, rgba(11, 94, 168, 0.14) 0 6px, rgba(11, 94, 168, 0.07) 6px 12px); transition: flex-basis 1.1s cubic-bezier(.2,.7,.2,1), padding 1.1s; }
+.ctx-work b { color: var(--blue-dark, #0b5ea8); font-weight: 700; margin-right: 4px; }
+.ctx-rest { display: flex; flex: 0 0 auto; height: 100%; }
+.ctx-rest i { display: block; width: 0; height: 100%; transition: width 0.5s ease, filter 160ms ease, opacity 160ms ease; }
+.ctx-free { flex: 1 1 0; background: repeating-linear-gradient(135deg, transparent 0 5px, rgba(120, 128, 136, 0.18) 5px 6px); }
+.ctx-meter.in .ctx-work { flex-basis: 56%; padding: 0 12px; }
+.ctx-meter.in .ctx-rest i { width: 28px; }
+.ctx-meter.in .ctx-rest i:nth-child(2) { transition-delay: 0.15s; } .ctx-meter.in .ctx-rest i:nth-child(3) { transition-delay: 0.3s; } .ctx-meter.in .ctx-rest i:nth-child(4) { transition-delay: 0.45s; } .ctx-meter.in .ctx-rest i:nth-child(5) { transition-delay: 0.6s; } .ctx-meter.in .ctx-rest i:nth-child(6) { transition-delay: 0.75s; }
+.ctx-rest .s1 { background: #d22b2b; } .ctx-rest .s2 { background: #0b5ea8; } .ctx-rest .s3 { background: #2c9a6a; } .ctx-rest .s4 { background: #f28c18; } .ctx-rest .s5 { background: #7a4fc4; } .ctx-rest .s6 { background: #c93a6d; }
+.ctx-cap { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font: 600 10.5px/1.3 "IBM Plex Mono", ui-monospace, monospace; color: var(--text-soft); }
+.ctx-cap-rest { color: var(--orange-dark); text-align: right; }
+.beyond-block .interest-card { position: relative; --c: #d22b2b; transition: border-color 160ms ease, transform 160ms ease; }
+.beyond-block .interest-card:nth-child(2) { --c: #0b5ea8; } .beyond-block .interest-card:nth-child(3) { --c: #2c9a6a; } .beyond-block .interest-card:nth-child(4) { --c: #f28c18; } .beyond-block .interest-card:nth-child(5) { --c: #7a4fc4; } .beyond-block .interest-card:nth-child(6) { --c: #c93a6d; }
+.beyond-block .interest-card:hover { border-color: var(--c); }
+.tok { position: absolute; top: 28px; right: 28px; padding: 2px 7px; border-radius: 999px; background: var(--c); color: #fff; font: 700 10px/1.5 "IBM Plex Mono", ui-monospace, monospace; font-style: normal; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); }
+.beyond-block:has(.interest-card:nth-child(1):hover) .ctx-rest .s1, .beyond-block:has(.interest-card:nth-child(2):hover) .ctx-rest .s2, .beyond-block:has(.interest-card:nth-child(3):hover) .ctx-rest .s3, .beyond-block:has(.interest-card:nth-child(4):hover) .ctx-rest .s4, .beyond-block:has(.interest-card:nth-child(5):hover) .ctx-rest .s5, .beyond-block:has(.interest-card:nth-child(6):hover) .ctx-rest .s6 { filter: brightness(1.25) saturate(1.2); }
+.beyond-block:has(.interest-card:hover) .ctx-meter.in .ctx-rest i { opacity: 0.45; }
+.beyond-block:has(.interest-card:nth-child(1):hover) .ctx-rest .s1, .beyond-block:has(.interest-card:nth-child(2):hover) .ctx-rest .s2, .beyond-block:has(.interest-card:nth-child(3):hover) .ctx-rest .s3, .beyond-block:has(.interest-card:nth-child(4):hover) .ctx-rest .s4, .beyond-block:has(.interest-card:nth-child(5):hover) .ctx-rest .s5, .beyond-block:has(.interest-card:nth-child(6):hover) .ctx-rest .s6 { opacity: 1 !important; }
+@media (max-width: 640px) { .ctx-cap { flex-direction: column; } .ctx-cap-rest { text-align: left; } .ctx-work { font-size: 10px; } .ctx-meter.in .ctx-work { flex-basis: 50%; padding: 0 8px; } .ctx-meter.in .ctx-rest i { width: 22px; } }
+@media (prefers-reduced-motion: reduce) { .ctx-work, .ctx-rest i { transition: none; } }
