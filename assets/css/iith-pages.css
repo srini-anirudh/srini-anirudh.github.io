@@ -169,3 +169,11 @@ body.dark-mode .iv-chip.medal { color: #f3f5fa; }
 .iv-hack span { color: var(--text-soft); font-size: 13px; line-height: 1.4; }
 .iv-lightbox { position: fixed; inset: 0; z-index: 99; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(3, 7, 18, .92); cursor: zoom-out; }
 .iv-lightbox img { max-width: 100%; max-height: 100%; border-radius: 6px; }
+
+.iv-part { margin-top: 16px; padding: 14px 16px 16px; border: 1px solid var(--line); border-left: 4px solid var(--ep); border-radius: 8px; }
+.iv-part + .iv-part { border-left-color: var(--or); }
+.iv-part-h { display: flex; align-items: center; gap: 10px; margin: 0 0 6px; color: var(--text); font: 700 17px/1.2 "Bricolage Grotesque", system-ui, sans-serif; }
+.iv-part-h i { color: var(--ep); }
+.iv-part + .iv-part .iv-part-h i { color: var(--or); }
+.iv-part-h span { color: var(--orange-dark); font: 600 11px/1 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.iv-part > p { margin: 0 0 4px; color: var(--text-soft); font-size: 15px; line-height: 1.5; }
