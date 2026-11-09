@@ -944,8 +944,8 @@
 .cb-main-h img { width: 56px; height: 56px; border-radius: 10px; }
 .cb-kicker { display: block; margin-bottom: 4px; color: var(--orange-dark); font: 600 11px/1.3 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .cb-main h3 { margin: 0; font-size: 26px; line-height: 1.12; }
-.cb-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.cb-stats div { padding: 12px 12px 10px; background: var(--surface-strong, rgba(255, 255, 255, .5)); border: 1px solid var(--line); border-radius: 8px; }
+.cb-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cb-stats div, .cb-stats a { padding: 12px 12px 10px; background: var(--surface-strong, rgba(255, 255, 255, .5)); border: 1px solid var(--line); border-radius: 8px; }
 .cb-stats b { display: block; font: 700 24px/1.05 "Bricolage Grotesque", system-ui, sans-serif; }
 .cb-stats span { display: block; margin-top: 3px; color: var(--text-soft); font-size: 12.5px; line-height: 1.3; }
 .cb-pills { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1166,6 +1166,7 @@ body.dark-mode .work-lanes,
 body.dark-mode .work-lane + .work-lane,
 body.dark-mode .cb-card,
 body.dark-mode .cb-stats div,
+body.dark-mode .cb-stats a,
 body.dark-mode .cb-pills span,
 body.dark-mode .achievement-strip > div + div,
 body.dark-mode .closing-note,
@@ -2242,3 +2243,12 @@ body.dark-mode .cb-role-top { background: rgba(183, 154, 240, .10); border-color
 body.dark-mode .cb-role-top i { color: #b79af0; }
 @media (max-width: 1000px) { .cb-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .cb-roles { grid-template-columns: 1fr; } }
+
+.cb-stats a { position: relative; z-index: 2; color: var(--text); text-decoration: none; transition: border-color 160ms ease, transform 160ms ease; }
+.cb-stats a:hover { color: var(--text); border-color: var(--orange); transform: translateY(-1px); }
+.cb-stats a i { margin-left: 3px; color: var(--orange-dark); font-size: 10px; }
+.cb-more { color: var(--blue-dark); font: 600 12px/1 "IBM Plex Mono", ui-monospace, monospace; text-decoration: none; margin-top: auto; }
+.cb-more::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+.cb-more:hover { color: var(--orange-dark); }
+body.dark-mode .cb-more { color: #7fc1ff; }
+@media (max-width: 640px) { .cb-stats > :first-child { grid-column: 1 / -1; } }
