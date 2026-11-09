@@ -2229,3 +2229,16 @@ body.dark-mode .cb-badges b { background: #1b5b99; }
 body.dark-mode .bt-all { color: #7fc1ff; }
 @media (max-width: 1000px) { .bt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .bt-head { flex-direction: column; align-items: flex-start; gap: 8px; } .bt-grid { gap: 10px; } .bt-card strong { font-size: 14px; } .bt-cap { font-size: 12px; } .bt-teaser { padding: 16px 14px; } }
+
+.cb-roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cb-role { display: flex; flex-direction: column; gap: 2px; padding: 11px 12px; background: var(--surface-strong, rgba(255, 255, 255, .5)); border: 1px solid var(--line); border-radius: 8px; }
+.cb-role i { margin-bottom: 4px; color: var(--text-soft); font-size: 15px; }
+.cb-role b { font: 700 14.5px/1.2 "Bricolage Grotesque", system-ui, sans-serif; }
+.cb-role span { color: var(--text-soft); font-size: 12.5px; line-height: 1.35; }
+.cb-role-top { background: rgba(95, 44, 150, 0.09); border-color: rgba(95, 44, 150, 0.35); border-top: 3px solid #5f2c96; }
+.cb-role-top i { color: #5f2c96; }
+body.dark-mode .cb-role { background-color: rgba(11, 34, 56, .6); }
+body.dark-mode .cb-role-top { background: rgba(183, 154, 240, .10); border-color: rgba(183, 154, 240, .4); border-top-color: #b79af0; }
+body.dark-mode .cb-role-top i { color: #b79af0; }
+@media (max-width: 1000px) { .cb-roles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .cb-roles { grid-template-columns: 1fr; } }
