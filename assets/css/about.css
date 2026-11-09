@@ -2212,35 +2212,4 @@ body.dark-mode .iith-archive-links a {
   color: var(--text);
   font-weight: 600;
 }
-
-/* ---------------- COMMUNITY: IIT HYDERABAD FOLDS ---------------- */
-.community-sub { margin: 34px 0 12px; }
-.iith-fold { margin: 0 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-strong); }
-.iith-fold > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 18px; align-items: center; padding: 16px 20px; cursor: pointer; list-style: none; }
-.iith-fold > summary::-webkit-details-marker { display: none; }
-.if-text strong { display: block; font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 20px; }
-.if-text span { display: block; margin-top: 2px; color: var(--text-soft); font-size: 14px; }
-.if-meta { color: var(--orange-dark); font: 600 11px/1.4 "IBM Plex Mono", ui-monospace, monospace; text-align: right; }
-.iith-fold > summary > i { color: var(--text-soft); transition: transform 180ms ease; }
-.iith-fold[open] > summary > i { transform: rotate(180deg); }
-.iith-fold > summary:hover .if-text strong { color: var(--orange-dark); }
-.if-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 20px 20px; }
-.if-item { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; color: var(--text); background: transparent; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; transition: transform 180ms ease, border-color 180ms ease; }
-.if-item:hover { color: var(--text); border-color: var(--orange); transform: translateY(-2px); }
-.if-item strong { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 17px; }
-.if-item em { color: var(--orange-dark); font: 600 10.5px/1.45 "IBM Plex Mono", ui-monospace, monospace; font-style: normal; }
-.if-item span { color: var(--text-soft); font-size: 14px; line-height: 1.45; }
-.if-item b { margin-top: auto; padding-top: 8px; color: var(--blue-dark); font: 600 11px/1 "IBM Plex Mono", ui-monospace, monospace; }
-body.dark-mode .iith-fold { background-color: #0b2238; border-color: #23496a; }
-body.dark-mode .if-item b { color: #7fc1ff; }
-@media (max-width: 768px) { .if-body { grid-template-columns: 1fr; padding: 0 14px 16px; } .iith-fold > summary { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; } .if-meta { display: none; } }
-.if-lead { grid-column: 1 / -1; padding: 16px 18px; background: linear-gradient(135deg, rgba(11, 94, 168, 0.07), rgba(242, 140, 24, 0.06)); border: 1px solid var(--line); border-radius: 8px; }
-.if-lead > strong { display: block; font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 18px; }
-.if-lead p { max-width: 760px; margin: 6px 0 12px; color: var(--text-soft); font-size: 15px; line-height: 1.5; }
-.if-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.if-links a { padding: 6px 12px; color: var(--blue-dark); background: rgba(11, 94, 168, 0.07); border: 1px solid rgba(11, 94, 168, 0.22); border-radius: 999px; font: 600 11.5px/1.3 "IBM Plex Mono", ui-monospace, monospace; text-decoration: none; }
-.if-links a:hover { color: var(--orange-dark); border-color: var(--orange-dark); }
-.if-all { grid-column: 1 / -1; color: var(--blue-dark); font: 600 12px/1 "IBM Plex Mono", ui-monospace, monospace; text-decoration: none; }
-.if-all:hover { color: var(--orange-dark); }
-body.dark-mode .if-links a, body.dark-mode .if-all { color: #7fc1ff; }
-body.dark-mode .if-links a { background: rgba(111, 183, 255, 0.07); border-color: rgba(111, 183, 255, 0.23); }
+.community-blog-next { margin-top: 10px; }
