@@ -101,7 +101,19 @@ body.research-page .thesis-card .thesis-why strong { color: var(--text); }
 body.research-page .thesis-card .thesis-why a { color: #0b5ea8; text-decoration: underline; text-underline-offset: 2px; }
 body.dark-mode.research-page .thesis-card .thesis-why a { color: #6fb7ff; }
 body.research-page .thesis-card .infra-stack { margin: 16px 0 4px; }
-.epoch-heading { margin-top: 38px; }
-.epoch-heading h2 { margin: 0 0 6px; }
 .talk-blurb { margin: 8px 0 0; color: var(--text-soft); font-size: 15.5px; line-height: 1.55; }
 a.arxiv-button { display: inline-block; text-decoration: none; }
+
+.epoch-fold { margin-top: 38px; border: 1px solid var(--line); border-radius: 8px; scroll-margin-top: 80px; }
+.epoch-fold > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 18px; align-items: center; padding: 18px 22px; cursor: pointer; list-style: none; }
+.epoch-fold > summary::-webkit-details-marker { display: none; }
+.epoch-sum-text h2 { margin: 0 0 6px; }
+.epoch-sum-text > span { display: block; max-width: 680px; color: var(--text-soft); font-size: 15px; line-height: 1.5; }
+.epoch-count { color: var(--orange-dark); font: 600 11.5px/1.4 "IBM Plex Mono", ui-monospace, monospace; white-space: nowrap; }
+.epoch-fold > summary > i { color: var(--text-soft); transition: transform 180ms ease; }
+.epoch-fold[open] > summary > i { transform: rotate(180deg); }
+.epoch-fold > summary:hover h2 { color: var(--orange-dark); }
+.epoch-fold[open] > summary { border-bottom: 1px solid var(--line); }
+.epoch-fold > .research-card { margin-left: 22px; margin-right: 22px; }
+.epoch-fold > .research-card:last-child { margin-bottom: 22px; }
+@media (max-width: 768px) { .epoch-fold > summary { grid-template-columns: minmax(0, 1fr) auto; padding: 16px; } .epoch-count { display: none; } .epoch-fold > .research-card { margin-left: 14px; margin-right: 14px; } }

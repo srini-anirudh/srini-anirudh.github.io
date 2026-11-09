@@ -22,7 +22,7 @@
     <link rel="icon" href="/assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="/assets/css/stylesheet.css" />
     <link rel="stylesheet" href="/assets/css/stars.css" />
-    <link rel="stylesheet" href="/assets/css/talks.css?v=17" />
+    <link rel="stylesheet" href="/assets/css/talks.css?v=18" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -269,10 +269,15 @@
         </div>
       </section>
 
-      <section class="page-section epoch-heading" id="epoch">
-        <h2>Epoch at IIT Hyderabad</h2>
-        <p>Sessions and workshops I gave through Epoch, the AI-ML and Data Science Club at IIT Hyderabad, where I was head. They ran through 2022&ndash;23 and were open to the whole community.</p>
-      </section>
+      <details class="epoch-fold" id="epoch">
+        <summary>
+          <span class="epoch-sum-text">
+            <h2>Epoch at IIT Hyderabad</h2>
+            <span>Sessions and workshops I gave through Epoch, the AI-ML and Data Science Club at IIT Hyderabad, where I was head. They ran through 2022&ndash;23 and were open to the whole community.</span>
+          </span>
+          <span class="epoch-count">7 sessions &amp; workshops</span>
+          <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        </summary>
 
             <section class="research-card" id="epoch-s1">
         <div class="research-card-image">
@@ -448,6 +453,7 @@
           <p class="talk-blurb">A hands-on workshop on the most important mathematical concepts: probability, statistics, linear algebra and calculus, with hands-on and theory exercises.</p>
         </div>
       </section>
+      </details>
     </main>
 
     <footer class="site-footer" aria-label="Contact links">
@@ -478,6 +484,19 @@
       </a>
     </footer>
 
+    <script>
+      (function () {
+        function openFold() {
+          var id = decodeURIComponent(location.hash.slice(1));
+          if (!id) return;
+          var el = document.getElementById(id);
+          var d = el && el.closest("details");
+          if (d && !d.open) { d.open = true; el.scrollIntoView(); }
+        }
+        window.addEventListener("hashchange", openFold);
+        openFold();
+      })();
+    </script>
     <script src="/assets/js/scripts.js"></script>
     <script src="/assets/js/stars.js"></script>
   </body>
