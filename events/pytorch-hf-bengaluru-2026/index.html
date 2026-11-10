@@ -91,6 +91,7 @@
     
     
     
+    
     <main class="page-shell events-shell">
       <a class="back-link" href="/events/" target="_self"><i class="fas fa-arrow-left"></i> All events</a>
       <article class="ev-event" id="pytorch-hf-bengaluru-2026">
@@ -482,7 +483,7 @@ future = dcp.async_save(model.state_dict(), checkpoint_id=&quot;epoch_5&quot;)  
   </div>
   <p class="ev-take-end">The theme of the night, in one line: move from using AI to building the stack under it.</p>
 </section>
-        <section class="ev-qa" id="questions"><h3>Questions, answered</h3><p class="ev-qa-intro">Three questions that stayed with me after the talks. The short answer comes first. Tap one to open it.</p><details class="ev-q" open><summary><span>vLLM or SGLang: when should I use which?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short"><strong>Half true.</strong> &ldquo;SGLang for multi-turn and big MoE, vLLM for the rest&rdquo; is a fair starting rule. It is not a law, and the gap keeps shrinking.</p>
+        <section class="ev-qa" id="questions"><h3>Questions, answered</h3><p class="ev-qa-intro">Four questions that stayed with me after the talks. The short answer comes first. Tap one to open it.</p><details class="ev-q" open><summary><span>vLLM or SGLang: when should I use which?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short"><strong>Half true.</strong> &ldquo;SGLang for multi-turn and big MoE, vLLM for the rest&rdquo; is a fair starting rule. It is not a law, and the gap keeps shrinking.</p>
 <h4>Multi-turn chat: mostly true</h4>
 <p>Each turn re-sends the whole chat so far. A good engine reuses the KV cache from the last turn and only computes the new part.</p>
 <ul>
@@ -511,7 +512,44 @@ future = dcp.async_save(model.state_dict(), checkpoint_id=&quot;epoch_5&quot;)  
 <tr><td>Unusual hardware, brand-new model</td><td>Check both support pages first</td><td>Support, not speed, decides here.</td></tr>
 </tbody></table></div>
 <p><strong>How to decide for real:</strong> replay your own traffic on both. Same GPU, same precision, prefix caching on for both. Measure time to first token, tokens per second and the slowest 1% of requests. Remember the cache only helps if the next turn lands on the same replica, so route sticky. <strong>Match the settings too.</strong> In one 2026 controlled study, much of the default gap between engines came from different defaults such as chunked prefill, not from the cache design. If one engine has chunked prefill on and the other off, you are not comparing the caches.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://lmsys.org/blog/2024-01-17-sglang/">SGLang / RadixAttention post</a> &middot; <a href="https://docs.vllm.ai/en/stable/design/prefix_caching.html">vLLM prefix caching design</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a> &middot; <a href="https://lmsys.org/blog/2025-05-05-large-scale-ep/">SGLang: DeepSeek on 96 H100s</a> &middot; <a href="https://docs.vllm.ai/en/stable/serving/expert_parallel_deployment.html">vLLM expert-parallel docs</a> &middot; <a href="https://arxiv.org/abs/2611.05991">A controlled study of serving-engine settings and caches (2026)</a> &middot; <a href="https://arxiv.org/abs/2605.06544">CCL-Bench</a></p></div></details><details class="ev-q"><summary><span>Is &ldquo;save on 8 GPUs, resume on 16&rdquo; how elastic training works inside frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. Resharding on load is the checkpoint piece. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights.</p>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://lmsys.org/blog/2024-01-17-sglang/">SGLang / RadixAttention post</a> &middot; <a href="https://docs.vllm.ai/en/stable/design/prefix_caching.html">vLLM prefix caching design</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a> &middot; <a href="https://lmsys.org/blog/2025-05-05-large-scale-ep/">SGLang: DeepSeek on 96 H100s</a> &middot; <a href="https://docs.vllm.ai/en/stable/serving/expert_parallel_deployment.html">vLLM expert-parallel docs</a> &middot; <a href="https://arxiv.org/abs/2611.05991">A controlled study of serving-engine settings and caches (2026)</a> &middot; <a href="https://arxiv.org/abs/2605.06544">CCL-Bench</a></p></div></details><details class="ev-q"><summary><span>Why do vLLM and SGLang give slightly different results from the Hugging Face model?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Numeric drift. Floating-point maths is not associative, so a different kernel, a different fusion or a different batch changes the last few bits. Those bits pile up over dozens of layers. It is noise, not a bug, and it is not the same thing as lower accuracy.</p>
+<h4>Start with the surprising fact</h4>
+<p>Adding numbers in a different order can give a different answer. With 16-bit floats the effect is easy to see.</p>
+<pre class="ev-code"><code>import torch
+x   = torch.tensor(256.0, dtype=torch.bfloat16)
+one = torch.tensor(1.0,   dtype=torch.bfloat16)
+
+print((x + one) + one)   # 256.  each +1 is rounded away
+print(x + (one + one))   # 258.  the two ones are added first</code></pre>
+<p>bfloat16 keeps only about three significant digits. Near 256 the gap between two neighbouring numbers is 2, so adding 1 rounds straight back down. The sum of a long vector works the same way, just with smaller errors. The answer depends on the order of the additions.</p>
+<h4>Why the order is different in every engine</h4>
+<ul>
+  <li><strong>Different kernels.</strong> Hugging Face usually runs plain PyTorch ops, with SDPA for attention. vLLM and SGLang use FlashAttention or FlashInfer, paged attention and their own matmul tiling. A matmul sums along its inner dimension in tiles, and the tile size and the way it splits the work change the order.</li>
+  <li><strong>Fused ops.</strong> An engine fuses things like add-and-RMSNorm, or the activation with the multiply. Inside a fused kernel the in-between values can stay in fp32. An unfused version rounds to bf16 after every op. Neither is wrong, but they round in different places.</li>
+  <li><strong>Different shapes.</strong> The engine picks a kernel for the batch it has right now. The same request in a batch of 1 and in a batch of 64 can take different kernels and a different reduction order. That is why the same prompt can give different logits from one run to the next on a busy server.</li>
+  <li><strong>Different ways of building the cache.</strong> An engine may prefill in chunks, reuse a cached prefix, or fill the KV cache in one batched pass. The cache values it stores differ in the last bits from a one-shot pass.</li>
+  <li><strong>Parallelism.</strong> With tensor parallel, partial sums from each GPU are added in an all-reduce. The order of that sum depends on the number of GPUs and the algorithm.</li>
+</ul>
+<h4>Why a tiny difference can change the text</h4>
+<p>Each layer adds a little rounding error to the one before. After 32 or 80 layers the logits are close, but not identical. That is fine until two tokens are nearly tied. Then the top choice can flip. With greedy decoding, one flipped token changes every token after it. So two texts can look quite different even though the logits agreed to about two or three digits.</p>
+<h4>Is it lower accuracy?</h4>
+<p>Usually not. The Hugging Face run is not the truth either. It is also bf16, and it also has rounding error against a float32 reference. If you want to know which one is closer, compare both with fp32. On benchmarks, two bf16 runs of the same model typically land within the noise of each other. My rule of thumb: a gap of a few tenths of a point is drift, and a gap of several points is worth hunting as a bug.</p>
+<h4>Check these before you blame drift</h4>
+<ul>
+  <li><strong>The dtype.</strong> Transformers can load fp32 unless you pass a dtype. vLLM uses the dtype in the model config. You may be comparing fp32 with bf16.</li>
+  <li><strong>The chat template and special tokens.</strong> A missing or doubled BOS token, or a different template, changes the prompt itself.</li>
+  <li><strong>Sampling settings.</strong> Compare greedy with greedy, and check temperature, top-p and the default generation config on each side.</li>
+  <li><strong>Quantization.</strong> An FP8 or INT4 checkpoint loses real accuracy. That is not drift.</li>
+</ul>
+<h4>How to measure it properly</h4>
+<p>Do not compare generated text. Feed both engines the same token ids and compare the log-probabilities of those tokens. Look at the mean and the maximum difference per token. Small differences, of the order of 1e-2 in bf16, are normal. A large jump on a few tokens points to a real difference, such as a wrong mask, a wrong rotary scale or a different template.</p>
+<h4>When it matters, and what you can do</h4>
+<ul>
+  <li><strong>RL training.</strong> The rollout engine and the trainer compute token probabilities in different ways, even with identical weights. The small mismatch makes the data slightly off-policy. Teams watch for this and, in some setups, correct for it with importance weights or run the engine in fp32 for the final layer.</li>
+  <li><strong>Reproducible outputs.</strong> Both engines now have a batch-invariant mode, so a request gives the same bits whatever else is in the batch. In vLLM it is the <code>VLLM_BATCH_INVARIANT=1</code> environment variable. In SGLang it is the <code>--enable-deterministic-inference</code> flag. It costs some speed.</li>
+  <li><strong>Evals.</strong> Use the same engine for every model you compare, and fix the dtype and the sampling settings.</li>
+</ul>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">Defeating nondeterminism in LLM inference (Thinking Machines Lab)</a> &middot; <a href="https://docs.vllm.ai/en/latest/features/batch_invariance.html">vLLM: batch invariance</a> &middot; <a href="https://docs.sglang.ai/advanced_features/deterministic_inference.html">SGLang: deterministic inference</a> &middot; <a href="https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html">What every computer scientist should know about floating-point arithmetic</a></p></div></details><details class="ev-q"><summary><span>Is &ldquo;save on 8 GPUs, resume on 16&rdquo; how elastic training works inside frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. Resharding on load is the checkpoint piece. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights.</p>
 <p>I first wrote that resharding is &ldquo;exactly what elastic training needs&rdquo;. That was too strong. Here is the fuller picture.</p>
 <h4>The common recipe: checkpoint, restart, reshard</h4>
 <ol>
