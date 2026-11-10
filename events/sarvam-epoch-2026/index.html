@@ -96,6 +96,7 @@
     
     
     
+    
     <main class="page-shell events-shell">
       <a class="back-link" href="/events/" target="_self"><i class="fas fa-arrow-left"></i> All events</a>
       <article class="ev-event" id="sarvam-epoch-2026">
@@ -344,7 +345,31 @@
   <p>The technical session (15:20 on the agenda) was very nice. It was mostly about <strong>continual learning</strong>. Sarvam's programme describes it as a panel on continual learning, evals and enterprise improvement loops.</p>
 <div class="ev-inl"><a class="ev-photo" href="/assets/images/events/sarvam-epoch-2026/technical-session.webp" data-cap="The technical session panel, on the stage under the Epoch block pattern" target="_self"><img src="/assets/images/events/sarvam-epoch-2026/technical-session.webp" alt="The technical session panel, on the stage under the Epoch block pattern" loading="lazy" /><span>The technical session panel, on the stage under the Epoch block pattern</span></a></div>
   <p>The slide names four of the five people on stage: Vivek Raghavan, co-founder of Sarvam; Manish Gupta, Senior Director at Google DeepMind; Devendra Singh Chaplot, Sarvam; and Aaditya Sood, Surge Venture Partner at Peak XV.</p>
-  <p class="ev-call"><i class="fas fa-hourglass-half"></i><span><strong>Notes coming.</strong> I will add the details of this session, and what I learned from it, in a follow-up.</span></p>
+  <p>The conversation moved between three questions. How should a model and the layer around it divide the work? How do you keep improving a model after it ships? And why is that hard inside a company?</p>
+
+  <h4>Model and harness: separate mechanism from policy</h4>
+  <p>The panel agreed that the orchestration layer, the &ldquo;harness&rdquo;, will stay essential even as models get more capable.</p>
+  <p>Aaditya Sood put it as separating <strong>mechanism from policy</strong>. The model handles the non-deterministic intelligence. The harness holds the business-specific policy: risk appetite, approvals and authority. Devendra Chaplot added that a harness is where customisation happens. One model cannot fit what every user and application needs.</p>
+
+  <h4>Scale does not remove the harness</h4>
+  <p>A bigger model, 100B parameters and up, needs less hand-holding from the harness on basic tasks. Vivek Raghavan said the harness matters more for <strong>decomposing problems</strong>. A hard question, such as exploring a scientific hypothesis, can be split into sub-problems. Several agents then work on them in parallel, either competing or collaborating.</p>
+
+  <h4>&ldquo;Evals are everything&rdquo;</h4>
+  <p>Raghavan was blunt about this one: if you cannot evaluate a capability, you cannot build it. The panel then talked about how evals get harder as tasks get less verifiable and more subjective. The example was judging how well a model speaks the <em>Haryanvi</em> dialect. Cultural and linguistic accuracy still needs human judgement. It cannot be fully automated.</p>
+
+  <h4>Real traces or synthetic environments?</h4>
+  <p>For continual improvement, Chaplot said each source does a different job.</p>
+  <ul>
+    <li><strong>Real production traces</strong> show what users actually intend, and where the model falls short today.</li>
+    <li><strong>Synthetic environments</strong> are what you need to push past the current limit and teach the model something entirely new.</li>
+  </ul>
+  <p>Manish Gupta warned against leaning too hard on real-world &ldquo;exhaust&rdquo;. A user&rsquo;s intervention is not always correct. His example: code that compiles can still fail to solve the business problem behind it. A trace tells you what happened, not whether it was right.</p>
+
+  <h4>Continual learning inside an enterprise</h4>
+  <p>Gupta said enterprises guard their proprietary data closely. Many hesitate to share it for continuous model training, because they fear leakage.</p>
+  <p>Sood described enterprise architecture as a <strong>layer cake</strong>. In it, the harness is the tightly coupled clutch to the model&rsquo;s engine. Business rules stay fixed in the harness, while the model underneath keeps changing quickly.</p>
+  <p class="ev-call"><i class="fas fa-lightbulb"></i><span><strong>The thread through all five points.</strong> Let the model keep learning. Keep the rules, the approvals and the evals outside it, where a company can own them.</span></p>
+  <p class="ev-call"><i class="fas fa-hourglass-half"></i><span><strong>More to come.</strong> I will keep adding to these notes.</span></p>
 </section>
 
         
@@ -360,9 +385,11 @@
     <div class="ev-tok"><em>tok 07</em><strong>The frontier is a sum you can do</strong><span>3T parameters, 100B active, 100T tokens is about 6&times;10<sup>25</sup> FLOPs. It is a compute-and-people problem, not magic.</span></div>
     <div class="ev-tok"><em>tok 08</em><strong>Thousands of models, not three</strong><span>India has its own languages, legal systems and public policy. Specialised models, trained as a service, fit that.</span></div>
     <div class="ev-tok"><em>tok 09</em><strong>The hard parts repeat</strong><span>Prefill and decode, KV cache reuse, kernels and async RL were on Sarvam's slides, just as at the PyTorch meetup.</span></div>
+    <div class="ev-tok"><em>tok 10</em><strong>Policy lives outside the model</strong><span>Mechanism in the model, policy in the harness. Approvals, authority and risk rules stay fixed while the model changes.</span></div>
+    <div class="ev-tok"><em>tok 11</em><strong>Evals are everything</strong><span>If you cannot evaluate it, you cannot build it. Subjective tasks, such as a dialect, still need human judges.</span></div>
+    <div class="ev-tok"><em>tok 12</em><strong>Traces teach, environments stretch</strong><span>Production traces show real intent and gaps. Synthetic environments teach new skills. Neither proves a result was right.</span></div>
   </div>
   <p class="ev-take-end">The theme, as at the last event: India is not only using models. It is building the factory under them.</p>
-  <p class="ev-take-end">Next: the technical session notes on continual learning.</p>
 </section>
 
       </article>
