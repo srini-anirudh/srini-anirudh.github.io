@@ -489,3 +489,13 @@ body.dark-mode .ev-thumb, body.dark-mode .ev-chev, body.dark-mode .ev-expand, bo
 .kd-q .ev-q { margin: 8px 0; }
 .kd-q .ev-q-body h4 { font-size: 16px; }
 .kd-q .ev-q-body { font-size: 15.5px; }
+
+/* v11: side-by-side comparison inside Q&A answers */
+.ev-vs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 0 14px; }
+.ev-vs > div { padding: 12px 14px 4px; border: 1px solid var(--line); border-radius: 10px; background: rgba(11, 94, 168, 0.045); }
+.ev-vs > div:nth-child(2) { background: rgba(242, 140, 24, 0.07); }
+.ev-vs h5 { margin: 0 0 6px; font: 700 16px/1.25 "Bricolage Grotesque", system-ui, sans-serif; }
+.ev-vs ul { margin: 0 0 8px; padding-left: 18px; }
+.ev-vs li { margin-bottom: 5px; font-size: 15px; line-height: 1.5; }
+@media (max-width: 700px) { .ev-vs { grid-template-columns: 1fr; } }
+body.dark-mode .ev-vs > div { border-color: #23496a; }

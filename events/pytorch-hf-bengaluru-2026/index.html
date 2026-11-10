@@ -22,7 +22,7 @@
     <link rel="icon" href="/assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="/assets/css/stylesheet.css" />
     <link rel="stylesheet" href="/assets/css/stars.css" />
-    <link rel="stylesheet" href="/assets/css/events.css?v=11" />
+    <link rel="stylesheet" href="/assets/css/events.css?v=12" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -80,6 +80,7 @@
       </div>
     </nav>
 
+    
     
     
     
@@ -550,7 +551,7 @@ print(x + (one + one))   # 258.  the two ones are added first</code></pre>
   <li><strong>Reproducible outputs.</strong> Both engines now have a batch-invariant mode, so a request gives the same bits whatever else is in the batch. In vLLM it is the <code>VLLM_BATCH_INVARIANT=1</code> environment variable. In SGLang it is the <code>--enable-deterministic-inference</code> flag. It costs some speed.</li>
   <li><strong>Evals.</strong> Use the same engine for every model you compare, and fix the dtype and the sampling settings.</li>
 </ul>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">Defeating nondeterminism in LLM inference (Thinking Machines Lab)</a> &middot; <a href="https://docs.vllm.ai/en/latest/features/batch_invariance.html">vLLM: batch invariance</a> &middot; <a href="https://docs.sglang.ai/advanced_features/deterministic_inference.html">SGLang: deterministic inference</a> &middot; <a href="https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html">What every computer scientist should know about floating-point arithmetic</a></p></div></details><details class="ev-q"><summary><span><code>dcp.load</code> can reshard on load: save on 8 GPUs, resume on 16. Is that how elastic training works inside HF Trainer, Megatron and other frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. <code>torch.distributed.checkpoint.load</code> (<code>dcp.load</code>) is the resharding piece, and several frameworks use it, or something built on it, underneath. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights.</p>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">Defeating nondeterminism in LLM inference (Thinking Machines Lab)</a> &middot; <a href="https://docs.vllm.ai/en/latest/features/batch_invariance.html">vLLM: batch invariance</a> &middot; <a href="https://docs.sglang.ai/advanced_features/deterministic_inference.html">SGLang: deterministic inference</a> &middot; <a href="https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html">What every computer scientist should know about floating-point arithmetic</a></p></div></details><details class="ev-q"><summary><span><code>dcp.load</code> can reshard on load: save on 8 GPUs, resume on 16. Is that how elastic training works inside HF Trainer, Megatron and other frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. <code>torch.distributed.checkpoint.load</code> (<code>dcp.load</code>) is the resharding piece, and several frameworks use it, or something built on it, underneath. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights. Resuming on a different <em>topology</em> is one more step, and it is still not the same thing as elastic training.</p>
 <p>The function in question is <code>torch.distributed.checkpoint.load</code>, usually imported as <code>dcp.load</code>. I first wrote that its resharding is &ldquo;exactly what elastic training needs&rdquo;. That was too strong. Here is the fuller picture, and then which frameworks use it.</p>
 <pre class="ev-code"><code>import torch.distributed.checkpoint as dcp
 
@@ -577,6 +578,45 @@ dcp.load(state, checkpoint_id="ckpt/step_1000")  # each rank reads the slices it
   <li><strong>DeepSpeed.</strong> It does not use DCP. It has its own route, Universal Checkpointing. You convert a ZeRO checkpoint to a universal format and load it with <code>checkpoint.load_universal</code> enabled, and it can then change the parallelism.</li>
 </ul>
 <p>So &ldquo;save on 8, resume on 16&rdquo; is real and common. Nobody calls it elastic training by itself, though. It is the reload step of a checkpoint-and-restart loop.</p>
+<h4>What about resuming on a different topology?</h4>
+<p>Changing the number of GPUs is the easy case. A <em>topology</em> change is when the parallel layout changes too. For example, you saved with plain FSDP on a mesh of <code>(dp=8)</code> and you resume with FSDP plus tensor parallel on <code>(dp=4, tp=2)</code>. Or, in Megatron, you saved with tensor parallel 2 and pipeline parallel 4 and you resume with tensor parallel 4 and pipeline parallel 2.</p>
+<pre class="ev-code"><code># saved on mesh (dp=8,): FSDP only
+# resumed on mesh (dp=4, tp=2): FSDP + tensor parallel
+mesh  = init_device_mesh("cuda", (4, 2), mesh_dim_names=("dp", "tp"))
+model = build_model()
+parallelize(model, mesh)                  # same parameter names, new placements
+dcp.load({"app": AppState(model, optimizer)}, checkpoint_id="ckpt/step_1000")</code></pre>
+<p>It works because DCP does not store &ldquo;rank 3 held this file&rdquo;. For every tensor it stores the global shape and where each saved chunk sits inside it. On load, each rank looks at its own new placement, works out which slice of the global tensor it needs, and reads exactly that. The old layout of ranks no longer matters. Megatron does the same job with its own sharded-tensor metadata, which is why its docs promise loading under a different tensor, pipeline or data parallel setup.</p>
+<p>The catches are real, though:</p>
+<ul>
+  <li><strong>Names must match.</strong> The saved and the new model need the same parameter names. A wrapper that adds a prefix, or <code>torch.compile</code>, can break this. That is what helpers like <code>get_state_dict</code> are for.</li>
+  <li><strong>Layouts that are not a plain slice.</strong> Fused weights, such as a combined QKV matrix, can be cut in a layout that depends on the parallel degree. The framework has to describe that. Megatron has helpers for it. A hand-written TP plan may not.</li>
+  <li><strong>Optimizer state is harder than weights.</strong> If the optimizer keeps its state in flat buffers, the format must say how to cut them. Megatron's docs show the cost. Optimizer states saved by mcore 0.14 or earlier cannot be loaded directly by newer versions, because the format changed.</li>
+  <li><strong>The data loader.</strong> Its position is kept per data-parallel rank. If the data-parallel size changes, that position has to be mapped to the new ranks, or you accept a small repeat or skip.</li>
+  <li><strong>Numbers move.</strong> A different tensor parallel degree adds in a different order, so the loss curve will not match bit for bit. That is the numeric drift from the earlier question.</li>
+</ul>
+<h4>Topology-flexible resume versus elastic training</h4>
+<p>They are easy to mix up, because both can end with &ldquo;it came back on a different number of GPUs&rdquo;. They are different kinds of thing.</p>
+<div class="ev-vs">
+  <div><h5>Topology-flexible resume</h5>
+  <ul>
+    <li>A property of the <strong>checkpoint format</strong>.</li>
+    <li>Answers: <em>can this state be loaded into a different layout?</em></li>
+    <li>Usually <strong>planned</strong>, between two jobs. You decide to move from 64 to 128 GPUs, or to try a new mesh.</li>
+    <li>Needs a resharding load, like <code>dcp.load</code>, Megatron's <code>dist_checkpointing</code> or DeepSpeed's universal checkpoint.</li>
+    <li>A person may still relaunch the job by hand.</li>
+  </ul></div>
+  <div><h5>Elastic training</h5>
+  <ul>
+    <li>A property of the <strong>running system</strong>.</li>
+    <li>Answers: <em>what happens when the set of workers changes while I am not looking?</em></li>
+    <li>Triggered by <strong>events</strong>: a node dies, a spot instance is taken back, the scheduler grows the job.</li>
+    <li>Needs everything above, plus detection, a rendezvous (<code>torchrun --nnodes=MIN:MAX</code>), a restart, a rule for the new mesh and batch size, and a resume of data and random state.</li>
+    <li>Runs without a person.</li>
+  </ul></div>
+</div>
+<p>You can have one without the other. With flexible resume alone, a person relaunches the job after a failure. With a launcher that restarts on the <em>same</em> number of nodes, you have fault tolerance, but the size never changes. Real elasticity needs both.</p>
+<p>One practical rule falls out of this. Elasticity is much easier along a dimension where every group holds the same state. Keep tensor parallel inside a node and make data parallel the dimension that grows and shrinks. Replica groups, like the ones TorchFT is built around, hold identical state, so a new one can copy from a healthy peer and nothing needs resharding. Resharding is for the dimensions that cut a tensor.</p>
 <h4>Things the checkpoint cannot decide for you</h4>
 <ul>
   <li><strong>Batch size and learning rate.</strong> The number of GPUs changed, so the global batch size changes unless you adjust, for example with gradient accumulation. What to do with the learning rate is your call.</li>
