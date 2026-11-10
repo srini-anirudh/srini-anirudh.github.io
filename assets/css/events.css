@@ -229,3 +229,18 @@ body.dark-mode .ev-short, body.dark-mode .kit-why { background: rgba(242, 140, 2
 .ev-more summary small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ev-more summary i { margin-left: auto; flex: none; }
 @media (max-width: 700px) { .ev-more summary small { display: none; } }
+
+/* ---- v5: notes and beyond-the-talk ---- */
+.ev-mynote { margin: 12px 0 14px; padding: 10px 14px 4px; border-left: 3px solid var(--orange); border-radius: 0 8px 8px 0; background: rgba(242, 140, 24, 0.08); }
+.ev-mynote b { display: block; margin-bottom: 4px; font: 700 11px/1.4 "IBM Plex Mono", ui-monospace, monospace; letter-spacing: 0.06em; text-transform: uppercase; color: var(--orange-dark); }
+.ev-mynote p { margin: 0 0 8px; font-size: 15px; line-height: 1.55; }
+.ev-beyond { border-style: solid; border-color: rgba(11, 94, 168, 0.35); background: rgba(11, 94, 168, 0.05); }
+.ev-beyond summary { color: var(--blue-dark, #0b5ea8); }
+.ev-beyond-note { margin: 4px 0 10px; font-size: 13px; font-style: italic; color: var(--text-soft); }
+.ev-howto { margin-top: 10px; font-size: 14.5px; color: var(--text-soft); }
+body.dark-mode .ev-mynote { background: rgba(242, 140, 24, 0.10); }
+body.dark-mode .ev-beyond { background: rgba(111, 180, 240, 0.06); border-color: rgba(111, 180, 240, 0.30); }
+.ev-talk-body > *, .ev-text { min-width: 0; }
+.ev-text code { overflow-wrap: anywhere; }
+.ev-text pre.ev-code { max-width: 100%; overflow-x: auto; }
+.ev-text pre.ev-code code { overflow-wrap: normal; }
