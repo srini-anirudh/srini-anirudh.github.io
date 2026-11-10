@@ -527,3 +527,22 @@ body.dark-mode .ev-vs > div { border-color: #23496a; }
 @media (max-width: 640px) { .ev-ag { grid-template-columns: 1fr; gap: 2px; } }
 body.dark-mode .ev-ag::before { background: #071a2c; }
 body.dark-mode .ev-ag, body.dark-mode .ev-ag-links a { border-color: #23496a; }
+
+/* v14: Sarvam Epoch: cover, video blocks, wide index card */
+.ev-cover { margin: 0 0 18px; }
+.ev-cover img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); box-shadow: 0 14px 34px -22px rgba(0,0,0,.45); }
+.ev-card.ev-card-cover { grid-template-columns: 1fr; gap: 16px; }
+.ev-card-cover .ev-card-poster img { aspect-ratio: 40 / 21; object-fit: cover; }
+.ev-card-cover:hover .ev-card-poster img { transform: scale(1.012); }
+@media (max-width: 860px) { .ev-card-cover .ev-card-poster { max-width: none; } }
+.ev-sub-h { margin: 26px 0 6px; font: 700 21px/1.25 "Bricolage Grotesque", system-ui, sans-serif; }
+.ev-vids { display: grid; gap: 14px; margin: 16px 0 20px; max-width: 760px; }
+.ev-vids-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ev-video { margin: 0; }
+.ev-video video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; border: 1px solid var(--line); background: #0d1424; }
+.ev-video figcaption { margin-top: 6px; color: var(--text-soft); font-size: 13.5px; line-height: 1.4; }
+.ev-video figcaption i { color: var(--orange); font-size: 11px; margin-right: 4px; }
+.ev-video figcaption em { font: 500 12px "IBM Plex Mono", ui-monospace, monospace; margin-left: 4px; }
+.ev-beats { margin: 8px 0 12px; padding-left: 22px; }
+.ev-beats li { margin-bottom: 7px; line-height: 1.6; }
+@media (max-width: 640px) { .ev-vids-2 { grid-template-columns: 1fr; } }
