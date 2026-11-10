@@ -52,3 +52,30 @@
     el.classList.add("ev-reveal"); rv.observe(el);
   });
 })();
+
+/* Collapsible talks: open from the contents bar or a #talk-N link, expand/collapse all, close button. */
+(function () {
+  var talks = Array.prototype.slice.call(document.querySelectorAll("details.ev-talk"));
+  if (!talks.length) return;
+  function openFor(id, scroll) {
+    var el = id && document.getElementById(id);
+    if (!el || el.tagName !== "DETAILS") return;
+    el.open = true;
+    if (scroll) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("a[href^='#talk-']"), function (a) {
+    a.addEventListener("click", function (e) {
+      var id = a.getAttribute("href").slice(1);
+      var el = document.getElementById(id);
+      if (el && el.tagName === "DETAILS") { e.preventDefault(); openFor(id, true); try { history.replaceState(null, "", "#" + id); } catch (x) {} }
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".ev-expand"), function (b) {
+    b.addEventListener("click", function () { var o = b.getAttribute("data-act") === "open"; talks.forEach(function (t) { t.open = o; }); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".ev-close"), function (b) {
+    b.addEventListener("click", function () { var d = b.closest("details"); d.open = false; d.scrollIntoView({ behavior: "smooth", block: "start" }); });
+  });
+  if (location.hash) openFor(location.hash.slice(1), false);
+  window.addEventListener("hashchange", function () { openFor(location.hash.slice(1), true); });
+})();
