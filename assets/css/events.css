@@ -482,3 +482,10 @@ body.dark-mode .ev-thumb, body.dark-mode .ev-chev, body.dark-mode .ev-expand, bo
 .ev-card-poster img { display: block; width: 100%; height: auto; aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22); transition: transform 220ms ease; }
 .ev-card:hover .ev-card-poster img { transform: scale(1.025) rotate(-.6deg); }
 @media (max-width: 860px) { .ev-card { grid-template-columns: 1fr; } .ev-card-poster { max-width: 320px; } }
+
+/* v10: Q&A pointer on the event page, questions inside kit modules */
+.ev-qa-more { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 10px; color: var(--text-soft); font-size: 15px; line-height: 1.5; }
+.ev-qa-more i { margin-top: 3px; color: var(--orange-dark); }
+.kd-q .ev-q { margin: 8px 0; }
+.kd-q .ev-q-body h4 { font-size: 16px; }
+.kd-q .ev-q-body { font-size: 15.5px; }

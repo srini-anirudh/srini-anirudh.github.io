@@ -22,7 +22,7 @@
     <link rel="icon" href="/assets/images/favicon/a-icon.png" type="image/png" />
     <link rel="stylesheet" type="text/css" href="/assets/css/stylesheet.css" />
     <link rel="stylesheet" href="/assets/css/stars.css" />
-    <link rel="stylesheet" href="/assets/css/events.css?v=10" />
+    <link rel="stylesheet" href="/assets/css/events.css?v=11" />
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
@@ -80,6 +80,7 @@
       </div>
     </nav>
 
+    
     
     
     
@@ -480,7 +481,7 @@ future = dcp.async_save(model.state_dict(), checkpoint_id=&quot;epoch_5&quot;)  
   <p class="ev-take-end">The theme of the night, in one line: move from using AI to building the stack under it.</p>
   <div class="ev-figs ev-figs-wide"><a class="ev-photo" href="/assets/images/events/redhat-pytorch-hf-2026/key-takeaways.webp" data-cap="Mansi's key takeaways slide" target="_self"><img src="/assets/images/events/redhat-pytorch-hf-2026/key-takeaways.webp" alt="Mansi's key takeaways slide" loading="lazy" /><span>Mansi's key takeaways slide</span></a></div>
 </section>
-        <section class="ev-qa" id="questions"><h3>Questions, answered</h3><p class="ev-qa-intro">Questions that came up in my head after the talks. The short answer comes first. Tap one to open it.</p><details class="ev-q" open><summary><span>vLLM or SGLang: when should I use which?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short"><strong>Half true.</strong> &ldquo;SGLang for multi-turn and big MoE, vLLM for the rest&rdquo; is a fair starting rule. It is not a law, and the gap keeps shrinking.</p>
+        <section class="ev-qa" id="questions"><h3>Questions, answered</h3><p class="ev-qa-intro">Three questions that stayed with me after the talks. The short answer comes first. Tap one to open it.</p><details class="ev-q" open><summary><span>vLLM or SGLang: when should I use which?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short"><strong>Half true.</strong> &ldquo;SGLang for multi-turn and big MoE, vLLM for the rest&rdquo; is a fair starting rule. It is not a law, and the gap keeps shrinking.</p>
 <h4>Multi-turn chat: mostly true</h4>
 <p>Each turn re-sends the whole chat so far. A good engine reuses the KV cache from the last turn and only computes the new part.</p>
 <ul>
@@ -509,58 +510,7 @@ future = dcp.async_save(model.state_dict(), checkpoint_id=&quot;epoch_5&quot;)  
 <tr><td>Unusual hardware, brand-new model</td><td>Check both support pages first</td><td>Support, not speed, decides here.</td></tr>
 </tbody></table></div>
 <p><strong>How to decide for real:</strong> replay your own traffic on both. Same GPU, same precision, prefix caching on for both. Measure time to first token, tokens per second and the slowest 1% of requests. Remember the cache only helps if the next turn lands on the same replica, so route sticky. <strong>Match the settings too.</strong> In one 2026 controlled study, much of the default gap between engines came from different defaults such as chunked prefill, not from the cache design. If one engine has chunked prefill on and the other off, you are not comparing the caches.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://lmsys.org/blog/2024-01-17-sglang/">SGLang / RadixAttention post</a> &middot; <a href="https://docs.vllm.ai/en/stable/design/prefix_caching.html">vLLM prefix caching design</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a> &middot; <a href="https://lmsys.org/blog/2025-05-05-large-scale-ep/">SGLang: DeepSeek on 96 H100s</a> &middot; <a href="https://docs.vllm.ai/en/stable/serving/expert_parallel_deployment.html">vLLM expert-parallel docs</a> &middot; <a href="https://arxiv.org/abs/2611.05991">A controlled study of serving-engine settings and caches (2026)</a> &middot; <a href="https://arxiv.org/abs/2605.06544">CCL-Bench</a></p></div></details><details class="ev-q"><summary><span>Why is prefill compute-bound and decode memory-bound?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Because of how much work each byte of weights does. In prefill, one read of the weights serves thousands of tokens. In decode, it serves one.</p>
-<p>Think of <em>FLOPs per byte moved</em>. This is called arithmetic intensity.</p>
-<ul>
-  <li><strong>Prefill:</strong> the whole prompt goes through together. The maths is matrix times matrix. Each weight is loaded once and used for many tokens. The tensor cores stay busy, so you are compute-bound.</li>
-  <li><strong>Decode:</strong> one new token per request per step. The maths is matrix times vector. You load <em>all</em> the weights (and the whole KV cache) to make a single token. The GPU waits on memory.</li>
-</ul>
-<p><strong>A back-of-envelope check.</strong> Llama-3-8B in bf16 is about 16 GB of weights. An H100 SXM moves about 3.35 TB/s. One decode step must read 16 GB, so it takes at least about 4.8 ms. That is roughly 200 tokens per second for one request. This is an upper limit, and real runs reach less. Adarsh's slide showed about 209 tok/s for plain <code>generate()</code>. Check which GPU and precision it used before comparing.</p>
-<p>Batching is the fix. If 64 requests share each weight read, you get close to 64 times more tokens for the same read. This goes on until the KV cache reads start to dominate. Another way to see it: an H100 can do roughly 300 bf16 FLOPs for every byte it reads from memory. Decode at batch 1 does about 1. So you need a very large batch before decode turns compute-bound. That is why continuous batching and cache memory matter so much.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/">NVIDIA: mastering LLM inference optimization</a> &middot; <a href="https://kipp.ly/transformer-inference-arithmetic/">Transformer inference arithmetic</a> &middot; <a href="https://horace.io/brrr_intro.html">Making deep learning go brrr</a></p></div></details><details class="ev-q"><summary><span>Is prefix caching free? Does it change my outputs?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">It is cheap, not free. The cache is the same maths reused, so outputs should match, up to tiny numeric drift.</p>
-<ul>
-  <li><strong>Cost when nothing hits:</strong> SGLang says it saw no noticeable overhead. vLLM V1 reports under 1% throughput loss at a 0% hit rate.</li>
-  <li><strong>Memory:</strong> cached KV lives in the same GPU memory as running requests. Old entries are dropped by least recently used. A busy server may drop your prefix before the next turn arrives.</li>
-  <li><strong>Things that kill hits:</strong> a timestamp or user ID at the <em>start</em> of the prompt; requests spread across replicas with no routing; different LoRA adapters or images (they are part of the hash in vLLM).</li>
-  <li><strong>Outputs:</strong> reusing a cached prefix is exact reuse. But batch shapes and kernels can change, and different kernels give slightly different numbers. Adarsh called this numeric drift. Test if you need bit-exact results.</li>
-</ul>
-<p><strong>Habit to build:</strong> put stable text first (system prompt, tools, documents). Put changing text last.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://docs.vllm.ai/en/stable/design/prefix_caching.html">vLLM prefix caching design</a> &middot; <a href="https://lmsys.org/blog/2024-01-17-sglang/">RadixAttention post</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a></p></div></details><details class="ev-q"><summary><span>My GPU shows 5% busy in the profile. Is bigger the only fix?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">No. Bigger work per launch is one fix. You can also fuse ops, replay launches with CUDA graphs, or cut Python in the hot path.</p>
-<p>Every op has a fixed CPU cost: Python, the dispatcher, the driver. A tiny kernel can finish faster than the CPU can launch the next one. The GPU then sits idle. That is <em>overhead bound</em>.</p>
-<ol>
-  <li><strong>Do more per launch.</strong> Bigger batch, bigger matrices, or merge small ops. This is what the 64 &rarr; 1024 &rarr; 4096 demo showed.</li>
-  <li><strong>Fuse.</strong> <code>torch.compile</code> can merge a matmul with its epilogue (the add, activation or norm after it) into fewer kernels.</li>
-  <li><strong>Replay.</strong> CUDA graphs record a sequence of launches once and replay them in one go. vLLM V1 uses piecewise CUDA graphs for this reason.</li>
-  <li><strong>Trim the CPU path.</strong> Less Python per step, fewer small tensors, avoid syncs like <code>.item()</code> in the loop.</li>
-</ol>
-<p><strong>How to check:</strong> open the trace. Gaps in the GPU lane mean the GPU was waiting for work.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://docs.pytorch.org/docs/stable/profiler.html">torch.profiler docs</a> &middot; <a href="https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html">Profiler recipe</a> &middot; <a href="https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html">torch.compile tutorial</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a></p></div></details><details class="ev-q"><summary><span>Why do models game rewards, and how do I stop it?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Because RL optimizes exactly what the verifier measures. Any gap between &ldquo;the reward&rdquo; and &ldquo;the task&rdquo; will be found.</p>
-<p>This is Goodhart's law, with a very patient searcher. The model tries thousands of paths. If one of them scores without solving the task, the training signal pushes the model towards it.</p>
-<p>Adithya's two stories show it. A <code>try / except: pass</code> wrapper kept code from crashing, so a &ldquo;code runs cleanly&rdquo; reward went up with no maths solved. In the CVE environment, the agent read the fix from the PR, then from git history, then from <code>pip</code>.</p>
-<ul>
-  <li><strong>Test the verifier first.</strong> The gold solution must score 1.0. A no-op must score 0.0.</li>
-  <li><strong>Remove the answer</strong> from the prompt, the repo, the history and the network.</li>
-  <li><strong>Isolate the sandbox.</strong> Offline by default. Allowlist, never block-list.</li>
-  <li><strong>Read rollouts</strong>, not just reward curves. A sudden jump in reward is a smell.</li>
-  <li><strong>Use several signals</strong>, and keep a hidden test the model never trains on.</li>
-</ul>
-<p>The honest summary is on his last slide: reward design is never done. It is only iterated.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://lilianweng.github.io/posts/2024-11-28-reward-hacking/">Reward hacking (Lilian Weng)</a> &middot; <a href="https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/">Specification gaming (DeepMind)</a> &middot; <a href="https://adithyask-rl-environments-guide.hf.space/">The RL environments guide from the talk</a></p></div></details><details class="ev-q"><summary><span>Why GRPO instead of PPO for verifiable rewards?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">GRPO needs no critic (value) model. It scores a group of answers to the same prompt and compares them with each other.</p>
-<ul>
-  <li><strong>PPO</strong> trains a value model next to the policy. It is usually about the size of the policy. That costs memory and adds moving parts.</li>
-  <li><strong>GRPO</strong> samples a group of answers for each prompt, scores them, and uses the group's average (and spread) as the baseline. An answer is good if it beats its siblings.</li>
-  <li>With a program-graded reward like pass or fail, that is simple and works well.</li>
-  <li><strong>Catch:</strong> if every answer in a group gets the same score, all right or all wrong, every advantage is zero. The reward gives no policy-gradient signal for that prompt. (A KL term, if used, can still move the weights.) The task must be neither too easy nor too hard. TRL logs <code>frac_reward_zero_std</code> so you can see how often this happens.</li>
-</ul>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://arxiv.org/abs/2402.03300">DeepSeekMath (introduces GRPO)</a> &middot; <a href="https://arxiv.org/abs/1707.06347">PPO paper</a> &middot; <a href="https://huggingface.co/docs/trl/grpo_trainer">TRL GRPO trainer</a></p></div></details><details class="ev-q"><summary><span>FSDP, tensor parallel, or both?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Start with FSDP. Add tensor parallel inside a node when FSDP alone is not enough. Put the chattiest dimension on the fastest links.</p>
-<ul>
-  <li><strong>FSDP</strong> splits parameters, gradients and optimizer states across data-parallel ranks. It all-gathers one layer at a time. It saves memory and is easy to adopt: Mansi's walkthrough changed only a few lines.</li>
-  <li><strong>Tensor parallel</strong> splits each matmul inside a layer. It needs an all-reduce in almost every layer, so it is very sensitive to latency. Keep it inside a node on NVLink.</li>
-  <li><strong>Memory check:</strong> mixed-precision Adam costs about 16 bytes per parameter (2 weights, 2 grads, 12 optimizer state). A 7B model is about 112 GB before activations. That is why you must shard.</li>
-  <li><strong>Combine when</strong> data parallel alone cannot grow (global batch limit), or a single layer is too heavy. Then add pipeline parallel across nodes, and context parallel for very long sequences.</li>
-</ul>
-<p>With DeviceMesh this is a shape choice: <code>(4, 2)</code> with names <code>dp</code> and <code>tp</code>.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://huggingface.co/spaces/nanotron/ultrascale-playbook">Ultra-Scale Playbook</a> &middot; <a href="https://arxiv.org/abs/1910.02054">ZeRO paper</a> &middot; <a href="https://arxiv.org/abs/1909.08053">Megatron-LM paper</a> &middot; <a href="https://docs.pytorch.org/docs/stable/distributed.fsdp.fully_shard.html">FSDP2 docs</a></p></div></details><details class="ev-q"><summary><span>Is &ldquo;save on 8 GPUs, resume on 16&rdquo; how elastic training works inside frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. Resharding on load is the checkpoint piece. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights.</p>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://lmsys.org/blog/2024-01-17-sglang/">SGLang / RadixAttention post</a> &middot; <a href="https://docs.vllm.ai/en/stable/design/prefix_caching.html">vLLM prefix caching design</a> &middot; <a href="https://vllm.ai/blog/2025-01-27-v1-alpha-release">vLLM V1 release post</a> &middot; <a href="https://lmsys.org/blog/2025-05-05-large-scale-ep/">SGLang: DeepSeek on 96 H100s</a> &middot; <a href="https://docs.vllm.ai/en/stable/serving/expert_parallel_deployment.html">vLLM expert-parallel docs</a> &middot; <a href="https://arxiv.org/abs/2611.05991">A controlled study of serving-engine settings and caches (2026)</a> &middot; <a href="https://arxiv.org/abs/2605.06544">CCL-Bench</a></p></div></details><details class="ev-q"><summary><span>Is &ldquo;save on 8 GPUs, resume on 16&rdquo; how elastic training works inside frameworks?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Only in part. Resharding on load is the checkpoint piece. Elastic training also needs a launcher that notices changes, restarts the workers, and restores more than the weights.</p>
 <p>I first wrote that resharding is &ldquo;exactly what elastic training needs&rdquo;. That was too strong. Here is the fuller picture.</p>
 <h4>The common recipe: checkpoint, restart, reshard</h4>
 <ol>
@@ -578,18 +528,54 @@ future = dcp.async_save(model.state_dict(), checkpoint_id=&quot;epoch_5&quot;)  
 <h4>The newer idea: do not restart everything</h4>
 <p>Mansi listed TorchFT as coming. It aims at fault tolerance per step, without a full-job restart. The rough idea is to run data-parallel replica groups. If one fails, the others keep going, and the failed one catches up from healthy peers. I have not verified the details against its docs, so read the repo before relying on that description.</p>
 <p><strong>In short:</strong> DCP resharding is a necessary piece for elastic restarts. It is not the mechanism. The launcher, the rendezvous and the resume logic make it elastic.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://docs.pytorch.org/docs/stable/elastic/run.html">torchrun / elastic launch docs</a> &middot; <a href="https://docs.pytorch.org/docs/stable/elastic/rendezvous.html">Rendezvous docs</a> &middot; <a href="https://docs.pytorch.org/docs/stable/distributed.checkpoint.html">Distributed checkpoint docs</a> &middot; <a href="https://github.com/pytorch/torchft">TorchFT</a></p></div></details><details class="ev-q"><summary><span>Why does distance cost so much in a GPU cluster?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Farther means more switches, shared links and longer cables. Meta's NCCLX paper reports latency of 1&times; in one rack and 30&times; across data centres.</p>
-<p>The numbers on Arkadip's slide: same rack 1&times;, cross-rack 7&times;, cross-zone 15&times;, cross-DC 30&times;. The NCCLX paper gives the same three figures, as latency compared with the same rack. I could not check how they were measured.</p>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://docs.pytorch.org/docs/stable/elastic/run.html">torchrun / elastic launch docs</a> &middot; <a href="https://docs.pytorch.org/docs/stable/elastic/rendezvous.html">Rendezvous docs</a> &middot; <a href="https://docs.pytorch.org/docs/stable/distributed.checkpoint.html">Distributed checkpoint docs</a> &middot; <a href="https://github.com/pytorch/torchft">TorchFT</a></p></div></details><details class="ev-q"><summary><span>What is AutoParallel, and should I use it instead of writing the plan by hand?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">It is an experimental library that picks the sharding plan for you. You give it a model and a mesh. It scores every option for every op and solves for the cheapest plan over the whole graph. Today it fits standard Transformers best.</p>
+<h4>The problem it targets</h4>
+<p>DTensor chooses the cheapest sharding for each op on its own. It never sees the whole graph, so the full plan may not be the best one. For a plain Transformer that does not matter, because the good plan is well known. It is column-wise on the first linear and row-wise on the next, so the pair needs one all-reduce. For an odd architecture, you would be guessing.</p>
+<h4>What it does, in four steps</h4>
+<ol>
+  <li><strong>Trace</strong> the model into one joint forward and backward graph.</li>
+  <li><strong>List</strong> the valid shardings for each node: replicated, sharded activations, sharded weights, partial results that reduce later.</li>
+  <li><strong>Solve</strong> for one choice per node with an integer linear program. It looks at the whole graph at once, so a choice that looks expensive for one op can win if it saves a redistribution somewhere else.</li>
+  <li><strong>Apply</strong> the chosen placements and return a parallel module. It runs eagerly unless you compile it yourself.</li>
+</ol>
+<h4>What the solver counts as cost</h4>
 <ul>
-  <li>Each extra hop adds a switch, a queue and a chance of congestion.</li>
-  <li>Upper layers of a network are often shared, so traffic from many jobs meets there.</li>
-  <li>Longer cables add delay that no software can remove.</li>
+  <li><strong>Compute.</strong> The larger of the compute time (FLOPs over throughput) and the memory time (bytes over bandwidth), so it is the roofline idea from the learner kit. There is a small launch floor so tiny ops do not look free.</li>
+  <li><strong>Communication.</strong> A model of NCCL, with different speeds inside a node (NVLink) and across nodes (the network). That is why it prefers to keep heavy traffic inside the node.</li>
+  <li><strong>A small tie-breaker</strong> when neighbouring ops disagree, so the plan does not flip back and forth.</li>
+  <li><strong>The prefetch discount.</strong> FSDP-style all-gathers can overlap with the previous layer's compute. You apply this discount explicitly. Without it, the solver sees the full cost and may choose to replicate parameters.</li>
 </ul>
-<p><strong>What to do about it:</strong> place by chattiness. Tensor parallel inside a node. FSDP or data parallel inside a rack or zone. Pipeline parallel, which sends less, across the far links. This is what &ldquo;match the mesh to your topology&rdquo; means.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://engineering.fb.com/2024/08/05/data-center-engineering/roce-network-distributed-ai-training-at-scale/">Meta: RoCE networks for AI training</a> &middot; <a href="https://pytorch.org/blog/torchcomms/">TorchComms blog</a> &middot; <a href="https://arxiv.org/abs/2510.20171">NCCLX paper</a></p></div></details><details class="ev-q"><summary><span>DTensor is &ldquo;locally optimal&rdquo;. Should I worry?</span><i class="fas fa-chevron-down"></i></summary><div class="ev-q-body"><p class="ev-short">Not for standard Transformers. You set the plan by hand. For odd models, AutoParallel is the experimental fix.</p>
-<p>DTensor chooses the cheapest sharding for each op on its own. It never sees the whole graph, so the full plan may not be the best one. JAX's compiler looks at the whole graph, but you give up eager debugging.</p>
-<p>For a Transformer, the good pattern is well known: column-wise on the first linear, row-wise on the next, so you need one all-reduce for the pair. That is the <code>ColwiseParallel</code> and <code>RowwiseParallel</code> plan in the slides. AutoParallel searches for a plan with linear programming over a compiled graph. It is experimental.</p>
-<p class="ev-src"><strong>Sources:</strong> <a href="https://docs.pytorch.org/docs/stable/distributed.tensor.html">DTensor docs</a> &middot; <a href="https://docs.pytorch.org/tutorials/intermediate/TP_tutorial.html">TP tutorial</a> &middot; <a href="https://github.com/meta-pytorch/autoparallel">AutoParallel</a></p></div></details></section>
+<h4>A first look</h4>
+<pre class="ev-code"><code>from torch.distributed.device_mesh import init_device_mesh
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor.placement_types import Shard
+from autoparallel import auto_parallel
+
+mesh = init_device_mesh("cuda", (4,), mesh_dim_names=("dp",))
+with torch.device("meta"):
+    model = MLP(dim=1024, hidden_dim=4096)
+
+# the input is sharded on the batch dimension across the mesh
+sample_x = DTensor.from_local(torch.randn(8, 128, 1024), mesh, [Shard(0)])
+
+parallel_model = auto_parallel(
+    model, mesh,
+    sample_inputs=(sample_x,),
+    out_shardings=(Shard(0),),             # keep the output batch-sharded
+    parameter_memory_budget=(None, None),  # force it to consider sharding parameters
+)
+parallel_model.to_empty(device="cuda")     # then initialise or load weights</code></pre>
+<p>The input is a global shape. At runtime each rank passes only its local shard.</p>
+<h4>Things that trip people up</h4>
+<ul>
+  <li><strong>It replicates everything.</strong> With no parameter memory constraint, full replication is often the cheapest plan on paper. Add the budget, as above.</li>
+  <li><strong>Not stable.</strong> The project says so itself. It needs a PyTorch nightly, newer than 2.10, and the API may change.</li>
+  <li><strong>MoE.</strong> Routing depends on the data, so DTensor placements cannot describe it. You wrap the expert block in <code>local_map</code> and manage that communication by hand. AutoParallel still plans the dense parts around it.</li>
+  <li><strong>Try it without a cluster.</strong> The repo has a HuggingFace example that uses a fake process group, so you can run the trace and the solver on one machine.</li>
+</ul>
+<h4>When I would reach for it</h4>
+<p>For a standard Transformer, write the plan by hand. You know it, you can read it, and you can debug it. Use AutoParallel as a second opinion: let it choose, and compare its plan with yours. It is more interesting for a model whose layout you do not know. In the talk it was in development on LLaMA-3 at 64 and 256 GPUs, and the claim was that it finds FSDP, tensor parallel and expert parallel on its own.</p>
+<p class="ev-src"><strong>Sources:</strong> <a href="https://github.com/meta-pytorch/autoparallel">AutoParallel README</a> &middot; <a href="https://github.com/meta-pytorch/autoparallel/blob/main/docs/getting_started.md">Getting started</a> &middot; <a href="https://github.com/meta-pytorch/autoparallel/blob/main/docs/how_autoparallel_chooses_a_strategy.md">How it chooses a strategy</a> &middot; <a href="https://github.com/meta-pytorch/autoparallel/blob/main/docs/local_map_and_moe.md">MoE and local_map</a> &middot; <a href="https://github.com/meta-pytorch/autoparallel/blob/main/docs/faq.md">FAQ</a> &middot; <a href="https://docs.pytorch.org/docs/stable/distributed.tensor.html">DTensor docs</a></p></div></details><p class="ev-qa-more"><i class="fas fa-graduation-cap"></i><span>The other questions I worked through, on prefill and decode, prefix caching, GPU idle time, reward hacking, GRPO, FSDP and tensor parallel, and network distance, now sit inside the matching modules of the <a href="/events/pytorch-hf-bengaluru-2026/learner-kit/">learner kit</a>.</span></p></section>
         <aside class="ev-kitbanner" id="kit"><div><span class="ev-kit-tag"><i class="fas fa-graduation-cap"></i> Learner kit</span><h3>Want to go deep on all of this?</h3><p>I made a study guide from the evening: 7 modules, an 8-week plan, hands-on exercises, a glossary and every reference in one place.</p></div><a class="ev-btn ev-btn-solid" href="/events/pytorch-hf-bengaluru-2026/learner-kit/" target="_self">Open the learner kit <i class="fas fa-arrow-right"></i></a></aside>
       </article>
     </main>
