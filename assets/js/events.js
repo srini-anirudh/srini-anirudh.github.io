@@ -24,3 +24,31 @@
     if (e.key === "Escape") close(); else if (e.key === "ArrowLeft") show(cur - 1); else if (e.key === "ArrowRight") show(cur + 1);
   });
 })();
+
+/* Contents bar: highlight the section in view, and a soft reveal for the big blocks. */
+(function () {
+  var toc = document.querySelector(".ev-toc");
+  if (!toc || !("IntersectionObserver" in window)) return;
+  var map = {};
+  Array.prototype.forEach.call(toc.querySelectorAll("a[href^='#']"), function (a) { map[a.getAttribute("href").slice(1)] = a; });
+  var vis = {};
+  var spy = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { vis[e.target.id] = e.isIntersecting ? e.intersectionRatio : 0; });
+    var best = null, bv = 0;
+    Object.keys(vis).forEach(function (k) { if (vis[k] > bv) { bv = vis[k]; best = k; } });
+    Object.keys(map).forEach(function (k) { map[k].classList.toggle("on", k === best); });
+    if (best && map[best] && toc.scrollWidth > toc.clientWidth) {
+      var a = map[best]; toc.scrollTo({ left: a.offsetLeft - 16, behavior: "smooth" });
+    }
+  }, { rootMargin: "-90px 0px -45% 0px", threshold: [0, .1, .3, .6] });
+  Object.keys(map).forEach(function (id) { var el = document.getElementById(id); if (el) spy.observe(el); });
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var rv = new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); rv.unobserve(e.target); } });
+  }, { threshold: 0.04 });
+  Array.prototype.forEach.call(document.querySelectorAll(".ev-take, .ev-qa, .ev-kitbanner, .dg"), function (el) {
+    var r = el.getBoundingClientRect();
+    if (r.top < window.innerHeight) return;
+    el.classList.add("ev-reveal"); rv.observe(el);
+  });
+})();
