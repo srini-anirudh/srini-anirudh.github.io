@@ -499,3 +499,31 @@ body.dark-mode .ev-thumb, body.dark-mode .ev-chev, body.dark-mode .ev-expand, bo
 .ev-vs li { margin-bottom: 5px; font-size: 15px; line-height: 1.5; }
 @media (max-width: 700px) { .ev-vs { grid-template-columns: 1fr; } }
 body.dark-mode .ev-vs > div { border-color: #23496a; }
+
+/* v13: Sarvam Epoch page: agenda timeline, 4-up layer cards */
+.ev-sec { margin-top: 36px; scroll-margin-top: 112px; }
+.ev-sec > h3 { margin: 0 0 10px; font-size: 28px; }
+.ev-layers.ev-layers-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 860px) { .ev-layers.ev-layers-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ev-layers.ev-layers-4 .ev-lay:last-child { grid-column: auto; } }
+@media (max-width: 560px) { .ev-layers.ev-layers-4 { grid-template-columns: 1fr; } }
+.ev-agenda { list-style: none; margin: 16px 0 10px; padding: 0 0 0 8px; }
+.ev-ag { position: relative; display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 16px; padding: 12px 0 14px 22px; border-left: 2px solid var(--line); }
+.ev-ag::before { content: ""; position: absolute; left: -7px; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface, #fff); border: 2px solid var(--line); }
+.ev-ag-mine { border-left-color: var(--orange); }
+.ev-ag-mine::before { background: var(--orange); border-color: var(--orange); }
+.ev-ag time { font: 700 13px/1.5 "IBM Plex Mono", ui-monospace, monospace; color: var(--text-soft); padding-top: 3px; }
+.ev-ag-mine time { color: var(--orange-dark); }
+.ev-ag h4 { margin: 0; font: 700 18px/1.3 "Bricolage Grotesque", system-ui, sans-serif; }
+.ev-ag-who { margin: 2px 0 0; color: var(--text-soft); font-size: 14.5px; }
+.ev-ag-note { margin: 4px 0 0; font-size: 14.5px; font-style: italic; }
+.ev-ag-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+.ev-ag-links a { padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--text); font: 600 11.5px/1.5 "IBM Plex Mono", ui-monospace, monospace; text-decoration: none; transition: border-color 160ms ease, color 160ms ease; }
+.ev-ag-links a:hover { border-color: var(--orange); color: var(--orange-dark); }
+.ev-ag-ph { display: inline-block; margin-top: 7px; color: var(--text-soft); font: 500 12px/1.4 "IBM Plex Mono", ui-monospace, monospace; }
+.ev-ag-foot { color: var(--text-soft); font-size: 14.5px; }
+.ev-more-sessions h4 { margin: 20px 0 4px; font: 700 18px/1.3 "Bricolage Grotesque", system-ui, sans-serif; }
+.ev-more-sessions p { color: var(--text-soft); margin: 0 0 6px; }
+.ev-more-sessions li { margin-bottom: 6px; line-height: 1.55; }
+@media (max-width: 640px) { .ev-ag { grid-template-columns: 1fr; gap: 2px; } }
+body.dark-mode .ev-ag::before { background: #071a2c; }
+body.dark-mode .ev-ag, body.dark-mode .ev-ag-links a { border-color: #23496a; }
